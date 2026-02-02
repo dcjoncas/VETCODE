@@ -1,0 +1,1542 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DevReady Vetting Dashboard</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --muted: #5b667a;
+      --text: #0b1220;
+      --line: rgba(11, 18, 32, .10);
+      --green: #7BC043;
+      --green2: #98D34F;
+      --shadow: 0 12px 32px rgba(11, 18, 32, .10);
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background: var(--bg);
+      color: var(--text)
+    }
+
+    .shell {
+      display: flex;
+      min-height: 100vh
+    }
+
+    .sidebar {
+      width: 260px;
+      padding: 18px;
+      border-right: 1px solid var(--line);
+      background: #ffffff
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px
+    }
+
+    .brandMark {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: rgba(123, 192, 67, .15);
+      display: grid;
+      place-items: center;
+      color: var(--green);
+      font-weight: 900
+    }
+
+    .brand h1 {
+      font-size: 16px;
+      margin: 0
+    }
+
+    .user {
+      margin: 14px 0;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: transparent
+    }
+
+    .nav a {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 12px;
+      color: var(--text);
+      text-decoration: none;
+      margin: 6px 0;
+      border: 1px solid transparent
+    }
+
+    .nav a.active {
+      border-color: rgba(123, 192, 67, .35);
+      background: rgba(123, 192, 67, .12)
+    }
+
+    .main {
+      flex: 1;
+      padding: 18px
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #ffffff;
+      box-shadow: var(--shadow)
+    }
+
+    .search {
+      flex: 1
+    }
+
+    .search input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--text)
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(123, 192, 67, .35);
+      background: rgba(123, 192, 67, .12)
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--green)
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 16px;
+      margin-top: 16px
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #ffffff;
+      padding: 14px;
+      box-shadow: var(--shadow)
+    }
+
+    .card h2 {
+      margin: 0 0 8px 0;
+      font-size: 16px
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 13px
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap
+    }
+
+    .btn {
+      cursor: pointer;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-weight: 700
+    }
+
+    .btn.primary {
+      background: linear-gradient(90deg, var(--green), var(--green2));
+      color: #08100a
+    }
+
+    .btn.secondary {
+      background: #f1f5f9;
+      color: var(--text);
+      border: 1px solid var(--line)
+    }
+
+    .btn.ghost {
+      background: #ffffff;
+      color: var(--text);
+      border: 1px solid var(--line)
+    }
+
+    .btn:disabled {
+      opacity: .45;
+      cursor: not-allowed
+    }
+
+    select,
+    input[type="file"],
+    textarea,
+    input {
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--text);
+      padding: 10px
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 140px;
+      resize: vertical
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 12px
+    }
+
+    .kpi {
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: #f7fafc
+    }
+
+    .kpi .label {
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    .kpi .val {
+      font-size: 20px;
+      margin-top: 6px
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px
+    }
+
+    .table th,
+    .table td {
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      font-size: 13px
+    }
+
+    .panel {
+      font-size: 13px;
+      color: #0b1220;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      max-height: 320px;
+      overflow: auto
+    }
+
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px
+    }
+
+    .pill {
+      font-size: 12px;
+      border: 1px solid var(--line);
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #f9fafb
+    }
+
+    .h3 {
+      font-weight: 900;
+      margin: 0 0 6px 0
+    }
+
+    .small {
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    hr.sep {
+      border: none;
+      border-top: 1px solid var(--line);
+      margin: 10px 0
+    }
+
+    .log {
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: #0b1220;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px;
+      max-height: 180px;
+      overflow: auto
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(123, 192, 67, .35);
+      background: rgba(123, 192, 67, .12);
+      font-size: 12px
+    }
+
+    tr.selected {
+      background: #ecfdf5
+    }
+
+    /* Lists (Profiles / JDs) */
+    .listRow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 8px;
+      border-bottom: 1px solid #eef2f7
+    }
+
+    .listRow:last-child {
+      border-bottom: none
+    }
+
+    .listMain {
+      min-width: 0
+    }
+
+    .listTitle {
+      font-weight: 700
+    }
+
+    .listMeta {
+      font-size: 12px;
+      color: #6b7280
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: #eef2ff;
+      color: #1f2937;
+      border: 1px solid #e5e7eb;
+      margin-right: 6px
+    }
+
+    .chip.green {
+      background: #e8f7e8
+    }
+
+    .listActions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end
+    }
+
+    .miniBtn {
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer
+    }
+
+    .miniBtn:hover {
+      background: #f9fafb
+    }
+
+    /* Recommendation Pack */
+    .recGrid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px
+    }
+
+    .recCard {
+      border: 1px solid #eef2f7;
+      border-radius: 14px;
+      padding: 12px;
+      background: #fff
+    }
+
+    .recTitle {
+      font-weight: 800;
+      margin-bottom: 6px
+    }
+
+    .recBody {
+      font-size: 14px;
+      line-height: 1.4
+    }
+
+    .kpiRow {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 6px 0 10px
+    }
+
+    .kpi2 {
+      flex: 1;
+      min-width: 160px;
+      border: 1px solid #eef2f7;
+      border-radius: 12px;
+      padding: 10px;
+      background: #f9fafb
+    }
+
+    .kpi2 .label {
+      font-size: 12px;
+      color: #6b7280
+    }
+
+    .kpi2 .value {
+      font-size: 20px;
+      font-weight: 900
+    }
+
+    .bar {
+      height: 8px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      overflow: hidden;
+      margin-top: 6px
+    }
+
+    .bar>div {
+      height: 100%;
+      background: var(--green)
+    }
+
+    .twoCol {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px
+    }
+
+    @media (min-width: 980px) {
+      .recGrid {
+        grid-template-columns: 1fr 1fr
+      }
+
+      .twoCol {
+        grid-template-columns: 1fr 1fr
+      }
+    }
+
+    /* Views (tabs) */
+    .view {
+      display: none
+    }
+
+    .view.active {
+      display: grid
+    }
+  </style>
+</head>
+
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brandMark">▶</div>
+        <div>
+          <h1>DEVREADY</h1>
+          <div class="muted">Vetting • Tech domain</div>
+        </div>
+      </div>
+      <div class="user">
+        <div class="muted">Welcome back,</div>
+        <div style="font-size:16px;font-weight:800;margin-top:4px">Darrin Joncas</div>
+      </div>
+
+      <nav class="nav">
+        <a class="nav-item active" href="#vetting" data-view="vetting"
+          onclick="showView('vetting'); return false;">Vetting</a>
+        <a class="nav-item" href="#profiles" data-view="profiles"
+          onclick="showView('profiles'); return false;">Profiles</a>
+        <a class="nav-item" href="#jds" data-view="jds" onclick="showView('jds'); return false;">Job Descriptions</a>
+        <a class="nav-item" href="#results" data-view="results" onclick="showView('results'); return false;">Results</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div style="font-weight:800">Vetting Dashboard</div>
+        <div class="muted">Clean profile normalization • Matching & rationale • Exports</div>
+        <div class="search"><input id="q" placeholder="Search for Profiles (name / email)" /></div>
+        <div class="status" id="statusPill">
+          <div class="dot" id="dot"></div>
+          <div><b id="statusText">checking…</b> • <span style="color:var(--green)">v2.10.0</span></div>
+        </div>
+      </div>
+
+      <!-- VETTING -->
+      <div id="view-vetting" class="grid view active">
+        <!-- LEFT -->
+        <section class="card">
+          <h2>DevReady Profile</h2>
+          <div class="muted">Upload a resume to build a normalized profile. Then rank all saved profiles against a saved
+            JD.</div>
+          <div style="margin-top:10px" class="badge">Technology domain • no cross-comparison</div>
+
+          <div class="card" style="margin-top:12px">
+            <div id="profileHeader" style="font-size:18px;font-weight:900">No candidate loaded</div>
+            <div class="muted" id="profileSub">Upload a resume to generate a DevReady profile</div>
+            <div style="margin-top:8px"><span class="badge" id="profileTag">Technology</span></div>
+
+            <div class="kpis">
+              <div class="kpi">
+                <div class="label">Overall Technical</div>
+                <div class="val" id="kpiTech">—</div>
+              </div>
+              <div class="kpi">
+                <div class="label">Backend</div>
+                <div class="val" id="kpiBack">—</div>
+              </div>
+              <div class="kpi">
+                <div class="label">Frontend</div>
+                <div class="val" id="kpiFront">—</div>
+              </div>
+            </div>
+
+            <!-- READYIT (single button) -->
+            <div class="row" style="margin-top:12px">
+              <button class="btn primary" id="btnReadyIT" disabled>ReadyIT</button>
+              <button class="btn secondary" id="btnProfileHtml" disabled>View Profile (HTML)</button>
+              <button class="btn secondary" id="btnProfileDocx" disabled>Download Profile (DOCX)</button>
+              <button class="btn secondary" id="btnProfileJson" disabled>Show Profile JSON</button>
+            </div>
+
+            <div style="margin-top:10px" class="log" id="profileJson" hidden></div>
+
+            <div style="margin-top:10px" class="panel" id="leftDetails" hidden></div>
+
+            <!-- ReadyIT outputs now live on the LEFT (not bottom) -->
+            <div style="margin-top:10px" class="panel" id="leftReadyIT">
+              <div class="h3">ReadyIT Output</div>
+              <div class="small muted">Run <b>ReadyIT</b> after you’ve selected a candidate row and an active JD.</div>
+              <hr class="sep" />
+              <div id="leftAiSuggestion" class="small muted">No ReadyIT output yet.</div>
+            </div>
+
+            <div style="margin-top:10px" class="panel" id="leftScorecard" hidden></div>
+            <div style="margin-top:10px" class="panel" id="leftIQ" hidden></div>
+            <div style="margin-top:10px" class="panel" id="leftExplain" hidden></div>
+
+          </div>
+        </section>
+
+        <!-- RIGHT -->
+        <section class="card">
+          <h2>Process Flow</h2>
+          <div class="muted">Step 1 creates profiles. Step 2 saves JD profiles. Step 3 ranks stored profiles against a
+            chosen JD.</div>
+
+          <div class="card" style="margin-top:12px">
+            <h2>1) Upload Resume & Build Profile</h2>
+            <div class="row">
+              <input id="resumeFile" type="file" />
+              <select id="resumeType">
+                <option value="PDF">PDF</option>
+                <option value="DOCX">DOCX</option>
+              </select>
+              <button class="btn primary" id="btnUpload">Upload & Build</button>
+            </div>
+            <div class="muted" style="margin-top:8px" id="uploadStatus">Idle.</div>
+
+            <div style="margin-top:14px">
+              <div class="muted"><b>Bulk upload</b> (PDF/DOCX) → saves many profiles to DB</div>
+              <div class="row" style="margin-top:8px">
+                <input id="bulkFiles" type="file" multiple />
+                <button class="btn secondary" id="btnBulk">Bulk Upload Resumes</button>
+                <button class="btn secondary" id="btnRefreshLists">Refresh Lists</button>
+              </div>
+              <div class="muted" style="margin-top:8px" id="bulkStatus">No bulk upload run yet.</div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:12px">
+            <h2>2) Save Job Description (JD) → JD Profile</h2>
+            <div class="row" style="margin-bottom:8px">
+              <select id="jdPicker" style="flex:1;min-width:260px"></select>
+              <button class="btn secondary" id="btnLoadJd">Load Picked JD</button>
+            </div>
+            <div class="row">
+              <input id="jdCompany" placeholder="Company (e.g., DevReady)" style="flex:1;min-width:220px" />
+              <input id="jdCompanyUrl" placeholder="Company URL (optional, e.g., https://company.com)"
+                style="flex:1;min-width:260px" />
+            </div>
+            <div class="row" style="margin-top:8px">
+              <input id="jdTitle" placeholder="Job Title (e.g., Senior Full-Stack .NET + React)"
+                style="flex:1;min-width:320px" />
+            </div>
+            <div class="row" style="margin-top:8px">
+              <input id="jdFile" type="file" />
+              <button class="btn secondary" id="btnUploadJdFile">Load JD File (Save)</button>
+              <button class="btn secondary" id="btnSampleJd">Load Sample JD</button>
+            </div>
+            <textarea id="jdText" placeholder="Paste job description here..."></textarea>
+            <div class="row" style="margin-top:8px">
+              <button class="btn primary" id="btnSaveJd">Normalize & Save</button>
+              <button class="btn secondary" id="btnJdHtml" disabled>View JD (HTML)</button>
+              <button class="btn secondary" id="btnJdDocx" disabled>Download JD (DOCX)</button>
+            </div>
+            <div class="muted" style="margin-top:8px" id="jdStatus">No JD saved yet.</div>
+          </div>
+
+          <div class="card" style="margin-top:12px">
+            <h2>3) Rank Stored Profiles</h2>
+            <div class="row">
+              <select id="matchJdPicker" style="flex:1;min-width:260px"></select>
+              <select id="topK">
+                <option value="10">Top 10</option>
+                <option value="30" selected>Top 30</option>
+                <option value="50">Top 50</option>
+                <option value="100">Top 100</option>
+              </select>
+              <button class="btn primary" id="btnRank">Rank Profiles</button>
+            </div>
+            <div class="muted" style="margin-top:8px" id="matchStatus">No match run yet.</div>
+
+            <table class="table" id="resultsTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Candidate</th>
+                  <th>Email</th>
+                  <th>Score</th>
+                  <th>Top matches</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+
+            <div class="row" style="margin-top:10px">
+              <!-- replaced the 3 buttons with ONE -->
+              <button class="btn secondary" id="btnReadyIT2" disabled>ReadyIT</button>
+              <button class="btn ghost" id="btnReportHtml" disabled>Download Report (HTML)</button>
+              <button class="btn ghost" id="btnReportDocx" disabled>Download Report (DOCX)</button>
+            </div>
+
+            <div class="log" id="explainBox" style="margin-top:10px">Select a result row after ranking.</div>
+          </div>
+
+          <div class="card" style="margin-top:12px">
+            <h2>Debug Log</h2>
+            <div class="muted">This shows exactly what the UI is doing (requests + errors).</div>
+            <div class="log" id="logBox"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- PROFILES -->
+      <div id="view-profiles" class="grid view">
+        <section class="card" style="grid-column:1 / -1">
+          <h2>All Profiles</h2>
+          <div class="muted">Saved profiles in the local database.</div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn secondary" onclick="refreshLists()">Refresh</button>
+          </div>
+          <div class="log" id="profilesDump" style="margin-top:10px"></div>
+        </section>
+      </div>
+
+      <!-- JDS -->
+      <div id="view-jds" class="grid view">
+        <section class="card" style="grid-column:1 / -1">
+          <h2>All Job Descriptions</h2>
+          <div class="muted">Saved JD profiles in the local database.</div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn secondary" onclick="refreshLists()">Refresh</button>
+          </div>
+          <div class="log" id="jdsDump" style="margin-top:10px"></div>
+        </section>
+      </div>
+
+      <!-- RESULTS TAB (still exists, but ReadyIT now also fills LEFT instantly) -->
+      <div id="view-results" class="grid view">
+        <section class="card" style="grid-column:1 / -1">
+          <h2>Results</h2>
+          <div class="muted">Scorecards, interview questions, client rationale, and draft email for the selected
+            candidate vs the active JD.</div>
+
+          <div class="row" style="margin-top:10px">
+            <span class="badge" id="activeJdLabel">Active JD: (none)</span>
+            <span class="badge" id="selectedRowLabel">Selected: (none)</span>
+          </div>
+
+          <div style="margin-top:10px" class="panel" id="resultsPanel">
+            <div class="h3">Recommendation Pack</div>
+            <div class="small muted">ReadyIT generates these blocks as one action.</div>
+            <hr class="sep" />
+            <div class="recGrid">
+              <div class="recCard">
+                <div class="recTitle">Scorecard</div>
+                <div id="scorecardHtml" class="recBody muted">No scorecard yet.</div>
+              </div>
+              <div class="recCard">
+                <div class="recTitle">Interview Questions</div>
+                <div id="iqHtml" class="recBody muted">No questions yet.</div>
+              </div>
+              <div class="recCard">
+                <div class="recTitle">Client Rationale</div>
+                <div id="explainHtml" class="recBody muted">No rationale yet.</div>
+              </div>
+              <div class="recCard">
+                <div class="recTitle">Draft Client Email</div>
+                <div id="emailHtml" class="recBody muted">No email yet.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = (() => {
+      const p = window.location.port;
+      if (p === "5500") return "http://127.0.0.1:8000";
+      return window.location.origin;
+    })();
+
+    function log(msg) {
+      const el = document.getElementById("logBox");
+      const ts = new Date().toLocaleTimeString();
+      el.textContent = `[${ts}] ${msg}\n` + el.textContent;
+    }
+
+    function setStatus(ok, text) {
+      document.getElementById("statusText").textContent = text;
+      document.getElementById("dot").style.background = ok ? "var(--green)" : "#ff5b5b";
+      document.getElementById("statusPill").style.borderColor = ok ? "rgba(123,192,67,.35)" : "rgba(255,91,91,.45)";
+      document.getElementById("statusPill").style.background = ok ? "rgba(123,192,67,.10)" : "rgba(255,91,91,.10)";
+    }
+
+    async function api(path, opts = {}) {
+      const url = `${API_BASE}${path}`;
+      log(`FETCH ${opts.method || "GET"} ${url}`);
+      const r = await fetch(url, opts);
+      const txt = await r.text();
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${txt}`);
+      try { return JSON.parse(txt); } catch { return txt; }
+    }
+
+    // Backwards-compatible helper
+    function apiFetch(path, optsOrPayload = null) {
+      if (optsOrPayload && typeof optsOrPayload === 'object') {
+        const looksLikeFetchOpts = ('method' in optsOrPayload) || ('headers' in optsOrPayload) || ('body' in optsOrPayload) || ('signal' in optsOrPayload);
+        if (looksLikeFetchOpts) return api(path, optsOrPayload);
+      }
+      return api(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(optsOrPayload || {})
+      });
+    }
+
+    // FastAPI Form endpoints -> x-www-form-urlencoded
+    function apiPostForm(path, payload = {}) {
+      const form = new URLSearchParams();
+      Object.entries(payload || {}).forEach(([k, v]) => {
+        if (v === undefined || v === null) return;
+        form.append(k, String(v));
+      });
+      return api(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: form.toString()
+      });
+    }
+
+    function setText(id, val) {
+      const e = document.getElementById(id);
+      if (e) e.textContent = (val ?? "");
+    }
+    function setHtml(id, html) {
+      const e = document.getElementById(id);
+      if (e) e.innerHTML = (html ?? "");
+    }
+    function setDisabled(id, disabled) {
+      const e = document.getElementById(id);
+      if (e) e.disabled = !!disabled;
+    }
+
+    function escapeHtml(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+    let selectedProfileId = null;
+    let selectedJdId = null;
+    let latestRank = [];
+    let selectedRow = null;
+
+    async function health() {
+      try {
+        const ctrl = new AbortController();
+        const tmr = setTimeout(() => ctrl.abort(), 3500);
+        const j = await api("/api/health", { signal: ctrl.signal });
+        clearTimeout(tmr);
+        setStatus(true, "ok");
+        log(`HEALTH ok version=${j.version || "?"}`);
+      } catch (e) {
+        setStatus(false, "backend down");
+        log(`HEALTH error: ${e.message || e}`);
+      }
+    }
+
+    function showView(view) {
+      if (view === "viewVetting") view = "vetting";
+      if (view === "viewProfiles") view = "profiles";
+      if (view === "viewJds") view = "jds";
+
+      document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+      const el = document.getElementById("view-" + view);
+      if (el) el.classList.add("active");
+
+      document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+      const nav = document.querySelector(`.nav-item[data-view="${view}"]`);
+      if (nav) nav.classList.add("active");
+
+      try { window.location.hash = view; } catch { }
+      refreshLists();
+    }
+
+    function renderProfile(p) {
+      const name = p?.contact?.full_name || p?.contact?.name || p?.name || "Candidate";
+      const headline = p?.summary?.headline || p?.headline || "DevReady Profile";
+      const email = (p?.contact?.email || "").trim();
+      const loc = [p?.contact?.location_city, p?.contact?.location_region, p?.contact?.location_country].filter(Boolean).join(", ");
+
+      setText("profileHeader", `${name} — ${headline}`);
+      setText("profileSub", (email || "No email captured") + (loc ? ` • ${loc}` : ""));
+
+      setText("kpiTech", p?.scores?.overall_technical?.score ?? "—");
+      setText("kpiBack", p?.scores?.technical_backend?.score ?? "—");
+      setText("kpiFront", p?.scores?.technical_frontend?.score ?? "—");
+
+      setDisabled("btnProfileHtml", !selectedProfileId);
+      setDisabled("btnProfileDocx", !selectedProfileId);
+      setDisabled("btnProfileJson", !selectedProfileId);
+      document.getElementById("profileJson").hidden = true;
+
+      const d = document.getElementById("leftDetails");
+      const skills = p?.skills || {};
+      const top = [];
+      const addTop = (arr) => (arr || []).slice(0, 6).forEach(x => top.push(x));
+      addTop(skills.languages);
+      addTop(skills.frameworks);
+      addTop(skills.cloud_devops);
+      addTop(skills.databases);
+
+      const pills = top.map(x => `<span class="pill">${escapeHtml(x)}</span>`).join("");
+      const strengths = (p?.strengths || []).slice(0, 5).map(s => `<li>${escapeHtml(s)}</li>`).join("");
+      const gaps = (p?.gaps || []).slice(0, 5).map(s => `<li>${escapeHtml(s)}</li>`).join("");
+
+      d.innerHTML = `
+    <div class="h3">Profile Snapshot</div>
+    <div class="small">Stored ID: <b>${escapeHtml(p.profile_id || p?.meta?.profile_id || "")}</b></div>
+    <hr class="sep"/>
+    <div class="small"><b>Scores (out of 10)</b>: Technical ${p?.scores?.overall_technical?.score ?? "—"} • Functional ${p?.scores?.functional?.score ?? "—"} • Business ${p?.scores?.business?.score ?? "—"}</div>
+    <div class="pills">${pills || "<span class='small'>No skills extracted yet.</span>"}</div>
+    ${(p?.summary?.summary_text || "") ? `<hr class="sep"/><div class="small">${escapeHtml(p.summary.summary_text)}</div>` : ""}
+    ${strengths ? `<hr class="sep"/><div class="small"><b>Strengths</b></div><ul>${strengths}</ul>` : ""}
+    ${gaps ? `<hr class="sep"/><div class="small"><b>Gaps / Risks</b></div><ul>${gaps}</ul>` : ""}
+  `;
+      d.hidden = false;
+    }
+
+    function esc(x) { return String(x ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+    function pill(label, cls = "") { return `<span class="chip ${cls}">${esc(label)}</span>`; }
+    function bar10(v) {
+      const n = Math.max(0, Math.min(10, Number(v) || 0));
+      const pct = (n / 10) * 100;
+      return `<div class="bar"><div style="width:${pct}%"></div></div>`;
+    }
+
+    function renderProfilesList(items) {
+      const el = document.getElementById("profilesDump");
+      if (!el) return;
+      if (!items || !items.length) { el.innerHTML = `<div class="muted small">No profiles yet.</div>`; return; }
+      el.innerHTML = items.map(p => {
+        const name = p.full_name || p.name || "(Unnamed)";
+        const email = p.email || "";
+        const domain = p.domain || "technology";
+        const created = (p.created_at || "").split("T")[0];
+        return `
+      <div class="listRow">
+        <div class="listMain">
+          <div class="listTitle">${esc(name)}</div>
+          <div class="listMeta">${pill(domain, "green")} <span class="muted">${esc(email)}</span> • <span class="muted">${esc(created)}</span> • <span class="muted">${esc(p.profile_id)}</span></div>
+        </div>
+        <div class="listActions">
+          <button class="miniBtn" onclick="useProfileInVetting('${esc(p.profile_id)}')">Use in Vetting</button>
+          <button class="miniBtn" onclick="openProfileHtml('${esc(p.profile_id)}')">View HTML</button>
+          <button class="miniBtn" onclick="downloadProfileDocx('${esc(p.profile_id)}')">DOCX</button>
+        </div>
+      </div>`;
+      }).join("");
+    }
+
+    function renderJdsList(items) {
+      const el = document.getElementById("jdsDump");
+      if (!el) return;
+      if (!items || !items.length) { el.innerHTML = `<div class="muted small">No job descriptions yet.</div>`; return; }
+      el.innerHTML = items.map(j => {
+        const company = j.company || "(Company)";
+        const title = j.title || "(Title)";
+        const domain = j.domain || "technology";
+        const created = (j.created_at || "").split("T")[0];
+        return `
+      <div class="listRow">
+        <div class="listMain">
+          <div class="listTitle">${esc(company)} — ${esc(title)}</div>
+          <div class="listMeta">${pill(domain, "green")} <span class="muted">${esc(created)}</span> • <span class="muted">${esc(j.jd_id)}</span></div>
+        </div>
+        <div class="listActions">
+          <button class="miniBtn" onclick="useJdInVetting('${esc(j.jd_id)}')">Use in Vetting</button>
+          <button class="miniBtn" onclick="openJdHtml('${esc(j.jd_id)}')">View HTML</button>
+          <button class="miniBtn" onclick="downloadJdDocx('${esc(j.jd_id)}')">DOCX</button>
+        </div>
+      </div>`;
+      }).join("");
+    }
+
+    function renderScorecardHtml(sc) {
+      const s10 = sc.scores_out_of_10 || sc.scores || {};
+      const techObj = (s10.technical ?? "-");
+      const funObj = (s10.functional ?? "-");
+      const busObj = (s10.business ?? "-");
+      const tech = (typeof techObj === "object" && techObj && "score" in techObj) ? techObj.score : techObj;
+      const fun = (typeof funObj === "object" && funObj && "score" in funObj) ? funObj.score : funObj;
+      const bus = (typeof busObj === "object" && busObj && "score" in busObj) ? busObj.score : busObj;
+      const vertical = sc.vertical || "—";
+      const pros = sc.pros || [];
+      const cons = sc.cons || [];
+      const diffs = sc.differentiators || [];
+      const gaps = sc.gaps || [];
+      return `
+    <div class="kpiRow">
+      <div class="kpi2"><div class="label">Technical (out of 10)</div><div class="value">${esc(tech)}</div>${bar10(tech)}</div>
+      <div class="kpi2"><div class="label">Functional (out of 10)</div><div class="value">${esc(fun)}</div>${bar10(fun)}</div>
+      <div class="kpi2"><div class="label">Business (out of 10)</div><div class="value">${esc(bus)}</div>${bar10(bus)}</div>
+    </div>
+    <div class="twoCol">
+      <div>
+        <div class="small muted">Most proficient vertical</div>
+        <div style="font-weight:800; margin:4px 0 10px">${esc(vertical.primary || vertical || "—")}</div>
+        <div class="small muted">Pros</div>
+        <ul>${pros.map(x => `<li>${esc(x)}</li>`).join("") || "<li class='muted'>—</li>"}</ul>
+        <div class="small muted">Differentiators</div>
+        <ul>${diffs.map(x => `<li>${esc(x)}</li>`).join("") || "<li class='muted'>—</li>"}</ul>
+      </div>
+      <div>
+        <div class="small muted">Cons / Risks</div>
+        <ul>${cons.map(x => `<li>${esc(x)}</li>`).join("") || "<li class='muted'>—</li>"}</ul>
+        <div class="small muted">Gaps to validate</div>
+        <ul>${gaps.map(x => `<li>${esc(x)}</li>`).join("") || "<li class='muted'>—</li>"}</ul>
+      </div>
+    </div>`;
+    }
+
+    function renderIQHtml(qs) {
+      const items = qs.questions || qs || [];
+      return `<ol>${(items || []).map(q => `<li>${esc(q)}</li>`).join("") || "<li class='muted'>No questions returned.</li>"}</ol>`;
+    }
+
+    function renderExplainHtml(ex) {
+      const score = ex.match_score ?? ex.matchScore ?? 0;
+      const top = ex.top_matches || [];
+      const gaps = ex.notable_gaps || [];
+      const excerpt = ex.client_excerpt || "";
+      return `
+    <div class="kpiRow">
+      <div class="kpi2">
+        <div class="label">Match score (out of 100)</div>
+        <div class="value">${esc(score.toFixed ? score.toFixed(1) : score)}</div>
+        <div class="bar"><div style="width:${Math.max(0, Math.min(100, Number(score) || 0))}%"></div></div>
+      </div>
+    </div>
+    <div class="twoCol">
+      <div>
+        <div class="small muted">Top matches</div>
+        <ul>${top.map(x => `<li>${esc(x)}</li>`).join("") || "<li class='muted'>—</li>"}</ul>
+      </div>
+      <div>
+        <div class="small muted">Notable gaps</div>
+        <ul>${gaps.map(x => `<li>${esc(x)}</li>`).join("") || "<li class='muted'>—</li>"}</ul>
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <div class="small muted">Client-ready excerpt</div>
+      <div style="margin-top:6px">${esc(excerpt)}</div>
+    </div>`;
+    }
+
+    function renderEmailHtml(ex) {
+      const raw = ex.draft_client_email || "";
+      const lines = String(raw).split("\n").filter(Boolean);
+      const subject = (lines[0] || "").replace(/^Subject:\s*/i, "");
+      const body = lines.slice(1).join("\n").trim();
+      return `
+    <div class="small muted">Subject</div>
+    <div style="font-weight:800; margin:4px 0 10px">${esc(subject || "")}</div>
+    <div class="small muted">Email</div>
+    <pre style="white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; background:#f9fafb; border:1px solid #eef2f7; border-radius:12px; padding:10px;">${esc(body || raw || "")}</pre>`;
+    }
+
+    function clearRec() {
+      setHtml("scorecardHtml", "<span class='muted'>No scorecard yet.</span>");
+      setHtml("iqHtml", "<span class='muted'>No questions yet.</span>");
+      setHtml("explainHtml", "<span class='muted'>No rationale yet.</span>");
+      setHtml("emailHtml", "<span class='muted'>No email yet.</span>");
+      setHtml("leftAiSuggestion", "<span class='muted'>No ReadyIT output yet.</span>");
+      setHtml("leftScorecard", "");
+      setHtml("leftIQ", "");
+      setHtml("leftExplain", "");
+      document.getElementById("leftScorecard").hidden = true;
+      document.getElementById("leftIQ").hidden = true;
+      document.getElementById("leftExplain").hidden = true;
+    }
+
+    // Global helpers for list page buttons
+    window.openProfileHtml = (id) => window.open(`${API_BASE}/api/profile/${id}/html`, "_blank");
+    window.downloadProfileDocx = (id) => window.open(`${API_BASE}/api/profile/${id}/docx`, "_blank");
+    window.openJdHtml = (id) => window.open(`${API_BASE}/api/jd/${id}/html`, "_blank");
+    window.downloadJdDocx = (id) => window.open(`${API_BASE}/api/jd/${id}/docx`, "_blank");
+
+    window.useProfileInVetting = async (id) => {
+      showView("vetting");
+      await loadProfileIntoLeft(id);
+      log(`Using profile ${id} in vetting.`);
+    };
+    window.useJdInVetting = async (id) => {
+      showView("vetting");
+      document.getElementById("jdPicker").value = id;
+      await loadPickedJd();
+      document.getElementById("matchJdPicker").value = id;
+      log(`Using JD ${id} in vetting.`);
+    };
+
+    async function refreshLists() {
+      try {
+        const ps = await api("/api/profile/list");
+        const jds = await api("/api/jd/list");
+
+        const profiles = Array.isArray(ps) ? ps : [];
+        const jdsList = Array.isArray(jds) ? jds : [];
+
+        renderProfilesList(profiles);
+        renderJdsList(jdsList);
+
+        const jdPicker = document.getElementById("jdPicker");
+        const matchPicker = document.getElementById("matchJdPicker");
+        if (jdPicker) {
+          jdPicker.innerHTML = `<option value="">(pick existing JD)</option>` + jdsList.map(j =>
+            `<option value="${escapeHtml(j.jd_id)}">${escapeHtml((j.company || "") + (j.company ? " — " : "") + (j.title || j.jd_id))}</option>`
+          ).join("");
+        }
+        if (matchPicker) {
+          matchPicker.innerHTML = `<option value="">(select JD to rank)</option>` + jdsList.map(j =>
+            `<option value="${escapeHtml(j.jd_id)}">${escapeHtml((j.company || "") + (j.company ? " — " : "") + (j.title || j.jd_id))}</option>`
+          ).join("");
+        }
+
+        log(`Lists refreshed: profiles=${profiles.length} jds=${jdsList.length}`);
+      } catch (e) {
+        log("refreshLists failed: " + (e?.message || e));
+      }
+    }
+
+    async function uploadResume() {
+      const f = document.getElementById("resumeFile").files[0];
+      if (!f) return alert("Pick a resume file first.");
+      const t = document.getElementById("resumeType").value;
+
+      // Map UI values -> backend expected source_type ("pdf"/"docx")
+      const source_type = (t || "").toLowerCase(); // "pdf" or "docx"
+
+      document.getElementById("uploadStatus").textContent = "Uploading...";
+      const fd = new FormData();
+      fd.append("file", f);
+
+      // Backwards/forwards compatible: send BOTH names so either backend style works
+      fd.append("source_type", source_type);
+      fd.append("file_type", t); // legacy
+      fd.append("domain", "technology");
+
+      try {
+        const j = await api("/api/resume/upload", { method: "POST", body: fd });
+
+        // Support both response shapes:
+        // 1) { profile_id, profile }  (preferred)
+        // 2) direct profile dict with meta.profile_id
+        const prof = (j && typeof j === "object" && j.profile) ? j.profile : j;
+        const pid = (j && typeof j === "object" && j.profile_id) ? j.profile_id : (prof?.meta?.profile_id || prof?.profile_id);
+
+        selectedProfileId = pid || null;
+        renderProfile(prof);
+
+        document.getElementById("uploadStatus").textContent = `Saved profile: ${selectedProfileId || "(unknown id)"}`;
+        await refreshLists();
+      } catch (e) {
+        document.getElementById("uploadStatus").textContent = `Upload failed: ${e.message}`;
+        log(`Upload error: ${e.message}`);
+      }
+    }
+
+    async function bulkUpload() {
+      const files = Array.from(document.getElementById("bulkFiles").files || []);
+      if (!files.length) return alert("Pick one or more files.");
+      document.getElementById("bulkStatus").textContent = "Uploading...";
+      const fd = new FormData();
+      for (const f of files) fd.append("files", f);
+      fd.append("domain", "technology");
+      try {
+        const j = await api("/api/resume/bulk_upload", { method: "POST", body: fd });
+
+        // Support multiple response shapes
+        const added = j.added ?? j.created_count ?? (j.created ? j.created.length : 0) ?? 0;
+
+        document.getElementById("bulkStatus").textContent = `Bulk upload complete. Added: ${added}`;
+        await refreshLists();
+      } catch (e) {
+        document.getElementById("bulkStatus").textContent = `Bulk upload failed: ${e.message}`;
+      }
+    }
+
+    function loadSampleJD() {
+      document.getElementById("jdCompany").value = "DevReady";
+      document.getElementById("jdCompanyUrl").value = "";
+      document.getElementById("jdTitle").value = "Senior Full-Stack Engineer (.NET + React)";
+      document.getElementById("jdText").value = `Senior Full-Stack Engineer (.NET + React) — DevReady
+
+We are seeking a Senior Full-Stack Engineer to build and maintain customer-facing web applications.
+
+Must-have:
+- C# / .NET (ASP.NET Web API), REST APIs, authentication (OAuth/JWT)
+- React (or Angular) with modern JavaScript/TypeScript
+- SQL (PostgreSQL or SQL Server), data modeling, query tuning
+- CI/CD (GitHub Actions or Azure DevOps), Docker
+
+Nice-to-have:
+- Kubernetes, Terraform
+- Testing: unit/integration, TDD
+
+Responsibilities:
+- Deliver features end-to-end, work closely with product
+- Improve reliability, performance, and code quality
+- Participate in design reviews and mentor teammates
+`;
+    }
+
+    async function saveJD() {
+      const company = document.getElementById("jdCompany").value.trim();
+      const title = document.getElementById("jdTitle").value.trim();
+      const text = document.getElementById("jdText").value.trim();
+      if (!company || !title || !text) return alert("Company, Title, and JD text are required.");
+      const fd = new FormData();
+      fd.append("company", company);
+      fd.append("title", title);
+      fd.append("jd_text", text);
+      fd.append("domain", "technology");
+      // keep URL in the UI only (backend may ignore)
+      document.getElementById("jdStatus").textContent = "Saving...";
+      try {
+        const j = await api("/api/jd/normalize", { method: "POST", body: fd });
+        selectedJdId = j.jd_id;
+        document.getElementById("jdStatus").textContent = `Saved JD: ${j.jd_id}`;
+        document.getElementById("btnJdHtml").disabled = false;
+        document.getElementById("btnJdDocx").disabled = false;
+        await refreshLists();
+      } catch (e) {
+        document.getElementById("jdStatus").textContent = `JD save failed: ${e.message}`;
+      }
+    }
+
+    async function uploadJdFile() {
+      const f = document.getElementById("jdFile").files[0];
+      if (!f) return alert("Pick a JD file first.");
+      const company = document.getElementById("jdCompany").value.trim();
+      const title = document.getElementById("jdTitle").value.trim();
+      if (!company || !title) return alert("Company and Title are required for file JD saves.");
+      const fd = new FormData();
+      fd.append("file", f);
+      fd.append("company", company);
+      fd.append("title", title);
+      fd.append("domain", "technology");
+      document.getElementById("jdStatus").textContent = "Uploading JD file...";
+      try {
+        const j = await api("/api/jd/upload", { method: "POST", body: fd });
+        selectedJdId = j.jd_id;
+        document.getElementById("jdText").value = j.jd_text || "";
+        document.getElementById("jdStatus").textContent = `Saved JD from file: ${j.jd_id}`;
+        document.getElementById("btnJdHtml").disabled = false;
+        document.getElementById("btnJdDocx").disabled = false;
+        await refreshLists();
+      } catch (e) {
+        document.getElementById("jdStatus").textContent = `JD file upload failed: ${e.message}`;
+      }
+    }
+
+    async function loadPickedJd() {
+      const id = document.getElementById("jdPicker").value;
+      if (!id) return alert("Pick a JD first.");
+      const j = await api(`/api/jd/${id}`);
+      selectedJdId = id;
+      document.getElementById("jdCompany").value = j.company || "";
+      document.getElementById("jdTitle").value = j.title || "";
+      document.getElementById("jdText").value = j.jd_text || "";
+      // company URL is UI-only unless backend returns it
+      if (j.company_url) document.getElementById("jdCompanyUrl").value = j.company_url;
+      document.getElementById("btnJdHtml").disabled = false;
+      document.getElementById("btnJdDocx").disabled = false;
+      document.getElementById("jdStatus").textContent = `Loaded JD: ${id}`;
+    }
+
+    async function loadProfileIntoLeft(profile_id) {
+      const p = await api(`/api/profile/${encodeURIComponent(profile_id)}`);
+      selectedProfileId = profile_id;
+      renderProfile(p);
+      return p;
+    }
+
+    async function selectRow(r) {
+      selectedRow = r;
+      selectedProfileId = r.profile_id;
+      setText("selectedRowLabel", `Selected: ${r.name || ""} (${r.email || ""})`);
+
+      // Enable ReadyIT buttons
+      setDisabled("btnReadyIT", false);
+      setDisabled("btnReadyIT2", false);
+      setDisabled("btnReportHtml", false);
+      setDisabled("btnReportDocx", false);
+
+      clearRec();
+      await loadProfileIntoLeft(selectedProfileId);
+
+      log(`Selected row: ${r.name} score=${r.score}`);
+    }
+
+    // Normalize match score to 0-100 for correct ranking + display
+    function normalizeScore(raw) {
+      const n = Number(raw);
+      if (!isFinite(n)) return 0;
+
+      // If backend returns 0..1, scale up
+      if (n > 0 && n <= 1) return n * 100;
+
+      // If backend returns 0..10, scale up
+      if (n > 1 && n <= 10) return n * 10;
+
+      // Otherwise assume already 0..100
+      return n;
+    }
+
+    async function rank() {
+      const jd_id = document.getElementById("matchJdPicker").value;
+      selectedJdId = jd_id;
+      setText("activeJdLabel", jd_id ? ("Active JD: " + jd_id) : "Active JD: (none)");
+
+      const top_k = parseInt(document.getElementById("topK").value, 10);
+      if (!jd_id) return alert("Select a job description to rank against.");
+      document.getElementById("matchStatus").textContent = "Ranking...";
+
+      const fd = new FormData();
+      fd.append("domain", "technology");
+      fd.append("jd_id", jd_id);
+      fd.append("top_k", String(top_k));
+
+      try {
+        const j = await api("/api/match/run", { method: "POST", body: fd });
+
+        // Normalize + re-sort defensively (in case backend returns non-100 scale)
+        latestRank = (j.results || []).map(r => ({
+          ...r,
+          _score100: normalizeScore(r.score)
+        }));
+        latestRank.sort((a, b) => (b._score100 || 0) - (a._score100 || 0));
+
+        const tbody = document.querySelector("#resultsTable tbody");
+        tbody.innerHTML = "";
+
+        latestRank.forEach((r, i) => {
+          const tr = document.createElement("tr");
+          tr.style.cursor = "pointer";
+          tr.innerHTML = `<td>${i + 1}</td><td>${r.name || ""}</td><td>${r.email || ""}</td><td>${Math.round(r._score100 || 0)}</td><td>${(r.top_matches || []).slice(0, 6).join(", ")}</td>`;
+          tr.addEventListener("click", () => selectRow(r));
+          tbody.appendChild(tr);
+        });
+
+        document.getElementById("matchStatus").textContent = `Returned ${latestRank.length} results (Top ${top_k}). Click a row to select.`;
+        setDisabled("btnReadyIT", true);
+        setDisabled("btnReadyIT2", true);
+        setDisabled("btnReportHtml", true);
+        setDisabled("btnReportDocx", true);
+        setText("explainBox", "Select a result row after ranking.");
+        clearRec();
+      } catch (e) {
+        document.getElementById("matchStatus").textContent = `Rank failed: ${e.message}`;
+      }
+    }
+
+    /**
+     * Optional company research (requires backend support).
+     * If your backend exposes /api/company/research, it will be used.
+     * If it doesn't exist, this silently no-ops (no breaking).
+     */
+    async function tryCompanyResearch() {
+      const company = (document.getElementById("jdCompany").value || "").trim();
+      const company_url = (document.getElementById("jdCompanyUrl").value || "").trim();
+      const job_title = (document.getElementById("jdTitle").value || "").trim();
+      const jd_text = (document.getElementById("jdText").value || "").trim();
+      if (!company && !company_url) return null;
+
+      try {
+        // You can implement this endpoint server-side to do real web research safely.
+        // Expected return (example):
+        // { summary: "...", product_focus: [...], culture_signals: [...], key_points: [...] }
+        return await apiPostForm("/api/company/research", { company, company_url, job_title, jd_text });
+      } catch (e) {
+        log("Company research skipped (no endpoint or error): " + (e?.message || e));
+        return null;
+      }
+    }
+
+    /**
+     * READYIT:
+     * - runs scorecard + interview questions + explain in one click
+     * - populates Results tab AND the LEFT panels immediately
+     * - includes AI suggestion block (uses explain + optional company research)
+     */
+    async function readyIT() {
+      if (!selectedProfileId || !selectedJdId) {
+        alert("Select a candidate row and ensure an active JD is selected (Rank step).");
+        return;
+      }
+
+      setDisabled("btnReadyIT", true);
+      setDisabled("btnReadyIT2", true);
+      setHtml("leftAiSuggestion", `<span class="muted">Running ReadyIT…</span>`);
+      document.getElementById("leftScorecard").hidden = true;
+      document.getElementById("leftIQ").hidden = true;
+      document.getElementById("leftExplain").hidden = true;
+
+      try {
+        // Try a single combined backend endpoint if you ever add it:
+        // /api/match/readyit -> { scorecard, interview_questions, explain, company_research, ai_suggestion }
+        // If not present, fallback to the 3 existing calls.
+        let bundle = null;
+        try {
+          bundle = await apiPostForm("/api/match/readyit", { profile_id: selectedProfileId, jd_id: selectedJdId });
+        } catch (_) {
+          bundle = null;
+        }
+
+        let ex, sc, iq, companyResearch, aiSuggestion;
+
+        if (bundle && typeof bundle === "object") {
+          ex = bundle.explain || bundle.ex;
+          sc = bundle.scorecard || bundle.sc;
+          iq = bundle.interview_questions || bundle.iq;
+          companyResearch = bundle.company_research || bundle.companyResearch || null;
+          aiSuggestion = bundle.ai_suggestion || bundle.aiSuggestion || null;
+        } else {
+          // Existing endpoints
+          ex = await apiPostForm("/api/match/explain", { profile_id: selectedProfileId, jd_id: selectedJdId });
+          sc = await apiPostForm("/api/match/scorecard", { profile_id: selectedProfileId, jd_id: selectedJdId });
+          iq = await apiPostForm("/api/match/interview_questions", { profile_id: selectedProfileId, jd_id: selectedJdId });
+
+          // Optional company research (only if backend supports it)
+          companyResearch = await tryCompanyResearch();
+          aiSuggestion = null;
+
+          // Optional server-side suggestion endpoint (if you add it)
+          // Expected return: { suggestion_html: "...", bullets: [...], summary: "..." }
+          try {
+            const company = (document.getElementById("jdCompany").value || "").trim();
+            const company_url = (document.getElementById("jdCompanyUrl").value || "").trim();
+            const jd_text = (document.getElementById("jdText").value || "").trim();
+            const job_title = (document.getElementById("jdTitle").value || "").trim();
+            aiSuggestion = await apiPostForm("/api/match/ai_suggestion", {
+              profile_id: selectedProfileId,
+              jd_id: selectedJdId,
+              company,
+              company_url,
+              job_title,
+              jd_text
+            });
+          } catch (e) {
+            // no-op
+            aiSuggestion = null;
+          }
+        }
+
+        // Results tab (unchanged, still populated)
+        setHtml("explainHtml", renderExplainHtml(ex));
+        setHtml("emailHtml", renderEmailHtml(ex));
+        setHtml("scorecardHtml", renderScorecardHtml(sc));
+        setHtml("iqHtml", renderIQHtml(iq));
+
+        // LEFT panels now get the same content
+        const leftSc = document.getElementById("leftScorecard");
+        const leftIq = document.getElementById("leftIQ");
+        const leftEx = document.getElementById("leftExplain");
+
+        leftSc.innerHTML = `<div class="h3">Scorecard</div><hr class="sep"/>` + renderScorecardHtml(sc);
+        leftIq.innerHTML = `<div class="h3">Interview Questions</div><hr class="sep"/>` + renderIQHtml(iq);
+        leftEx.innerHTML = `<div class="h3">Client Rationale</div><hr class="sep"/>` + renderExplainHtml(ex);
+
+        leftSc.hidden = false;
+        leftIq.hidden = false;
+        leftEx.hidden = false;
+
+        // AI suggestion (client-ready) block on LEFT
+        // Priority: backend suggestion -> otherwise build a strong summary using explain + company research
+        let suggestionHtml = "";
+
+        if (aiSuggestion) {
+          if (typeof aiSuggestion === "string") {
+            suggestionHtml = `<div class="h3">AI Fit Suggestion</div><hr class="sep"/><div>${esc(aiSuggestion)}</div>`;
+          } else if (aiSuggestion.suggestion_html) {
+            suggestionHtml = `<div class="h3">AI Fit Suggestion</div><hr class="sep"/>${aiSuggestion.suggestion_html}`;
+          } else if (aiSuggestion.summary || (aiSuggestion.bullets && aiSuggestion.bullets.length)) {
+            suggestionHtml = `<div class="h3">AI Fit Suggestion</div><hr class="sep"/>
+          ${aiSuggestion.summary ? `<div>${esc(aiSuggestion.summary)}</div>` : ""}
+          ${aiSuggestion.bullets?.length ? `<ul>${aiSuggestion.bullets.map(b => `<li>${esc(b)}</li>`).join("")}</ul>` : ""}`;
+          }
+        }
+
+        if (!suggestionHtml) {
+          const company = (document.getElementById("jdCompany").value || "").trim() || "the company";
+          const job = (document.getElementById("jdTitle").value || "").trim() || "the role";
+          const topMatches = (ex?.top_matches || []).slice(0, 6);
+          const gaps = (ex?.notable_gaps || []).slice(0, 3);
+          const excerpt = (ex?.client_excerpt || "").trim();
+
+          const companySummary = companyResearch?.summary
+            ? `<div class="small muted"><b>Company context</b> (researched)</div><div style="margin-top:6px">${esc(companyResearch.summary)}</div>`
+            : `<div class="small muted"><b>Company context</b></div><div style="margin-top:6px" class="muted">No company research available (optional backend endpoint not enabled).</div>`;
+
+          suggestionHtml = `
+        <div class="h3">AI Fit Suggestion</div>
+        <div class="small muted">Candidate vs <b>${esc(company)}</b> • Role: <b>${esc(job)}</b></div>
+        <hr class="sep"/>
+        ${companySummary}
+        <hr class="sep"/>
+        <div class="small muted"><b>Why this is an excellent fit</b></div>
+        <ul>
+          ${topMatches.length ? topMatches.map(m => `<li>${esc(m)}</li>`).join("") : `<li>${esc(excerpt || "Strong alignment to core requirements and delivery expectations.")}</li>`}
+          ${excerpt ? `<li>${esc(excerpt)}</li>` : ""}
+        </ul>
+        ${gaps.length ? `
+          <div class="small muted"><b>What to validate early</b></div>
+          <ul>${gaps.map(g => `<li>${esc(g)}</li>`).join("")}</ul>
+        ` : ""}
+        <div class="small muted" style="margin-top:8px"><b>Next step</b>: use the questions below to confirm the remaining unknowns and fast-track decisioning.</div>
+      `;
+        }
+
+        setHtml("leftAiSuggestion", suggestionHtml);
+
+        // Also update the explainBox (kept for compatibility)
+        setText("explainBox", "ReadyIT complete. Open the Results tab for the full pack (also shown on the left).");
+
+        log("ReadyIT completed.");
+      } catch (e) {
+        setHtml("leftAiSuggestion", `<span class="muted">ReadyIT failed: ${esc(e?.message || e)}</span>`);
+        log("ReadyIT failed: " + (e?.message || e));
+      } finally {
+        setDisabled("btnReadyIT", false);
+        setDisabled("btnReadyIT2", false);
+      }
+    }
+
+    function hook() {
+      document.getElementById("btnUpload").addEventListener("click", uploadResume);
+      document.getElementById("btnBulk").addEventListener("click", bulkUpload);
+      document.getElementById("btnRefreshLists").addEventListener("click", refreshLists);
+      document.getElementById("btnSampleJd").addEventListener("click", loadSampleJD);
+      document.getElementById("btnSaveJd").addEventListener("click", saveJD);
+      document.getElementById("btnUploadJdFile").addEventListener("click", uploadJdFile);
+      document.getElementById("btnLoadJd").addEventListener("click", loadPickedJd);
+      document.getElementById("btnRank").addEventListener("click", rank);
+
+      // READYIT buttons (both map to one action)
+      document.getElementById("btnReadyIT").addEventListener("click", readyIT);
+      document.getElementById("btnReadyIT2").addEventListener("click", readyIT);
+
+      document.getElementById("btnReportHtml").addEventListener("click", () => {
+        if (!selectedProfileId || !selectedJdId) return;
+        window.open(`${API_BASE}/api/match/report/html?profile_id=${encodeURIComponent(selectedProfileId)}&jd_id=${encodeURIComponent(selectedJdId)}`, "_blank");
+      });
+      document.getElementById("btnReportDocx").addEventListener("click", () => {
+        if (!selectedProfileId || !selectedJdId) return;
+        window.open(`${API_BASE}/api/match/report/docx?profile_id=${encodeURIComponent(selectedProfileId)}&jd_id=${encodeURIComponent(selectedJdId)}`, "_blank");
+      });
+
+      document.getElementById("btnProfileJson").addEventListener("click", async () => {
+        if (!selectedProfileId) return;
+        const j = await api(`/api/profile/${selectedProfileId}`);
+        const box = document.getElementById("profileJson");
+        box.hidden = !box.hidden ? true : false;
+        box.textContent = JSON.stringify(j, null, 2);
+      });
+      document.getElementById("btnProfileHtml").addEventListener("click", () => window.open(`${API_BASE}/api/profile/${selectedProfileId}/html`, "_blank"));
+      document.getElementById("btnProfileDocx").addEventListener("click", () => window.location.href = `${API_BASE}/api/profile/${selectedProfileId}/docx`);
+
+      document.getElementById("btnJdHtml").addEventListener("click", () => window.open(`${API_BASE}/api/jd/${selectedJdId}/html`, "_blank"));
+      document.getElementById("btnJdDocx").addEventListener("click", () => window.location.href = `${API_BASE}/api/jd/${selectedJdId}/docx`);
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      log(`UI start; API_BASE=${API_BASE}`);
+      hook();
+      await health();
+      await refreshLists();
+
+      const hv = (window.location.hash || "").replace("#", "").trim();
+      if (hv) showView(hv);
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,7 @@
+
+{
+  "profile_id": "DR-001",
+  "full_name": "John Doe",
+  "email": "john@email.com",
+  "skills": ["Python", "AWS", "Docker"]
+}

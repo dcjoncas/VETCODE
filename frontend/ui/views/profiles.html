@@ -1,0 +1,15 @@
+
+<h2>Profiles</h2>
+<ul id="profiles"></ul>
+<script>
+fetch("/api/profile/list")
+  .then(r => r.json())
+  .then(data => {
+    const ul = document.getElementById("profiles");
+    data.forEach(p => {
+      const li = document.createElement("li");
+      li.textContent = p.profile_id + " — " + (p.email || "");
+      ul.appendChild(li);
+    });
+  });
+</script>

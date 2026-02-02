@@ -1,0 +1,15 @@
+
+<h2>Job Descriptions</h2>
+<ul id="jds"></ul>
+<script>
+fetch("/api/jd/list")
+  .then(r => r.json())
+  .then(data => {
+    const ul = document.getElementById("jds");
+    data.forEach(j => {
+      const li = document.createElement("li");
+      li.textContent = j.jd_id + " — " + j.title;
+      ul.appendChild(li);
+    });
+  });
+</script>

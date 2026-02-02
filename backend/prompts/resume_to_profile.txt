@@ -1,0 +1,11 @@
+
+You MUST return STRICT JSON ONLY.
+No prose, no markdown.
+
+{
+  "profile_id": "DR-XXXX",
+  "full_name": "...",
+  "email": "...",
+  "skills": ["..."],
+  "summary": "One sentence summary"
+}

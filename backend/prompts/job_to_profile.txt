@@ -1,0 +1,8 @@
+
+You MUST return STRICT JSON ONLY.
+No prose, no markdown.
+
+{
+  "job_id": "JD-XXXX",
+  "required_skills": ["..."]
+}

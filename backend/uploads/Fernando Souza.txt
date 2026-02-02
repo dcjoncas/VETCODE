@@ -1,0 +1,127 @@
+Role would involve tasks such as coding custom themes and plugins, optimizing website performance, ensuring security best practices, and collaborating with designers and other team members to meet client requirements.
+
+
+Elementor, on the other hand, is a popular WordPress page builder plugin. It allows users to create custom website layouts visually, using a drag-and-drop interface. Elementor provides a wide range of pre-designed templates, widgets, and styling options, making it easy for users to design and customize their websites without needing to know HTML, CSS, or JavaScript.
+
+
+Summary:
+Fernando Nunes de Souza is an innovative and task-driven Senior WordPress Web Developer with over 8 years of experience in web design and development across digital marketing agencies. He has a successful track record of working on more than 300 websites, consistently identifying and meeting the technological needs of companies through creative innovation. Fernando is proficient in creating user interfaces, troubleshooting plugins and themes, and implementing new features based on user feedback. He is proactive, possesses strong time management and planning skills, pays attention to detail, and works effectively in a team environment.
+
+Top 3 Primary Skills:
+
+    WordPress Development
+    Web Design
+    Problem Solving
+
+Top 3 Secondary Skills:
+
+    SEO (Search Engine Optimization)
+    User Interface Design
+    Training and Mentoring
+
+Top 3 Technical Skills:
+
+    PHP
+    HTML5
+    CSS3
+
+Top 3 Functional Skills:
+
+    Diagnosing and Troubleshooting Websites
+    Providing Training and Support
+    Implementing New Features Based on User Feedback
+
+Top 3 Business Skills:
+
+    Proactivity
+    Time Management
+    Planning Skills
+
+3 Differentiators:
+
+    Record of Success: Fernando has successfully worked on more than 300 websites, showcasing a strong track record of delivering results.
+    Innovative Approach: He consistently identifies and provides technological solutions through creative innovation.
+    Training and Development: Fernando has provided training to over 20 staff members and one mid-level web developer, demonstrating his ability to mentor and share his expertise.
+
+Years of Experience:
+Fernando has over 8 years of experience in web design and development, particularly focusing on WordPress.
+
+Rating out of 10:
+Considering Fernando's extensive experience, skill set, and track record, I would rate him a solid 9 out of 10.
+
+Education and Certifications:
+
+    Information Technologist from Fundação Bradesco (GPA: 3.8/4.0)
+    TOEIC certification from Wizard Language School (Score: 910)
+    Apprenticeship in IT from IBM
+
+
+
+
+
+
+-------------------
+
+Top skill sets for developing in Elementor:
+
+    Elementor Proficiency: Expertise in using the Elementor page builder plugin to create visually appealing and functional websites.
+    WordPress Development: Strong understanding of WordPress CMS and its ecosystem, as Elementor is a WordPress plugin.
+    HTML/CSS: Knowledge of HTML and CSS is essential for customizing Elementor templates and designs.
+    JavaScript: Understanding of JavaScript can enhance the functionality of Elementor-based websites through custom scripts and interactions.
+    Design Sense: Ability to create aesthetically pleasing designs and layouts using Elementor's features and widgets.
+    Responsive Design: Skill in ensuring that Elementor-built websites are responsive and optimized for various devices and screen sizes.
+    SEO Optimization: Knowledge of SEO best practices and how to implement them within Elementor-built websites for better search engine visibility.
+    Troubleshooting: Capability to diagnose and fix issues that may arise during the development process or after deployment.
+    User Experience (UX) Design: Understanding of UX principles to create intuitive and user-friendly interfaces using Elementor.
+    Performance Optimization: Skill in optimizing Elementor websites for speed and performance, including image optimization, caching, and code optimization.
+
+Rate FOR Fernando considering these skill sets and his overall profile:
+
+    Elementor Proficiency: Fernando's experience in WordPress development likely includes proficiency in Elementor, given its popularity among WordPress developers. Rating: 8/10
+    WordPress Development: With over 8 years of experience in web development, Fernando's expertise in WordPress is unquestionable. Rating: 9/10
+    HTML/CSS: Fernando's education and work experience indicate a solid foundation in HTML5 and CSS3. Rating: 8/10
+    JavaScript: While JavaScript proficiency isn't explicitly mentioned, it's likely that Fernando has some familiarity with it given his extensive web development experience. Rating: 7/10
+    Design Sense: Fernando's experience in web design and development suggests a good understanding of design principles. Rating: 8/10
+    Responsive Design: Given Fernando's experience in developing custom WordPress sites, it's likely he has experience in creating responsive designs. Rating: 8/10
+    SEO Optimization: Fernando's experience in digital marketing agencies suggests he's familiar with SEO practices, which would include implementing them in Elementor-built websites. Rating: 8/10
+    Troubleshooting: Fernando's track record of diagnosing and troubleshooting websites indicates proficiency in this area. Rating: 9/10
+    User Experience (UX) Design: While not explicitly mentioned, Fernando's role as a web developer likely involves considerations for user experience. Rating: 7/10
+    Performance Optimization: Fernando's experience in web development likely includes optimizing websites for performance. Rating: 8/10
+
+Overall, Fernando appears to have a strong skill set that aligns well with developing in Elementor, especially considering his extensive experience in WordPress development and web design. I would rate him a solid 8 out of 10 for using Elementor.
+
+
+
+
+As a reminder you will find Fernando's LinkedIn and Resume on the DevReady Platform
+https://dev.readyplatform.io/vetting/2155
+
+We asked him to answer questions about the -- Sikich - Senior WordPress Developer (WordPress, Elementor) role. The questions and his answers are below
+
+== Questions for Fernando ==
+1. Please describe a complex site you've built with Elementor and the specific challenges you faced with Elementor’s site builder on that project. How did you address these challenges?
+2. What strategies and tools do you employ to manage and optimize performance for large-scale WordPress sites, particularly those with a high page count?
+3. Explain how you have implemented structured data to enhance search functionality and integrated API data feeds within a WordPress environment. Can you also share the impact it had on the user experience or the site’s performance?
+4. Provide an example of a situation in which you had to create custom post types and advanced custom fields in WordPress to meet a unique client need. How did you ensure the custom content was easily manageable for non-technical users?
+5. When and how have you used JetEngine and JetPlugins with Elementor? What problems did you overcome by using these Elementor plugins?
+==
+
+== Answers from Fernando ==
+One of my firsts websites was on Elementor, my challenges are that i didn't have enough experience with Elementor, so i had to work it out by searching for online solutions and forums on how to do what i need to do. Everytime i face a challenge i try to search for help as soon as possible searching online to find the faster and better way to solve my problem.
+My strategies are using only needed tools to perform a project, exclude every theme, plugins and tools that i don't need. After done i try to analyze every little detail and see how i can optimize the performance like images and videos compression.
+The work of implementing a structured data starts by doing a good job analyzing what really matter to have in the project.
+In sometimes i did it by using plugins to specific needed. So i customize the layout and panel to my client's need, only letting the fields that my clients needed and after that i did video-calls or videos training them on how to feed content on the website.
+I really don't remember using JetEngine or JetPlugins. If there is the needed of using them i'll search and learn in a faster way to be sure of the deliverability.
+==
+
+
+@Darrin Joncas from a quick look at his answers, I see 4 areas of concern you could dig into for this role
+1.	Depth of Experience with Elementor:
+•	Fernando admits to initially lacking experience with Elementor, which might raise concerns about his depth of expertise in using this specific builder for complex and large-scale projects. This could be a critical gap given the role’s emphasis on extensive Elementor experience.
+2.	Structured Data and API Integration:
+•	His approach to implementing structured data seems basic and primarily reliant on plugins without detailing any complex implementations. There is also no mention of experience with API integrations, which are important for enhancing content management and functionality in large-scale projects.
+3.	Experience with Advanced Tools:
+•	Fernando has not used JetEngine or JetPlugins and seems to lack experience with advanced custom fields beyond basic usage. His willingness to learn is positive, but the role might require someone who can immediately handle these tools without a learning curve.
+4.	Management of Large-scale Websites:
+•	There is a lack of specific mention or evidence of managing high page-count websites or optimizing performance at scale, which are key aspects of the job description.
+

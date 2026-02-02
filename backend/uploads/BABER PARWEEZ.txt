@@ -1,0 +1,196 @@
+Give me a summary and top 3 primary, secondary, technical, functional, business skills, 3 differentiators.  Also tell me how mnay years the candidate has used the technology and rate them out of 10 and list their education and any certifictions:  
+
+
+BABER PARWEEZ
+Full Stack Developer
+baberparweez@gmail.com
+http://baberparweez.github.io
+PROFILE
+Highly motivated and creative with experience in website management, design and
+development. Proficient in producing engaging, SEO-friendly websites catered
+specifically to user requirements. Knowledgeable in multiple programming languages
+with 8+ years experience in website design and development. Committed to working
+with clients and providing excellent service from the briefing of a project through to
+site launch. Outside of web development, I enjoy working with Generative AI as a
+general hobbyist.
+TECHNICAL SKILLS
+Frontend: HTML5, CSS3, SCSS, Webpack, Gulp, Grunt, Tailwind, Bootstrap
+Backend: PHP, NPM, Python, Laravel, Drupal, Composer, REST API
+JavaScript: Vanilla, jQuery, React, Next.js, Vite, TypeScript
+WordPress: ACF, Elementor, Gutenberg, Roots.io, Divi, WP VIP
+E-Commerce: WooCommerce, Shopify, Stripe
+Database/Cloud: MySQL, Prisma, Azure, AWS, Google Cloud Platform
+CI and Deployments: Git-based deployments, Buddy
+Marketing Automation: Eloqua, Pardot, HubSpot, ConvertFlow
+SEO: ContentKing, YoastSEO, RankMath
+Support: Zendesk, Jira, Teamwork, Trello, Todoist, Harvest, ClickUp
+Testing: Adobe Target, Google Optimize, PHPUnit
+UI/UX: Adobe Suite, Figma
+Analytics: Google API Console, Google Analytics, Google Tag Manager
+EXPERIENCE
+WORDPRESS FRONTEND ENGINEER - FIRST & THIRD, REMOTE - SEPT 2023 –
+ONGOING
+Contributed towards a large multisite development shift using Elementor to transition
+multiple insurance websites to WordPress variants hosted on WP VIP. Multiple sites
+were delivered within the span of two weeks which included the setup and
+development of reusable components and globals.
+FREELANCE WORDPRESS ENGINEER - PREFERATI, REMOTE - FEB 2022 –
+ONGOING
+Engaged in diverse web development projects across fintech and other sectors for
+partner agencies such as PixelSpoke and Graybox. Key projects included developing
+modern stack WordPress sites with Gutenberg block development, tailored to the
+specific needs of clients. Successfully delivered projects that focused on enhancing
+user experience and website performance. Collaborated closely with clients to identify
+their needs, resulting in highly customised and efficient web solutions.
+LEAD SOFTWARE ENGINEER - ELDER, REMOTE - FEB 2022 – SEPT 2023
+Led the comprehensive redesign of Elder's public-facing website using Elementor,
+resulting in a significant increase in organic traffic. Utilised a custom Python script for
+seamless data migration from the old site to the new one. Achieved a dramatic
+improvement in Google PageSpeed scores, elevating them from below 50 to over 90
+for both desktop and mobile, which not only boosted SEO performance but also
+reduced the bounce rate. Developed key features such as a JavaScript-based cost of
+care calculator that integrated user region data into GTM, and a React/Vite interactive
+quiz for capturing user-specific care needs. These innovations led to a Year-over-Year
+(YoY) increase in users/sessions, logins, and accounts created, subsequently driving up
+the number of completed Customer Actions (CA). Consistently evolved front-end
+components and fostered effective remote team collaboration, contributing to the
+successful execution of complex projects and an increase in time spent on site per
+session.
+FRONTEND DEVELOPER - EQUIMEDIA, REMOTE - MARCH 2021 – FEB 2022
+Day-to-day work as a front-end developer primarily consisted of Jekyll-compiled site
+development for a large insurance organisation. Worked on Drupal and WordPress
+sites, utilizing Laravel and Webpack in various development methodologies including
+using the Root.io stack with ACF for WordPress and Local by Flywheel/MAMP for local
+development. Significant projects included routine development tasks, along with
+collaborating with an international team on a major pet insurance website. This
+collaboration involved creating an interactive React.js quiz.
+WORDPRESS DEVELOPER - BIG BRAND IDEAS, REMOTE - DEC 2020 – MARCH
+2021
+Development work involved implementing new design updates to existing websites.
+Projects included complete WordPress website builds using the Roots io stack -
+including custom Sage theme development and Bedrock deployment. Legacy
+websites were also updated through refactoring existing codebases to be in line with
+modern web standards and design.
+WEB DEVELOPER - 10 DEGREES, WOKINGHAM - JUNE 2019 – DEC 2020
+Role responsibilities included developing and supporting various WordPress and
+Laravel applications including multi-site and legacy builds. Tasks involved integrating
+third-party solutions with the backend systems, using block-centric development to
+build custom themes/plugins for clients, ensuring the CMS backend was optimised for
+client use and preparation of site/application launch using Buddy deployment
+automation. Notable projects included work on backend editor software solutions for
+the Totaljobs editorial site. Support tickets were also handled via the Zendesk
+platform.
+WEB DEVELOPER - JERRAM, READING - JULY 2016 – MAY 2019
+Tasks as a full stack developer included ensuring WordPress instances and plugins
+remained up to date and assisting clients with contracted maintenance support by
+providing precise and timely support in response to queries. Daily tasks involved setup
+and development of websites, deployment through GitHub and testing/bug-fixing
+sites post-live. Marketing Automation tasks were also deployed using Eloqua, Pardot
+and HubSpot. Notable projects included the rebrand, redesign and marketing build of
+a technology support and consultancy business that supports a wide range of
+enterprise IT environments, specialising in IBM and Microsoft platforms. This included
+managing undocumented and legacy code effectively.
+EDUCATION
+BUCKINGHAMSHIRE NEW UNIVERSITY, HIGH WYCOMBE - SEPT 2013 - 2016
+Bsc ( Hons) Computing and Web Development 2:1
+View my university portfolio of work at https://www.behance.net/baberparweez
+PROJECTS
+TBA - NOV 2023 – ONGOING
+An online SAAS website created for a personal idea. Originally planned after a few
+iterations of similar work requested in previous job roles—development is being
+carried out using Next.js with Prisma/AWS for database, Kinde for user authentication
+and Tailwind CSS (Shadcn) for styling. The web app is currently offline and being
+developed locally but will be live with a first iteration soon.
+ALL CURVES - OCT 2022 – ONGOING
+All Curves is an online e-commerce website created for a Brazilian client. The initial
+concept used Next.js for the frontend, Sanity.io for the backend and Stripe for
+payments. This final iteration was updated to use WordPress and WooCommerce due
+to my experience in order to provide better support and ongoing maintenance.
+QR MAPS - JAN 2016 – MAY 2016
+Development of a new QR mapping and data mapping service that allows predefined
+clients and affiliated users to see personal multimedia clips retrieved from a database
+and mapped out onto web interface markers. As the sole developer for the project, I
+focused on the background research, design, development and testing of the final
+development. The tech stack used in this project was PHP, HTML, CSS and JavaScript.
+DRUMBOT - OCT 2015 – JAN 2016
+DrumBot was the design, implementation, testing and publishing of an android
+application. The original concept of the Android ‘Drumbot’ application was an
+electronic dance music drum machine. The application design was based on the MPC
+interface. All sounds used within the application were developed personally using the
+FL Studio 10 music production software. The SoundPool method was used to manage
+and play the audio.
+CODING CONTRIBUTIONS
+GitHub: https://github.com/baberparweez
+CodePen: https://codepen.io/baberparweez/
+Stack Overflow: https://stackoverflow.com/users/4778066/baber-parweez
+SOCIAL MEDIA
+http://linkedin.com/in/baberparweez/
+https://twitter.com/devwithmoham
+REFERENCES
+Dan Menzies
+Senior Software Engineer, Systems Analyst & Designer
+Phoenix Online (UK) Ltd
++447552434309
+phoenixonline.io
+Jack Walsh
+Growth Product Manager, Senior UX/UI Designer
++447511891210
+info@aintgotjack.co.uk
+
+
+
+Summary
+
+Baber Parweez is a highly motivated Full Stack Developer with over 8 years of experience in website design and development. He is proficient in a wide range of programming languages and technologies, specializing in creating SEO-friendly, user-centric websites. Baber's portfolio includes extensive work with WordPress, PHP, JavaScript frameworks, and various database and cloud solutions. He enjoys working on generative AI projects as a hobby and has a strong commitment to client service from project start through to site launch.
+Primary Skills
+
+    Full Stack Development - Proficient in both front-end and back-end technologies including HTML, CSS, JavaScript, PHP, Python, and various frameworks and libraries.
+    WordPress Development - Extensive experience with WordPress site building, themes, and plugins; particularly with Elementor, Gutenberg, and custom theme development.
+    UI/UX Design - Skilled in using tools like Adobe Suite and Figma for designing engaging user interfaces and experiences.
+
+Secondary Skills
+
+    SEO Optimization - Knowledgeable in tools like YoastSEO and Google Analytics to enhance website search engine rankings.
+    Cloud Technologies - Experienced with AWS, Azure, and Google Cloud Platform for hosting and managing applications.
+    E-commerce Solutions - Proficient with WooCommerce and Shopify for developing robust online stores.
+
+Technical Skills
+
+    Languages & Frameworks - HTML5, CSS3, SCSS, JavaScript (React, TypeScript), PHP, Python, Laravel.
+    Database Management - Skilled in MySQL, Prisma, and integrating database technologies with backend systems.
+    Continuous Integration & Deployment - Experienced with Git-based deployments, Buddy, and using CI tools to streamline development workflows.
+
+Functional Skills
+
+    Project Management - Able to lead projects, coordinate with teams, and manage timelines effectively.
+    Client Interaction - Excellent at understanding client needs and translating them into technical solutions.
+    Performance Optimization - Demonstrated ability to improve website performance metrics and SEO.
+
+Business Skills
+
+    Client Relationship Management - Strong focus on providing excellent service and maintaining relationships.
+    Analytical Thinking - Proficient in leveraging data and analytics to drive decisions and improve website functionalities.
+    Innovative Problem-Solving - Capable of developing innovative solutions to complex problems.
+
+Differentiators
+
+    Generative AI Hobbyist - Unique interest in generative AI, enriching his technical toolkit and creative problem-solving abilities.
+    Rapid Deployment Capabilities - Proven track record in delivering multiple sites within stringent timelines.
+    High Performance Standards - Achieved dramatic improvements in Google PageSpeed scores and user engagement metrics.
+
+Experience with Technologies
+
+    HTML/CSS/JavaScript/PHP/Python: 8+ years, rated 9/10
+    WordPress: 8 years, rated 9/10
+    React/TypeScript: 4 years, rated 8/10
+    AWS/Azure/GCP: 3 years, rated 8/10
+
+Education
+
+    BSc (Hons) Computing and Web Development, Buckinghamshire New University (2013 - 2016)
+
+Certifications
+
+    No specific certifications listed in the resume provided.
+
+
