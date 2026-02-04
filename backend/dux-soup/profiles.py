@@ -34,7 +34,7 @@ def getProfilePDF(profileURL) -> str:
         "targeturl": duxSoupBaseURL,
         "timestamp": int(time.time() * 1000),
         "userid": userID,
-        "command": "profiletopdf",
+        "command": "savetopdf",
         "params": {
             "profile": profileURL
         }
