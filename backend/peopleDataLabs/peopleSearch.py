@@ -18,11 +18,17 @@ def searchSkills(skillList: list[str]):
     }
 
     payload = {
-        "skills": skillList,
-        "limit": 10
+        "query": {
+            "bool": {
+                "must": [
+                    {"term": {"skills": skill}} for skill in skillList
+                ]
+            }
+        },
+        "size": 5
     }
 
-    response = requests.post(url, headers=headers, data=json.dumps(payload))
+    response = requests.post(url, headers=headers, json=payload)
 
     if response.status_code == 200:
         return response.json()
