@@ -564,6 +564,23 @@
             <div style="margin-top:10px" class="panel" id="leftExplain" hidden></div>
 
           </div>
+
+          <div class="card" id="dux-soup-pdf-search" style="margin-top:12px">
+            <h2>Dux Soup Profile to PDF</h2>
+            <div class="muted">LinkedIn Profile URL.</div>
+            <div class="row" style="margin-top:8px">
+              <input id="linkedInURL" placeholder="Enter LinkedIn Profile URL" style="flex:1;min-width:220px" />
+              <button class="btn secondary" id="btnDuxSoupProfilePDF">Queue Profile</button>
+            </div>
+          </div>
+
+          <div class="card" id="dux-soup-message" style="margin-top:12px">
+            <h2>Message a Candidate</h2>
+            <div class="muted">Message the selected candidate.</div>
+            <div class="row" style="margin-top:8px">
+              <input id="messageInput" placeholder="Enter your message" style="flex:1;min-width:220px" />
+              <button class="btn secondary" id="btnSendMessage">Send Message</button>
+          </div>
         </section>
 
         <!-- RIGHT -->
@@ -1490,6 +1507,22 @@ Responsibilities:
       }
     }
 
+    async function duxSoupProfileToPDF(params) {
+      const linkedInProfileUrl = document.getElementById("linkedInURL").value;
+      if (!linkedInProfileUrl) return;
+
+      await apiPostForm("/api/duxsoup/profileToPDF", { linkedInProfileUrl });
+    }
+
+    async function sendLinkedInMessage(params) {
+      const message = document.getElementById("messageInput").value;
+      selectedProfileId = document.getElementById("linkedInURL").value; // For testing purposes only
+
+      if (!selectedProfileId || !message) return;
+        
+      await apiPostForm("/api/linkedin/sendMessage", { selectedProfileId, message });
+    }
+
     function hook() {
       document.getElementById("btnUpload").addEventListener("click", uploadResume);
       document.getElementById("btnBulk").addEventListener("click", bulkUpload);
@@ -1500,9 +1533,13 @@ Responsibilities:
       document.getElementById("btnLoadJd").addEventListener("click", loadPickedJd);
       document.getElementById("btnRank").addEventListener("click", rank);
 
+      document.getElementById("btnDuxSoupProfilePDF").addEventListener("click", duxSoupProfileToPDF);
+
       // READYIT buttons (both map to one action)
       document.getElementById("btnReadyIT").addEventListener("click", readyIT);
       document.getElementById("btnReadyIT2").addEventListener("click", readyIT);
+
+      document.getElementById("btnSendMessage").addEventListener("click", sendLinkedInMessage);
 
       document.getElementById("btnReportHtml").addEventListener("click", () => {
         if (!selectedProfileId || !selectedJdId) return;

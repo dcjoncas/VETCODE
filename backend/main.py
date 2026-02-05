@@ -178,7 +178,7 @@ from jd_match import normalize_jd, match
 from profile_schema import new_id
 import storage
 from renderers import profile_to_html, profile_to_docx, jd_to_html, jd_to_docx, match_report_to_html, match_report_to_docx
-
+import duxSoup.duxProfiles as duxProfiles  # for future use
 VERSION = "v2.8.6"
 DB_PATH = "devready.db"
 UPLOAD_DIR = "uploads"
@@ -677,6 +677,22 @@ def match_report_docx(profile_id: str, jd_id: str, domain: str = "technology"):
     match_report_to_docx(out_path, p, jd, scorecard, interview, explain)
     return FileResponse(out_path, filename=os.path.basename(out_path), media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
+@app.post("/api/linkedin/sendMessage")
+def send_linkedin_message(
+    selectedProfileId: str = Form(...),
+    message: str = Form(...)
+):
+    print(f"Sending LinkedIn message to profile ID {selectedProfileId} with message: {message}")
+    outcome = duxProfiles.sendLinkedInMessage(selectedProfileId, message)
+    print('Results: ' + str(outcome))
+
+@app.post("/api/duxsoup/profileToPDF")
+def profile_to_pdf(
+    linkedInProfileUrl: str = Form(...)
+):
+    print(f"Exporting profile ID {linkedInProfileUrl} to PDF")
+    outcome = duxProfiles.getProfilePDF(linkedInProfileUrl)
+    print('Results: ' + str(outcome))
 
 @app.get("/", response_class=HTMLResponse)
 def root():
