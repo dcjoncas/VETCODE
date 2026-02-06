@@ -1,0 +1,866 @@
+{
+  "status": 200,
+  "data": [
+    {
+      "id": "QGdLhBUQCcsCMW1n0-6DKg_0000",
+      "full_name": "stephen larson",
+      "first_name": "stephen",
+      "middle_initial": "a",
+      "middle_name": null,
+      "last_initial": "l",
+      "last_name": "larson",
+      "sex": "male",
+      "birth_year": 1965,
+      "birth_date": null,
+      "linkedin_url": "linkedin.com/in/stephendavidlarson",
+      "linkedin_username": "stephendavidlarson",
+      "linkedin_id": "8947466",
+      "headline": "Chief Executive Officer at MetaCell",
+      "facebook_url": "facebook.com/stephenlarson",
+      "facebook_username": "stephenlarson",
+      "facebook_id": "3322904",
+      "twitter_url": "twitter.com/slars0n",
+      "twitter_username": "slars0n",
+      "github_url": "github.com/slarson",
+      "github_username": "slarson",
+      "work_email": "stephen@openworm.org",
+      "personal_emails": [
+        "stephenlarson@gmail.com",
+        "stephen.larson@gmail.com",
+        "lrgraci@aol.com"
+      ],
+      "recommended_personal_email": "stephenlarson@gmail.com",
+      "mobile_phone": "+14146400285",
+      "industry": "biotechnology",
+      "job_title": "co-founder, project coordinator",
+      "job_title_role": "fulfillment",
+      "job_title_sub_role": "project_management",
+      "job_title_class": "services",
+      "job_title_levels": ["owner"],
+      "job_company_id": "kCcB8S8NyWvh2nfuP4VklATY8znO",
+      "job_company_name": "openworm foundation",
+      "job_company_website": "openworm.org",
+      "job_company_size": "11-50",
+      "job_company_founded": 2010,
+      "job_company_industry": "research",
+      "job_company_linkedin_url": "linkedin.com/company/openworm",
+      "job_company_linkedin_id": "2886436",
+      "job_company_facebook_url": "facebook.com/openworm",
+      "job_company_twitter_url": "twitter.com/openworm",
+      "job_company_type": "nonprofit",
+      "job_company_ticker": null,
+      "job_company_location_name": "new york, new york, united states",
+      "job_company_location_locality": "new york",
+      "job_company_location_metro": "new york, new york",
+      "job_company_location_region": "new york",
+      "job_company_location_geo": "40.75,-73.98",
+      "job_company_location_street_address": "1995 broadway",
+      "job_company_location_address_line_2": "17th floor",
+      "job_company_location_postal_code": "10023",
+      "job_company_location_country": "united states",
+      "job_company_location_continent": "north america",
+      "job_company_employee_count": 10,
+      "job_company_inferred_revenue": "$1M-$10M",
+      "job_company_12mo_employee_growth_rate": -0.0909,
+      "job_company_total_funding_raised": null,
+      "job_last_changed": "2018-11-11",
+      "job_last_verified": "2025-12-08",
+      "job_start_date": "2011-01",
+      "job_summary": "An open science project uniting scientists and engineers to build the world�s first computational model of a living organism for the purpose of deepening understanding of causal events within living systems. http://openworm.org",
+      "location_name": "boston, massachusetts, united states",
+      "location_locality": "boston",
+      "location_metro": "boston, massachusetts",
+      "location_region": "massachusetts",
+      "location_country": "united states",
+      "location_continent": "north america",
+      "location_street_address": null,
+      "location_address_line_2": null,
+      "location_postal_code": null,
+      "location_geo": "42.34,-71.03",
+      "location_last_updated": "2025-12-08",
+      "linkedin_connections": 1295,
+      "inferred_salary": "85,000-100,000",
+      "inferred_years_experience": 22,
+      "summary": "Stephen Larson is the CEO of MetaCell, global leaders in neuroscience software, with clients ranging from top-20 academic institutions to big pharma. He is a cofounder of the international OpenWorm project that is constructing a detailed digital simulation of a whole animal in an open science fashion. He has and co-developed a patent, presented at more than two dozen forums and published over a dozen articles in academic journals such as Nature and Frontiers in Neuroscience. Stephen has had his work featured in the Economist, the New York Times, Wired, the Atlantic, at two TEDx forums and a Science Channel show with Morgan Freeman. He holds a Bachelor and Masters from MIT in Computer Science with a focus on Artificial Intelligence and received a PhD in Neuroscience from the University of California, San Diego. \n\nHe previously served as the Chief Information Officer of One Mind for Research, a non-profit dedicated to eradicating brain disease through innovative public-private partnerships. He has worked as a professional software engineer for a major global investment bank He has served as a mentor in the Google Summer of Code program, a volunteer leader in the Startup Leadership Program, an entrepreneurial incubator, and the INCF, an international organization for coordinating the information science of neuroscience.",
+      "phone_numbers": [
+        "+14142417233",
+        "+14146400285",
+        "+13478783679",
+        "+14147025004",
+        "+14147022717",
+        "+14143270627",
+        "+18476320527"
+      ],
+      "emails": [
+        { "address": "stephen@metacell.us", "type": "professional" },
+        { "address": "stephen.larson@gmail.com", "type": "personal" },
+        { "address": "stephen@openworm.org", "type": "current_professional" },
+        { "address": "lrgraci@aol.com", "type": "personal" },
+        { "address": "stephenlarson@gmail.com", "type": "personal" }
+      ],
+      "interests": [
+        "arts and culture",
+        "health",
+        "politics",
+        "science and technology"
+      ],
+      "skills": [
+        "algorithms",
+        "analysis",
+        "artificial intelligence",
+        "bioinformatics",
+        "biotechnology",
+        "computational biology",
+        "computer science",
+        "data analysis",
+        "databases",
+        "debate",
+        "engineering",
+        "entrepreneurship",
+        "excel",
+        "genomics",
+        "java",
+        "latex",
+        "life sciences",
+        "lifesciences",
+        "linux",
+        "machine learning",
+        "mathematical modeling",
+        "matlab",
+        "microsoft excel",
+        "microsoft office",
+        "molecular biology",
+        "mysql",
+        "neuroscience",
+        "perl",
+        "politics",
+        "programming",
+        "python",
+        "r",
+        "research",
+        "science",
+        "signal processing",
+        "social engineering",
+        "software development",
+        "software engineering",
+        "start ups",
+        "statistics",
+        "strategic analysis",
+        "strategic thinking",
+        "strategy",
+        "strategy development",
+        "teaching",
+        "writing"
+      ],
+      "location_names": [
+        "boston, massachusetts, united states",
+        "oak creek, wisconsin, united states",
+        "carol stream, illinois, united states",
+        "des plaines, illinois, united states",
+        "franklin, wisconsin, united states",
+        "milwaukee, wisconsin, united states",
+        "west allis, wisconsin, united states",
+        "wheeling, illinois, united states",
+        "anchorage, alaska, united states",
+        "chicago, illinois, united states",
+        "san diego, california, united states",
+        "la jolla, california, united states"
+      ],
+      "regions": [
+        "massachusetts, united states",
+        "wisconsin, united states",
+        "illinois, united states",
+        "alaska, united states",
+        "california, united states"
+      ],
+      "countries": ["united states"],
+      "street_addresses": [
+        {
+          "name": "des plaines, illinois, united states",
+          "locality": "des plaines",
+          "region": "illinois",
+          "metro": "chicago, illinois",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "10057 linda lane",
+          "address_line_2": "apartment 2e",
+          "postal_code": "60016",
+          "geo": "42.01,-87.89"
+        },
+        {
+          "name": "des plaines, illinois, united states",
+          "locality": "des plaines",
+          "region": "illinois",
+          "metro": "chicago, illinois",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "10057 linda lane",
+          "address_line_2": "apartment 2w",
+          "postal_code": "60016",
+          "geo": "42.01,-87.89"
+        },
+        {
+          "name": "milwaukee, wisconsin, united states",
+          "locality": "milwaukee",
+          "region": "wisconsin",
+          "metro": "milwaukee, wisconsin",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "1308 north 22nd street",
+          "address_line_2": null,
+          "postal_code": "53205",
+          "geo": "43.06,-87.90"
+        },
+        {
+          "name": "milwaukee, wisconsin, united states",
+          "locality": "milwaukee",
+          "region": "wisconsin",
+          "metro": "milwaukee, wisconsin",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "1323 south 85th street",
+          "address_line_2": null,
+          "postal_code": "53214",
+          "geo": "43.06,-87.90"
+        },
+        {
+          "name": "west allis, wisconsin, united states",
+          "locality": "west allis",
+          "region": "wisconsin",
+          "metro": null,
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "1323 south 85th street",
+          "address_line_2": null,
+          "postal_code": "53214",
+          "geo": "43.01,-88.01"
+        },
+        {
+          "name": "milwaukee, wisconsin, united states",
+          "locality": "milwaukee",
+          "region": "wisconsin",
+          "metro": "milwaukee, wisconsin",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "1528 south 58th street",
+          "address_line_2": null,
+          "postal_code": "53214",
+          "geo": "43.06,-87.90"
+        },
+        {
+          "name": "west allis, wisconsin, united states",
+          "locality": "west allis",
+          "region": "wisconsin",
+          "metro": null,
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "1528 south 58th street",
+          "address_line_2": null,
+          "postal_code": "53214",
+          "geo": "43.01,-88.01"
+        },
+        {
+          "name": "west allis, wisconsin, united states",
+          "locality": "west allis",
+          "region": "wisconsin",
+          "metro": null,
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "1731 south 57th street",
+          "address_line_2": "#315",
+          "postal_code": "53214",
+          "geo": "43.01,-88.01"
+        },
+        {
+          "name": "oak creek, wisconsin, united states",
+          "locality": "oak creek",
+          "region": "wisconsin",
+          "metro": "milwaukee, wisconsin",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "2527 west hilltop lane",
+          "address_line_2": null,
+          "postal_code": "53154",
+          "geo": "42.88,-87.89"
+        },
+        {
+          "name": "milwaukee, wisconsin, united states",
+          "locality": "milwaukee",
+          "region": "wisconsin",
+          "metro": "milwaukee, wisconsin",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "2842 south 35th street",
+          "address_line_2": null,
+          "postal_code": "53215",
+          "geo": "43.06,-87.90"
+        },
+        {
+          "name": "milwaukee, wisconsin, united states",
+          "locality": "milwaukee",
+          "region": "wisconsin",
+          "metro": "milwaukee, wisconsin",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "28422844 south 35th street",
+          "address_line_2": null,
+          "postal_code": "53215",
+          "geo": "43.06,-87.90"
+        },
+        {
+          "name": "wheeling, illinois, united states",
+          "locality": "wheeling",
+          "region": "illinois",
+          "metro": "chicago, illinois",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "300 inwood drive",
+          "address_line_2": "apartment 302",
+          "postal_code": "60090",
+          "geo": "42.13,-87.92"
+        },
+        {
+          "name": "milwaukee, wisconsin, united states",
+          "locality": "milwaukee",
+          "region": "wisconsin",
+          "metro": "milwaukee, wisconsin",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "300 south 76th street",
+          "address_line_2": null,
+          "postal_code": "53214",
+          "geo": "43.06,-87.90"
+        },
+        {
+          "name": "franklin, wisconsin, united states",
+          "locality": "franklin",
+          "region": "wisconsin",
+          "metro": "milwaukee, wisconsin",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "3029 west plaza drive",
+          "address_line_2": null,
+          "postal_code": "53132",
+          "geo": "42.89,-88.00"
+        },
+        {
+          "name": "chicago, illinois, united states",
+          "locality": "chicago",
+          "region": "illinois",
+          "metro": "chicago, illinois",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "335 flinderation road",
+          "address_line_2": null,
+          "postal_code": "60608",
+          "geo": "41.82,-87.66"
+        },
+        {
+          "name": "milwaukee, wisconsin, united states",
+          "locality": "milwaukee",
+          "region": "wisconsin",
+          "metro": "milwaukee, wisconsin",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "5319 north 25th street",
+          "address_line_2": null,
+          "postal_code": "53209",
+          "geo": "43.06,-87.90"
+        },
+        {
+          "name": "wheeling, illinois, united states",
+          "locality": "wheeling",
+          "region": "illinois",
+          "metro": "chicago, illinois",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "561 fairway view drive",
+          "address_line_2": "apartment 3a",
+          "postal_code": "60090",
+          "geo": "42.13,-87.92"
+        },
+        {
+          "name": "milwaukee, wisconsin, united states",
+          "locality": "milwaukee",
+          "region": "wisconsin",
+          "metro": "milwaukee, wisconsin",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "8423 west oklahoma avenue",
+          "address_line_2": "apartment 1",
+          "postal_code": "53227",
+          "geo": "43.06,-87.90"
+        },
+        {
+          "name": "oak creek, wisconsin, united states",
+          "locality": "oak creek",
+          "region": "wisconsin",
+          "metro": "milwaukee, wisconsin",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "po box 189",
+          "address_line_2": null,
+          "postal_code": "53154",
+          "geo": "42.88,-87.89"
+        },
+        {
+          "name": "oak creek, wisconsin, united states",
+          "locality": "oak creek",
+          "region": "wisconsin",
+          "metro": "milwaukee, wisconsin",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "po box 694",
+          "address_line_2": null,
+          "postal_code": "53154",
+          "geo": "42.88,-87.89"
+        },
+        {
+          "name": "carol stream, illinois, united states",
+          "locality": "carol stream",
+          "region": "illinois",
+          "metro": "chicago, illinois",
+          "country": "united states",
+          "continent": "north america",
+          "street_address": "po box 88081",
+          "address_line_2": null,
+          "postal_code": "60188",
+          "geo": "41.90,-88.12"
+        }
+      ],
+      "experience": [
+        {
+          "company": {
+            "name": "openworm foundation",
+            "size": "11-50",
+            "id": "kCcB8S8NyWvh2nfuP4VklATY8znO",
+            "founded": 2010,
+            "industry": "research",
+            "location": {
+              "name": "new york, new york, united states",
+              "locality": "new york",
+              "region": "new york",
+              "metro": "new york, new york",
+              "country": "united states",
+              "continent": "north america",
+              "street_address": "1995 broadway",
+              "address_line_2": "17th floor",
+              "postal_code": "10023",
+              "geo": "40.75,-73.98"
+            },
+            "linkedin_url": "linkedin.com/company/openworm",
+            "linkedin_id": "2886436",
+            "facebook_url": "facebook.com/openworm",
+            "twitter_url": "twitter.com/openworm",
+            "website": "openworm.org",
+            "ticker": null,
+            "type": "nonprofit"
+          },
+          "location_names": ["new york, new york, united states"],
+          "end_date": null,
+          "start_date": "2011-01",
+          "title": {
+            "name": "co-founder, project coordinator",
+            "class": "services",
+            "role": "fulfillment",
+            "sub_role": "project_management",
+            "levels": ["owner"]
+          },
+          "is_primary": true,
+          "summary": "An open science project uniting scientists and engineers to build the world�s first computational model of a living organism for the purpose of deepening understanding of causal events within living systems. http://openworm.org"
+        },
+        {
+          "company": {
+            "name": "one mind",
+            "size": "11-50",
+            "id": "YFEeMapCuT0aBm2AGmcp0whceL6Q",
+            "founded": 2011,
+            "industry": "mental health care",
+            "location": {
+              "name": "napa, california, united states",
+              "locality": "napa",
+              "region": "california",
+              "metro": "napa, california",
+              "country": "united states",
+              "continent": "north america",
+              "street_address": "1570 bella oaks lane",
+              "address_line_2": null,
+              "postal_code": "94558",
+              "geo": "38.36,-122.24"
+            },
+            "linkedin_url": "linkedin.com/company/onemind",
+            "linkedin_id": "3148349",
+            "facebook_url": "facebook.com/1mind4research",
+            "twitter_url": "twitter.com/1mind4research",
+            "website": "onemind.org",
+            "ticker": null,
+            "type": "nonprofit"
+          },
+          "location_names": ["napa, california, united states"],
+          "end_date": "2013-07",
+          "start_date": "2012-03",
+          "title": {
+            "name": "chief information officer",
+            "class": "research_and_development",
+            "role": "engineering",
+            "sub_role": "information_technology",
+            "levels": ["cxo"]
+          },
+          "is_primary": false,
+          "summary": "Building public/private partnerships and softwate platforms to make information flow more efficiently between stakeholders driving translation of research to cures for intractable brain disease. http://1mind4research.org"
+        },
+        {
+          "company": {
+            "name": "uc san diego",
+            "size": "1-10",
+            "id": "JOS1Z0x0BD4i9XuoDhVJLwZqef7p",
+            "founded": null,
+            "industry": "higher education",
+            "location": {
+              "name": "la jolla, california, united states",
+              "locality": "la jolla",
+              "region": "california",
+              "metro": "san diego, california",
+              "country": "united states",
+              "continent": "north america",
+              "street_address": "9500 gilman drive",
+              "address_line_2": null,
+              "postal_code": "92093",
+              "geo": "32.84,-117.25"
+            },
+            "linkedin_url": "linkedin.com/company/ucsandiego",
+            "linkedin_id": "3382",
+            "facebook_url": null,
+            "twitter_url": null,
+            "website": "ucsd.edu",
+            "ticker": null,
+            "type": "educational"
+          },
+          "location_names": [
+            "la jolla, california, united states",
+            "san diego, california, united states"
+          ],
+          "end_date": "2014-11",
+          "start_date": "2012-01",
+          "title": {
+            "name": "project scientist",
+            "class": "research_and_development",
+            "role": "research",
+            "sub_role": "scientific",
+            "levels": []
+          },
+          "is_primary": false,
+          "summary": null
+        },
+        {
+          "company": {
+            "name": "metacell",
+            "size": "11-50",
+            "id": "ec6cZWU322nVgUiDnBmFLAYBnG1Q",
+            "founded": 2011,
+            "industry": "computer software",
+            "location": {
+              "name": "cambridge, massachusetts, united states",
+              "locality": "cambridge",
+              "region": "massachusetts",
+              "metro": "boston, massachusetts",
+              "country": "united states",
+              "continent": "north america",
+              "street_address": "1 broadway",
+              "address_line_2": "14th floor",
+              "postal_code": "02142",
+              "geo": "42.36,-71.1"
+            },
+            "linkedin_url": "linkedin.com/company/metacell",
+            "linkedin_id": "2886375",
+            "facebook_url": null,
+            "twitter_url": "twitter.com/metacell",
+            "website": "metacell.us",
+            "ticker": null,
+            "type": "private"
+          },
+          "location_names": [
+            "boston, massachusetts, united states",
+            "san diego, california, united states",
+            "cambridge, massachusetts, united states"
+          ],
+          "end_date": null,
+          "start_date": "2011-07",
+          "title": {
+            "name": "chief executive officer, senior consultant, and co-founder",
+            "class": "general_and_administrative",
+            "role": "operations",
+            "sub_role": "executive",
+            "levels": []
+          },
+          "is_primary": false,
+          "summary": "Global leaders in neuroscience software. Custom applications built on demand for academic, biotech, and pharmaceutical sectors. As co-founder and Chief Executive Officer, have bootstrapped company into a highly effective organization. Currently serving multiple pharma companies, universities, and non-profit organizations."
+        },
+        {
+          "company": {
+            "name": "uc san diego",
+            "size": "1-10",
+            "id": "JOS1Z0x0BD4i9XuoDhVJLwZqef7p",
+            "founded": null,
+            "industry": "higher education",
+            "location": {
+              "name": "la jolla, california, united states",
+              "locality": "la jolla",
+              "region": "california",
+              "metro": "san diego, california",
+              "country": "united states",
+              "continent": "north america",
+              "street_address": "9500 gilman drive",
+              "address_line_2": null,
+              "postal_code": "92093",
+              "geo": "32.84,-117.25"
+            },
+            "linkedin_url": "linkedin.com/company/ucsandiego",
+            "linkedin_id": "3382",
+            "facebook_url": null,
+            "twitter_url": null,
+            "website": "ucsd.edu",
+            "ticker": null,
+            "type": "educational"
+          },
+          "location_names": [
+            "san diego, california, united states",
+            "la jolla, california, united states"
+          ],
+          "end_date": "2012-02",
+          "start_date": "2006-09",
+          "title": {
+            "name": "graduate student researcher",
+            "class": "research_and_development",
+            "role": "research",
+            "sub_role": "academic",
+            "levels": []
+          },
+          "is_primary": false,
+          "summary": "Whole Brain Catalog: Technical Director and Co-Inventor. Designed, implemented, and project managed a team of eight engineers to build a 'Google Earth' for the brain that enables neuroscientists to crowdsource the construction of a multi-scale database of 2D, 3D, and 4D brain images. NeuroLex.org: Co-Inventor and Developer. Designed and implemented a wiki for neuroscience that uses a structured knowledge base system to lower the barrier to entry of collaborating knowledge in the neurosciences."
+        },
+        {
+          "company": {
+            "name": "morgan stanley",
+            "size": "10001+",
+            "id": "githDnxbJb8ZnwdWpXbL5QsT5Mm0",
+            "founded": 1935,
+            "industry": "financial services",
+            "location": {
+              "name": "new york, new york, united states",
+              "locality": "new york",
+              "region": "new york",
+              "metro": "new york, new york",
+              "country": "united states",
+              "continent": "north america",
+              "street_address": "1585 broadway",
+              "address_line_2": null,
+              "postal_code": "10036",
+              "geo": "40.75,-73.98"
+            },
+            "linkedin_url": "linkedin.com/company/morgan-stanley",
+            "linkedin_id": "497017",
+            "facebook_url": "facebook.com/morganstanley",
+            "twitter_url": "twitter.com/morganstanley",
+            "website": "morganstanley.com",
+            "ticker": "ms",
+            "type": "public"
+          },
+          "location_names": ["new york, new york, united states"],
+          "end_date": "2005-08",
+          "start_date": "2003-08",
+          "title": {
+            "name": "software engineer",
+            "class": "research_and_development",
+            "role": "engineering",
+            "sub_role": "software",
+            "levels": []
+          },
+          "is_primary": false,
+          "summary": "Designed, implemented and released industry analytic software for MS Equity Research division. Co-invented U.S. Patent 2008/0082529, issued April 2008."
+        }
+      ],
+      "education": [
+        {
+          "school": {
+            "name": "uc san diego",
+            "type": "post-secondary institution",
+            "id": "Kd29tAJJGmqpeWSoE5oTVg_0",
+            "location": {
+              "name": "la jolla, california, united states",
+              "locality": "la jolla",
+              "region": "california",
+              "country": "united states",
+              "continent": "north america"
+            },
+            "linkedin_url": "linkedin.com/school/ucsandiego",
+            "facebook_url": "facebook.com/ucsandiego",
+            "twitter_url": "twitter.com/ucsandiego",
+            "linkedin_id": "3382",
+            "website": "ucsd.edu",
+            "domain": "ucsd.edu"
+          },
+          "degrees": ["doctor of philosophy", "doctorates"],
+          "start_date": "2005-01",
+          "end_date": "2012",
+          "majors": ["neuroscience"],
+          "minors": [],
+          "gpa": null,
+          "summary": "Dissertation titled: 'Semantic and Spatial Multi-Scale Information Models of the Nervous System', 2012. Involved the creation of NeuroLex.org and WholeBrainCatalog.org, as well as the publication of several papers on the use of ontologies in neuroscience."
+        },
+        {
+          "school": {
+            "name": "massachusetts institute of technology",
+            "type": "post-secondary institution",
+            "id": "DIzlUWMFXE2lCoHgonNGjA_0",
+            "location": {
+              "name": "cambridge, massachusetts, united states",
+              "locality": "cambridge",
+              "region": "massachusetts",
+              "country": "united states",
+              "continent": "north america"
+            },
+            "linkedin_url": "linkedin.com/school/mit",
+            "facebook_url": "facebook.com/mitnews",
+            "twitter_url": "twitter.com/mit",
+            "linkedin_id": "1503",
+            "website": "mit.edu",
+            "domain": "mit.edu"
+          },
+          "degrees": ["masters"],
+          "start_date": "2002-01",
+          "end_date": "2003",
+          "majors": [
+            "computer science",
+            "electrical engineering",
+            "electrical engineering and computer science",
+            "engineering"
+          ],
+          "minors": [],
+          "gpa": null,
+          "summary": null
+        },
+        {
+          "school": {
+            "name": "massachusetts institute of technology",
+            "type": "post-secondary institution",
+            "id": "DIzlUWMFXE2lCoHgonNGjA_0",
+            "location": {
+              "name": "cambridge, massachusetts, united states",
+              "locality": "cambridge",
+              "region": "massachusetts",
+              "country": "united states",
+              "continent": "north america"
+            },
+            "linkedin_url": "linkedin.com/school/mit",
+            "facebook_url": "facebook.com/mitnews",
+            "twitter_url": "twitter.com/mit",
+            "linkedin_id": "1503",
+            "website": "mit.edu",
+            "domain": "mit.edu"
+          },
+          "degrees": ["bachelor of science", "bachelors"],
+          "start_date": "1998-01",
+          "end_date": "2002",
+          "majors": [
+            "computer science",
+            "electrical engineering",
+            "electrical engineering and computer science"
+          ],
+          "minors": ["political science"],
+          "gpa": null,
+          "summary": "Activities and Societies: Debate Team"
+        }
+      ],
+      "profiles": [
+        {
+          "network": "linkedin",
+          "id": "8947466",
+          "url": "linkedin.com/in/stephendavidlarson",
+          "username": "stephendavidlarson"
+        },
+        {
+          "network": "facebook",
+          "id": "3322904",
+          "url": "facebook.com/stephenlarson",
+          "username": "stephenlarson"
+        },
+        {
+          "network": "twitter",
+          "id": null,
+          "url": "twitter.com/slars0n",
+          "username": "slars0n"
+        },
+        {
+          "network": "github",
+          "id": null,
+          "url": "github.com/slarson",
+          "username": "slarson"
+        },
+        {
+          "network": "quora",
+          "id": null,
+          "url": "quora.com/stephen-larson",
+          "username": "stephen-larson"
+        },
+        {
+          "network": "stackoverflow",
+          "id": "2733572",
+          "url": "stackoverflow.com/users/2733572",
+          "username": null
+        },
+        {
+          "network": "gravatar",
+          "id": null,
+          "url": "gravatar.com/slars0n",
+          "username": "slars0n"
+        },
+        {
+          "network": "angellist",
+          "id": null,
+          "url": "angel.co/stephen-larson",
+          "username": "stephen-larson"
+        },
+        {
+          "network": "youtube",
+          "id": null,
+          "url": "youtube.com/user/lomak9",
+          "username": "lomak9"
+        },
+        {
+          "network": "klout",
+          "id": null,
+          "url": "klout.com/slars0n",
+          "username": "slars0n"
+        },
+        {
+          "network": "foursquare",
+          "id": null,
+          "url": "foursquare.com/user/31925",
+          "username": "31925"
+        },
+        {
+          "network": "google",
+          "id": null,
+          "url": "plus.google.com/+08819841022050462272",
+          "username": "+08819841022050462272"
+        },
+        {
+          "network": "linkedin",
+          "id": null,
+          "url": "linkedin.com/in/stephen-larson-b22bb52",
+          "username": "stephen-larson-b22bb52"
+        }
+      ],
+      "certifications": [],
+      "languages": [
+        { "name": "english", "proficiency": null },
+        { "name": "spanish", "proficiency": null }
+      ],
+      "dataset_version": "33.0"
+    }
+  ],
+  "scroll_token": "0$10.562536",
+  "total": 1167709,
+  "dataset_version": "33.0"
+}

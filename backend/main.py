@@ -178,7 +178,7 @@ from jd_match import normalize_jd, match
 from profile_schema import new_id
 import storage
 from renderers import profile_to_html, profile_to_docx, jd_to_html, jd_to_docx, match_report_to_html, match_report_to_docx
-import duxSoup.duxProfiles as duxProfiles  # for future use
+
 VERSION = "v2.8.6"
 DB_PATH = "devready.db"
 UPLOAD_DIR = "uploads"
@@ -677,6 +677,8 @@ def match_report_docx(profile_id: str, jd_id: str, domain: str = "technology"):
     match_report_to_docx(out_path, p, jd, scorecard, interview, explain)
     return FileResponse(out_path, filename=os.path.basename(out_path), media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
+import duxSoup.duxProfiles as duxProfiles
+
 @app.post("/api/linkedin/sendMessage")
 def send_linkedin_message(
     selectedProfileId: str = Form(...),
@@ -685,6 +687,7 @@ def send_linkedin_message(
     print(f"Sending LinkedIn message to profile ID {selectedProfileId} with message: {message}")
     outcome = duxProfiles.sendLinkedInMessage(selectedProfileId, message)
     print('Results: ' + str(outcome))
+    return {"status": "success", "returnMessage": "Successfully sent LinkedIn message!" }
 
 @app.post("/api/duxsoup/profileToPDF")
 def profile_to_pdf(
@@ -693,6 +696,27 @@ def profile_to_pdf(
     print(f"Exporting profile ID {linkedInProfileUrl} to PDF")
     outcome = duxProfiles.getProfilePDF(linkedInProfileUrl)
     print('Results: ' + str(outcome))
+
+import peopleDataLabs.peopleSearch as peopleDataLabs
+
+@app.post("/api/peopleLabs/search")
+def people_labs_search(
+    skills: str = Form(...),
+    location: str = Form(default=None)
+):
+    print(f"Received PeopleLabs search request with skills: {skills}")
+    skills_list = [s.strip() for s in skills.split(",") if s.strip()]
+
+    if location == None or len(location.strip()) < 1:
+        print(f"Searching PeopleLabs for skills: {skills}, location: {location}")
+        outcome =peopleDataLabs.searchSkills(skills_list)
+        #print('Results: ' + str(outcome))
+    else:
+        print(f"Searching PeopleLabs for skills: {skills}, location: {location}")
+        outcome = peopleDataLabs.searchSkillsAndLocation(skills_list, location, 1)
+        #print('Results: ' + str(outcome))
+
+    return {"status": "success", "returnMessage": "Successfully searched PeopleDataLabs!", "results": outcome['data'] }
 
 @app.get("/", response_class=HTMLResponse)
 def root():

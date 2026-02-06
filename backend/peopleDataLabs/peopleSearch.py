@@ -9,7 +9,7 @@ load_dotenv()
 
 PDL_API_KEY = os.getenv("PDL_API_KEY")
 
-def searchSkills(skillList: list[str]):
+def searchSkills(skillList: list[str], size: int = 5):
     url = "https://api.peopledatalabs.com/v5/person/search"
 
     headers = {
@@ -25,7 +25,7 @@ def searchSkills(skillList: list[str]):
                 ]
             }
         },
-        "size": 5
+        "size": size
     }
 
     response = requests.post(url, headers=headers, json=payload)
@@ -35,4 +35,41 @@ def searchSkills(skillList: list[str]):
     else:
         return f"Failed to retrieve data, status code: {response.status_code}"
     
-print(searchSkills(["Python", "Data Analysis"]))
+def searchSkillsAndLocation(skillList: list[str], location: str, size: int = 5):
+    url = "https://api.peopledatalabs.com/v5/person/search"
+
+    headers = {
+        'Content-Type': 'application/json',
+        'X-Api-Key': PDL_API_KEY,
+    }
+
+    print("Skill Input: " + str(skillList))
+    print("Location Input: " + location)
+
+    mustArray = []
+
+    for skill in skillList:
+        mustArray.append({"terms": {"skills": skill.lower()}})
+    
+    # mustArray.append({"match": {"location_name": location.lower()}})
+
+    payload = {
+        "query": {
+            "bool": {
+                "must": mustArray,
+                "filter": {"wildcard": {"location_name": location.lower()}}
+            }
+        },
+        "size": size
+    }
+
+    print("Payload for PeopleDataLabs Search: " + str(payload))
+
+    response = requests.post(url, headers=headers, json=payload)
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"PeopleDataLabs API Error: {response.status_code}, Response: {response.text}")
+        return f"Failed to retrieve data, status code: {response.status_code}"
+    
