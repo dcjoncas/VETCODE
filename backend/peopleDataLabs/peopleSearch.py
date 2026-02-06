@@ -49,15 +49,14 @@ def searchSkillsAndLocation(skillList: list[str], location: str, size: int = 5):
     mustArray = []
 
     for skill in skillList:
-        mustArray.append({"terms": {"skills": skill.lower()}})
+        mustArray.append({"match": {"skills": skill.lower()}})
     
-    # mustArray.append({"match": {"location_name": location.lower()}})
+    mustArray.append({"match": {"location_locality": location.lower()}})
 
     payload = {
         "query": {
             "bool": {
-                "must": mustArray,
-                "filter": {"wildcard": {"location_name": location.lower()}}
+                "must": mustArray
             }
         },
         "size": size

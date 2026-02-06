@@ -1565,8 +1565,8 @@ Responsibilities:
         if (candidate.headline)
           output.innerHTML += `<p style="font-style:italic">${candidate.headline}</p>`;
 
-        if (candidate.location_name)
-          output.innerHTML += `<p>${candidate.location}</p>`;
+        if (candidate.location_locality)
+          output.innerHTML += `<p>${candidate.location_name}</p>`;
 
         if (candidate.job_company_name && candidate.job_title)
           output.innerHTML += `<p><b>Current Role:</b> ${candidate.job_title} at ${candidate.job_company_name}</p>`;
