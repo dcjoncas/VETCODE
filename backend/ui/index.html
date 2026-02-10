@@ -564,6 +564,38 @@
             <div style="margin-top:10px" class="panel" id="leftExplain" hidden></div>
 
           </div>
+
+          <div class="card" id="dux-soup-pdf-search" style="margin-top:12px">
+            <h2>Dux Soup Profile to PDF</h2>
+            <div class="muted">LinkedIn Profile URL.</div>
+            <div class="row" style="margin-top:8px">
+              <input id="linkedInURL" placeholder="Enter LinkedIn Profile URL" style="flex:1;min-width:220px" />
+              <button class="btn secondary" id="btnDuxSoupProfilePDF">Queue Profile</button>
+            </div>
+          </div>
+
+          <div class="card" id="dux-soup-message" style="margin-top:12px">
+            <h2>Message a Candidate</h2>
+            <div class="muted">Message the selected candidate.</div>
+            <div class="row" style="margin-top:8px">
+              <input id="messageInput" placeholder="Enter your message" style="flex:1;min-width:220px" />
+              <button class="btn secondary" id="btnSendMessage">Send Message</button>
+            </div>
+          </div>
+
+          <div class="card" id="people-labs-search" style="margin-top:12px">
+            <h2>Find Candidates</h2>
+            <div class="muted">Search for candidates based on their skills.</div>
+            <div class="row" style="margin-top:8px">
+              <input id="skillInput" placeholder="Enter a comma separated list of the skills you want to search for" style="flex:1;min-width:220px" />
+              <button class="btn secondary" id="btnSearchPeopleLabs">Find Candidates</button>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <input id="locationInput" placeholder="(Optional) The location you want to search for candidates in. Do not abbreviate the state or country." style="flex:1;min-width:220px" />
+            </div>
+            <div id="candidateOutput">
+            </div>
+          </div>
         </section>
 
         <!-- RIGHT -->
@@ -1490,6 +1522,75 @@ Responsibilities:
       }
     }
 
+    async function duxSoupProfileToPDF(params) {
+      const linkedInProfileUrl = document.getElementById("linkedInURL").value;
+      if (!linkedInProfileUrl) return;
+
+      await apiPostForm("/api/duxsoup/profileToPDF", { linkedInProfileUrl });
+    }
+
+    async function sendLinkedInMessage(params) {
+      const message = document.getElementById("messageInput").value;
+      selectedProfileId = document.getElementById("linkedInURL").value; // For testing purposes only
+
+      if (!selectedProfileId || !message) return;
+        
+      await apiPostForm("/api/linkedin/sendMessage", { selectedProfileId, message });
+    }
+
+    async function searchPeopleLabs(params) {
+      const skills = document.getElementById("skillInput").value;
+      const location = document.getElementById("locationInput").value;
+      // Reset output
+      const output = document.getElementById("candidateOutput");
+      output.innerHTML = "";
+
+      if (!skills) return;
+      
+      try {
+        response = await apiPostForm("/api/peopleLabs/search", { skills, location });
+
+      console.log("Search Response: " + Object.keys(response.results));
+
+      if (response.results.length == 0) {
+        output.innerHTML = `<div class="row" style="color: red;">No candidates found.</div>`;
+
+        return;
+      }
+      
+      response.results.forEach(candidate => {
+        
+        output.innerHTML += `<div class="row" style="margin-top:8px"><h3 style="margin:0">${candidate.first_name.charAt(0).toUpperCase() + candidate.first_name.slice(1)} ${candidate.last_name.charAt(0).toUpperCase() + candidate.last_name.slice(1)}</h3>`;
+
+        if (candidate.headline)
+          output.innerHTML += `<p style="font-style:italic">${candidate.headline}</p>`;
+
+        if (candidate.location_locality)
+          output.innerHTML += `<p>${candidate.location_name}</p>`;
+
+        if (candidate.job_company_name && candidate.job_title)
+          output.innerHTML += `<p><b>Current Role:</b> ${candidate.job_title} at ${candidate.job_company_name}</p>`;
+        else if (candidate.job_title)
+          output.innerHTML += `<p><b>Current Role:</b> ${candidate.job_title}</p>`;
+        else if (candidate.job_company_name)
+          output.innerHTML += `<p><b>Current Company:</b> ${candidate.job_company_name}</p>`;
+
+        if (candidate.inferred_salary)
+          output.innerHTML += `<p><b>Estimated Expected Salary:</b> $${candidate.inferred_salary}</p>`;
+
+        output.innerHTML += `</div>`;
+      });
+      } catch (error) {
+        output.innerHTML = `<div class="row" style="color: red;">ERROR RETRIEVING CANDIDATES: ${error.message}</div>`;
+      }
+      
+    }
+    /*
+    <div class="row" style="margin-top:8px">
+              <input id="locationInput" placeholder="(Optional) The location you want to search for candidates in. Do not abbreviate the state or country." style="flex:1;min-width:220px" />
+            </div>
+     */
+
     function hook() {
       document.getElementById("btnUpload").addEventListener("click", uploadResume);
       document.getElementById("btnBulk").addEventListener("click", bulkUpload);
@@ -1500,9 +1601,16 @@ Responsibilities:
       document.getElementById("btnLoadJd").addEventListener("click", loadPickedJd);
       document.getElementById("btnRank").addEventListener("click", rank);
 
+      //Dux Soup
+      document.getElementById("btnDuxSoupProfilePDF").addEventListener("click", duxSoupProfileToPDF);
+      document.getElementById("btnSendMessage").addEventListener("click", sendLinkedInMessage);
+
+      // People Labs
+      document.getElementById("btnSearchPeopleLabs").addEventListener("click", searchPeopleLabs);
+
       // READYIT buttons (both map to one action)
       document.getElementById("btnReadyIT").addEventListener("click", readyIT);
-      document.getElementById("btnReadyIT2").addEventListener("click", readyIT);
+      document.getElementById("btnReadyIT2").addEventListener("click", readyIT);      
 
       document.getElementById("btnReportHtml").addEventListener("click", () => {
         if (!selectedProfileId || !selectedJdId) return;

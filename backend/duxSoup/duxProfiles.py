@@ -57,11 +57,34 @@ def getProfilePDF(profileURL) -> str:
         return returnedData['messageid']
     else:
         return f"Failed to retrieve profile data, status code: {response.status_code}"
+    
+def sendLinkedInMessage(profileURL, message) -> str:
+    # Prepare payload
+    payload = {
+        "targeturl": duxSoupBaseURL,
+        "timestamp": int(time.time() * 1000),
+        "userid": userID,
+        "command": "message",
+        "params": {
+            "profile": profileURL,
+            "messagetext": message
+        }
+    }
 
-# TEMP TEST CODE
-print('Dux Soup Profiles module loaded.')
-print('Running test profile fetch...')
-print(duxSoupBaseURL)
-data = getProfilePDF('https://www.linkedin.com/in/mack-schmaltz-786952a3/')
-print('Test fetch complete.')
-print('Results: ' + str(data))
+    # Stringify payload JSON and calculate HMAC signature
+    message = json.dumps(payload, separators=(',', ':'), sort_keys=False)
+    signature = calculate_hmac(message) 
+
+    headers = {
+        'Content-Type': 'application/json',
+        'X-Dux-Signature': signature,
+    }
+
+    # Send POST Request
+    response = requests.post(duxSoupBaseURL, headers=headers, data=message)
+
+    if response.status_code == 200:
+        returnedData = response.json()
+        return returnedData['messageid']
+    else:
+        return f"Failed to send message, status code: {response.status_code}"
