@@ -713,7 +713,7 @@ def people_labs_search(
         #print('Results: ' + str(outcome))
     else:
         print(f"Searching PeopleLabs for skills: {skills}, location: {location}")
-        outcome = peopleDataLabs.searchSkillsAndLocation(skills_list, location, 1)
+        outcome = peopleDataLabs.searchSkillsAndLocation(skills_list, location)
         #print('Results: ' + str(outcome))
 
     return {"status": "success", "returnMessage": "Successfully searched PeopleDataLabs!", "results": outcome['data'] }
