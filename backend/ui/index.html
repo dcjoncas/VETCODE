@@ -565,6 +565,7 @@
 
           </div>
 
+        <!-- DEPRECATED
           <div class="card" id="dux-soup-pdf-search" style="margin-top:12px">
             <h2>Dux Soup Profile to PDF</h2>
             <div class="muted">LinkedIn Profile URL.</div>
@@ -581,7 +582,7 @@
               <input id="messageInput" placeholder="Enter your message" style="flex:1;min-width:220px" />
               <button class="btn secondary" id="btnSendMessage">Send Message</button>
             </div>
-          </div>
+          </div>-->
 
           <div class="card" id="people-labs-search" style="margin-top:12px">
             <h2>Find Candidates</h2>
@@ -591,7 +592,13 @@
               <button class="btn secondary" id="btnSearchPeopleLabs">Find Candidates</button>
             </div>
             <div class="row" style="margin-top:8px">
-              <input id="locationInput" placeholder="(Optional) The location you want to search for candidates in. Do not abbreviate the state or country." style="flex:1;min-width:220px" />
+              <input id="locationCityInput" placeholder="(Optional) The city you want to search for candidates in. Do not abbreviate." style="flex:1;min-width:220px" />
+            </div>
+            <div class="row" style="margin-top:8px">
+              <input id="locationStateInput" placeholder="(Optional) The state/province you want to search for candidates in. Do not abbreviate." style="flex:1;min-width:220px" />
+            </div>
+            <div class="row" style="margin-top:8px">
+              <input id="locationCountryInput" placeholder="(Optional) The country you want to search for candidates in. Do not abbreviate." style="flex:1;min-width:220px" />
             </div>
             <div id="candidateOutput">
             </div>
@@ -1540,7 +1547,9 @@ Responsibilities:
 
     async function searchPeopleLabs(params) {
       const skills = document.getElementById("skillInput").value;
-      const location = document.getElementById("locationInput").value;
+      const locationCity = document.getElementById("locationCityInput").value;
+      const locationState = document.getElementById("locationStateInput").value;
+      const locationCountry = document.getElementById("locationCountryInput").value;
       // Reset output
       const output = document.getElementById("candidateOutput");
       output.innerHTML = "";
@@ -1548,7 +1557,7 @@ Responsibilities:
       if (!skills) return;
       
       try {
-        response = await apiPostForm("/api/peopleLabs/search", { skills, location });
+        response = await apiPostForm("/api/peopleLabs/search", { skills, locationCity, locationState, locationCountry });
 
       console.log("Search Response: " + Object.keys(response.results));
 
@@ -1587,7 +1596,7 @@ Responsibilities:
     }
     /*
     <div class="row" style="margin-top:8px">
-              <input id="locationInput" placeholder="(Optional) The location you want to search for candidates in. Do not abbreviate the state or country." style="flex:1;min-width:220px" />
+              <input id="locationCityInput" placeholder="(Optional) The location you want to search for candidates in. Do not abbreviate the state or country." style="flex:1;min-width:220px" />
             </div>
      */
 
@@ -1602,8 +1611,8 @@ Responsibilities:
       document.getElementById("btnRank").addEventListener("click", rank);
 
       //Dux Soup
-      document.getElementById("btnDuxSoupProfilePDF").addEventListener("click", duxSoupProfileToPDF);
-      document.getElementById("btnSendMessage").addEventListener("click", sendLinkedInMessage);
+      //document.getElementById("btnDuxSoupProfilePDF").addEventListener("click", duxSoupProfileToPDF);
+      //document.getElementById("btnSendMessage").addEventListener("click", sendLinkedInMessage);
 
       // People Labs
       document.getElementById("btnSearchPeopleLabs").addEventListener("click", searchPeopleLabs);
