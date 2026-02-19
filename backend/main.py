@@ -702,18 +702,20 @@ import peopleDataLabs.peopleSearch as peopleDataLabs
 @app.post("/api/peopleLabs/search")
 def people_labs_search(
     skills: str = Form(...),
-    location: str = Form(default=None)
+    locationCity: str = Form(default=None),
+    locationState: str = Form(default=None),
+    locationCountry: str = Form(default=None)
 ):
-    print(f"Received PeopleLabs search request with skills: {skills}")
+    print(f"Received PeopleLabs search request with skills: {skills} and location: {locationCity}, {locationState}, {locationCountry}")
     skills_list = [s.strip() for s in skills.split(",") if s.strip()]
 
-    if location == None or len(location.strip()) < 1:
-        print(f"Searching PeopleLabs for skills: {skills}, location: {location}")
-        outcome =peopleDataLabs.searchSkills(skills_list)
+    if (locationCity and len(locationCity.strip()) > 0) or (locationState and len(locationState.strip()) > 0) or (locationCountry and len(locationCountry.strip()) > 0):
+        print(f"Searching PeopleLabs for skills: {skills}, location: {locationCity}, {locationState}, {locationCountry}")
+        outcome = peopleDataLabs.searchSkillsAndLocation(skills_list, locationCity=locationCity, locationState=locationState, locationCountry=locationCountry, size=30)
         #print('Results: ' + str(outcome))
     else:
-        print(f"Searching PeopleLabs for skills: {skills}, location: {location}")
-        outcome = peopleDataLabs.searchSkillsAndLocation(skills_list, location)
+        print(f"Searching PeopleLabs for skills: {skills}")
+        outcome =peopleDataLabs.searchSkills(skills_list)
         #print('Results: ' + str(outcome))
 
     return {"status": "success", "returnMessage": "Successfully searched PeopleDataLabs!", "results": outcome['data'] }

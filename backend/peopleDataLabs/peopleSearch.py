@@ -35,7 +35,7 @@ def searchSkills(skillList: list[str], size: int = 5):
     else:
         return f"Failed to retrieve data, status code: {response.status_code}"
     
-def searchSkillsAndLocation(skillList: list[str], location: str, size: int = 5):
+def searchSkillsAndLocation(skillList: list[str], locationCity: str = "", locationState: str = "", locationCountry: str = "", size: int = 5):
     url = "https://api.peopledatalabs.com/v5/person/search"
 
     headers = {
@@ -44,14 +44,19 @@ def searchSkillsAndLocation(skillList: list[str], location: str, size: int = 5):
     }
 
     print("Skill Input: " + str(skillList))
-    print("Location Input: " + location)
+    print("Location City Input: " + locationCity)
 
     mustArray = []
 
     for skill in skillList:
         mustArray.append({"match": {"skills": skill.lower()}})
     
-    mustArray.append({"match": {"location_locality": location.lower()}})
+    if len(locationCity) > 0:
+        mustArray.append({"match": {"location_locality": locationCity.lower()}})
+    if len(locationState) > 0:
+        mustArray.append({"match": {"location_region": locationState.lower()}})
+    if len(locationCountry) > 0:
+        mustArray.append({"match": {"location_country": locationCountry.lower()}})
 
     payload = {
         "query": {
