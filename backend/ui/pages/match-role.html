@@ -94,29 +94,33 @@
       <div class="split">
         <div class="field">
           <label>Select saved JD</label>
-          <select>
-            <option>Senior Full-Stack Engineer (v2)</option>
-            <option>VR App Developer (Oculus Quest 2)</option>
-            <option>Data Platform Architect (Azure)</option>
+          <select id="jdSelect">
+            <option selected disabled hidden>Select Description</option>
+            <option value="JDD-20260129003241729">Senior Full-Stack Engineer (v2)</option>
+            <option value="JDD-20260129002613803">VR App Developer (Oculus Quest 2)</option>
+            <option value="JDD-20260129001812443">Data Platform Architect (Azure)</option>
           </select>
         </div>
         <div class="field">
           <label>Return</label>
-          <select>
-            <option>Top 10</option><option>Top 20</option><option>Top 30</option>
+          <select id="topK">
+            <option value="10">Top 10</option>
+            <option value="20">Top 20</option>
+            <option value="30">Top 30</option>
           </select>
         </div>
       </div>
       <div class="row-actions">
-        <button class="btn" type="button" onclick="alert('Mock: rank profiles')">Rank Profiles</button>
+        <button class="btn" type="button" id="btnRank">Rank Profiles</button>
         <button class="btn secondary" type="button" onclick="alert('Mock: show rationale')">Show rationale</button>
       </div>
     </div>
   </div>
 </div>
 
-<h2 style="margin-top:18px">Ranked results (Top 10)</h2>
-<table class="table">
+<h2 style="margin-top:18px" id="rankHeader">Ranked results (Top 10)</h2>
+<div class="muted" style="margin-top:8px" id="matchStatus">No match run yet.</div>
+<table class="table" id="resultsTable">
   <thead><tr><th>#</th><th>Candidate</th><th>Email</th><th>Score</th><th>Top matches</th><th></th></tr></thead>
   <tbody>
     <tr><td>1</td><td><strong>Giovanni S</strong></td><td>giovanni@email.com</td><td><strong>92</strong></td><td>Backend • APIs • Identity</td><td><a class="btn secondary" href="candidate-chat.html" style="padding:8px 12px">Open</a></td></tr>
@@ -144,9 +148,78 @@
     </main>
   </div>
 
+  <script src="JS/apiScripts.js"></script>
   <script>
     // tiny UX sugar (mock only)
     document.querySelectorAll('a.step').forEach(a=>a.addEventListener('click', ()=>{}));
+
+    // Normalize match score to 0-100 for correct ranking + display
+    function normalizeScore(raw) {
+      const n = Number(raw);
+      if (!isFinite(n)) return 0;
+
+      // If backend returns 0..1, scale up
+      if (n > 0 && n <= 1) return n * 100;
+
+      // If backend returns 0..10, scale up
+      if (n > 1 && n <= 10) return n * 10;
+
+      // Otherwise assume already 0..100
+      return n;
+    }
+
+    // Rank profiles based on job description
+    async function rank() {
+      const jd_id = document.getElementById("jdSelect").value;
+      // Currently unused below
+      // selectedJdId = jd_id;
+      // setText("activeJdLabel", jd_id ? ("Active JD: " + jd_id) : "Active JD: (none)");
+
+      const top_k = parseInt(document.getElementById("topK").value, 10) || 10;
+      if (!jd_id || jd_id.length < 1) return alert("Select a job description to rank against.");
+      // document.getElementById("matchStatus").textContent = "Ranking...";
+
+      document.getElementById("rankHeader").textContent = `Ranked Results (Top ${top_k})`;
+
+      const fd = new FormData();
+      fd.append("domain", "technology");
+      fd.append("jd_id", jd_id);
+      fd.append("top_k", String(top_k));
+
+      try {
+        const j = await api("/api/match/run", { method: "POST", body: fd });
+
+        // Normalize + re-sort defensively (in case backend returns non-100 scale)
+        latestRank = (j.results || []).map(r => ({
+          ...r,
+          _score100: normalizeScore(r.score)
+        }));
+        latestRank.sort((a, b) => (b._score100 || 0) - (a._score100 || 0));
+
+        const tbody = document.querySelector("#resultsTable tbody");
+        tbody.innerHTML = "";
+
+        latestRank.forEach((r, i) => {
+          const tr = document.createElement("tr");
+          tr.style.cursor = "pointer";
+          tr.innerHTML = `<td>${i + 1}</td><td>${r.name || ""}</td><td>${r.email || ""}</td><td>${Math.round(r._score100 || 0)}</td><td>${(r.top_matches || []).slice(0, 6).join(", ")}</td>`;
+          tr.addEventListener("click", () => selectRow(r));
+          tbody.appendChild(tr);
+        });
+
+        document.getElementById("matchStatus").textContent = `Returned ${latestRank.length} results (Top ${top_k}). Click a row to select.`;
+        // setDisabled("btnReadyIT", true);
+        // setDisabled("btnReadyIT2", true);
+        // setDisabled("btnReportHtml", true);
+        // setDisabled("btnReportDocx", true);
+        // setText("explainBox", "Select a result row after ranking.");
+        // clearRec();
+      } catch (e) {
+        document.getElementById("matchStatus").textContent = `Rank failed: ${e.message}`;
+      }
+    }
+
+    document.getElementById("btnRank").addEventListener("click", rank);
   </script>
 </body>
 </html>
