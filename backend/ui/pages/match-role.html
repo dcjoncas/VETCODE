@@ -62,8 +62,8 @@
         </div>
       </div>
 
-      <div class="grid">
-        <section class="card">
+      <!-- <div class="grid"> -->
+        <section class="card" style="width: 100%;">
           
 <h2>Match candidate(s) to a role & job description</h2>
 <p>Paste or upload a job description, normalize it, then rank stored profiles and select the top 10 for deeper vetting.</p>
@@ -95,7 +95,7 @@
         <div class="field">
           <label>Select saved JD</label>
           <select id="jdSelect">
-            <option selected disabled hidden>Select Description</option>
+            <option value="" selected disabled hidden>Select Description</option>
             <option value="JDD-20260129003241729">Senior Full-Stack Engineer (v2)</option>
             <option value="JDD-20260129002613803">VR App Developer (Oculus Quest 2)</option>
             <option value="JDD-20260129001812443">Data Platform Architect (Azure)</option>
@@ -118,15 +118,21 @@
   </div>
 </div>
 
-<h2 style="margin-top:18px" id="rankHeader">Ranked results (Top 10)</h2>
+<h2 style="margin-top:18px" id="rankHeader">Ranked Results (Top 10)</h2>
 <div class="muted" style="margin-top:8px" id="matchStatus">No match run yet.</div>
-<table class="table" id="resultsTable">
+<table class="table" id="resultsTableInternal">
   <thead><tr><th>#</th><th>Candidate</th><th>Email</th><th>Score</th><th>Top matches</th><th></th></tr></thead>
   <tbody>
-    <tr><td>1</td><td><strong>Giovanni S</strong></td><td>giovanni@email.com</td><td><strong>92</strong></td><td>Backend • APIs • Identity</td><td><a class="btn secondary" href="candidate-chat.html" style="padding:8px 12px">Open</a></td></tr>
-    <tr><td>2</td><td><strong>Maria T</strong></td><td>maria@email.com</td><td><strong>88</strong></td><td>Angular • SQL • CI/CD</td><td><a class="btn secondary" href="candidate-chat.html" style="padding:8px 12px">Open</a></td></tr>
-    <tr><td>3</td><td><strong>John N Farmer</strong></td><td>john.farmer@email.com</td><td><strong>83</strong></td><td>Unity • C# • VR</td><td><a class="btn secondary" href="candidate-chat.html" style="padding:8px 12px">Open</a></td></tr>
-    <tr><td>4</td><td><strong>Kevin P</strong></td><td>kevin@email.com</td><td><strong>81</strong></td><td>React • Node • AWS</td><td><a class="btn secondary" href="candidate-chat.html" style="padding:8px 12px">Open</a></td></tr>
+    <!-- Dynamically filled with ranked results -->
+  </tbody>
+</table>
+
+<h2 style="margin-top:18px" id="externalHeader">External Results</h2>
+<div class="muted" style="margin-top:8px" id="matchStatusExternal">No match run yet.</div>
+<table class="table" id="resultsTableExternal">
+  <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Estimated Salary (USD)</th><th>Listed Skills</th><th>Job Description Match</th></tr></thead>
+  <tbody>
+    <!-- Dynamically filled with ranked results -->
   </tbody>
 </table>
 
@@ -135,16 +141,17 @@
 </div>
 
         </section>
-        <aside class="card">
+      <!-- TODO: REMOVE LATER
+      <aside class="card">
           
-      <h2>What happens on this screen</h2>
-      <p>UX-only guidance for this screen.</p>
-      <ul style="margin:0 0 14px 18px;color:var(--muted);line-height:1.4"><li>Save / normalize a JD (structured requirements).</li><li>Rank stored candidates and pick the Top 10.</li><li>Outcome: open a candidate into the guided chat.</li></ul>
-      <div class="row-actions"><a class="btn " href="candidate-chat.html" style="text-decoration:none;display:inline-block">Next: Candidate chat →</a><a class="btn secondary" href="find-candidate.html" style="text-decoration:none;display:inline-block">Back: Find candidate</a></div>
-      <div class="notice" style="margin-top:14px">All actions here are mocked. The goal is to validate layout, flow, and labels.</div>
+        <h2>What happens on this screen</h2>
+        <p>UX-only guidance for this screen.</p>
+        <ul style="margin:0 0 14px 18px;color:var(--muted);line-height:1.4"><li>Save / normalize a JD (structured requirements).</li><li>Rank stored candidates and pick the Top 10.</li><li>Outcome: open a candidate into the guided chat.</li></ul>
+        <div class="row-actions"><a class="btn " href="candidate-chat.html" style="text-decoration:none;display:inline-block">Next: Candidate chat →</a><a class="btn secondary" href="find-candidate.html" style="text-decoration:none;display:inline-block">Back: Find candidate</a></div>
+        <div class="notice" style="margin-top:14px">All actions here are mocked. The goal is to validate layout, flow, and labels.</div>
     
-        </aside>
-      </div>
+      </aside> -->
+      <!-- </div> -->
     </main>
   </div>
 
@@ -166,6 +173,24 @@
 
       // Otherwise assume already 0..100
       return n;
+    }
+
+    // TODO: Select a row
+    async function selectRow(r) {
+      selectedRow = r;
+      selectedProfileId = r.profile_id;
+      /*setText("selectedRowLabel", `Selected: ${r.name || ""} (${r.email || ""})`);
+
+      // Enable ReadyIT buttons
+      setDisabled("btnReadyIT", false);
+      setDisabled("btnReadyIT2", false);
+      setDisabled("btnReportHtml", false);
+      setDisabled("btnReportDocx", false);
+
+      clearRec();
+      await loadProfileIntoLeft(selectedProfileId);
+
+      log(`Selected row: ${r.name} score=${r.score}`);*/
     }
 
     // Rank profiles based on job description
@@ -196,7 +221,7 @@
         }));
         latestRank.sort((a, b) => (b._score100 || 0) - (a._score100 || 0));
 
-        const tbody = document.querySelector("#resultsTable tbody");
+        const tbody = document.querySelector("#resultsTableInternal tbody");
         tbody.innerHTML = "";
 
         latestRank.forEach((r, i) => {
@@ -207,7 +232,18 @@
           tbody.appendChild(tr);
         });
 
+        const tbodyExternal = document.querySelector("#resultsTableExternal tbody");
+        tbodyExternal.innerHTML = "";
+
+        j.externalMatches.forEach((r, i) => {
+          const tr = document.createElement("tr");
+          const commonSkills = (j.skillList || []).filter(skill => (r.skills || []).includes(skill));
+          tr.innerHTML = `<td>${i + 1}</td><td><a href="https://www.${r.linkedin_url || "#"}">${r.first_name.charAt(0).toUpperCase() + r.first_name.slice(1) || ""} ${r.last_name.charAt(0).toUpperCase() + r.last_name.slice(1) || ""}</a></td><td>${r.recommended_personal_email || ""}</td><td>${r.inferred_salary ? "$" + r.inferred_salary : "N/A"}</td><td>${(commonSkills || []).join(", ")}</td><td>${Math.round((commonSkills.length/j.skillList.length)*100) || 0}% Skill Match</td>`;
+          tbodyExternal.appendChild(tr);
+        });
+
         document.getElementById("matchStatus").textContent = `Returned ${latestRank.length} results (Top ${top_k}). Click a row to select.`;
+        document.getElementById("matchStatusExternal").textContent = `Returned ${j.externalMatches.length} external matches.`;
         // setDisabled("btnReadyIT", true);
         // setDisabled("btnReadyIT2", true);
         // setDisabled("btnReportHtml", true);

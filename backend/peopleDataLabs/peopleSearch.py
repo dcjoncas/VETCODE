@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 import requests
+import math
 import json
 #from peopledatalabs import PDLPY
 
@@ -17,10 +18,13 @@ def searchSkills(skillList: list[str], size: int = 5):
         'X-Api-Key': PDL_API_KEY,
     }
 
+    # Prospects should match at least 80% of the skills in the list
+    meet80min = math.ceil(len(skillList) * 0.8)
+
     payload = {
         "query": {
             "bool": {
-                "must": [
+                "should": [
                     {"term": {"skills": skill}} for skill in skillList
                 ]
             }
@@ -33,7 +37,7 @@ def searchSkills(skillList: list[str], size: int = 5):
     if response.status_code == 200:
         return response.json()
     else:
-        return f"Failed to retrieve data, status code: {response.status_code}"
+        raise Exception(f"Failed to retrieve data, status code: {response.status_code}")
     
 def searchSkillsAndLocation(skillList: list[str], locationCity: str = "", locationState: str = "", locationCountry: str = "", size: int = 5):
     url = "https://api.peopledatalabs.com/v5/person/search"
@@ -46,10 +50,17 @@ def searchSkillsAndLocation(skillList: list[str], locationCity: str = "", locati
     print("Skill Input: " + str(skillList))
     print("Location City Input: " + locationCity)
 
+    shouldArray = []
     mustArray = []
+    # Prospects should match at least 80% of the skills in the list
+    meet80min = math.ceil(len(skillList) * 0.8)
 
-    for skill in skillList:
-        mustArray.append({"match": {"skills": skill.lower()}})
+    skillListLowercase = [skill.lower() for skill in skillList]
+
+    shouldArray = [{"match": skillListLowercase}]
+
+    #for skill in skillList:
+        #shouldArray.append({"match": {"skills": skill.lower()}})
     
     if len(locationCity) > 0:
         mustArray.append({"match": {"location_locality": locationCity.lower()}})
@@ -61,7 +72,8 @@ def searchSkillsAndLocation(skillList: list[str], locationCity: str = "", locati
     payload = {
         "query": {
             "bool": {
-                "must": mustArray
+                "must": mustArray,
+                "should": shouldArray
             }
         },
         "size": size
@@ -75,5 +87,5 @@ def searchSkillsAndLocation(skillList: list[str], locationCity: str = "", locati
         return response.json()
     else:
         print(f"PeopleDataLabs API Error: {response.status_code}, Response: {response.text}")
-        return f"Failed to retrieve data, status code: {response.status_code}"
+        raise Exception(f"Failed to retrieve data, status code: {response.status_code}")
     

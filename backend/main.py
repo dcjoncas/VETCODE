@@ -482,6 +482,8 @@ def jd_latest(domain: str = "technology", jd_id: Optional[str] = None):
         return {"jd_id": "", "company":"", "title": "", "domain": domain, "created_at": "", "jd_text": "", "jd_skills": {}}
     return jd
 
+from openAI import externalPeopleSearch
+import peopleDataLabs.peopleSearch as peopleDataLabs
 
 @app.post("/api/match/run")
 def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: int = Form(30)):
@@ -489,6 +491,31 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
     if not jd or not jd.get("jd_skills"):
         raise HTTPException(status_code=400, detail="No job description loaded yet. Normalize a JD first.")
     jd_skills = jd["jd_skills"]
+    
+    peopleDataSkills = []
+    if jd_skills:
+        # Get all skill from JD
+        for key, value in jd_skills.items():
+            peopleDataSkills.extend(value)
+
+        peopleDataSkills = list(set(peopleDataSkills))  # unique skills
+        print(f'Extracted skills for external search: {peopleDataSkills}')
+    else:
+        peopleDataSkills = externalPeopleSearch.getPeopleSkills(jd["jd_text"])
+    
+    returnedExternalPeople = []
+
+    # Extract location info
+    jobCity = externalPeopleSearch.getPeopleCity(jd["jd_text"])
+    jobState = externalPeopleSearch.getPeopleState(jd["jd_text"])
+    jobCountry = externalPeopleSearch.getPeopleCountry(jd["jd_text"])
+
+    if len(jobCity) > 0 or len(jobState) > 0 or len(jobCountry) > 0:
+        print(f'Extracted location for external search: City={jobCity}, State={jobState}, Country={jobCountry}')
+
+        returnedExternalPeople = peopleDataLabs.searchSkillsAndLocation(peopleDataSkills, jobCity, jobState, jobCountry, top_k)["data"]
+    else:
+        returnedExternalPeople = peopleDataLabs.searchSkills(peopleDataSkills, top_k)["data"]
 
     profiles = storage.list_profiles(DB_PATH, domain=domain)
     ranked = []
@@ -504,7 +531,7 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
             "breakdown": parts
         })
     ranked.sort(key=lambda x: x["score"], reverse=True)
-    return {"jd": {"jd_id": jd["jd_id"], "company": jd.get("company",""), "title": jd.get("title",""), "created_at": jd.get("created_at","")}, "results": ranked[:top_k]}
+    return {"jd": {"jd_id": jd["jd_id"], "company": jd.get("company",""), "title": jd.get("title",""), "created_at": jd.get("created_at","")}, "results": ranked[:top_k], "externalMatches": returnedExternalPeople, "skillList": peopleDataSkills}
 
 
 @app.post("/api/match/scorecard")
@@ -696,8 +723,6 @@ def profile_to_pdf(
     print(f"Exporting profile ID {linkedInProfileUrl} to PDF")
     outcome = duxProfiles.getProfilePDF(linkedInProfileUrl)
     print('Results: ' + str(outcome))
-
-import peopleDataLabs.peopleSearch as peopleDataLabs
 
 @app.post("/api/peopleLabs/search")
 def people_labs_search(
