@@ -9,7 +9,7 @@ def getPeopleSkills(jobDescription: str) -> list[str]:
             model="gpt-3.5-turbo",  # Specify the model
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."}, # System instructions
-                {"role": "user", "content": f"From the following job description, return the required skills as a comma separated list. Add no additional text or commentary: {jobDescription}"}
+                {"role": "user", "content": f"From the following job description, return the required skills as a comma separated list. Be specific. Add no additional text or commentary: {jobDescription}"}
             ],
             max_tokens=100, # Limit the response length to manage costs
             temperature=0.7 # Control the randomness of the response
