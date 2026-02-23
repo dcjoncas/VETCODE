@@ -94,11 +94,8 @@
       <div class="split">
         <div class="field">
           <label>Select saved JD</label>
-          <select id="jdSelect">
+          <select id="matchJdPicker">
             <option value="" selected disabled hidden>Select Description</option>
-            <option value="JDD-20260129003241729">Senior Full-Stack Engineer (v2)</option>
-            <option value="JDD-20260129002613803">VR App Developer (Oculus Quest 2)</option>
-            <option value="JDD-20260129001812443">Data Platform Architect (Azure)</option>
           </select>
         </div>
         <div class="field">
@@ -175,6 +172,31 @@
       return n;
     }
 
+    // TODO: Need to add JD Picker
+    async function refreshExistingDescriptions() {
+      try {
+        // const ps = await api("/api/profile/list");
+        const jds = await api("/api/jd/list");
+
+        // const profiles = Array.isArray(ps) ? ps : [];
+        const jdsList = Array.isArray(jds) ? jds : [];
+
+        // TODO: Update this code
+        // renderProfilesList(profiles);
+        // renderJdsList(jdsList);
+
+        const matchPicker = document.getElementById("matchJdPicker");
+        
+        matchPicker.innerHTML = `<option value="">Select Description</option>` + jdsList.map(j =>
+          `<option value="${escapeHtml(j.jd_id)}">${escapeHtml((j.company || "") + (j.company ? " — " : "") + (j.title || j.jd_id))}</option>`
+        ).join("");
+
+      } catch (e) {
+        console.log("Failed to get job descriptions: " + e);
+        
+      }
+    }
+
     // TODO: Select a row
     async function selectRow(r) {
       selectedRow = r;
@@ -196,7 +218,7 @@
     // Rank profiles based on job description
     async function rank() {
       const jd_id = document.getElementById("jdSelect").value;
-      // Currently unused below
+      // Currently unused
       // selectedJdId = jd_id;
       // setText("activeJdLabel", jd_id ? ("Active JD: " + jd_id) : "Active JD: (none)");
 
@@ -255,7 +277,10 @@
       }
     }
 
-    document.getElementById("btnRank").addEventListener("click", rank);
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("btnRank").addEventListener("click", rank);
+      refreshExistingDescriptions();
+    });
   </script>
 </body>
 </html>
