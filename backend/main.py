@@ -502,11 +502,12 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
         print(f'Extracted skills for external search: {peopleDataSkills}')
     else:
         peopleDataSkills = externalPeopleSearch.getPeopleSkills(jd["jd_text"])
+        storage.upsert_jd(DB_PATH, jd["jd_id"], jd.get("company",""), jd.get("title",""), jd.get("domain",""), jd.get("created_at",""), jd["jd_text"], {"ai_extracted_skills": peopleDataSkills})
     
     returnedExternalPeople = []
 
     # Extract location info
-    jobCity = externalPeopleSearch.getPeopleCity(jd["jd_text"])
+    '''jobCity = externalPeopleSearch.getPeopleCity(jd["jd_text"])
     jobState = externalPeopleSearch.getPeopleState(jd["jd_text"])
     jobCountry = externalPeopleSearch.getPeopleCountry(jd["jd_text"])
 
@@ -514,8 +515,9 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
         print(f'Extracted location for external search: City={jobCity}, State={jobState}, Country={jobCountry}')
 
         returnedExternalPeople = peopleDataLabs.searchSkillsAndLocation(peopleDataSkills, jobCity, jobState, jobCountry, top_k)["data"]
-    else:
-        returnedExternalPeople = peopleDataLabs.searchSkills(peopleDataSkills, top_k)["data"]
+    else:'''
+    print('No location extracted from JD. Running external search based on skills only.')
+    returnedExternalPeople = peopleDataLabs.searchSkills(peopleDataSkills, top_k)["data"]
 
     profiles = storage.list_profiles(DB_PATH, domain=domain)
     ranked = []

@@ -71,9 +71,9 @@
 <div class="split">
   <div class="field">
     <label>Job description input</label>
-    <textarea placeholder="Paste job description here..."></textarea>
+    <textarea id="jdText" placeholder="Paste job description here..."></textarea>
     <div class="row-actions">
-      <button class="btn" type="button" onclick="alert('Mock: normalize JD')">Normalize &amp; Save</button>
+      <button class="btn" type="button" id="btnSaveJd">Normalize &amp; Save</button>
       <button class="btn secondary" type="button" onclick="alert('Mock: view JD')">View JD (HTML)</button>
       <button class="btn secondary" type="button" onclick="alert('Mock: download JD')">Download (DOCX)</button>
     </div>
@@ -84,8 +84,8 @@
     <div class="field">
       <label>JD metadata</label>
       <div class="split">
-        <div class="field"><label>Company</label><input value="DevReady / Client"/></div>
-        <div class="field"><label>Job title</label><input value="Senior Full-Stack Engineer"/></div>
+        <div class="field"><label>Company</label><input id="jdCompany" placeholder="Company Name..."/></div>
+        <div class="field"><label>Job title</label><input id="jdTitle" placeholder="Job Title..."/></div>
       </div>
     </div>
 
@@ -94,7 +94,7 @@
       <div class="split">
         <div class="field">
           <label>Select saved JD</label>
-          <select id="matchJdPicker">
+          <select id="jdSelect">
             <option value="" selected disabled hidden>Select Description</option>
           </select>
         </div>
@@ -185,7 +185,7 @@
         // renderProfilesList(profiles);
         // renderJdsList(jdsList);
 
-        const matchPicker = document.getElementById("matchJdPicker");
+        const matchPicker = document.getElementById("jdSelect");
         
         matchPicker.innerHTML = `<option value="">Select Description</option>` + jdsList.map(j =>
           `<option value="${escapeHtml(j.jd_id)}">${escapeHtml((j.company || "") + (j.company ? " — " : "") + (j.title || j.jd_id))}</option>`
@@ -259,6 +259,7 @@
 
         j.externalMatches.forEach((r, i) => {
           const tr = document.createElement("tr");
+          
           const commonSkills = (j.skillList || []).filter(skill => (r.skills || []).includes(skill));
           tr.innerHTML = `<td>${i + 1}</td><td><a href="https://www.${r.linkedin_url || "#"}">${r.first_name.charAt(0).toUpperCase() + r.first_name.slice(1) || ""} ${r.last_name.charAt(0).toUpperCase() + r.last_name.slice(1) || ""}</a></td><td>${r.recommended_personal_email || ""}</td><td>${r.inferred_salary ? "$" + r.inferred_salary : "N/A"}</td><td>${(commonSkills || []).join(", ")}</td><td>${Math.round((commonSkills.length/j.skillList.length)*100) || 0}% Skill Match</td>`;
           tbodyExternal.appendChild(tr);
@@ -277,8 +278,35 @@
       }
     }
 
+    async function saveJD() {
+      const company = document.getElementById("jdCompany").value.trim();
+      const title = document.getElementById("jdTitle").value.trim();
+      const text = document.getElementById("jdText").value.trim();
+      if (!company || !title || !text) return alert("Company, Title, and JD text are required.");
+      const fd = new FormData();
+      fd.append("company", company);
+      fd.append("title", title);
+      fd.append("jd_text", text);
+      fd.append("domain", "technology");
+      // keep URL in the UI only (backend may ignore)
+      // document.getElementById("jdStatus").textContent = "Saving...";
+      try {
+        const j = await api("/api/jd/normalize", { method: "POST", body: fd });
+        selectedJdId = j.jd_id;
+        // document.getElementById("jdStatus").textContent = `Saved JD: ${j.jd_id}`;
+        // document.getElementById("btnJdHtml").disabled = false;
+        // document.getElementById("btnJdDocx").disabled = false;
+        await refreshExistingDescriptions();
+      } catch (e) {
+        // document.getElementById("jdStatus").textContent = `JD save failed: ${e.message}`;
+        console.log("Failed to save job description: " + e);
+        
+      }
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("btnRank").addEventListener("click", rank);
+      document.getElementById("btnSaveJd").addEventListener("click", saveJD);
       refreshExistingDescriptions();
     });
   </script>

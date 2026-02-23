@@ -25,7 +25,7 @@ def searchSkills(skillList: list[str], size: int = 5):
         "query": {
             "bool": {
                 "should": [
-                    {"term": {"skills": skill}} for skill in skillList
+                    {"match": {"skills": skill}} for skill in skillList
                 ]
             }
         },
@@ -57,7 +57,7 @@ def searchSkillsAndLocation(skillList: list[str], locationCity: str = "", locati
 
     skillListLowercase = [skill.lower() for skill in skillList]
 
-    shouldArray = [{"match": skillListLowercase}]
+    shouldArray = [{"match": {"skills": skill}} for skill in skillListLowercase]
 
     #for skill in skillList:
         #shouldArray.append({"match": {"skills": skill.lower()}})
