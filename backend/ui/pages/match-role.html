@@ -74,8 +74,8 @@
     <textarea id="jdText" placeholder="Paste job description here..."></textarea>
     <div class="row-actions">
       <button class="btn" type="button" id="btnSaveJd">Normalize &amp; Save</button>
-      <button class="btn secondary" type="button" onclick="alert('Mock: view JD')">View JD (HTML)</button>
-      <button class="btn secondary" type="button" onclick="alert('Mock: download JD')">Download (DOCX)</button>
+      <button class="btn secondary" type="button" id="btnJdHtml" disabled>View Description (HTML)</button>
+      <button class="btn secondary" type="button" id="btnJdDocx" disabled>Download Description (DOCX)</button>
     </div>
     <small>Tip: keep requirements crisp — must-have vs nice-to-have.</small>
   </div>
@@ -219,7 +219,7 @@
     async function rank() {
       const jd_id = document.getElementById("jdSelect").value;
       // Currently unused
-      // selectedJdId = jd_id;
+      selectedJdId = jd_id;
       // setText("activeJdLabel", jd_id ? ("Active JD: " + jd_id) : "Active JD: (none)");
 
       const top_k = parseInt(document.getElementById("topK").value, 10) || 10;
@@ -294,8 +294,9 @@
         const j = await api("/api/jd/normalize", { method: "POST", body: fd });
         selectedJdId = j.jd_id;
         // document.getElementById("jdStatus").textContent = `Saved JD: ${j.jd_id}`;
-        // document.getElementById("btnJdHtml").disabled = false;
-        // document.getElementById("btnJdDocx").disabled = false;
+        // enable the buttons for viewing the saved JD
+        document.getElementById("btnJdHtml").disabled = false;
+        document.getElementById("btnJdDocx").disabled = false;
         await refreshExistingDescriptions();
       } catch (e) {
         // document.getElementById("jdStatus").textContent = `JD save failed: ${e.message}`;
@@ -304,10 +305,27 @@
       }
     }
 
+    function enableJDButtons() {
+      if (!document.getElementById("jdSelect").value) {
+        document.getElementById("btnJdHtml").disabled = true;
+        document.getElementById("btnJdDocx").disabled = true;
+        return;
+      }
+      else {
+        selectedJdId = document.getElementById("jdSelect").value;
+        document.getElementById("btnJdHtml").disabled = false;
+        document.getElementById("btnJdDocx").disabled = false;
+      }
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("btnRank").addEventListener("click", rank);
       document.getElementById("btnSaveJd").addEventListener("click", saveJD);
+      document.getElementById("jdSelect").addEventListener("change", enableJDButtons)
       refreshExistingDescriptions();
+
+      document.getElementById("btnJdHtml").addEventListener("click", () => window.open(`${API_BASE}/api/jd/${selectedJdId}/html`, "_blank"));
+      document.getElementById("btnJdDocx").addEventListener("click", () => window.location.href = `${API_BASE}/api/jd/${selectedJdId}/docx`);
     });
   </script>
 </body>
