@@ -165,15 +165,6 @@
         
         // document.getElementById("profileHeader").innerText = `Candidate Profile: ${candidateId}`;
       }
-      else if (selectedProfileId) {
-        profileData = await api(`/api/profile/${selectedProfileId}`);
-
-        console.log("selectedProfileID");
-        
-        console.log(profileData);
-        
-        // document.getElementById("profileHeader").innerText = `Candidate Profile: ${selectedProfileId}`;
-      }
     });
   </script>
 </body>
