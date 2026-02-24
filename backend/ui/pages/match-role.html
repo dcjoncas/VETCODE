@@ -198,6 +198,7 @@
 
       sessionStorage.setItem("candidateId", r.profile_id);
       sessionStorage.setItem("candidateName", r.name);
+      sessionStorage.setItem("candidateTopMatches", r.top_matches);
       document.getElementById("candidateSelected").innerText = `Current Candidate: ${r.name}`;
 
       document.getElementById(`resultRow-${r.profile_id}`).classList.add("active-candidate-row");

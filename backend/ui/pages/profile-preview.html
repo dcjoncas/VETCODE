@@ -38,7 +38,7 @@
     <main class="main">
       <div class="topbar">
         <div>
-          <div class="page-title">Screen 4 — Profile Preview</div>
+          <div id="pageTitle" class="page-title">Screen 4 — Profile Preview</div>
           <div class="breadcrumb">Vetting Process • Profile Output</div>
         </div>
         <div class="search">
@@ -49,7 +49,7 @@
 
       <div id="processFlow"></div>
 
-      <div class="grid">
+      <!--<div class="grid">-->
         <section class="card">
           
 <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
@@ -57,9 +57,11 @@
     GS
   </div>
   <div style="flex:1;min-width:260px">
-    <div id="profileHeader" style="font-size:22px;font-weight:900;line-height:1">No candidate loaded</div>
-    <div style="color:var(--muted);margin-top:6px">São Paulo, Brazil • Senior Software Engineer • Available in 10 days</div>
-    <div class="pills">
+    <div id="profileHeader" style="font-size:22px;font-weight:900;line-height:1">No Candidate Loaded</div>
+    <div id="profileSubHeader" style="color:var(--muted);margin-top:6px;">
+      <div id="candidateAddress" style="display: inline;">No Address Listed</div> • <div id="candidateJobTitle" style="display: inline;">No Job Title Listed</div> • <div id="candidateAvailability" style="display: inline;">No Availability Listed</div>
+    </div>
+    <div id="topMatches" class="pills">
       <span class="pill">Backend</span><span class="pill">Database</span><span class="pill">Identity</span><span class="pill">React</span>
     </div>
   </div>
@@ -85,8 +87,7 @@
   </div>
 
   <div class="card" style="padding:14px;border-radius:18px;box-shadow:none">
-    <h2 style="margin:0 0 8px 0">Feature experience</h2>
-    <p style="margin:0 0 10px 0">Tagged experiences that map to your product needs.</p>
+    <h2 style="margin:0 0 8px 0">Feature Experience</h2>
     <div class="pills">
       <span class="pill">Authentication</span>
       <span class="pill">Fraud detection</span>
@@ -129,7 +130,7 @@
 <div class="notice" style="margin-top:12px">
   Next: send the shortlist and narrative to the end client, then schedule interviews.
 </div>
-
+<!--
         </section>
         <aside class="card">
           
@@ -140,7 +141,7 @@
       <div class="notice" style="margin-top:14px">All actions here are mocked. The goal is to validate layout, flow, and labels.</div>
     
         </aside>
-      </div>
+      </div>-->
     </main>
   </div>
 
@@ -162,8 +163,22 @@
         console.log("candidateId");
         
         console.log(profileData);
+
+        const topMatches = sessionStorage.getItem("candidateTopMatches").split(",") || [];
         
-        // document.getElementById("profileHeader").innerText = `Candidate Profile: ${candidateId}`;
+        let topMatchesHtml = "";
+        topMatches.forEach(match => {
+          topMatchesHtml += `<span class="pill">${match}</span>`;
+        });
+        document.getElementById("topMatches").innerHTML = topMatchesHtml;
+        
+        document.getElementById("profilePageTitle").innerText = `DevReady • ${profileData.contact.full_name} — Profile Preview`;
+        document.getElementById("pageTitle").innerText = `${profileData.contact.full_name} — Profile Preview`;
+        document.getElementById("profileHeader").innerText = `${profileData.contact.full_name}`;
+        
+        document.getElementById("candidateAddress").innerText = profileData.contact.location || "No Location Listed";
+        document.getElementById("candidateJobTitle").innerText = profileData.contact.job_title || "No Job Title Listed";
+        document.getElementById("candidateAvailability").innerText = profileData.contact.availability || "No Availability Listed";
       }
     });
   </script>
