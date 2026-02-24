@@ -193,10 +193,19 @@
 
     // TODO: Select a row
     async function selectRow(r) {
-      selectedRow = r;
-      selectedProfileId = r.profile_id;
+      // selectedRow = r;
+      // selectedProfileId = r.profile_id;
+
+      const candidateId = sessionStorage.getItem("candidateId");
+      if (candidateId) {
+        document.getElementById(`resultRow-${candidateId}`).classList.remove("active-candidate-row");
+      }
+
+      document.getElementById(`resultRow-${r.profile_id}`).classList.add("active-candidate-row");
 
       sessionStorage.setItem("candidateId", r.profile_id);
+      document.getElementById(`resultRow-${r.profile_id}`).classList.add("active-candidate-row");
+      // document.getElementById(`resultRow-${r.profile_id}`)
       /*setText("selectedRowLabel", `Selected: ${r.name || ""} (${r.email || ""})`);
 
       // Enable ReadyIT buttons
@@ -242,8 +251,18 @@
         const tbody = document.querySelector("#resultsTableInternal tbody");
         tbody.innerHTML = "";
 
+        const candidateId = sessionStorage.getItem("candidateId");
+
         latestRank.forEach((r, i) => {
           const tr = document.createElement("tr");
+
+          if (candidateId && r.profile_id === candidateId) {
+            console.log(r.profile_id);
+            
+            tr.classList.add("active-candidate-row");
+          }
+
+          tr.id = `resultRow-${r.profile_id}`;
           tr.style.cursor = "pointer";
           tr.innerHTML = `<td>${i + 1}</td><td>${r.name || ""}</td><td>${r.email || ""}</td><td>${Math.round(r._score100 || 0)}</td><td>${(r.top_matches || []).slice(0, 6).join(", ")}</td>`;
           tr.addEventListener("click", () => selectRow(r));

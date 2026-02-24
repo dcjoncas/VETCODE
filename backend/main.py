@@ -517,7 +517,10 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
         returnedExternalPeople = peopleDataLabs.searchSkillsAndLocation(peopleDataSkills, jobCity, jobState, jobCountry, top_k)["data"]
     else:'''
     print('No location extracted from JD. Running external search based on skills only.')
-    returnedExternalPeople = peopleDataLabs.searchSkills(peopleDataSkills, top_k)["data"]
+    try:
+        returnedExternalPeople = peopleDataLabs.searchSkills(peopleDataSkills, top_k)["data"]
+    except Exception as e:
+        print(f'Error during external people search: {e}')
 
     profiles = storage.list_profiles(DB_PATH, domain=domain)
     ranked = []

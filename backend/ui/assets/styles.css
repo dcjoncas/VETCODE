@@ -279,3 +279,6 @@ small{color:var(--muted)}
   color:var(--muted);
   font-size:12px;
 }
+.active-candidate-row{
+  background:rgba(127,191,63,.12) !important;
+}
