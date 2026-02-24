@@ -70,7 +70,7 @@
     GS
   </div>
   <div style="flex:1;min-width:260px">
-    <div style="font-size:22px;font-weight:900;line-height:1">Giovanni S</div>
+    <div id="profileHeader" style="font-size:22px;font-weight:900;line-height:1">No candidate loaded</div>
     <div style="color:var(--muted);margin-top:6px">São Paulo, Brazil • Senior Software Engineer • Available in 10 days</div>
     <div class="pills">
       <span class="pill">Backend</span><span class="pill">Database</span><span class="pill">Identity</span><span class="pill">React</span>
@@ -157,11 +157,37 @@
     </main>
   </div>
 
-  <script src="../assets/scripts.js"></script>
+  <script src="JS/apiScripts.js"></script>
 
   <script>
     // tiny UX sugar (mock only)
     document.querySelectorAll('a.step').forEach(a=>a.addEventListener('click', ()=>{}));
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      // Get session variables
+      const candidateId = sessionStorage.getItem("candidateId");
+
+      let profileData = {};
+
+      if (candidateId) {
+        profileData = await api(`/api/profile/${candidateId}`);
+
+        console.log("candidateId");
+        
+        console.log(profileData);
+        
+        // document.getElementById("profileHeader").innerText = `Candidate Profile: ${candidateId}`;
+      }
+      else if (selectedProfileId) {
+        profileData = await api(`/api/profile/${selectedProfileId}`);
+
+        console.log("selectedProfileID");
+        
+        console.log(profileData);
+        
+        // document.getElementById("profileHeader").innerText = `Candidate Profile: ${selectedProfileId}`;
+      }
+    });
   </script>
 </body>
 </html>

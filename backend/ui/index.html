@@ -1632,6 +1632,8 @@ Responsibilities:
 
       document.getElementById("btnProfileJson").addEventListener("click", async () => {
         if (!selectedProfileId) return;
+        console.log(selectedProfileId);
+        
         const j = await api(`/api/profile/${selectedProfileId}`);
         const box = document.getElementById("profileJson");
         box.hidden = !box.hidden ? true : false;
