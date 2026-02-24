@@ -155,6 +155,8 @@ small{color:var(--muted)}
 .card p{margin:0 0 10px 0; color:var(--muted); line-height:1.35}
 .pills{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px}
 .pill{
+  display: inline-block;
+  margin-bottom: 5px;
   border:1px solid rgba(47,125,75,.25);
   background:rgba(127,191,63,.12);
   color:var(--primary-2);
