@@ -8,33 +8,15 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <script> 
     $(function(){
-      $("#pageNav").load("components/sideNav.html"); 
-      $("#userBox").load("components/userbox.html");
+      $("#siteSidebar").load("components/sidebar.html");
       $("#processFlow").load("components/processFlow.html");
     });
   </script> 
 </head>
 <body>
   <div class="container">
-    <aside class="sidebar">
-      <div class="brand">
-        <img src="../assets/logo.svg" alt="DevReady" style="width:42px;height:42px"/>
-        <div class="title">
-          <span>DEV</span>
-          <span>READY</span>
-          <span class="sub">Vetting • UX mock</span>
-        </div>
-      </div>
-
-      <div id="userBox"></div>
-      <div id="pageNav"></div>
-
-      <div class="footer">
-        DevReady • www.devready.io<br/>
-        Green theme + clean cards (no icons)
-      </div>
-    </aside>
-
+    <div id="siteSidebar"></div>
+    
     <main class="main">
       <div class="topbar">
         <div>
