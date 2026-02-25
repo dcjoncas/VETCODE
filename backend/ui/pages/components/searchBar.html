@@ -1,0 +1,32 @@
+<div class="search">
+    <input id="searchInput" class="input" placeholder="Search for profiles (name / email)"/>
+    <button class="btn secondary" type="button">Search</button>
+</div>
+
+<script>
+    async function searchProfiles() {
+        try {
+            const fd = new FormData();
+            fd.append("domain", "technology");
+            fd.append("search_string", document.getElementById("searchInput").value);
+
+            console.log("Form Data Entries:");
+            for (const [key, value] of fd.entries()) {
+                console.log(key, value);
+            }
+
+            const response = await fetch("/api/profile/search", {
+                method: "POST",
+                body: fd
+            });
+
+            const results = await response.json();
+            console.log(results); // For demo purposes, log the results
+            // Here you would typically update the UI with the search results
+        } catch (error) {
+            console.error("Error searching profiles:", error);
+        }
+    }
+
+    document.getElementById("searchInput").addEventListener("change", searchProfiles);
+</script>

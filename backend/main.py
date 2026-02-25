@@ -418,6 +418,12 @@ def profile_list(domain: str = "technology"):
         return storage.list_profiles(DB_PATH, domain=None)
     return storage.list_profiles(DB_PATH, domain=domain)
 
+# Used to search for profiles with the search bar
+@app.post("/api/profile/search")
+def profile_search(domain: str = Form(default="technology"), search_string: str = Form(default="")):
+    if domain in ("all","*","",None):
+        return storage.search_profiles(DB_PATH, domain=None, search_string=search_string, limit=5)
+    return storage.search_profiles(DB_PATH, domain=domain, search_string=search_string, limit=5)
 
 @app.get("/api/profile/{profile_id}")
 def profile_get(profile_id: str):

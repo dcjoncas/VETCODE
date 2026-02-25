@@ -138,6 +138,25 @@ def list_profiles(db_path: str, domain: Optional[str] = "technology"):
     conn.close()
     return [dict(r) for r in rows]
 
+def search_profiles(db_path: str, domain: Optional[str] = "technology", search_string: str = "", limit: int = 5):
+    conn = _conn(db_path)
+    cur = conn.cursor()
+
+    print(f"Searching profiles with domain='{domain}' and search_string='{search_string}'")
+
+    # If domain filter yields none, fall back to all (so you never "lose" data in UI)
+    if domain is None:
+        cur.execute("SELECT profile_id, domain, full_name, email FROM profiles WHERE full_name LIKE ? OR email LIKE ? ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", (f"%{search_string}%", f"%{search_string}%", limit))
+        rows = cur.fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+
+    cur.execute("SELECT profile_id, domain, full_name, email FROM profiles WHERE COALESCE(domain,'')=? AND (full_name LIKE ? OR email LIKE ?) ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", (domain, f"%{search_string}%", f"%{search_string}%", limit))
+    rows = cur.fetchall()
+
+    conn.close()
+    return [dict(r) for r in rows]
+
 def get_profile(db_path: str, profile_id: str) -> Optional[dict]:
     conn = _conn(db_path)
     cur = conn.cursor()
