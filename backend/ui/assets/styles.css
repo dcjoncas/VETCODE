@@ -282,3 +282,7 @@ small{color:var(--muted)}
 .active-candidate-row{
   background:rgba(127,191,63,.12) !important;
 }
+.search-result-row{
+  padding: 0px;
+  margin: 0px;
+}

@@ -1,6 +1,14 @@
+
 <div class="search">
-    <input id="searchInput" class="input" placeholder="Search for profiles (name / email)"/>
+    <input id="searchInput" class="input" style="position: relative; left: 0;" placeholder="Search for profiles (name / email)"/>
     <button class="btn secondary" type="button">Search</button>
+</div>
+<div class="card">
+<table id="searchResultsTable" class="table" style="position: relative; left: 0;">
+    <thead><tr><th style="padding-top: 0; margin-top: 0;">Search Results</th></tr></thead>
+    <tbody id="searchResults"><!-- Dynamically filled with ranked results --></tbody>
+    
+</table>
 </div>
 
 <script>
@@ -10,11 +18,6 @@
             fd.append("domain", "technology");
             fd.append("search_string", document.getElementById("searchInput").value);
 
-            console.log("Form Data Entries:");
-            for (const [key, value] of fd.entries()) {
-                console.log(key, value);
-            }
-
             const response = await fetch("/api/profile/search", {
                 method: "POST",
                 body: fd
@@ -23,6 +26,28 @@
             const results = await response.json();
             console.log(results); // For demo purposes, log the results
             // Here you would typically update the UI with the search results
+            const tbody = document.getElementById("searchResults");
+            
+            tbody.innerHTML = "";
+
+            results.forEach((r, i) => {
+                const tr = document.createElement("tr");
+
+                if (candidateId && r.profile_id === candidateId) {
+                    console.log(r.profile_id);
+                    
+                    tr.classList.add("active-candidate-row");
+                }
+
+                console.log(r)
+                tr.id = `searchRow-${r.profile_id}`;
+                tr.style.cursor = "pointer";
+                tr.style.padding = "0px";
+                tr.style.margin = "0px";
+                tr.innerHTML = `<td class="search-result-row" ><h3 class="search-result-row">${r.full_name || ""}</h3><p class="muted search-result-row" style="margin: 1px; padding: 1px;">${r.email || ""}</p></td>`;
+                tr.addEventListener("click", () => selectRow(r));
+                tbody.appendChild(tr);
+            });
         } catch (error) {
             console.error("Error searching profiles:", error);
         }
