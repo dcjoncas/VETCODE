@@ -279,12 +279,23 @@ small{color:var(--muted)}
   color:var(--muted);
   font-size:12px;
 }
+
 .active-candidate-row{
   background:rgba(127,191,63,.12) !important;
+  border-radius: 16px !important;
 }
+
 .search-result-row{
   border: none !important;
   padding: 0px !important;
   padding-top: 5px !important;
   margin: 0px !important;
+}
+
+.pagination{
+  display:flex;
+  gap:16px;
+  justify-content:center;
+  align-items:center;
+  margin-top:16px;
 }

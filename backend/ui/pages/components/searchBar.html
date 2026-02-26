@@ -43,8 +43,6 @@
             });
 
             const results = await response.json();
-            console.log(results); // For demo purposes, log the results
-            // Here you would typically update the UI with the search results
             const tbody = document.getElementById("searchResults");
             
             tbody.innerHTML = "";
@@ -62,12 +60,9 @@
                 tr.classList.add("search-result-row");
 
                 if (candidateId && r.profile_id === candidateId) {
-                    console.log(r.profile_id);
-                    
                     tr.classList.add("active-candidate-row");
                 }
 
-                console.log(r)
                 tr.id = `searchRow-${r.profile_id}`;
                 tr.style.cursor = "pointer";
                 tr.innerHTML = `<td class="search-result-row"><h3 class="search-result-row">${r.full_name || ""}</h3><p class="muted search-result-row" style="margin: 1px; padding: 1px;">${r.email || ""}</p></td>`;
