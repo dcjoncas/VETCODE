@@ -1,22 +1,37 @@
 
-<div class="search">
-    <input id="searchInput" class="input" style="position: relative; left: 0;" placeholder="Search for profiles (name / email)"/>
-    <button class="btn secondary" type="button">Search</button>
-</div>
-<div class="card">
-<table id="searchResultsTable" class="table" style="position: relative; left: 0;">
-    <thead><tr><th style="padding-top: 0; margin-top: 0;">Search Results</th></tr></thead>
-    <tbody id="searchResults"><!-- Dynamically filled with ranked results --></tbody>
-    
-</table>
+<div style="position: relative;">
+    <div class="search">
+        <input id="searchInput" class="input" style="position: relative; left: 0;" placeholder="Search for profiles (name / email)"/>
+        <button class="btn secondary" type="button">Search</button>
+    </div>
+    <div id="searchResultsDiv" class="card" style="padding-top: 2px; position: absolute;" hidden>
+        <table id="searchResultsTable" class="table" style="position: relative; left: 0; border-bottom: 0px;">
+            <tbody id="searchResults"><!-- Dynamically filled with ranked results --></tbody>
+            
+        </table>
+    </div>
 </div>
 
 <script>
+    function searchSelect(profile) {
+        sessionStorage.setItem("candidateId", profile.profile_id);
+        sessionStorage.setItem("candidateName", profile.full_name);
+
+        window.location.href = "profile-preview.html";
+    }
+
     async function searchProfiles() {
         try {
+            const query = document.getElementById("searchInput").value.trim();
+
+            if (query.length === 0) {
+                document.getElementById("searchResultsDiv").hidden = true;
+                return;
+            }
+
             const fd = new FormData();
             fd.append("domain", "technology");
-            fd.append("search_string", document.getElementById("searchInput").value);
+            fd.append("search_string", query);
 
             const response = await fetch("/api/profile/search", {
                 method: "POST",
@@ -30,8 +45,17 @@
             
             tbody.innerHTML = "";
 
+            document.getElementById("searchResultsDiv").hidden = false;
+
+            if (results.length === 0) {
+                tbody.innerHTML = '<tr class="search-result-row"><td class="search-result-row">No results found.</td></tr>';
+                return;
+            }
+
             results.forEach((r, i) => {
                 const tr = document.createElement("tr");
+
+                tr.classList.add("search-result-row");
 
                 if (candidateId && r.profile_id === candidateId) {
                     console.log(r.profile_id);
@@ -42,10 +66,8 @@
                 console.log(r)
                 tr.id = `searchRow-${r.profile_id}`;
                 tr.style.cursor = "pointer";
-                tr.style.padding = "0px";
-                tr.style.margin = "0px";
-                tr.innerHTML = `<td class="search-result-row" ><h3 class="search-result-row">${r.full_name || ""}</h3><p class="muted search-result-row" style="margin: 1px; padding: 1px;">${r.email || ""}</p></td>`;
-                tr.addEventListener("click", () => selectRow(r));
+                tr.innerHTML = `<td class="search-result-row"><h3 class="search-result-row">${r.full_name || ""}</h3><p class="muted search-result-row" style="margin: 1px; padding: 1px;">${r.email || ""}</p></td>`;
+                tr.addEventListener("click", () => searchSelect(r));
                 tbody.appendChild(tr);
             });
         } catch (error) {
@@ -53,5 +75,12 @@
         }
     }
 
-    document.getElementById("searchInput").addEventListener("change", searchProfiles);
+    document.getElementById("searchInput").addEventListener("input", searchProfiles);
+
+    // Hide search results when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.search-container')) {
+            document.getElementById("searchResultsDiv").hidden = true;
+        }
+    });
 </script>

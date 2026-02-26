@@ -10,6 +10,7 @@
     $(function(){
       $("#siteSidebar").load("components/sidebar.html");
       $("#processFlow").load("components/processFlow.html");
+      $("#searchBar").load("components/searchBar.html");
     });
   </script> 
 </head>
@@ -23,10 +24,7 @@
           <div id="pageTitle" class="page-title">Screen 4 — Profile Preview</div>
           <div class="breadcrumb">Vetting Process • Profile Output</div>
         </div>
-        <div class="search">
-          <input class="input" placeholder="Search for profiles (name / email)"/>
-          <button class="btn secondary" type="button" onclick="alert('Mock only')">Search</button>
-        </div>
+        <div id="searchBar"></div>
       </div>
 
       <div id="processFlow"></div>
@@ -146,7 +144,28 @@
         
         console.log(profileData);
 
-        const topMatches = sessionStorage.getItem("candidateTopMatches").split(",") || [];
+        const topMatchesFromSession = sessionStorage.getItem("candidateTopMatches");
+        let topMatches= [];
+        if (topMatchesFromSession && topMatchesFromSession.length > 0) {
+          topMatches = topMatchesFromSession.split(",") || [];
+        } else if (profileData.skills) {
+          // TODO: Figure out actual top skills from a profile
+          let skillCount = 0;
+          Object.keys(profileData.skills).forEach(category => 
+            {
+              if(skillCount >= 5)
+                return;
+              
+              profileData.skills[category].forEach(skill => {
+                if(skillCount >= 5)
+                  return;
+                
+                topMatches.push(skill);
+                skillCount++;
+              });
+            }
+          );
+        }
         
         let topMatchesHtml = "";
         topMatches.forEach(match => {
