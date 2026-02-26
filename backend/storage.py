@@ -157,6 +157,50 @@ def search_profiles(db_path: str, domain: Optional[str] = "technology", search_s
     conn.close()
     return [dict(r) for r in rows]
 
+def search_profiles_page_count(db_path: str, domain: Optional[str] = "technology", search_string: str = "", pageLimit: int = 10) -> int:
+    conn = _conn(db_path)
+    cur = conn.cursor()
+
+    print(f"Finding number of profiles with domain='{domain}' and search_string='{search_string}'")
+
+    # If domain filter yields none, fall back to all (so you never "lose" data in UI)
+    if domain is None:
+        cur.execute("SELECT COUNT(*) FROM profiles WHERE full_name LIKE ? OR email LIKE ? ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", (f"%{search_string}%", f"%{search_string}%", pageLimit))
+        rows = cur.fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+
+    cur.execute("SELECT COUNT(*) FROM profiles WHERE COALESCE(domain,'')=? AND (full_name LIKE ? OR email LIKE ?) ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", (domain, f"%{search_string}%", f"%{search_string}%", pageLimit))
+    rows = cur.fetchall()
+
+    conn.close()
+    print(f"Number of profiles found: {rows[0][0] if rows else 0}")
+
+    # Calculate page count based on total rows and page limit
+    rowCount = rows[0][0] if rows else 0
+    pages = (rowCount // pageLimit) + (1 if rows and rowCount % pageLimit > 0 else 0)
+
+    return pages
+
+def search_profiles_full(db_path: str, domain: Optional[str] = "technology", search_string: str = "", pageLimit: int = 10, currentPage: int = 0):
+    conn = _conn(db_path)
+    cur = conn.cursor()
+
+    print(f"Searching profiles with domain='{domain}' and search_string='{search_string}'")
+
+    # If domain filter yields none, fall back to all (so you never "lose" data in UI)
+    if domain is None:
+        cur.execute("SELECT profile_id, domain, full_name, email FROM profiles WHERE full_name LIKE ? OR email LIKE ? ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ? OFFSET ?", (f"%{search_string}%", f"%{search_string}%", pageLimit, currentPage * pageLimit))
+        rows = cur.fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+
+    cur.execute("SELECT profile_id, domain, full_name, email FROM profiles WHERE COALESCE(domain,'')=? AND (full_name LIKE ? OR email LIKE ?) ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ? OFFSET ?", (domain, f"%{search_string}%", f"%{search_string}%", pageLimit, currentPage * pageLimit))
+    rows = cur.fetchall()
+
+    conn.close()
+    return [dict(r) for r in rows]
+
 def get_profile(db_path: str, profile_id: str) -> Optional[dict]:
     conn = _conn(db_path)
     cur = conn.cursor()

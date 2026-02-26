@@ -425,6 +425,23 @@ def profile_search(domain: str = Form(default="technology"), search_string: str 
         return storage.search_profiles(DB_PATH, domain=None, search_string=search_string, limit=5)
     return storage.search_profiles(DB_PATH, domain=domain, search_string=search_string, limit=5)
 
+@app.post("/api/profile/pageCount")
+def profile_page_count(domain: str = Form(default="technology"), search_string: str = Form(default=""), pageLimit: int = Form(default=10)):
+    print(f"Calculating page count for domain='{domain}' with search_string='{search_string}'")
+    if domain in ("all","*","",None):
+        return storage.search_profiles_page_count(DB_PATH, domain=None, search_string=search_string, pageLimit=pageLimit)
+    return storage.search_profiles_page_count(DB_PATH, domain=domain, search_string=search_string, pageLimit=pageLimit)
+
+@app.post("/api/profile/pageSearch")
+def profile_page_search(domain: str = Form(default="technology"), search_string: str = Form(default=""), currentPage: int = Form(default=0), pageLimit: int = Form(default=10)):
+    print(f"Searching profiles for domain='{domain}' with search_string='{search_string}' on page {currentPage} with pageLimit {pageLimit}")
+
+    currentPage = currentPage - 1  # adjust for 0-based indexing in backend
+
+    if domain in ("all","*","",None):
+        return storage.search_profiles_full(DB_PATH, domain=None, search_string=search_string, currentPage=currentPage, pageLimit=pageLimit)
+    return storage.search_profiles_full(DB_PATH, domain=domain, search_string=search_string, currentPage=currentPage, pageLimit=pageLimit)
+
 @app.get("/api/profile/{profile_id}")
 def profile_get(profile_id: str):
     p = storage.get_profile(DB_PATH, profile_id)

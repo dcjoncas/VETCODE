@@ -2,7 +2,7 @@
 <div style="position: relative;">
     <div class="search">
         <input id="searchInput" class="input" style="position: relative; left: 0;" placeholder="Search for profiles (name / email)"/>
-        <button class="btn secondary" type="button">Search</button>
+        <button id="searchButton" class="btn secondary" type="button">Search</button>
     </div>
     <div id="searchResultsDiv" class="card" style="padding-top: 2px; position: absolute;" hidden>
         <table id="searchResultsTable" class="table" style="position: relative; left: 0; border-bottom: 0px;">
@@ -13,6 +13,10 @@
 </div>
 
 <script>
+    function searchButton() {
+        window.location.href = `profile-search-results.html?query=${encodeURIComponent(document.getElementById("searchInput").value)}&page=1&pageLimit=10`;
+    }
+
     function searchSelect(profile) {
         sessionStorage.setItem("candidateId", profile.profile_id);
         sessionStorage.setItem("candidateName", profile.full_name);
@@ -83,4 +87,6 @@
             document.getElementById("searchResultsDiv").hidden = true;
         }
     });
+
+    document.getElementById("searchButton").addEventListener("click", searchButton);
 </script>
