@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title id="profilePageTitle">DevReady • Screen 4 — Profile Preview</title>
+  <link rel="stylesheet" href="../assets/styles.css"/>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script> 
+    $(function(){
+      $("#siteSidebar").load("components/sidebar.html");
+      $("#processFlow").load("components/processFlow.html");
+      $("#searchBar").load("components/searchBar.html");
+    });
+  </script> 
+</head>
+<body>
+  <div class="container">
+    <div id="siteSidebar"></div>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <div id="pageTitle" class="page-title">Search Results</div>
+          <div class="breadcrumb">Vetting Process • Profile Search</div>
+        </div>
+        <div id="searchBar"></div>
+      </div>
+
+      <div id="processFlow"></div>
+
+      <section class="card">
+        <h2 id="searchHeader">Search Results</h2>
+        <p id="resultsCount">Showing results - of -.</p>
+        <table class="table">
+          <thead><tr><th>Name</th><th>Email</th><th>Location</th><th>Top Skills</th></tr></thead>
+          <tbody id="searchResultsBody"><!-- Dynamically filled with ranked results --></tbody>
+        </table>
+
+        <div id="paginationDiv" class="pagination">
+          <button id="prevPage" class="btn secondary" type="button">Previous</button>
+          <h2 id="pageIndicator" style="display: inline;">Page - of -</h2>
+          <button id="nextPage" class="btn secondary" type="button">Next</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+  <script src="JS/apiScripts.js"></script>
+
+  <script>
+    const queryString = window.location.search;
+    const urlParams = new URLSearchParams(queryString);
+
+    const query = urlParams.get('query');
+    let page = parseInt(urlParams.get('page')) || 1;
+    const pageLimit = parseInt(urlParams.get('pageLimit')) || 10;
+
+    document.getElementById("searchHeader").textContent = `Search Results for "${query}"`;
+
+    function updatePage(newPage) {
+      const newUrl = `profile-search-results.html?query=${encodeURIComponent(query)}&page=${newPage}&pageLimit=${pageLimit}`;
+      window.history.pushState({ path: newUrl }, '', newUrl);
+      page = newPage;
+      fetchSearchResults();
+    }
+
+    document.getElementById("prevPage").addEventListener("click", () => {
+        if (page > 1) {
+            updatePage(page - 1);
+        }
+    });
+
+    document.getElementById("nextPage").addEventListener("click", () => {
+        updatePage(page + 1);
+    });
+
+    async function fetchSearchResults() {
+        try {
+            const fd = new FormData();
+            fd.append("domain", "technology");
+            fd.append("search_string", query);
+            fd.append("pageLimit", pageLimit);
+
+            const countResponse = await fetch("/api/profile/pageCount", {
+                method: "POST",
+                body: fd
+            });
+
+            const countResults = await countResponse.json();
+
+            if (countResults[0] === 0) {
+                document.getElementById("searchResultsBody").innerHTML = '<tr><td colspan="4" style="text-align:center;">No results found.</td></tr>';
+                return;
+            }
+            else if (page > countResults[1])
+              page = countResults[1];
+
+            document.getElementById("resultsCount").textContent = `Showing results ${((page - 1) * pageLimit) + 1} - ${Math.min(page * pageLimit, countResults[0])} of ${countResults[0]}.`;
+            document.getElementById("pageIndicator").textContent = `Page ${page} of ${countResults[1]}`;
+
+            if (page <= 1) {
+                document.getElementById("prevPage").disabled = true;
+            } else {
+                document.getElementById("prevPage").disabled = false;
+            }
+
+            if (page >= countResults[1]) {
+                document.getElementById("nextPage").disabled = true;
+            } else {
+                document.getElementById("nextPage").disabled = false;
+            }
+
+            fd.append("currentPage", page);
+
+            const pageResponse = await fetch("/api/profile/pageSearch", {
+                method: "POST",
+                body: fd
+            });
+
+            const pageResults = await pageResponse.json();
+
+            const tbody = document.getElementById("searchResultsBody");
+            tbody.innerHTML = "";
+            pageResults.forEach((r, i) => {
+                const tr = document.createElement("tr");
+
+                // TODO: Correlate shown skills to selected JD
+                let topSkills= [];
+                let location = "No Location Listed";
+                
+                if (r.data) {
+                  let skillCount = 0;
+                  Object.keys(r.data.skills).forEach(category => 
+                    {
+                      if(skillCount >= 5)
+                        return;
+                      
+                      r.data.skills[category].forEach(skill => {
+                        if(skillCount >= 5)
+                          return;
+                        
+                        topSkills.push(skill);
+                        skillCount++;
+                      });
+                    }
+                  );
+
+                  if (r.data.contact && r.data.contact.location && r.data.contact.location.length > 0) {
+                    location = r.data.contact.location;
+                  }
+                }
+
+                if (topSkills.length === 0) {
+                  topSkills.push("No Skills Listed");
+                }
+
+                tr.classList.add("search-result-row");
+                tr.innerHTML = `
+                  <td>${r.full_name}</td>
+                  <td>${r.email}</td>
+                  <td>${location}</td>
+                  <td>${topSkills.join(", ")}</td>
+                `;
+
+                tr.style.cursor = "pointer";
+                // Navigate to profile preview on click
+                tr.addEventListener("click", () => {
+                  sessionStorage.setItem("candidateId", r.profile_id);
+                  sessionStorage.setItem("candidateName", r.full_name);
+                  sessionStorage.setItem("candidateTopMatches", topSkills);
+
+                  window.location.href = "profile-preview.html";
+                });
+
+                tbody.appendChild(tr);
+            });
+        } catch (error) {
+            console.error("Error fetching search results:", error);
+        }
+    }
+
+    fetchSearchResults();
+  </script>
+</body>
+</html>
