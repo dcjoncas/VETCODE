@@ -280,8 +280,9 @@ small{color:var(--muted)}
   font-size:12px;
 }
 
-.active-candidate-row{
-  background:rgba(127,191,63,.12) !important;
+.search-result-formatting{
+  border: none !important;
+  margin: 0px !important;
   border-radius: 16px !important;
 }
 
@@ -289,6 +290,19 @@ small{color:var(--muted)}
   border: none !important;
   margin: 0px !important;
   border-radius: 16px !important;
+}
+
+.search-result-row:hover{
+  background:rgba(139, 233, 45, 0.24);
+}
+
+.active-candidate-row{
+  background:rgba(127,191,63,.12) !important;
+  border-radius: 16px !important;
+}
+
+.active-candidate-row:hover{
+  background:rgba(139, 233, 45, 0.445) !important;
 }
 
 .pagination{

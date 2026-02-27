@@ -2,12 +2,14 @@
     <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
         <div>
             <div style="font-weight:900;margin-bottom:6px">Process Flow</div>
-            <div id="candidateSelected" style="color:var(--muted);font-size:13px">No candidate selected</div>
-            <div style="color:var(--muted);font-size:13px">Click through the 7 screens in order. Each page stands alone but is linked for UX review.</div>
+            <div id="candidateSelected" style="color:var(--muted);font-size:13px">No Candidate Selected</div>
+            <div id="jobSelected" style="color:var(--muted);font-size:13px">No Job Selected</div>
         </div>
         <div class="flow"><a class="step " href="find-candidate.html">1 · Find candidate</a><a class="step" href="match-role.html">2 · Match to role</a><a class="step " href="candidate-chat.html">3 · Candidate chat</a><a class="step " href="profile-preview.html">4 · Profile build</a><a class="step " href="client-comm.html">5 · Client comms</a><a class="step " href="schedule-interview.html">6 · Schedule interview</a><a class="step " href="status-tracker.html">7 · Track & export</a></div>
     </div>
 </div>
+
+<script src="JS/updateProcessFlow.js"></script>
 
 <script>
     const currentProcessPath = window.location.pathname.replace(/\/$/, "");
@@ -21,10 +23,7 @@
         }
     });
 
-    const candidateId = sessionStorage.getItem("candidateId");
+    updateCandidate();
+    updateJob();
 
-    if (candidateId) {
-        const candidateName = sessionStorage.getItem("candidateName") || "Selected Candidate";
-        document.getElementById("candidateSelected").innerText = `Current Candidate: ${candidateName}`;
-    }
 </script>
