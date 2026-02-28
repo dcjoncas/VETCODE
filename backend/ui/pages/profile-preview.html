@@ -51,6 +51,56 @@
   </div>
 </div>
 
+<div class="card">
+  <h2>Skills</h2>
+  <div id="skillsChart" class="skillChart">
+    <div id="introColumn" class="skillChartColumn">
+      <span class="skillChartCell"></span>
+      <span class="skillChartCell">Rating</span>
+    </div>
+    <div id="level1" class="skillChartColumn">
+      <span class="skillChartCell">|</span>
+      <span class="skillChartCell">1</span>
+    </div>
+    <div id="level2" class="skillChartColumn">
+      <span class="skillChartCell">|</span>
+      <span class="skillChartCell">2</span>
+    </div>
+    <div id="level3" class="skillChartColumn">
+      <span class="skillChartCell">|</span>
+      <span class="skillChartCell">3</span>
+    </div>
+    <div id="level4" class="skillChartColumn">
+      <span class="skillChartCell">|</span>
+      <span class="skillChartCell">4</span>
+    </div>
+    <div id="level5" class="skillChartColumn">
+      <span class="skillChartCell">|</span>
+      <span class="skillChartCell">5</span>
+    </div>
+    <div id="level6" class="skillChartColumn">
+      <span class="skillChartCell">|</span>
+      <span class="skillChartCell">6</span>
+    </div>
+    <div id="level7" class="skillChartColumn">
+      <span class="skillChartCell">|</span>
+      <span class="skillChartCell">7</span>
+    </div>
+    <div id="level8" class="skillChartColumn">
+      <span class="skillChartCell">|</span>
+      <span class="skillChartCell">8</span>
+    </div>
+    <div id="level9" class="skillChartColumn">
+      <span class="skillChartCell">|</span>
+      <span class="skillChartCell">9</span>
+    </div>
+    <div id="level10" class="skillChartColumn">
+      <span class="skillChartCell">|</span>
+      <span class="skillChartCell">10</span>
+    </div>
+  </div>
+</div>
+
 <div class="split" style="margin-top:16px">
   <div class="card" style="padding:14px;border-radius:18px;box-shadow:none">
     <h2 style="margin:0 0 8px 0">Skills snapshot</h2>
@@ -78,6 +128,14 @@
     <div style="margin-top:14px">
       <div style="display:flex;justify-content:space-between"><small>Moderate</small><small>Expert</small></div>
       <div class="progress" style="margin-top:6px"><div style="width:78%"></div></div>
+    </div>
+
+    <div id="skillBarDiv">
+      <div style="margin-top:14px">
+        <h2>Overall Experience</h2>
+        <div style="display:flex;justify-content:space-between"><small>Beginner</small><small>Expert</small></div>
+        <div class="progress" style="margin-top:6px"><div id="overallBar" style="width:0%"></div></div>
+      </div>
     </div>
   </div>
 </div>
@@ -180,6 +238,29 @@
         document.getElementById("candidateAddress").innerText = profileData.contact.location || "No Location Listed";
         document.getElementById("candidateJobTitle").innerText = profileData.contact.job_title || "No Job Title Listed";
         document.getElementById("candidateAvailability").innerText = profileData.contact.availability || "No Availability Listed";
+
+        const skillBarDiv = document.getElementById("skillBarDiv");
+
+        let totalScore = 0;
+        let scoreCount = 0;
+        Object.keys(profileData.scores).forEach(scoreName => {
+          skillBarDiv.insertAdjacentHTML("beforeend", `
+            <div style="margin-top:14px">
+              <h2>${scoreName}</h2>
+              <div style="display:flex;justify-content:space-between"><small>Beginner</small><small>Expert</small></div>
+              <div class="progress" style="margin-top:6px"><div style="width:${profileData.scores[scoreName].score * 10}%"></div></div>
+            </div>
+          `);
+          totalScore += profileData.scores[scoreName].score;
+          scoreCount++;
+        });
+        
+        // Display average score as a percentage
+        if (scoreCount > 0) {
+          const averageScore = (totalScore / scoreCount) * 10;
+          document.getElementById("overallBar").style.width = averageScore.toFixed(2) + "%";
+        }
+
       }
     });
   </script>

@@ -312,3 +312,21 @@ small{color:var(--muted)}
   align-items:center;
   margin-top:16px;
 }
+
+.skillChart {
+  display: flex;
+}
+
+.skillChartColumn {
+  display: inline-block;
+  flex: 1;
+  margin: 10px;
+}
+
+.skillChartCell {
+  display: block;
+  justify-content: center;
+  text-align: center;
+  align-items: center;
+  height: 20px;
+}
