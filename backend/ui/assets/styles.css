@@ -141,13 +141,21 @@ small{color:var(--muted)}
   gap:18px;
   align-items:start;
 }
-.card{
+.card, .flexCard{
   background:var(--card);
   border:1px solid var(--line);
   border-radius:var(--radius);
   box-shadow:var(--shadow);
   padding:18px;
 }
+
+.flexCard{
+  padding:14px;
+  border-radius:18px;
+  box-shadow:none;
+  height: min-content;
+}
+
 .card h2{
   margin:0 0 10px 0;
   font-size:16px;
