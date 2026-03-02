@@ -54,49 +54,71 @@
 <div class="card">
   <h2>Skills</h2>
   <div id="skillsChart" class="skillChart">
-    <div id="introColumn" class="skillChartColumn">
-      <span class="skillChartCell"></span>
-      <span class="skillChartCell">Rating</span>
+    <div id="introColumn" class="skillChartColumn" style="grid-column: 1;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell"></span>
+        <span class="skillChartCell">Rating</span>
+      </div>
     </div>
-    <div id="level1" class="skillChartColumn">
-      <span class="skillChartCell">|</span>
-      <span class="skillChartCell">1</span>
+    <div id="level1" class="skillChartColumn" style="grid-column: 2;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">1</span>
+      </div>
     </div>
-    <div id="level2" class="skillChartColumn">
-      <span class="skillChartCell">|</span>
-      <span class="skillChartCell">2</span>
+    <div id="level2" class="skillChartColumn" style="grid-column: 3;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">2</span>
+      </div>
     </div>
-    <div id="level3" class="skillChartColumn">
-      <span class="skillChartCell">|</span>
-      <span class="skillChartCell">3</span>
+    <div id="level3" class="skillChartColumn" style="grid-column: 4;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">3</span>
+      </div>
     </div>
-    <div id="level4" class="skillChartColumn">
-      <span class="skillChartCell">|</span>
-      <span class="skillChartCell">4</span>
+    <div id="level4" class="skillChartColumn" style="grid-column: 5;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">4</span>
+      </div>
     </div>
-    <div id="level5" class="skillChartColumn">
-      <span class="skillChartCell">|</span>
-      <span class="skillChartCell">5</span>
+    <div id="level5" class="skillChartColumn" style="grid-column: 6;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">5</span>
+      </div>
     </div>
-    <div id="level6" class="skillChartColumn">
-      <span class="skillChartCell">|</span>
-      <span class="skillChartCell">6</span>
+    <div id="level6" class="skillChartColumn" style="grid-column: 7;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">6</span>
+      </div>
     </div>
-    <div id="level7" class="skillChartColumn">
-      <span class="skillChartCell">|</span>
-      <span class="skillChartCell">7</span>
+    <div id="level7" class="skillChartColumn" style="grid-column: 8;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">7</span>
+      </div>
     </div>
-    <div id="level8" class="skillChartColumn">
-      <span class="skillChartCell">|</span>
-      <span class="skillChartCell">8</span>
+    <div id="level8" class="skillChartColumn" style="grid-column: 9;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">8</span>
+      </div>
     </div>
-    <div id="level9" class="skillChartColumn">
-      <span class="skillChartCell">|</span>
-      <span class="skillChartCell">9</span>
+    <div id="level9" class="skillChartColumn" style="grid-column: 10;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">9</span>
+      </div>
     </div>
-    <div id="level10" class="skillChartColumn">
-      <span class="skillChartCell">|</span>
-      <span class="skillChartCell">10</span>
+    <div id="level10" class="skillChartColumn" style="grid-column: 11;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">10</span>
+      </div>
     </div>
   </div>
 </div>
@@ -124,10 +146,6 @@
       <span class="pill">API platforms</span>
       <span class="pill">Role-based access</span>
       <span class="pill">Observability</span>
-    </div>
-    <div style="margin-top:14px">
-      <div style="display:flex;justify-content:space-between"><small>Moderate</small><small>Expert</small></div>
-      <div class="progress" style="margin-top:6px"><div style="width:78%"></div></div>
     </div>
 
     <div id="skillBarDiv">
@@ -253,6 +271,17 @@
           `);
           totalScore += profileData.scores[scoreName].score;
           scoreCount++;
+
+          console.log(`level${Math.floor(profileData.scores[scoreName].score)}`);
+
+          let scoreLevel = Math.floor(profileData.scores[scoreName].score);
+          if(scoreLevel < 1) scoreLevel = 1;
+          else if(scoreLevel > 10) scoreLevel = 10;
+          
+
+          // Populate skills chart (use skill rating as above for now since we don't have years of experience in the mock data)
+          document.getElementById(`level${scoreLevel}`).insertAdjacentHTML("afterbegin", `<div class="chartPill" title="${scoreName}" style="margin-top:8px">${scoreName}</div>`);
+          
         });
         
         // Display average score as a percentage
