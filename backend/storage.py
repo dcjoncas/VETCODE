@@ -118,6 +118,8 @@ def upsert_profile(db_path: str, profile: dict):
     conn.commit()
     conn.close()
 
+# TODO: DO NOT PULL ALL PROFILES IN DATABASE
+#data_json
 def list_profiles(db_path: str, domain: Optional[str] = "technology"):
     conn = _conn(db_path)
     cur = conn.cursor()
@@ -193,6 +195,8 @@ def count_profiles_recent(db_path: str, domain: Optional[str] = "technology") ->
     rowCount = rows[0][0] if rows else 0
 
     return rowCount
+
+# TODO: Create a count function for interview pipeline
 
 def search_profiles(db_path: str, domain: Optional[str] = "technology", search_string: str = "", limit: int = 5):
     conn = _conn(db_path)

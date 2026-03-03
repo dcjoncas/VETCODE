@@ -215,8 +215,6 @@
 
       if (candidateId) {
         profileData = await api(`/api/profile/${candidateId}`);
-
-        console.log("candidateId");
         
         console.log(profileData);
 
@@ -271,8 +269,6 @@
           `);
           totalScore += profileData.scores[scoreName].score;
           scoreCount++;
-
-          console.log(`level${Math.floor(profileData.scores[scoreName].score)}`);
 
           let scoreLevel = Math.floor(profileData.scores[scoreName].score);
           if(scoreLevel < 1) scoreLevel = 1;
