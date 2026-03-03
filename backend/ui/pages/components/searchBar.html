@@ -52,6 +52,8 @@
                 return;
             }
 
+            const candidateId = sessionStorage.getItem("candidateId");
+
             results.forEach((r, i) => {
                 const tr = document.createElement("tr");
 
@@ -63,7 +65,7 @@
 
                 tr.id = `searchRow-${r.profile_id}`;
                 tr.style.cursor = "pointer";
-                tr.innerHTML = `<td class="search-result-row"><h3 class="search-result-row">${r.full_name || ""}</h3><p class="muted search-result-row" style="margin: 1px; padding: 1px;">${r.email || ""}</p></td>`;
+                tr.innerHTML = `<td class="search-result-formatting"><h3 class="search-result-formatting">${r.full_name || ""}</h3><p class="muted search-result-formatting" style="margin: 1px; padding: 1px;">${r.email || ""}</p></td>`;
                 tr.addEventListener("click", () => searchSelect(r));
                 tbody.appendChild(tr);
             });

@@ -4,6 +4,7 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>DevReady • Screen 2 — Match to Role</title>
+  <link rel="icon" href="../assets/logo.svg" sizes="any" type="image/svg+xml"/>
   <link rel="stylesheet" href="../assets/styles.css"/>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <script> 
@@ -120,6 +121,7 @@
   </div>
 
   <script src="JS/apiScripts.js"></script>
+  <script src="JS/updateProcessFlow.js"></script>
   <script>
     // tiny UX sugar (mock only)
     document.querySelectorAll('a.step').forEach(a=>a.addEventListener('click', ()=>{}));
@@ -179,7 +181,6 @@
       sessionStorage.setItem("candidateId", r.profile_id);
       sessionStorage.setItem("candidateName", r.name);
       sessionStorage.setItem("candidateTopMatches", r.top_matches);
-      document.getElementById("candidateSelected").innerText = `Current Candidate: ${r.name}`;
 
       document.getElementById(`resultRow-${r.profile_id}`).classList.add("active-candidate-row");
       // document.getElementById(`resultRow-${r.profile_id}`)
@@ -195,6 +196,8 @@
       await loadProfileIntoLeft(selectedProfileId);
 
       log(`Selected row: ${r.name} score=${r.score}`);*/
+
+      updateCandidate();
     }
 
     // Rank profiles based on job description
@@ -218,6 +221,13 @@
       try {
         const j = await api("/api/match/run", { method: "POST", body: fd });
 
+        // Save job info for searching
+        sessionStorage.setItem("jobID", jd_id);
+        sessionStorage.setItem("jobCompany", j.jd.company);
+        sessionStorage.setItem("jobTitle", j.jd.title);
+        sessionStorage.setItem("jobSkills", j.skillList);
+        updateJob();
+
         // Normalize + re-sort defensively (in case backend returns non-100 scale)
         latestRank = (j.results || []).map(r => ({
           ...r,
@@ -234,8 +244,6 @@
           const tr = document.createElement("tr");
 
           if (candidateId && r.profile_id === candidateId) {
-            console.log(r.profile_id);
-            
             tr.classList.add("active-candidate-row");
           }
 
@@ -274,12 +282,15 @@
       const company = document.getElementById("jdCompany").value.trim();
       const title = document.getElementById("jdTitle").value.trim();
       const text = document.getElementById("jdText").value.trim();
+
       if (!company || !title || !text) return alert("Company, Title, and JD text are required.");
+
       const fd = new FormData();
       fd.append("company", company);
       fd.append("title", title);
       fd.append("jd_text", text);
       fd.append("domain", "technology");
+
       // keep URL in the UI only (backend may ignore)
       // document.getElementById("jdStatus").textContent = "Saving...";
       try {

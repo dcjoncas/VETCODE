@@ -141,13 +141,21 @@ small{color:var(--muted)}
   gap:18px;
   align-items:start;
 }
-.card{
+.card, .flexCard{
   background:var(--card);
   border:1px solid var(--line);
   border-radius:var(--radius);
   box-shadow:var(--shadow);
   padding:18px;
 }
+
+.flexCard{
+  padding:14px;
+  border-radius:18px;
+  box-shadow:none;
+  height: min-content;
+}
+
 .card h2{
   margin:0 0 10px 0;
   font-size:16px;
@@ -280,8 +288,9 @@ small{color:var(--muted)}
   font-size:12px;
 }
 
-.active-candidate-row{
-  background:rgba(127,191,63,.12) !important;
+.search-result-formatting{
+  border: none !important;
+  margin: 0px !important;
   border-radius: 16px !important;
 }
 
@@ -291,10 +300,96 @@ small{color:var(--muted)}
   border-radius: 16px !important;
 }
 
+.search-result-row:hover{
+  background:rgba(139, 233, 45, 0.24);
+}
+
+.active-candidate-row{
+  background:rgba(127,191,63,.12) !important;
+  border-radius: 16px !important;
+}
+
+.active-candidate-row:hover{
+  background:rgba(139, 233, 45, 0.445) !important;
+}
+
 .pagination{
   display:flex;
   gap:16px;
   justify-content:center;
   align-items:center;
   margin-top:16px;
+}
+
+.skillChart {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  gap: 8px;
+}
+
+.skillChartColumn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;   /* centers horizontally */
+  justify-content: center; /* centers vertically (optional) */
+  text-align: center;
+  width: 60px;
+}
+
+.skillChartColumn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 21px;
+  width: 2px;
+  background-color: #ccc;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 0;
+}
+
+.bottom-chart-alignment{
+  margin-top: auto;
+}
+
+.skillChartCell {
+  display: block;
+  justify-content: center;
+  text-align: center;
+  align-items: center;
+  height: 20px;
+}
+
+.chartPillCell {
+  display: inline-block;
+  width: 100%;
+  background:var(--card);
+  z-index: 1;
+  height: min-content;
+}
+
+.chartPill{
+  display: inline-block;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+
+  margin-bottom: 2px;
+  border:1px solid rgba(47,125,75,.25);
+  background:rgba(127,191,63,.12);
+  color:var(--primary-2);
+  padding:6px 10px;
+  border-radius:999px;
+  font-weight:600;
+  font-size:10px;
+}
+
+.bottomContent,
+.chartPill,
+.skillChartCell {
+  position: relative;
+  z-index: 2;
 }

@@ -4,6 +4,7 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title id="profilePageTitle">DevReady • Screen 4 — Profile Preview</title>
+  <link rel="icon" href="../assets/logo.svg" sizes="any" type="image/svg+xml"/>
   <link rel="stylesheet" href="../assets/styles.css"/>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <script> 
@@ -42,7 +43,7 @@
       <div id="candidateAddress" style="display: inline;">No Address Listed</div> • <div id="candidateJobTitle" style="display: inline;">No Job Title Listed</div> • <div id="candidateAvailability" style="display: inline;">No Availability Listed</div>
     </div>
     <div id="topMatches" class="pills">
-      <span class="pill">Backend</span><span class="pill">Database</span><span class="pill">Identity</span><span class="pill">React</span>
+      No Skills Found
     </div>
   </div>
   <div class="row-actions" style="margin:0">
@@ -51,8 +52,79 @@
   </div>
 </div>
 
-<div class="split" style="margin-top:16px">
-  <div class="card" style="padding:14px;border-radius:18px;box-shadow:none">
+<div class="split" style="margin-top:16px;">
+  <div class="flexCard" style="grid-column: 1;grid-row: 1;">
+  <h2>Skills</h2>
+  <div id="skillsChart" class="skillChart">
+    <div id="introColumn" class="skillChartColumn" style="grid-column: 1;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">Rating</span>
+      </div>
+    </div>
+    <div id="level1" class="skillChartColumn" style="grid-column: 2;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">&nbsp;</span>
+        <span class="skillChartCell">1</span>
+      </div>
+    </div>
+    <div id="level2" class="skillChartColumn" style="grid-column: 3;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">&nbsp;</span>
+        <span class="skillChartCell">2</span>
+      </div>
+    </div>
+    <div id="level3" class="skillChartColumn" style="grid-column: 4;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">&nbsp;</span>
+        <span class="skillChartCell">3</span>
+      </div>
+    </div>
+    <div id="level4" class="skillChartColumn" style="grid-column: 5;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">&nbsp;</span>
+        <span class="skillChartCell">4</span>
+      </div>
+    </div>
+    <div id="level5" class="skillChartColumn" style="grid-column: 6;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">&nbsp;</span>
+        <span class="skillChartCell">5</span>
+      </div>
+    </div>
+    <div id="level6" class="skillChartColumn" style="grid-column: 7;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">&nbsp;</span>
+        <span class="skillChartCell">6</span>
+      </div>
+    </div>
+    <div id="level7" class="skillChartColumn" style="grid-column: 8;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">&nbsp;</span>
+        <span class="skillChartCell">7</span>
+      </div>
+    </div>
+    <div id="level8" class="skillChartColumn" style="grid-column: 9;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">&nbsp;</span>
+        <span class="skillChartCell">8</span>
+      </div>
+    </div>
+    <div id="level9" class="skillChartColumn" style="grid-column: 10;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">&nbsp;</span>
+        <span class="skillChartCell">9</span>
+      </div>
+    </div>
+    <div id="level10" class="skillChartColumn" style="grid-column: 11;">
+      <div class="bottom-chart-alignment">
+        <span class="skillChartCell">&nbsp;</span>
+        <span class="skillChartCell">10</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <div class="flexCard" style="grid-column: 1;grid-row: 2;">
     <h2 style="margin:0 0 8px 0">Skills snapshot</h2>
     <p style="margin:0 0 10px 0">Clean, client-friendly view of primary skills and levels.</p>
     <table class="table" style="margin-top:0">
@@ -66,7 +138,7 @@
     </table>
   </div>
 
-  <div class="card" style="padding:14px;border-radius:18px;box-shadow:none">
+  <div class="flexCard" style="padding:14px;border-radius:18px;box-shadow:none;grid-column: 2;grid-row: 1/4;">
     <h2 style="margin:0 0 8px 0">Feature Experience</h2>
     <div class="pills">
       <span class="pill">Authentication</span>
@@ -75,9 +147,13 @@
       <span class="pill">Role-based access</span>
       <span class="pill">Observability</span>
     </div>
-    <div style="margin-top:14px">
-      <div style="display:flex;justify-content:space-between"><small>Moderate</small><small>Expert</small></div>
-      <div class="progress" style="margin-top:6px"><div style="width:78%"></div></div>
+
+    <div id="skillBarDiv">
+      <div style="margin-top:14px">
+        <h2>Overall Experience</h2>
+        <div style="display:flex;justify-content:space-between"><small>Beginner</small><small>Expert</small></div>
+        <div class="progress" style="margin-top:6px"><div id="overallBar" style="width:0%"></div></div>
+      </div>
     </div>
   </div>
 </div>
@@ -180,6 +256,40 @@
         document.getElementById("candidateAddress").innerText = profileData.contact.location || "No Location Listed";
         document.getElementById("candidateJobTitle").innerText = profileData.contact.job_title || "No Job Title Listed";
         document.getElementById("candidateAvailability").innerText = profileData.contact.availability || "No Availability Listed";
+
+        const skillBarDiv = document.getElementById("skillBarDiv");
+
+        let totalScore = 0;
+        let scoreCount = 0;
+        Object.keys(profileData.scores).forEach(scoreName => {
+          skillBarDiv.insertAdjacentHTML("beforeend", `
+            <div style="margin-top:14px">
+              <h2>${scoreName}</h2>
+              <div style="display:flex;justify-content:space-between"><small>Beginner</small><small>Expert</small></div>
+              <div class="progress" style="margin-top:6px"><div style="width:${profileData.scores[scoreName].score * 10}%"></div></div>
+            </div>
+          `);
+          totalScore += profileData.scores[scoreName].score;
+          scoreCount++;
+
+          console.log(`level${Math.floor(profileData.scores[scoreName].score)}`);
+
+          let scoreLevel = Math.floor(profileData.scores[scoreName].score);
+          if(scoreLevel < 1) scoreLevel = 1;
+          else if(scoreLevel > 10) scoreLevel = 10;
+          
+
+          // Populate skills chart (use skill rating as above for now since we don't have years of experience in the mock data)
+          document.getElementById(`level${scoreLevel}`).insertAdjacentHTML("afterbegin", `<div class="chartPillCell"><div class="chartPill" title="${scoreName}" >${scoreName}</div></div>`);
+          
+        });
+        
+        // Display average score as a percentage
+        if (scoreCount > 0) {
+          const averageScore = (totalScore / scoreCount) * 10;
+          document.getElementById("overallBar").style.width = averageScore.toFixed(2) + "%";
+        }
+
       }
     });
   </script>

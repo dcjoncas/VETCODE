@@ -4,6 +4,7 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title id="profilePageTitle">DevReady • Screen 4 — Profile Preview</title>
+  <link rel="icon" href="../assets/logo.svg" sizes="any" type="image/svg+xml"/>
   <link rel="stylesheet" href="../assets/styles.css"/>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <script> 
@@ -33,7 +34,7 @@
         <h2 id="searchHeader">Search Results</h2>
         <p id="resultsCount">Showing results - of -.</p>
         <table class="table">
-          <thead><tr><th>Name</th><th>Email</th><th>Location</th><th>Top Skills</th></tr></thead>
+          <thead><tr><th>Name</th><th>Email</th><th>Location</th><th id="jobTopSkill">Top Skills</th></tr></thead>
           <tbody id="searchResultsBody"><!-- Dynamically filled with ranked results --></tbody>
         </table>
 
@@ -56,7 +57,10 @@
     let page = parseInt(urlParams.get('page')) || 1;
     const pageLimit = parseInt(urlParams.get('pageLimit')) || 10;
 
+    const jobTitle = sessionStorage.getItem("jobTitle") || "Selected Role";
+
     document.getElementById("searchHeader").textContent = `Search Results for "${query}"`;
+    document.getElementById("jobTopSkill").textContent = `Top Skills for ${jobTitle}`;
 
     function updatePage(newPage) {
       const newUrl = `profile-search-results.html?query=${encodeURIComponent(query)}&page=${newPage}&pageLimit=${pageLimit}`;
@@ -128,8 +132,27 @@
                 // TODO: Correlate shown skills to selected JD
                 let topSkills= [];
                 let location = "No Location Listed";
+
+                if (sessionStorage.getItem("candidateId") && r.profile_id === sessionStorage.getItem("candidateId")) {
+                  tr.classList.add("active-candidate-row");
+                }
+
+                // If the skills from the job are available, compare them to candidate skills
+                if (sessionStorage.getItem("jobSkills") && r.data && r.data.skills) {
+                  const jobSkills = sessionStorage.getItem("jobSkills").split(",");
+
+                  let candidateSkills = [];
+                  Object.keys(r.data.skills).forEach(category => {
+                    r.data.skills[category].forEach(skill => {
+                      candidateSkills.push(skill);
+                    });
+                  });
+
+                  topSkills = jobSkills.filter(skill => candidateSkills.includes(skill)).slice(0, 5);
+                }
                 
-                if (r.data) {
+                // If job skills are unavailable, just show top skills from profile (up to 5)
+                else if (r.data) {
                   let skillCount = 0;
                   Object.keys(r.data.skills).forEach(category => 
                     {
@@ -146,11 +169,13 @@
                     }
                   );
 
+                  // Show location if available
                   if (r.data.contact && r.data.contact.location && r.data.contact.location.length > 0) {
                     location = r.data.contact.location;
                   }
                 }
 
+                // Fallback if no skills found
                 if (topSkills.length === 0) {
                   topSkills.push("No Skills Listed");
                 }
