@@ -45,9 +45,9 @@
       <button class="btn secondary" type="button" onclick="alert('Mock: open advanced filters')">Advanced Filters</button>
     </div>
     <div class="kpi" style="margin-top:12px">
-      <div class="k"><div class="v">1,482</div><div class="l">Profiles in system</div></div>
-      <div class="k"><div class="v">73</div><div class="l">New this week</div></div>
-      <div class="k"><div class="v">9</div><div class="l">In interview pipeline</div></div>
+      <div class="k"><div id="totalCandidateCount" class="v">N/A</div><div class="l">Profiles in system</div></div>
+      <div class="k"><div id="newThisWeekCount" class="v">N/A</div><div class="l">New this week</div></div>
+      <div class="k"><div id="inInterviewCount" class="v">N/A</div><div class="l">In interview pipeline</div></div>
     </div>
   </div>
 
@@ -108,6 +108,20 @@
   <script>
     // tiny UX sugar (mock only)
     document.querySelectorAll('a.step').forEach(a=>a.addEventListener('click', ()=>{}));
+
+    async function updateCounts() {
+      const responseTotal = await fetch("/api/profile/count?domain=technology");
+      const totalCount = await responseTotal.json();
+      document.getElementById("totalCandidateCount").textContent = totalCount;
+
+      const responseWeek = await fetch("/api/profile/count/recent?domain=technology");
+      const recentCount = await responseWeek.json();
+      document.getElementById("newThisWeekCount").textContent = recentCount;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      updateCounts();
+    });
   </script>
 </body>
 </html>

@@ -2,7 +2,7 @@
 import sqlite3
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Any, Dict, List
 
 def new_id(prefix: str) -> str:
@@ -138,6 +138,62 @@ def list_profiles(db_path: str, domain: Optional[str] = "technology"):
     conn.close()
     return [dict(r) for r in rows]
 
+def count_profiles(db_path: str, domain: Optional[str] = "technology") -> int:
+    conn = _conn(db_path)
+    cur = conn.cursor()
+
+    print(f"Finding number of profiles with domain='{domain}'")
+
+    # If domain filter yields none, fall back to all (so you never "lose" data in UI)
+    if domain is None:
+        cur.execute("SELECT COUNT(*) FROM profiles ORDER BY COALESCE(updated_at, created_at) DESC")
+        rows = cur.fetchall()
+
+        print(f"Number of profiles found (No domain filter): {rows[0][0] if rows else 0}")
+        rowCount = rows[0][0] if rows else 0
+
+        conn.close()
+        return rowCount
+
+    cur.execute("SELECT COUNT(*) FROM profiles WHERE COALESCE(domain,'')=? ORDER BY COALESCE(updated_at, created_at) DESC", (domain,))
+    rows = cur.fetchall()
+
+    conn.close()
+    print(f"Number of profiles found: {rows[0][0] if rows else 0}")
+
+    rowCount = rows[0][0] if rows else 0
+
+    return rowCount
+
+def count_profiles_recent(db_path: str, domain: Optional[str] = "technology") -> int:
+    weekAgo = datetime.now() - timedelta(weeks=1)
+
+    conn = _conn(db_path)
+    cur = conn.cursor()
+
+    print(f"Finding number of profiles with domain='{domain}'")
+
+    # If domain filter yields none, fall back to all (so you never "lose" data in UI)
+    if domain is None:
+        cur.execute("SELECT COUNT(*) FROM profiles WHERE updated_at >= ? ORDER BY COALESCE(updated_at, created_at) DESC", (weekAgo,))
+        rows = cur.fetchall()
+
+        print(f"Number of profiles found (No domain filter): {rows[0][0] if rows else 0}")
+        rowCount = rows[0][0] if rows else 0
+
+        conn.close()
+        return rowCount
+
+    cur.execute("SELECT COUNT(*) FROM profiles WHERE COALESCE(domain,'')=? AND updated_at >= ? ORDER BY COALESCE(updated_at, created_at) DESC", (domain, weekAgo))
+    rows = cur.fetchall()
+
+    conn.close()
+    print(f"Number of profiles found: {rows[0][0] if rows else 0}")
+
+    rowCount = rows[0][0] if rows else 0
+
+    return rowCount
+
 def search_profiles(db_path: str, domain: Optional[str] = "technology", search_string: str = "", limit: int = 5):
     conn = _conn(db_path)
     cur = conn.cursor()
@@ -167,8 +223,11 @@ def search_profiles_page_count(db_path: str, domain: Optional[str] = "technology
     if domain is None:
         cur.execute("SELECT COUNT(*) FROM profiles WHERE full_name LIKE ? OR email LIKE ? ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", (f"%{search_string}%", f"%{search_string}%", pageLimit))
         rows = cur.fetchall()
+        # Calculate page count based on total rows and page limit
+        rowCount = rows[0][0] if rows else 0
+        pages = (rowCount // pageLimit) + (1 if rows and rowCount % pageLimit > 0 else 0)
         conn.close()
-        return [dict(r) for r in rows]
+        return [rowCount,pages]
 
     cur.execute("SELECT COUNT(*) FROM profiles WHERE COALESCE(domain,'')=? AND (full_name LIKE ? OR email LIKE ?) ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", (domain, f"%{search_string}%", f"%{search_string}%", pageLimit))
     rows = cur.fetchall()
@@ -187,18 +246,23 @@ def search_profiles_full(db_path: str, domain: Optional[str] = "technology", sea
     cur = conn.cursor()
 
     print(f"Searching profiles with domain='{domain}' and search_string='{search_string}'")
+    returned_profiles = []
 
     # If domain filter yields none, fall back to all (so you never "lose" data in UI)
     if domain is None:
         cur.execute("SELECT profile_id, domain, full_name, email, FROM profiles WHERE full_name LIKE ? OR email LIKE ? ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ? OFFSET ?", (f"%{search_string}%", f"%{search_string}%", pageLimit, currentPage * pageLimit))
         rows = cur.fetchall()
+
+        for r in rows:
+            processedRow = dict(r)
+            processedRow.update({"data": get_profile(db_path, r["profile_id"])})
+            returned_profiles.append(processedRow)
+
         conn.close()
-        return [dict(r) for r in rows]
+        return returned_profiles
 
     cur.execute("SELECT profile_id, domain, full_name, email FROM profiles WHERE COALESCE(domain,'')=? AND (full_name LIKE ? OR email LIKE ?) ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ? OFFSET ?", (domain, f"%{search_string}%", f"%{search_string}%", pageLimit, currentPage * pageLimit))
     rows = cur.fetchall()
-
-    returned_profiles = []
 
     for r in rows:
         processedRow = dict(r)
