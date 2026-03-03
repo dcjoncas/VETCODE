@@ -557,7 +557,7 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
     except Exception as e:
         print(f'Error during external people search: {e}')
 
-    profiles = storage.list_profiles(DB_PATH, domain=domain)
+    profiles = storage.list_profiles(DB_PATH, domain=domain, limit=top_k, skills_filter=peopleDataSkills)
     ranked = []
     for row in profiles:
         p = storage.get_profile(DB_PATH, row["profile_id"])

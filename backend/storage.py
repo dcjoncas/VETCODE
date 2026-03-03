@@ -118,27 +118,49 @@ def upsert_profile(db_path: str, profile: dict):
     conn.commit()
     conn.close()
 
-# TODO: DO NOT PULL ALL PROFILES IN DATABASE
-#data_json
-def list_profiles(db_path: str, domain: Optional[str] = "technology"):
+def list_profiles(db_path: str, domain: Optional[str] = "technology", limit: int = 5, skills_filter: Optional[List[str]] = None):
     conn = _conn(db_path)
     cur = conn.cursor()
 
-    # If domain filter yields none, fall back to all (so you never "lose" data in UI)
-    if domain is None:
-        cur.execute("SELECT profile_id, domain, full_name, email, created_at, updated_at FROM profiles ORDER BY COALESCE(updated_at, created_at) DESC")
+    if skills_filter:
+        # If domain filter yields none, fall back to all (so you never "lose" data in UI)
+        if domain is None:
+            cur.execute("""SELECT p.profile_id, p.domain, p.full_name, p.email, COUNT(DISTINCT input_skill.value) AS overlap_count
+                    FROM profiles p
+                    LEFT JOIN json_each(p.data_json, '$.skills') AS category
+                    LEFT JOIN json_each(category.value) AS skill
+                    LEFT JOIN json_each(?) AS input_skill ON skill.value = input_skill.value
+                    GROUP BY p.profile_id
+                    ORDER BY overlap_count DESC LIMIT ?""", (json.dumps(skills_filter), limit))
+            rows = cur.fetchall()
+            conn.close()
+            return [dict(r) for r in rows]
+
+        cur.execute("""SELECT p.profile_id, p.domain, p.full_name, p.email, COUNT(DISTINCT input_skill.value) AS overlap_count
+                    FROM profiles p
+                    LEFT JOIN json_each(p.data_json, '$.skills') AS category
+                    LEFT JOIN json_each(category.value) AS skill
+                    LEFT JOIN json_each(?) AS input_skill ON skill.value = input_skill.value
+                    WHERE COALESCE(p.domain,'')=?
+                    GROUP BY p.profile_id
+                    ORDER BY overlap_count DESC LIMIT ?""", (json.dumps(skills_filter), domain, limit))
         rows = cur.fetchall()
+
+        return [dict(r) for r in rows]
+    
+    else:
+        # If domain filter yields none, fall back to all (so you never "lose" data in UI)
+        if domain is None:
+            cur.execute("SELECT profile_id, domain, full_name, email FROM profiles ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", (limit,))
+            rows = cur.fetchall()
+            conn.close()
+            return [dict(r) for r in rows]
+
+        cur.execute("SELECT profile_id, domain, full_name, email FROM profiles WHERE COALESCE(domain,'')=? ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", (domain, limit))
+        rows = cur.fetchall()
+
         conn.close()
         return [dict(r) for r in rows]
-
-    cur.execute("SELECT profile_id, domain, full_name, email, created_at, updated_at FROM profiles WHERE COALESCE(domain,'')=? ORDER BY COALESCE(updated_at, created_at) DESC", (domain,))
-    rows = cur.fetchall()
-    if len(rows) == 0:
-        cur.execute("SELECT profile_id, domain, full_name, email, created_at, updated_at FROM profiles ORDER BY COALESCE(updated_at, created_at) DESC")
-        rows = cur.fetchall()
-
-    conn.close()
-    return [dict(r) for r in rows]
 
 def count_profiles(db_path: str, domain: Optional[str] = "technology") -> int:
     conn = _conn(db_path)
