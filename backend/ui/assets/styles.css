@@ -328,12 +328,25 @@ small{color:var(--muted)}
 }
 
 .skillChartColumn {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;   /* centers horizontally */
   justify-content: center; /* centers vertically (optional) */
   text-align: center;
   width: 60px;
+}
+
+.skillChartColumn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 21px;
+  width: 2px;
+  background-color: #ccc;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 0;
 }
 
 .bottom-chart-alignment{
@@ -348,6 +361,14 @@ small{color:var(--muted)}
   height: 20px;
 }
 
+.chartPillCell {
+  display: inline-block;
+  width: 100%;
+  background:var(--card);
+  z-index: 1;
+  height: min-content;
+}
+
 .chartPill{
   display: inline-block;
   width: 100%;
@@ -356,7 +377,7 @@ small{color:var(--muted)}
   text-overflow: ellipsis;
   cursor: pointer;
 
-  margin-bottom: 5px;
+  margin-bottom: 2px;
   border:1px solid rgba(47,125,75,.25);
   background:rgba(127,191,63,.12);
   color:var(--primary-2);
@@ -364,4 +385,11 @@ small{color:var(--muted)}
   border-radius:999px;
   font-weight:600;
   font-size:10px;
+}
+
+.bottomContent,
+.chartPill,
+.skillChartCell {
+  position: relative;
+  z-index: 2;
 }

@@ -57,67 +57,66 @@
   <div id="skillsChart" class="skillChart">
     <div id="introColumn" class="skillChartColumn" style="grid-column: 1;">
       <div class="bottom-chart-alignment">
-        <span class="skillChartCell"></span>
         <span class="skillChartCell">Rating</span>
       </div>
     </div>
     <div id="level1" class="skillChartColumn" style="grid-column: 2;">
       <div class="bottom-chart-alignment">
-        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">&nbsp;</span>
         <span class="skillChartCell">1</span>
       </div>
     </div>
     <div id="level2" class="skillChartColumn" style="grid-column: 3;">
       <div class="bottom-chart-alignment">
-        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">&nbsp;</span>
         <span class="skillChartCell">2</span>
       </div>
     </div>
     <div id="level3" class="skillChartColumn" style="grid-column: 4;">
       <div class="bottom-chart-alignment">
-        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">&nbsp;</span>
         <span class="skillChartCell">3</span>
       </div>
     </div>
     <div id="level4" class="skillChartColumn" style="grid-column: 5;">
       <div class="bottom-chart-alignment">
-        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">&nbsp;</span>
         <span class="skillChartCell">4</span>
       </div>
     </div>
     <div id="level5" class="skillChartColumn" style="grid-column: 6;">
       <div class="bottom-chart-alignment">
-        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">&nbsp;</span>
         <span class="skillChartCell">5</span>
       </div>
     </div>
     <div id="level6" class="skillChartColumn" style="grid-column: 7;">
       <div class="bottom-chart-alignment">
-        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">&nbsp;</span>
         <span class="skillChartCell">6</span>
       </div>
     </div>
     <div id="level7" class="skillChartColumn" style="grid-column: 8;">
       <div class="bottom-chart-alignment">
-        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">&nbsp;</span>
         <span class="skillChartCell">7</span>
       </div>
     </div>
     <div id="level8" class="skillChartColumn" style="grid-column: 9;">
       <div class="bottom-chart-alignment">
-        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">&nbsp;</span>
         <span class="skillChartCell">8</span>
       </div>
     </div>
     <div id="level9" class="skillChartColumn" style="grid-column: 10;">
       <div class="bottom-chart-alignment">
-        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">&nbsp;</span>
         <span class="skillChartCell">9</span>
       </div>
     </div>
     <div id="level10" class="skillChartColumn" style="grid-column: 11;">
       <div class="bottom-chart-alignment">
-        <span class="skillChartCell">|</span>
+        <span class="skillChartCell">&nbsp;</span>
         <span class="skillChartCell">10</span>
       </div>
     </div>
@@ -280,7 +279,7 @@
           
 
           // Populate skills chart (use skill rating as above for now since we don't have years of experience in the mock data)
-          document.getElementById(`level${scoreLevel}`).insertAdjacentHTML("afterbegin", `<div class="chartPill" title="${scoreName}" style="margin-top:8px">${scoreName}</div>`);
+          document.getElementById(`level${scoreLevel}`).insertAdjacentHTML("afterbegin", `<div class="chartPillCell"><div class="chartPill" title="${scoreName}" >${scoreName}</div></div>`);
           
         });
         
