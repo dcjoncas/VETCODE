@@ -327,7 +327,7 @@ small{color:var(--muted)}
   gap: 8px;
 }
 
-.skillChartColumn {
+.skillChartColumn, .skillChartColumnEmpty {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -340,7 +340,7 @@ small{color:var(--muted)}
 .skillChartColumn::before {
   content: "";
   position: absolute;
-  top: 0;
+  top: 10px;
   bottom: 21px;
   width: 2px;
   background-color: #ccc;

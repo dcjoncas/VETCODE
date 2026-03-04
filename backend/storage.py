@@ -2,7 +2,7 @@
 import sqlite3
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Any, Dict, List
 
 def new_id(prefix: str) -> str:
@@ -118,25 +118,107 @@ def upsert_profile(db_path: str, profile: dict):
     conn.commit()
     conn.close()
 
-def list_profiles(db_path: str, domain: Optional[str] = "technology"):
+def list_profiles(db_path: str, domain: Optional[str] = "technology", limit: int = 5, skills_filter: Optional[List[str]] = None):
     conn = _conn(db_path)
     cur = conn.cursor()
 
-    # If domain filter yields none, fall back to all (so you never "lose" data in UI)
-    if domain is None:
-        cur.execute("SELECT profile_id, domain, full_name, email, created_at, updated_at FROM profiles ORDER BY COALESCE(updated_at, created_at) DESC")
+    if skills_filter:
+        # If domain filter yields none, fall back to all (so you never "lose" data in UI)
+        if domain is None:
+            cur.execute("""SELECT p.profile_id, p.domain, p.full_name, p.email, COUNT(DISTINCT input_skill.value) AS overlap_count
+                    FROM profiles p
+                    LEFT JOIN json_each(p.data_json, '$.skills') AS category
+                    LEFT JOIN json_each(category.value) AS skill
+                    LEFT JOIN json_each(?) AS input_skill ON skill.value = input_skill.value
+                    GROUP BY p.profile_id
+                    ORDER BY overlap_count DESC LIMIT ?""", (json.dumps(skills_filter), limit))
+            rows = cur.fetchall()
+            conn.close()
+            return [dict(r) for r in rows]
+
+        cur.execute("""SELECT p.profile_id, p.domain, p.full_name, p.email, COUNT(DISTINCT input_skill.value) AS overlap_count
+                    FROM profiles p
+                    LEFT JOIN json_each(p.data_json, '$.skills') AS category
+                    LEFT JOIN json_each(category.value) AS skill
+                    LEFT JOIN json_each(?) AS input_skill ON skill.value = input_skill.value
+                    WHERE COALESCE(p.domain,'')=?
+                    GROUP BY p.profile_id
+                    ORDER BY overlap_count DESC LIMIT ?""", (json.dumps(skills_filter), domain, limit))
         rows = cur.fetchall()
+
+        return [dict(r) for r in rows]
+    
+    else:
+        # If domain filter yields none, fall back to all (so you never "lose" data in UI)
+        if domain is None:
+            cur.execute("SELECT profile_id, domain, full_name, email FROM profiles ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", (limit,))
+            rows = cur.fetchall()
+            conn.close()
+            return [dict(r) for r in rows]
+
+        cur.execute("SELECT profile_id, domain, full_name, email FROM profiles WHERE COALESCE(domain,'')=? ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", (domain, limit))
+        rows = cur.fetchall()
+
         conn.close()
         return [dict(r) for r in rows]
 
-    cur.execute("SELECT profile_id, domain, full_name, email, created_at, updated_at FROM profiles WHERE COALESCE(domain,'')=? ORDER BY COALESCE(updated_at, created_at) DESC", (domain,))
-    rows = cur.fetchall()
-    if len(rows) == 0:
-        cur.execute("SELECT profile_id, domain, full_name, email, created_at, updated_at FROM profiles ORDER BY COALESCE(updated_at, created_at) DESC")
+def count_profiles(db_path: str, domain: Optional[str] = "technology") -> int:
+    conn = _conn(db_path)
+    cur = conn.cursor()
+
+    print(f"Finding number of profiles with domain='{domain}'")
+
+    # If domain filter yields none, fall back to all (so you never "lose" data in UI)
+    if domain is None:
+        cur.execute("SELECT COUNT(*) FROM profiles ORDER BY COALESCE(updated_at, created_at) DESC")
         rows = cur.fetchall()
 
+        print(f"Number of profiles found (No domain filter): {rows[0][0] if rows else 0}")
+        rowCount = rows[0][0] if rows else 0
+
+        conn.close()
+        return rowCount
+
+    cur.execute("SELECT COUNT(*) FROM profiles WHERE COALESCE(domain,'')=? ORDER BY COALESCE(updated_at, created_at) DESC", (domain,))
+    rows = cur.fetchall()
+
     conn.close()
-    return [dict(r) for r in rows]
+    print(f"Number of profiles found: {rows[0][0] if rows else 0}")
+
+    rowCount = rows[0][0] if rows else 0
+
+    return rowCount
+
+def count_profiles_recent(db_path: str, domain: Optional[str] = "technology") -> int:
+    weekAgo = datetime.now() - timedelta(weeks=1)
+
+    conn = _conn(db_path)
+    cur = conn.cursor()
+
+    print(f"Finding number of profiles with domain='{domain}'")
+
+    # If domain filter yields none, fall back to all (so you never "lose" data in UI)
+    if domain is None:
+        cur.execute("SELECT COUNT(*) FROM profiles WHERE updated_at >= ? ORDER BY COALESCE(updated_at, created_at) DESC", (weekAgo,))
+        rows = cur.fetchall()
+
+        print(f"Number of profiles found (No domain filter): {rows[0][0] if rows else 0}")
+        rowCount = rows[0][0] if rows else 0
+
+        conn.close()
+        return rowCount
+
+    cur.execute("SELECT COUNT(*) FROM profiles WHERE COALESCE(domain,'')=? AND updated_at >= ? ORDER BY COALESCE(updated_at, created_at) DESC", (domain, weekAgo))
+    rows = cur.fetchall()
+
+    conn.close()
+    print(f"Number of profiles found: {rows[0][0] if rows else 0}")
+
+    rowCount = rows[0][0] if rows else 0
+
+    return rowCount
+
+# TODO: Create a count function for interview pipeline
 
 def search_profiles(db_path: str, domain: Optional[str] = "technology", search_string: str = "", limit: int = 5):
     conn = _conn(db_path)
@@ -167,8 +249,11 @@ def search_profiles_page_count(db_path: str, domain: Optional[str] = "technology
     if domain is None:
         cur.execute("SELECT COUNT(*) FROM profiles WHERE full_name LIKE ? OR email LIKE ? ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", (f"%{search_string}%", f"%{search_string}%", pageLimit))
         rows = cur.fetchall()
+        # Calculate page count based on total rows and page limit
+        rowCount = rows[0][0] if rows else 0
+        pages = (rowCount // pageLimit) + (1 if rows and rowCount % pageLimit > 0 else 0)
         conn.close()
-        return [dict(r) for r in rows]
+        return [rowCount,pages]
 
     cur.execute("SELECT COUNT(*) FROM profiles WHERE COALESCE(domain,'')=? AND (full_name LIKE ? OR email LIKE ?) ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", (domain, f"%{search_string}%", f"%{search_string}%", pageLimit))
     rows = cur.fetchall()
@@ -187,18 +272,23 @@ def search_profiles_full(db_path: str, domain: Optional[str] = "technology", sea
     cur = conn.cursor()
 
     print(f"Searching profiles with domain='{domain}' and search_string='{search_string}'")
+    returned_profiles = []
 
     # If domain filter yields none, fall back to all (so you never "lose" data in UI)
     if domain is None:
         cur.execute("SELECT profile_id, domain, full_name, email, FROM profiles WHERE full_name LIKE ? OR email LIKE ? ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ? OFFSET ?", (f"%{search_string}%", f"%{search_string}%", pageLimit, currentPage * pageLimit))
         rows = cur.fetchall()
+
+        for r in rows:
+            processedRow = dict(r)
+            processedRow.update({"data": get_profile(db_path, r["profile_id"])})
+            returned_profiles.append(processedRow)
+
         conn.close()
-        return [dict(r) for r in rows]
+        return returned_profiles
 
     cur.execute("SELECT profile_id, domain, full_name, email FROM profiles WHERE COALESCE(domain,'')=? AND (full_name LIKE ? OR email LIKE ?) ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ? OFFSET ?", (domain, f"%{search_string}%", f"%{search_string}%", pageLimit, currentPage * pageLimit))
     rows = cur.fetchall()
-
-    returned_profiles = []
 
     for r in rows:
         processedRow = dict(r)

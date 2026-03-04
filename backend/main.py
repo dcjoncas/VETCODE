@@ -307,6 +307,11 @@ async def upload_resume(
 def list_profiles(domain: str = "technology"):
     return storage.list_profiles(DB_PATH, domain=domain)
 
+@app.post("/api/profiles/skillSearch")
+def search_profiles(domain: str = Form("technology"), skills: str = Form("")):
+    skill_list = [s.strip() for s in skills.split(",") if s.strip()]
+    return storage.list_profiles(DB_PATH, domain=domain, skills_filter=skill_list)
+
 
 @app.get("/api/profiles/{profile_id}")
 def get_profile(profile_id: str):
@@ -417,6 +422,18 @@ def profile_list(domain: str = "technology"):
     if domain in ("all","*","",None):
         return storage.list_profiles(DB_PATH, domain=None)
     return storage.list_profiles(DB_PATH, domain=domain)
+
+@app.get("/api/profile/count")
+def profile_count(domain: str = "technology"):
+    if domain in ("all","*","",None):
+        return storage.count_profiles(DB_PATH, domain=None)
+    return storage.count_profiles(DB_PATH, domain=domain)
+
+@app.get("/api/profile/count/recent")
+def profile_count_recent(domain: str = "technology"):
+    if domain in ("all","*","",None):
+        return storage.count_profiles_recent(DB_PATH, domain=None)
+    return storage.count_profiles_recent(DB_PATH, domain=domain)
 
 # Used to search for profiles with the search bar
 @app.post("/api/profile/search")
@@ -545,7 +562,7 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
     except Exception as e:
         print(f'Error during external people search: {e}')
 
-    profiles = storage.list_profiles(DB_PATH, domain=domain)
+    profiles = storage.list_profiles(DB_PATH, domain=domain, limit=top_k, skills_filter=peopleDataSkills)
     ranked = []
     for row in profiles:
         p = storage.get_profile(DB_PATH, row["profile_id"])
