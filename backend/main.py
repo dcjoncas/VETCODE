@@ -790,6 +790,10 @@ def people_labs_search(
 
     return {"status": "success", "returnMessage": "Successfully searched PeopleDataLabs!", "results": outcome['data'] }
 
+from azure.routes import azureEndpoints
+
+app.include_router(azureEndpoints.router)
+
 @app.get("/", response_class=HTMLResponse)
 def root():
     return HTMLResponse('<meta http-equiv="refresh" content="0; url=/ui/index.html">')

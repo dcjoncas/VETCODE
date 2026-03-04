@@ -16,8 +16,8 @@
     }
 
     function searchSelect(profile) {
-        sessionStorage.setItem("candidateId", profile.profile_id);
-        sessionStorage.setItem("candidateName", profile.full_name);
+        sessionStorage.setItem("candidateId", profile[0]);
+        sessionStorage.setItem("candidateName", profile[1] + " " + profile[2]);
 
         window.location.href = "profile-preview.html";
     }
@@ -30,31 +30,32 @@
                 document.getElementById("searchResultsTable").hidden = true;
                 return;
             }
+            else {
+                document.getElementById("searchResultsTable").hidden = false;
+            }
 
             const fd = new FormData();
             fd.append("domain", "technology");
             fd.append("search_string", query);
 
-            const response = await fetch("/api/profile/search", {
+            const responseAzure = await fetch("/api/azure/searchNameEmail", {
                 method: "POST",
                 body: fd
             });
 
-            const results = await response.json();
+            const resultsAzure = await responseAzure.json();
+
             const tbody = document.getElementById("searchResults");
-            
             tbody.innerHTML = "";
 
-            document.getElementById("searchResultsTable").hidden = false;
-
-            if (results.length === 0) {
+            if (resultsAzure.length === 0) {
                 tbody.innerHTML = '<tr class="search-result-row"><td class="search-result-row">No results found.</td></tr>';
                 return;
             }
 
             const candidateId = sessionStorage.getItem("candidateId");
 
-            results.forEach((r, i) => {
+            resultsAzure.forEach((r, i) => {
                 const tr = document.createElement("tr");
 
                 tr.classList.add("search-result-row");
@@ -65,7 +66,7 @@
 
                 tr.id = `searchRow-${r.profile_id}`;
                 tr.style.cursor = "pointer";
-                tr.innerHTML = `<td class="search-result-formatting"><h3 class="search-result-formatting">${r.full_name || ""}</h3><p class="muted search-result-formatting" style="margin: 1px; padding: 1px;">${r.email || ""}</p></td>`;
+                tr.innerHTML = `<td class="search-result-formatting"><h3 class="search-result-formatting">${r[1] || ""} ${r[2] || ""}</h3><p class="muted search-result-formatting" style="margin: 1px; padding: 1px;">${r[3] || ""}</p></td>`;
                 tr.addEventListener("click", () => searchSelect(r));
                 tbody.appendChild(tr);
             });
