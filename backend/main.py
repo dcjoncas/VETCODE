@@ -307,6 +307,11 @@ async def upload_resume(
 def list_profiles(domain: str = "technology"):
     return storage.list_profiles(DB_PATH, domain=domain)
 
+@app.post("/api/profiles/skillSearch")
+def search_profiles(domain: str = Form("technology"), skills: str = Form("")):
+    skill_list = [s.strip() for s in skills.split(",") if s.strip()]
+    return storage.list_profiles(DB_PATH, domain=domain, skills_filter=skill_list)
+
 
 @app.get("/api/profiles/{profile_id}")
 def get_profile(profile_id: str):

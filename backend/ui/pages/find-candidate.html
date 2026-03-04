@@ -39,9 +39,9 @@
 <div class="split">
   <div class="field">
     <label>Search existing profiles</label>
-    <input placeholder="Name, email, keyword (e.g., 'VR', 'C#', 'React')"/>
+    <input id="findSearchBar" placeholder="Name, email, comma separated skills (e.g. Python, C#, React)"/>
     <div class="row-actions">
-      <button class="btn" type="button" onclick="alert('Mock: search')">Search Profiles</button>
+      <button id="searchProfilesBtn" class="btn" type="button">Search Profiles</button>
       <button class="btn secondary" type="button" onclick="alert('Mock: open advanced filters')">Advanced Filters</button>
     </div>
     <div class="kpi" style="margin-top:12px">
@@ -84,7 +84,7 @@
 <h2 style="margin-top:18px">Search results</h2>
 <table class="table">
   <thead><tr><th>#</th><th>Candidate</th><th>Email</th><th>Primary stack</th><th>Status</th><th></th></tr></thead>
-  <tbody>
+  <tbody id="cadidateSearchResults">
     <tr><td>1</td><td><strong>Giovanni S</strong></td><td>giovanni@email.com</td><td>Python • C# • React</td><td><span class="pill">Ready</span></td><td><a class="btn secondary" href="match-role.html" style="padding:8px 12px">Select</a></td></tr>
     <tr><td>2</td><td><strong>John N Farmer</strong></td><td>john.farmer@email.com</td><td>VR • Unity • C#</td><td><span class="pill">Vetted</span></td><td><a class="btn secondary" href="match-role.html" style="padding:8px 12px">Select</a></td></tr>
     <tr><td>3</td><td><strong>Maria T</strong></td><td>maria@email.com</td><td>Node • Angular • SQL</td><td><span class="pill">New</span></td><td><a class="btn secondary" href="match-role.html" style="padding:8px 12px">Select</a></td></tr>
@@ -105,6 +105,8 @@
     </main>
   </div>
 
+  <script src="JS/apiScripts.js"></script>
+  <script src="JS/updateProcessFlow.js"></script>
   <script>
     // tiny UX sugar (mock only)
     document.querySelectorAll('a.step').forEach(a=>a.addEventListener('click', ()=>{}));
@@ -119,8 +121,51 @@
       document.getElementById("newThisWeekCount").textContent = recentCount;
     }
 
+    async function searchSkillList(params) {
+      const searchInput = document.getElementById("findSearchBar").value.trim();
+      const skills = searchInput.split(",").map(s => s.trim()).filter(s => s.length > 0);
+
+      const fd = new FormData();
+      fd.append("domain", "technology");
+      fd.append("skills", skills.join(","));
+
+      try {
+        let profiles = await api("/api/profiles/skillSearch", { method: "POST", body: fd });
+        console.log(profiles);
+
+        // TODO: Add logic to remove rows with no overlap and fill in blanks with second call
+        if (profiles[0].overlap_count === 0) {
+          fd.append("search_string", searchInput);
+          profiles = await api("/api/profile/search", { method: "POST", body: fd });
+          console.log(profiles);
+        }
+
+        const tbody = document.getElementById("cadidateSearchResults");
+        tbody.innerHTML = "";
+        
+        const candidateId = sessionStorage.getItem("candidateId");
+
+        profiles.forEach((r, i) => {
+          const tr = document.createElement("tr");
+
+          if (candidateId && r.profile_id === candidateId) {
+            tr.classList.add("active-candidate-row");
+          }
+
+          tr.id = `resultRow-${r.profile_id}`;
+          //tr.style.cursor = "pointer";
+          tr.innerHTML = `<td>${i + 1}</td><td>${r.full_name || ""}</td><td>${r.email || ""}</td><td>Placeholder</td><td><div class="pill">Test</div></td><td><a class="btn secondary" style="padding:8px 12px" onclick="alert('Mock: Select Candidate')">Select</a>`;
+          //tr.addEventListener("click", () => selectRow(r));
+          tbody.appendChild(tr);
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
       updateCounts();
+      document.getElementById("searchProfilesBtn").addEventListener("click", searchSkillList);
     });
   </script>
 </body>
