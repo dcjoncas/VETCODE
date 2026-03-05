@@ -112,13 +112,12 @@
     document.querySelectorAll('a.step').forEach(a=>a.addEventListener('click', ()=>{}));
 
     async function updateCounts() {
-      const responseTotal = await fetch("/api/profile/count?domain=technology");
+      const responseTotal = await fetch("/api/azure/countCandidates/all?domain=technology");
       const totalCount = await responseTotal.json();
-      document.getElementById("totalCandidateCount").textContent = totalCount;
-
-      const responseWeek = await fetch("/api/profile/count/recent?domain=technology");
-      const recentCount = await responseWeek.json();
-      document.getElementById("newThisWeekCount").textContent = recentCount;
+      
+      document.getElementById("totalCandidateCount").textContent = totalCount.total;
+      document.getElementById("newThisWeekCount").textContent = totalCount.recent;
+      document.getElementById("inInterviewCount").textContent = totalCount.statusCounts.Draft + totalCount.statusCounts.Pending
     }
 
     async function searchSkillList(params) {
