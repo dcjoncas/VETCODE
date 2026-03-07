@@ -31,6 +31,11 @@ async def count_candidates_all(domain: str = "all"):
         return outcome
 
 @router.post("/searchNameEmail")
-async def get_candidates(search_string: str = Form(...), domain: str = Form(...)):
+async def get_candidates(search_string: str = Form(...), domain: str = Form(...), limit: int = Form(5)):
     if domain == "technology":
-        return candidates.searchCandidatesByNameEmail(search_string, 5)
+        return candidates.searchCandidatesByNameEmail(search_string, limit)
+    
+@router.post("/searchSkills")
+async def get_candidates(skills: str = Form(...), domain: str = Form(...), limit: int = Form(5)):
+    if domain == "technology":
+        return candidates.searchCandidatesBySkills(skills, limit)

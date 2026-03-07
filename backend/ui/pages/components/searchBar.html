@@ -16,8 +16,8 @@
     }
 
     function searchSelect(profile) {
-        sessionStorage.setItem("candidateId", profile[0]);
-        sessionStorage.setItem("candidateName", profile[1] + " " + profile[2]);
+        sessionStorage.setItem("candidateId", profile.id);
+        sessionStorage.setItem("candidateName", profile.firstName + " " + profile.lastName);
 
         window.location.href = "profile-preview.html";
     }
@@ -64,9 +64,9 @@
                     tr.classList.add("active-candidate-row");
                 }
 
-                tr.id = `searchRow-${r.profile_id}`;
+                tr.id = `searchRow-${r._id}`;
                 tr.style.cursor = "pointer";
-                tr.innerHTML = `<td class="search-result-formatting"><h3 class="search-result-formatting">${r[1] || ""} ${r[2] || ""}</h3><p class="muted search-result-formatting" style="margin: 1px; padding: 1px;">${r[3] || ""}</p></td>`;
+                tr.innerHTML = `<td class="search-result-formatting"><h3 class="search-result-formatting">${r.firstName || ""} ${r.lastName || ""}</h3><p class="muted search-result-formatting" style="margin: 1px; padding: 1px;">${r.email || ""}</p></td>`;
                 tr.addEventListener("click", () => searchSelect(r));
                 tbody.appendChild(tr);
             });

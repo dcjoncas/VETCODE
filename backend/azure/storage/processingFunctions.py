@@ -1,0 +1,58 @@
+def statusProcessing(statusEnum: int) -> str:
+    if statusEnum == 1:
+        return "Draft"
+    elif statusEnum == 2:
+        return "Pending"
+    elif statusEnum == 3:
+        return "Published"
+    elif statusEnum == 4:
+        return "Updated"
+    
+# Get the overall status of a candidate
+def stepProcessingOverall(stepEnum: list[int]) -> str:
+    # Ensure highest values are first
+    for s in sorted(stepEnum, reverse=True):
+        # Overall Status
+        if s == 7:
+            return 'Certified'
+            
+        if s == 6:
+            return 'Certified'
+            
+        if s == 5:
+            return 'Reviewed'
+            
+        if s == 4:
+            return 'PreOnboarded'
+            
+        if s == 3:
+            return 'Vetted'
+            
+        if s == 2:
+            return 'Screened'
+            
+        if s == 1:
+            return 'Identified'
+            
+
+'''Identified = 1,
+    Screened = 2,
+    Vetted = 3,
+    PreOnboarded = 4,
+    Reviewed = 5,
+    Onboarded = 6,
+    Certified = 7,
+    ScreeningCall = 8,
+    PreOnboardingCall = 9,
+    CandidateCheckInCall = 10,
+    TechnicalVettingCall = 11,
+    OnboardingCall = 12,
+    MemberCheckInCall = 13,
+    AnticipatedScreeningCall = 14,
+    Answered = 15,
+    Updated = 16,
+    Published = 17,
+    NoteTalentAcquisition = 18,
+    NoteTechnicalVetting = 19,
+    NoteCommunity = 20,
+    Unpublished = 21,'''
