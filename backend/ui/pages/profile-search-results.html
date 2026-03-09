@@ -116,13 +116,17 @@
             }
 
             fd.append("currentPage", page);
+            fd.append("skills", sessionStorage.getItem("jobSkills"));
 
-            const pageResponse = await fetch("/api/profile/pageSearch", {
+            const pageResponse = await fetch("/api/azure/pageSearch", {
                 method: "POST",
                 body: fd
             });
 
             const pageResults = await pageResponse.json();
+
+            console.log(pageResults);
+            
 
             const tbody = document.getElementById("searchResultsBody");
             tbody.innerHTML = "";
@@ -130,25 +134,11 @@
                 const tr = document.createElement("tr");
 
                 // TODO: Correlate shown skills to selected JD
-                let topSkills= [];
+                let topSkills= ["No Skills Listed"];
                 let location = "No Location Listed";
 
-                if (sessionStorage.getItem("candidateId") && r.profile_id === sessionStorage.getItem("candidateId")) {
+                if (sessionStorage.getItem("candidateId") && r.id === sessionStorage.getItem("candidateId")) {
                   tr.classList.add("active-candidate-row");
-                }
-
-                // If the skills from the job are available, compare them to candidate skills
-                if (sessionStorage.getItem("jobSkills") && r.data && r.data.skills) {
-                  const jobSkills = sessionStorage.getItem("jobSkills").split(",");
-
-                  let candidateSkills = [];
-                  Object.keys(r.data.skills).forEach(category => {
-                    r.data.skills[category].forEach(skill => {
-                      candidateSkills.push(skill);
-                    });
-                  });
-
-                  topSkills = jobSkills.filter(skill => candidateSkills.includes(skill)).slice(0, 5);
                 }
                 
                 // If job skills are unavailable, just show top skills from profile (up to 5)
@@ -168,24 +158,18 @@
                       });
                     }
                   );
-
-                  // Show location if available
-                  if (r.data.contact && r.data.contact.location && r.data.contact.location.length > 0) {
-                    location = r.data.contact.location;
-                  }
                 }
 
                 // Fallback if no skills found
-                if (topSkills.length === 0) {
-                  topSkills.push("No Skills Listed");
-                }
+                if (r.skillMatches.length > 0)
+                  topSkills = (r.skillMatches || []).slice(0, 6).join(", ");
 
                 tr.classList.add("search-result-row");
                 tr.innerHTML = `
                   <td>${r.full_name}</td>
                   <td>${r.email}</td>
-                  <td>${location}</td>
-                  <td>${topSkills.join(", ")}</td>
+                  <td>${r.location}</td>
+                  <td>${topSkills}</td>
                 `;
 
                 tr.style.cursor = "pointer";

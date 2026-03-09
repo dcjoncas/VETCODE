@@ -133,3 +133,63 @@ def searchCandidatesBySkills(query: str, limit: int = 5):
         })
     
     return resultsProcessed
+
+def searchCandidatesBySkillsNamesPaginated(nameQuery: str, skillQuery: str, pageLimit: int = 5, currentPage: int = 0):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    queryArray = [item.strip() for item in skillQuery.split(',')]
+    print("Skills: " + skillQuery)
+    skillQuery = skillQuery.split(',')
+
+    # Search for user by skills attached to the account
+    # Order by id descending to get the most recent matches first, and limit the number of results
+    wildcard = f'%{nameQuery}%'
+    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step), address.city, address.state, address.country FROM person JOIN professional prof ON person.id = prof.id JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) AND (person.firstname ILIKE %s OR person.lastname ILIKE %s OR person.goesbyname ILIKE %s OR prof.email ILIKE %s) GROUP BY person.id, prof.email, address.city, address.state, address.country ORDER BY skillMatches DESC LIMIT {pageLimit} OFFSET {pageLimit * currentPage};"
+
+    cur.execute(query, (queryArray, wildcard, wildcard, wildcard, wildcard))
+    results = cur.fetchall()
+
+    conn.close()
+
+    resultsProcessed = []
+
+    for r in results:
+        resultsProcessed.append({
+            "id":r[0],
+            "full_name":f'{r[1]} {r[2]}',
+            "email":r[3],
+            "skillMatches":r[5],
+            "step": processing.stepProcessingOverall(r[6]),
+            "location": f'{r[7]}, {r[8]}, {r[9]}'
+        })
+    
+    return resultsProcessed
+
+def searchCandidatesByNameEmailPaginated(query: str, pageLimit: int = 5, currentPage: int = 0):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    # Search for user by firstname, lastname, goesbyname, or email using ILIKE for case-insensitive search
+    # Order by id descending to get the most recent matches first, and limit the number of results
+    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step), ARRAY_AGG(DISTINCT skill.title), address.city, address.state, address.country FROM person JOIN professional prof ON person.id = prof.id JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.firstname ILIKE '%{query}%' OR person.lastname ILIKE '%{query}%' OR person.goesbyname ILIKE '%{query}%' OR prof.email ILIKE '%{query}%' GROUP BY person.id, prof.email, address.city, address.state, address.country ORDER BY id DESC LIMIT {pageLimit} OFFSET {pageLimit * currentPage};"
+    print(query)
+
+    cur.execute(query)
+    results = cur.fetchall()
+
+    conn.close()
+
+    resultsProcessed = []
+
+    for r in results:
+        resultsProcessed.append({
+            "id":r[0],
+            "full_name":f'{r[1]} {r[2]}',
+            "email":r[3],
+            "step": processing.stepProcessingOverall(r[4]),
+            "skillMatches": r[5],
+            "location": f'{r[6]}, {r[7]}, {r[8]}'
+        })
+    
+    return resultsProcessed
