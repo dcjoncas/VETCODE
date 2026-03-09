@@ -139,13 +139,11 @@ def searchCandidatesBySkillsNamesPaginated(nameQuery: str, skillQuery: str, page
     cur = conn.cursor()
 
     queryArray = [item.strip() for item in skillQuery.split(',')]
-    print("Skills: " + skillQuery)
-    skillQuery = skillQuery.split(',')
 
     # Search for user by skills attached to the account
     # Order by id descending to get the most recent matches first, and limit the number of results
     wildcard = f'%{nameQuery}%'
-    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step), address.city, address.state, address.country FROM person JOIN professional prof ON person.id = prof.id JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) AND (person.firstname ILIKE %s OR person.lastname ILIKE %s OR person.goesbyname ILIKE %s OR prof.email ILIKE %s) GROUP BY person.id, prof.email, address.city, address.state, address.country ORDER BY skillMatches DESC LIMIT {pageLimit} OFFSET {pageLimit * currentPage};"
+    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step), address.city, address.state, address.country FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) AND (person.firstname ILIKE %s OR person.lastname ILIKE %s OR person.goesbyname ILIKE %s OR prof.email ILIKE %s) GROUP BY person.id, prof.email, address.city, address.state, address.country ORDER BY skillMatches DESC LIMIT {pageLimit} OFFSET {pageLimit * currentPage};"
 
     cur.execute(query, (queryArray, wildcard, wildcard, wildcard, wildcard))
     results = cur.fetchall()
@@ -172,8 +170,7 @@ def searchCandidatesByNameEmailPaginated(query: str, pageLimit: int = 5, current
 
     # Search for user by firstname, lastname, goesbyname, or email using ILIKE for case-insensitive search
     # Order by id descending to get the most recent matches first, and limit the number of results
-    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step), ARRAY_AGG(DISTINCT skill.title), address.city, address.state, address.country FROM person JOIN professional prof ON person.id = prof.id JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.firstname ILIKE '%{query}%' OR person.lastname ILIKE '%{query}%' OR person.goesbyname ILIKE '%{query}%' OR prof.email ILIKE '%{query}%' GROUP BY person.id, prof.email, address.city, address.state, address.country ORDER BY id DESC LIMIT {pageLimit} OFFSET {pageLimit * currentPage};"
-    print(query)
+    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step), ARRAY_AGG(DISTINCT skill.title), address.city, address.state, address.country FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.firstname ILIKE '%{query}%' OR person.lastname ILIKE '%{query}%' OR person.goesbyname ILIKE '%{query}%' OR prof.email ILIKE '%{query}%' GROUP BY person.id, prof.email, address.city, address.state, address.country ORDER BY id DESC LIMIT {pageLimit} OFFSET {pageLimit * currentPage};"
 
     cur.execute(query)
     results = cur.fetchall()
@@ -193,3 +190,32 @@ def searchCandidatesByNameEmailPaginated(query: str, pageLimit: int = 5, current
         })
     
     return resultsProcessed
+
+def searchPageCount(nameQuery: str, skillQuery: str = None, pageLimit: int = 5):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    if skillQuery:
+        queryArray = [item.strip() for item in skillQuery.split(',')]
+        wildcard = f'%{nameQuery}%'
+        query = f"SELECT COUNT(DISTINCT person.id) FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) AND (person.firstname ILIKE %s OR person.lastname ILIKE %s OR person.goesbyname ILIKE %s OR prof.email ILIKE %s);"
+        cur.execute(query, (queryArray, wildcard, wildcard, wildcard, wildcard))
+        results = cur.fetchall()
+
+        rowCount = results[0][0] if results else 0
+        pages = (rowCount // pageLimit) + (1 if rowCount and rowCount % pageLimit > 0 else 0)
+
+        print(f'good rows: {rowCount}, pages: {pages}')
+
+        return [rowCount, pages]
+    else:
+        query = f"SELECT COUNT(DISTINCT person.id) FROM person JOIN professional prof ON person.id = prof.id WHERE person.firstname ILIKE '%{nameQuery}%' OR person.lastname ILIKE '%{nameQuery}%' OR person.goesbyname ILIKE '%{nameQuery}%' OR prof.email ILIKE '%{nameQuery}%';"
+        cur.execute(query)
+        results = cur.fetchall()
+
+        rowCount = results[0][0] if results else 0
+        pages = (rowCount // pageLimit) + (1 if rowCount and rowCount % pageLimit > 0 else 0)
+
+        print(f'bad rows: {rowCount}, pages: {pages}')
+
+        return [rowCount, pages]

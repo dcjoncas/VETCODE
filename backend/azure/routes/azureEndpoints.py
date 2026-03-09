@@ -40,6 +40,15 @@ async def get_candidates(skills: str = Form(...), domain: str = Form(...), limit
     if domain == "technology":
         return candidates.searchCandidatesBySkills(skills, limit)
     
+@router.post("/pageCount")
+def profile_page_count(domain: str = Form(default="technology"), search_string: str = Form(default=""), skills: str = Form(default=""), pageLimit: int = Form(default=10)):
+    print(f"Calculating page count for domain='{domain}' with search_string='{search_string}'")
+    
+    if len(skills) > 0 and skills != 'null':
+        return candidates.searchPageCount(search_string, skills, pageLimit)
+    else:
+        return candidates.searchPageCount(search_string, None, pageLimit)
+    
 @router.post("/pageSearch")
 def profile_page_search(domain: str = Form(default="technology"), search_string: str = Form(default=""), currentPage: int = Form(default=1), pageLimit: int = Form(default=10), skills: str = Form(default="")):
     print(f"Searching profiles for domain='{domain}' with search_string='{search_string}' on page {currentPage} with pageLimit {pageLimit}")

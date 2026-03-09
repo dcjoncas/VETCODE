@@ -85,8 +85,9 @@
             fd.append("domain", "technology");
             fd.append("search_string", query);
             fd.append("pageLimit", pageLimit);
+            fd.append("skills", sessionStorage.getItem("jobSkills"));
 
-            const countResponse = await fetch("/api/profile/pageCount", {
+            const countResponse = await fetch("/api/azure/pageCount", {
                 method: "POST",
                 body: fd
             });
@@ -116,7 +117,6 @@
             }
 
             fd.append("currentPage", page);
-            fd.append("skills", sessionStorage.getItem("jobSkills"));
 
             const pageResponse = await fetch("/api/azure/pageSearch", {
                 method: "POST",
@@ -125,11 +125,12 @@
 
             const pageResults = await pageResponse.json();
 
-            console.log(pageResults);
-            
-
             const tbody = document.getElementById("searchResultsBody");
             tbody.innerHTML = "";
+
+            if (pageResults.length == 0)
+              tbody.innerHTML = "<tr>No Results Found</tr>"
+
             pageResults.forEach((r, i) => {
                 const tr = document.createElement("tr");
 
@@ -137,7 +138,7 @@
                 let topSkills= ["No Skills Listed"];
                 let location = "No Location Listed";
 
-                if (sessionStorage.getItem("candidateId") && r.id === sessionStorage.getItem("candidateId")) {
+                if (sessionStorage.getItem("candidateId") && r.id + '' === sessionStorage.getItem("candidateId")) {
                   tr.classList.add("active-candidate-row");
                 }
                 
@@ -175,7 +176,7 @@
                 tr.style.cursor = "pointer";
                 // Navigate to profile preview on click
                 tr.addEventListener("click", () => {
-                  sessionStorage.setItem("candidateId", r.profile_id);
+                  sessionStorage.setItem("candidateId", r.id);
                   sessionStorage.setItem("candidateName", r.full_name);
                   sessionStorage.setItem("candidateTopMatches", topSkills);
 
