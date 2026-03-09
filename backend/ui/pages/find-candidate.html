@@ -180,18 +180,6 @@
       }
     }
 
-    async function testSearch() {
-      const fd = new FormData();
-      fd.append("domain", "technology");
-      fd.append("skills", 'sql,python');
-
-      console.log('Hello1');
-      let testResponse = await api("/api/azure/searchSkills", { method: "POST", body: fd });
-      console.log('Hello2');
-      
-      console.log(testResponse);
-    }
-
     document.addEventListener('DOMContentLoaded', function() {
       // Counts won't change often, so check to see if we've already pulled them this session
       // TODO: Start caching serverside

@@ -174,7 +174,7 @@ def build_interview_questions(profile: dict, jd: dict, breakdown: dict) -> list[
 
 from resume_ingest import ingest
 from deterministic_profile import build_profile_from_text
-from jd_match import normalize_jd, match
+from jd_match import normalize_jd, match, azureMatch
 from profile_schema import new_id
 import storage
 from renderers import profile_to_html, profile_to_docx, jd_to_html, jd_to_docx, match_report_to_html, match_report_to_docx
@@ -524,9 +524,11 @@ def jd_latest(domain: str = "technology", jd_id: Optional[str] = None):
 
 from openAI import externalPeopleSearch
 import peopleDataLabs.peopleSearch as peopleDataLabs
+from azure.storage import candidates
 
 @app.post("/api/match/run")
-def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: int = Form(30)):
+def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: int = Form(10)):
+    # TODO: Set up job descriptions in the database
     jd = storage.get_jd(DB_PATH, jd_id) if jd_id else storage.get_latest_jd(DB_PATH, domain=domain)
     if not jd or not jd.get("jd_skills"):
         raise HTTPException(status_code=400, detail="No job description loaded yet. Normalize a JD first.")
@@ -558,25 +560,59 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
     else:'''
     print('No location extracted from JD. Running external search based on skills only.')
     try:
-        returnedExternalPeople = peopleDataLabs.searchSkills(peopleDataSkills, top_k)["data"]
+        returnedExternalPeople = peopleDataLabs.searchSkills(peopleDataSkills, 1)["data"]
     except Exception as e:
         print(f'Error during external people search: {e}')
 
-    profiles = storage.list_profiles(DB_PATH, domain=domain, limit=top_k, skills_filter=peopleDataSkills)
+    #profiles = storage.list_profiles(DB_PATH, domain=domain, limit=top_k, skills_filter=peopleDataSkills)
+    profiles = candidates.searchCandidatesBySkills(','.join(peopleDataSkills), top_k)
+
     ranked = []
     for row in profiles:
-        p = storage.get_profile(DB_PATH, row["profile_id"])
-        score, parts = match((p or {}).get("skills", {}), jd_skills)
-        ranked.append({
+        #p = storage.get_profile(DB_PATH, row["profile_id"])
+        #score, parts = match((p or {}).get("skills", {}), jd_skills)
+        score, parts = azureMatch(row['skillMatches'],jd_skills)
+        
+        '''ranked.append({
             "profile_id": row["profile_id"],
             "name": row.get("full_name",""),
             "email": row.get("email",""),
             "score": score,
             "top_matches": top_matches_from_parts(parts),
             "breakdown": parts
+        })'''
+        ranked.append({
+            "profile_id": row["id"],
+            "name": row["firstName"] + ' ' + row["lastName"],
+            "email": row["email"],
+            "score": score,
+            "top_matches": top_matches_from_parts(parts),
+            "breakdown": parts
         })
+
     ranked.sort(key=lambda x: x["score"], reverse=True)
-    return {"jd": {"jd_id": jd["jd_id"], "company": jd.get("company",""), "title": jd.get("title",""), "created_at": jd.get("created_at","")}, "results": ranked[:top_k], "externalMatches": returnedExternalPeople, "skillList": peopleDataSkills}
+
+    rankedExternal = []
+    for row in returnedExternalPeople:
+        score, parts = azureMatch(row['skills'],jd_skills)
+        inferredSalary = None
+        if "inferred_salary" in row:
+            inferredSalary = row["inferred_salary"]
+        
+        rankedExternal.append({
+            "profile_id": row["id"],
+            "first_name": row["first_name"],
+            "last_name": row["last_name"],
+            "recommended_personal_email": row["recommended_personal_email"],
+            "linkedin_url": row["linkedin_url"],
+            "inferred_salary": inferredSalary,
+            "score": score,
+            "top_matches": top_matches_from_parts(parts),
+            "breakdown": parts
+        })
+
+    rankedExternal.sort(key=lambda x: x["score"], reverse=True)
+    return {"jd": {"jd_id": jd["jd_id"], "company": jd.get("company",""), "title": jd.get("title",""), "created_at": jd.get("created_at","")}, "results": ranked[:top_k], "externalMatches": rankedExternal, "skillList": peopleDataSkills}
 
 
 @app.post("/api/match/scorecard")

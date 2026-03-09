@@ -95,7 +95,7 @@
 <h2 style="margin-top:18px" id="externalHeader">External Results</h2>
 <div class="muted" style="margin-top:8px" id="matchStatusExternal">No match run yet.</div>
 <table class="table" id="resultsTableExternal">
-  <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Estimated Salary (USD)</th><th>Listed Skills</th><th>Job Description Match</th></tr></thead>
+  <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Estimated Salary (USD)</th><th>Score</th><th>Top matches</th></tr></thead>
   <tbody>
     <!-- Dynamically filled with ranked results -->
   </tbody>
@@ -249,7 +249,7 @@
 
           tr.id = `resultRow-${r.profile_id}`;
           tr.style.cursor = "pointer";
-          tr.innerHTML = `<td>${i + 1}</td><td>${r.name || ""}</td><td>${r.email || ""}</td><td>${Math.round(r._score100 || 0)}</td><td>${(r.top_matches || []).slice(0, 6).join(", ")}</td>`;
+          tr.innerHTML = `<td>${i + 1}</td><td>${r.name || ""}</td><td>${r.email || ""}</td><td>${Math.round(r._score100 || 0)}%</td><td>${(r.top_matches || []).slice(0, 6).join(", ")}</td>`;
           tr.addEventListener("click", () => selectRow(r));
           tbody.appendChild(tr);
         });
@@ -259,9 +259,12 @@
 
         j.externalMatches.forEach((r, i) => {
           const tr = document.createElement("tr");
+
+          console.log(r);
+          
           
           const commonSkills = (j.skillList || []).filter(skill => (r.skills || []).includes(skill));
-          tr.innerHTML = `<td>${i + 1}</td><td><a href="https://www.${r.linkedin_url || "#"}">${r.first_name.charAt(0).toUpperCase() + r.first_name.slice(1) || ""} ${r.last_name.charAt(0).toUpperCase() + r.last_name.slice(1) || ""}</a></td><td>${r.recommended_personal_email || ""}</td><td>${r.inferred_salary ? "$" + r.inferred_salary : "N/A"}</td><td>${(commonSkills || []).join(", ")}</td><td>${Math.round((commonSkills.length/j.skillList.length)*100) || 0}% Skill Match</td>`;
+          tr.innerHTML = `<td>${i + 1}</td><td><a href="https://www.${r.linkedin_url || "#"}">${r.first_name.charAt(0).toUpperCase() + r.first_name.slice(1) || ""} ${r.last_name.charAt(0).toUpperCase() + r.last_name.slice(1) || ""}</a></td><td>${r.recommended_personal_email || ""}</td><td>${r.inferred_salary ? "$" + r.inferred_salary : "N/A"}</td><td>${r.score}%</td><td>${r.top_matches.slice(0, 6).join(", ")}</td>`;
           tbodyExternal.appendChild(tr);
         });
 

@@ -1,5 +1,6 @@
 import azure.storage.client as client
 import azure.storage.processingFunctions as processing
+from typing import Optional, List
 
 def countCandidates():
     conn = client.getConnection()

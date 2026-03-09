@@ -61,3 +61,7 @@ def match(profile_skills: dict, jd_skills: dict):
 
     total = round(total * 100, 1)
     return total, score_parts
+
+# Normalize Azure profiles and return data
+def azureMatch(profile_skills: list, jd_skills: dict):
+    return match(normalize_jd(','.join(profile_skills)),jd_skills)
