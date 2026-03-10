@@ -65,7 +65,7 @@
       </div>
     </div>
     <div class="row-actions">
-      <button class="btn" type="button" onclick="alert('Mock: start guided questions')">Start / Resume</button>
+      <button class="btn" type="button" id="scheduleButton">Schedule AI Chat</button>
       <button class="btn secondary" type="button" onclick="alert('Mock: open question bank')">Question bank</button>
     </div>
   </div>
@@ -115,9 +115,17 @@
     </main>
   </div>
 
+  <script src="JS/apiScripts.js"></script>
   <script>
     // tiny UX sugar (mock only)
     document.querySelectorAll('a.step').forEach(a=>a.addEventListener('click', ()=>{}));
+
+    async function scheduleAiChat() {
+      const fd = new FormData();
+      fd.append("profileid", sessionStorage.getItem("candidateId"));
+
+      const result = await api("/api/chat/scheduleChat", { method: "POST", body: fd });
+    }
 
     document.addEventListener('DOMContentLoaded', function() {
       const candidateName = sessionStorage.getItem("candidateName");
@@ -134,6 +142,8 @@
       } else {
           document.getElementById("candidateStatus").innerText = "No Candidate Selected";
       }
+
+      document.getElementById("scheduleButton").addEventListener("click", scheduleAiChat);
     });
   </script>
 </body>

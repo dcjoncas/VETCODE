@@ -82,7 +82,7 @@ def searchCandidatesByNameEmail(query: str, limit: int = 5):
 
     # Search for user by firstname, lastname, goesbyname, or email using ILIKE for case-insensitive search
     # Order by id descending to get the most recent matches first, and limit the number of results
-    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.firstname ILIKE '%{query}%' OR person.lastname ILIKE '%{query}%' OR person.goesbyname ILIKE '%{query}%' OR prof.email ILIKE '%{query}%' GROUP BY person.id, prof.email ORDER BY id DESC LIMIT {limit};"
+    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.firstname ILIKE '%{query}%' OR person.lastname ILIKE '%{query}%' OR person.goesbyname ILIKE '%{query}%' OR prof.email ILIKE '%{query}%' GROUP BY person.id, prof.email ORDER BY id DESC LIMIT {limit};"
     
     cur.execute(query)
     results = cur.fetchall()

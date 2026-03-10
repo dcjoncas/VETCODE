@@ -5,6 +5,7 @@ router = APIRouter(
     prefix="/api/azure",
     tags=["azure", "candidates"]
 )
+
 @router.get("/countCandidates")
 async def count_candidates(domain: str = "all"):
     print(f"Counting candidates for domain: {domain}")
