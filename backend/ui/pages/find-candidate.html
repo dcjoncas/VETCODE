@@ -125,6 +125,7 @@
     function findSelect(profile) {
         sessionStorage.setItem("candidateId", profile.id);
         sessionStorage.setItem("candidateName", profile.firstName + " " + profile.lastName);
+        sessionStorage.setItem("candidateStatus", profile.step);
 
         window.location.href = "profile-preview.html";
     }
