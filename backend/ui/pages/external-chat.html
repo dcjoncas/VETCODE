@@ -18,7 +18,9 @@
           <div class="title">
             <span>DEV</span>
             <span>READY</span>
-            <span class="sub">Vetting • No Candidate Selected</span>
+            <span id="candidateNameSpan" class="sub"
+              >Vetting • No Candidate Selected</span
+            >
           </div>
         </div>
 
@@ -41,37 +43,16 @@
             <div style="font-weight: 900">DevReady AI</div>
             <small>Private + Public profile build</small>
           </div>
-          <div class="msgs">
-            <div class="bubble ai">
-              <strong>AI:</strong> Quick start — confirm your current role, top
-              3 technologies, and the most recent project you shipped
-              end-to-end.
-            </div>
-            <div class="bubble me">
-              <strong>Candidate:</strong> Senior backend engineer; Python, C#,
-              React. Recently shipped an identity verification workflow with
-              document scanning + fraud checks.
-            </div>
-            <div class="bubble ai">
-              <strong>AI:</strong> Great. Next: describe your API design
-              approach (auth, versioning, error handling). Provide a real
-              example.
-            </div>
-            <div class="bubble ai">
-              <strong>AI:</strong> While we chat, I’m updating:
-              <em
-                >skills, seniority signals, portfolio artifacts, and client-safe
-                summary</em
-              >.
-            </div>
-          </div>
-          <div class="send">
+          <div id="chatWindow" class="msgs"></div>
+          <form class="send">
             <input
+              id="msgInput"
               class="input"
               style="min-width: 0; flex: 1"
               placeholder="Type a message…"
+              autocomplete="off"
             />
-            <button class="btn" type="button" onclick="alert('Mock: send')">
+            <button id="sendBtn" class="btn" type="submit" disabled>
               Send
             </button>
             <button
@@ -81,16 +62,94 @@
             >
               End Chat
             </button>
-          </div>
+          </form>
         </div>
       </main>
     </div>
 
+    <script src="JS/apiScripts.js"></script>
     <script>
-      // tiny UX sugar (mock only)
-      document
-        .querySelectorAll("a.step")
-        .forEach((a) => a.addEventListener("click", () => {}));
+      const queryString = window.location.search;
+      const urlParams = new URLSearchParams(queryString);
+
+      const query = urlParams.get("query");
+      const candidate = parseInt(urlParams.get("candidate")) || null;
+
+      const chatWindow = document.getElementById("chatWindow");
+      let chatTranscript = [];
+
+      let userName = "";
+
+      // Add new messages to the chat
+      function appendMessage(sender, message) {
+        const chatMsg = document.createElement("div");
+        chatMsg.classList.add("bubble");
+
+        if (sender === "DevReady AI") chatMsg.classList.add("ai");
+        else chatMsg.classList.add("me");
+
+        chatMsg.innerHTML = `<strong>${sender}:</strong> ${message}`;
+
+        chatWindow.appendChild(chatMsg);
+      }
+
+      async function getChatHistory() {
+        const chatHistory = await api(`/api/chat/getChat/${candidate}`, {
+          method: "GET",
+        });
+
+        userName = chatHistory.firstName;
+
+        document.getElementById("candidateNameSpan").innerHTML =
+          `Vetting • ${chatHistory.firstName} ${chatHistory.lastName}`;
+
+        chatTranscript = chatHistory.aiTranscript;
+
+        chatTranscript.forEach((row, i) => {
+          if (row.role === "assistant")
+            appendMessage("DevReady AI", row.content);
+          else appendMessage(userName, row.content);
+        });
+
+        document.getElementById("sendBtn").disabled = false;
+      }
+
+      async function sendMessage() {
+        userMsg = document.getElementById("msgInput").value;
+        document.getElementById("msgInput").value = "";
+
+        appendMessage(userName, userMsg);
+
+        chatTranscript.push({ role: "user", content: userMsg });
+
+        const fd = new FormData();
+        fd.append("transcript", JSON.stringify(chatTranscript));
+        fd.append("candidateName", userName);
+
+        const aiResponse = await api("/api/chat/sendChat", {
+          method: "POST",
+          body: fd,
+        });
+
+        // Add AI response and replace old transcript
+        appendMessage("DevReady AI", aiResponse.recentMessage);
+        chatTranscript = aiResponse.aiTranscript;
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        document
+          .getElementById("sendBtn")
+          .addEventListener("click", (event) => {
+            event.preventDefault();
+
+            sendButton = document.getElementById("sendBtn");
+            // Disable to prevent user from messaging AI while it is thinking
+            sendButton.disabled = true;
+            sendMessage();
+            sendButton.disabled = false;
+          });
+        getChatHistory();
+      });
     </script>
   </body>
 </html>

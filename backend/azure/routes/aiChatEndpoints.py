@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Form
 from azure.storage import chatLogs
+from openAI import candidateChat
+import json
 
 router = APIRouter(
     prefix="/api/chat",
@@ -7,6 +9,17 @@ router = APIRouter(
 )
 
 @router.post("/scheduleChat")
-async def count_candidates(profileid: str = Form(default="")):
+async def scheduleChats(profileid: str = Form(default="")):
     print(f"Scheduling for candidate: {profileid}")
     return chatLogs.scheduleChat(profileid)
+
+@router.get("/getChat/{profileid}")
+async def getChat(profileid: str):
+    print(f"Retrieving chat for candidate: {profileid}")
+    return chatLogs.getChat(profileid)
+
+@router.post("/sendChat")
+async def getChat(transcript: str = Form(...), candidateName: str = Form("Not Found")):
+    transcript_list = json.loads(transcript)
+    print(f"Sending chat for candidate: {candidateName}")
+    return candidateChat.askQuestions(transcript_list, candidateName)

@@ -1,31 +1,34 @@
 from openAI.client import getOpenAPIClient
 
-def askQuestions(transcript: str, candidateName: str):
-    systemInstructions = f'''You are an AI recruitment assistant. You will be chating with {candidateName}.
-    It is your job to ask them the following questions in a casual yet professional manner.'''
+def askQuestions(transcript: list, candidateName: str):
+    systemInstructions = [{"role": "system",
+                          "content":f'''You are an AI recruitment assistant. You will be chating with {candidateName}. MAKE NO HIRING PROMISES.
+    It is your job to ask them the following questions in a casual yet professional manner.\nWhat is the most important part of a company's culture to you?'''}]
 
     client = getOpenAPIClient()
+
+    print(transcript)
+
+    fullTranscript = systemInstructions + transcript
+
+    print(fullTranscript)
 
     try:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",  # Specify the model
-            messages=[
-                {"role": "system", "content": systemInstructions}, # System instructions
-                {"role": "user", "content": f"From the following job description, return the required skills as a comma separated list. Be specific. Add no additional text or commentary: {jobDescription}"}
-            ],
+            messages=fullTranscript,
             max_tokens=100, # Limit the response length to manage costs
             temperature=0.7 # Control the randomness of the response
         )
 
         # Extract and print the response text
-        print('AI Skill Response:' + response.choices[0].message.content.strip())
-
-        skillList = [s.strip() for s in response.choices[0].message.content.split(",") if s.strip()]
+        print('AI Response:' + response.choices[0].message.content.strip())
 
         client.close()
 
-        # Return the skills as a list by splitting the comma-separated string
-        return skillList
+        transcript.append({"role":"assistant", "content":response.choices[0].message.content.strip()})
+        # Return the transcript to keep track of conversation along with most recent message
+        return {"aiTranscript": transcript, "recentMessage": response.choices[0].message.content.strip()}
 
     except Exception as e:
         # Handle potential API errors (e.g., authentication issues, rate limits)

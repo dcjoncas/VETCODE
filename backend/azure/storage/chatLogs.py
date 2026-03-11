@@ -19,3 +19,38 @@ def scheduleChat(profileid: str):
 
     conn.commit()
     conn.close()
+
+def getChat(profileid: str):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    # Count distinct candidates in the person table
+    query = f"SELECT person.firstname, person.lastname, ai.* FROM person JOIN aichatlogs ai ON person.id = ai.personid WHERE person.id = {profileid} ORDER BY ai.id DESC LIMIT 1"
+    
+    cur.execute(query)
+    row = cur.fetchone()
+
+    conn.close()
+
+    openAiTranscript = []
+
+    if row[6] is not None and len(row[6]) > 0:
+        for r in row[6]:
+            splitLocation = r.find(':')
+            if r[0:splitLocation] == "DevReady AI":
+                openAiTranscript.append({'role':'assistant', 'content': r[splitLocation+1:]})
+            else:
+                openAiTranscript.append({'role':'user', 'content': r[splitLocation+1:]})
+    else:
+        startText = f'Hi there {row[0]}! 👋 Thanks for taking the time to connect with us today.<br><br>I’m an AI recruitment assistant helping our team learn more about potential candidates. I’d love to ask you a few quick questions about your background, experience, and what you’re looking for in your next opportunity. This will help us see how your skills might align with current or upcoming roles.<br><br>It should only take a few minutes, and you can skip any question if you prefer. Ready to get started?'
+        openAiTranscript = [{'role':'assistant', 'content': startText}]
+
+    return {
+        "firstName": row[0],
+        "lastName": row[1],
+        "chatId": row[2],
+        "personId": row[3],
+        "chatEnd": row[4],
+        "chatClosed": row[5],
+        "aiTranscript": openAiTranscript
+    }
