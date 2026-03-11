@@ -245,8 +245,9 @@ small{color:var(--muted)}
   color:var(--primary-2);
 }
 .chat{
-  display:grid; grid-template-rows:auto 1fr auto; height:520px;
-  border:1px solid var(--line); border-radius:18px; overflow:hidden;
+  display:grid; grid-template-rows:auto 1fr auto;
+  border:1px solid var(--line); border-radius:18px; overflow:auto;
+  flex: 1;
 }
 .chat .head{
   padding:12px 14px;
@@ -283,9 +284,10 @@ small{color:var(--muted)}
   font-weight:800;
 }
 .footer{
-  margin-top:16px;
+  position: absolute;
   color:var(--muted);
   font-size:12px;
+  bottom: 2%;
 }
 
 .search-result-formatting{
