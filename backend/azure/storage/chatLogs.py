@@ -1,31 +1,38 @@
 import azure.storage.client as client
 import azure.storage.processingFunctions as processing
 from datetime import datetime, timedelta
+import random
+import string
 
 def scheduleChat(profileid: str):
     weekFromNow = (datetime.now() + timedelta(weeks=1)).date()
+
+    # Create URL
+    characters = string.ascii_letters + string.digits
+    # Use random.choices to select characters and join them into a string
+    random_string = ''.join(random.choices(characters, k=10))
 
     conn = client.getConnection()
     cur = conn.cursor()
 
     # Count distinct candidates in the person table
-    query = "INSERT INTO aichatlogs (personid, enddate) VALUES (%s, %s)"
+    query = "INSERT INTO aichatlogs (personid, enddate, urlCode) VALUES (%s, %s, %s)"
     
-    cur.execute(query, (profileid, weekFromNow))
-    print("success!")
-    print(cur.rowcount)
+    cur.execute(query, (profileid, weekFromNow, random_string))
 
     # TODO: Send email with link to the candidate
 
     conn.commit()
     conn.close()
+    
+    return random_string
 
-def getChat(profileid: str):
+def getChat(urlcode: str):
     conn = client.getConnection()
     cur = conn.cursor()
 
     # Count distinct candidates in the person table
-    query = f"SELECT person.firstname, person.lastname, ai.* FROM person JOIN aichatlogs ai ON person.id = ai.personid WHERE person.id = {profileid} ORDER BY ai.id DESC LIMIT 1"
+    query = f"SELECT person.firstname, person.lastname, ai.* FROM person JOIN aichatlogs ai ON person.id = ai.personid WHERE ai.urlcode = '{urlcode}' ORDER BY ai.id DESC LIMIT 1"
     
     cur.execute(query)
     row = cur.fetchone()
