@@ -13,10 +13,10 @@ async def scheduleChats(profileid: str = Form(default="")):
     print(f"Scheduling for candidate: {profileid}")
     return chatLogs.scheduleChat(profileid)
 
-@router.get("/getChat/{profileid}")
-async def getChat(profileid: str):
-    print(f"Retrieving chat for candidate: {profileid}")
-    return chatLogs.getChat(profileid)
+@router.get("/getChat/{urlcode}")
+async def getChat(urlcode: str):
+    print(f"Retrieving chat for candidate: {urlcode}")
+    return chatLogs.getChat(urlcode)
 
 @router.post("/sendChat")
 async def getChat(transcript: str = Form(...), candidateName: str = Form("Not Found")):

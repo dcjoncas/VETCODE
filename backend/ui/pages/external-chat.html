@@ -71,9 +71,13 @@
     <script>
       const queryString = window.location.search;
       const urlParams = new URLSearchParams(queryString);
+      console.log(urlParams);
 
       const query = urlParams.get("query");
-      const candidate = parseInt(urlParams.get("candidate")) || null;
+      const candidate = urlParams.get("candidate") || null;
+      console.log(query);
+
+      console.log(candidate);
 
       const chatWindow = document.getElementById("chatWindow");
       let chatTranscript = [];
