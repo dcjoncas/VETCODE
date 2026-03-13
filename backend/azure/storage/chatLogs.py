@@ -1,5 +1,6 @@
 import azure.storage.client as client
 import azure.storage.processingFunctions as processing
+from azure.storage.candidates import getProfessionalProfileId
 from datetime import datetime, timedelta
 import random
 import string
@@ -23,17 +24,44 @@ def scheduleChat(profileid: str):
 
     # TODO: Send email with link to the candidate
 
+    createSurvey(getProfessionalProfileId(profileid), random_string)
     conn.commit()
     conn.close()
     
     return random_string
+
+def createSurvey(profprofileId: int, token: str):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    # Count distinct candidates in the person table
+    query = "INSERT INTO professionalsurvey (profileid, token) VALUES (%s, gen_random_uuid())"
+    
+    cur.execute(query, (profprofileId,))
+
+    conn.commit()
+    conn.close()
+
+def countQuestions():
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    # Count distinct candidates in the person table
+    query = "SELECT COUNT(DISTINCT id) FROM question"
+
+    cur.execute(query)
+    result = cur.fetchall()
+
+    conn.close()
+
+    return result[0][0]
 
 def getQuestions():
     conn = client.getConnection()
     cur = conn.cursor()
 
     # Count distinct candidates in the person table
-    query = f"SELECT description FROM question"
+    query = "SELECT description FROM question"
 
     cur.execute(query)
     result = cur.fetchall()
@@ -45,6 +73,43 @@ def getQuestions():
     conn.close()
 
     return processedResults
+
+def getQuestion(questionId):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    # Count distinct candidates in the person table
+    query = f"SELECT description FROM question WHERE id = {questionId}"
+
+    cur.execute(query)
+    result = cur.fetchall()
+
+    processedResults = []
+    for row in result:
+        processedResults.append(row[0])
+
+    conn.close()
+
+    return {
+        'results':processedResults,
+        'questionId':questionId
+        }
+
+def updateSurveyAnswer(questionId, surveyResponse, personId):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    try:
+        # Count distinct candidates in the person table
+        query = "INSERT INTO aichatlogs (personid, enddate, urlCode) VALUES (%s, %s, %s)"
+        
+        cur.execute(query, (profileid, weekFromNow, random_string))
+
+    except Exception as e:
+        print(f'Cannot insert candidate answers. Attempting to update answer instead: {e}')
+
+    conn.commit()
+    conn.close()
 
 def getChat(urlcode: str):
     conn = client.getConnection()

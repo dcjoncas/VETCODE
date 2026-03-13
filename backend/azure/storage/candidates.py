@@ -76,6 +76,23 @@ def countCandidatesAll():
         "statusCounts": statusCounts
     }
 
+def getProfessionalProfileId(personId: str):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    # Search for user by firstname, lastname, goesbyname, or email using ILIKE for case-insensitive search
+    # Order by id descending to get the most recent matches first, and limit the number of results
+    query = f"SELECT profper.id FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid WHERE person.id = {personId};"
+    
+    cur.execute(query)
+    result = cur.fetchone()
+
+    conn.close()
+
+    print(result[0])
+    
+    return result[0]
+
 def searchCandidatesByNameEmail(query: str, limit: int = 5):
     conn = client.getConnection()
     cur = conn.cursor()
