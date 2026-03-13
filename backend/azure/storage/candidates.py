@@ -88,8 +88,21 @@ def getProfessionalProfileId(personId: str):
     result = cur.fetchone()
 
     conn.close()
+    
+    return result[0]
 
-    print(result[0])
+def getSurveyId(personId: str):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    # Search for user by firstname, lastname, goesbyname, or email using ILIKE for case-insensitive search
+    # Order by id descending to get the most recent matches first, and limit the number of results
+    query = f"SELECT profper.id FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalsurvey profsur ON profper.id = profsur.profileid WHERE person.id = {personId};"
+    
+    cur.execute(query)
+    result = cur.fetchone()
+
+    conn.close()
     
     return result[0]
 
@@ -124,7 +137,6 @@ def searchCandidatesBySkills(query: str, limit: int = 5):
     cur = conn.cursor()
 
     queryArray = [item.strip() for item in query.split(',')]
-    print(queryArray)
 
     # Search for user by skills attached to the account
     # Order by id descending to get the most recent matches first, and limit the number of results
@@ -132,7 +144,6 @@ def searchCandidatesBySkills(query: str, limit: int = 5):
     
     cur.execute(query, (queryArray,))
     results = cur.fetchall()
-    print(f'Search results for "{query}": {results}')
 
     conn.close()
 
@@ -222,8 +233,6 @@ def searchPageCount(nameQuery: str, skillQuery: str = None, pageLimit: int = 5):
         rowCount = results[0][0] if results else 0
         pages = (rowCount // pageLimit) + (1 if rowCount and rowCount % pageLimit > 0 else 0)
 
-        print(f'good rows: {rowCount}, pages: {pages}')
-
         return [rowCount, pages]
     else:
         query = f"SELECT COUNT(DISTINCT person.id) FROM person JOIN professional prof ON person.id = prof.id WHERE person.firstname ILIKE '%{nameQuery}%' OR person.lastname ILIKE '%{nameQuery}%' OR person.goesbyname ILIKE '%{nameQuery}%' OR prof.email ILIKE '%{nameQuery}%';"
@@ -232,7 +241,5 @@ def searchPageCount(nameQuery: str, skillQuery: str = None, pageLimit: int = 5):
 
         rowCount = results[0][0] if results else 0
         pages = (rowCount // pageLimit) + (1 if rowCount and rowCount % pageLimit > 0 else 0)
-
-        print(f'bad rows: {rowCount}, pages: {pages}')
 
         return [rowCount, pages]

@@ -1,10 +1,23 @@
 import azure.storage.client as client
 import azure.storage.processingFunctions as processing
-from azure.storage.candidates import getProfessionalProfileId
+from azure.storage.candidates import getProfessionalProfileId, getSurveyId
 from datetime import datetime, timedelta
 import random
 import string
 import json
+
+def getPersonId(chatUrl: str):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    query = f"SELECT person.id FROM person JOIN aichatlogs ai ON person.id = ai.personid WHERE ai.urlcode = '{chatUrl}';"
+    
+    cur.execute(query)
+    result = cur.fetchone()
+
+    conn.close()
+    
+    return result[0]
 
 def scheduleChat(profileid: str):
     weekFromNow = (datetime.now() + timedelta(weeks=1)).date()
@@ -42,7 +55,7 @@ def createSurvey(profprofileId: int, token: str):
     conn.commit()
     conn.close()
 
-def countQuestions():
+def countQuestions() -> int:
     conn = client.getConnection()
     cur = conn.cursor()
 
@@ -74,7 +87,7 @@ def getQuestions():
 
     return processedResults
 
-def getQuestion(questionId):
+def getQuestion(questionId: int) -> str:
     conn = client.getConnection()
     cur = conn.cursor()
 
@@ -84,29 +97,25 @@ def getQuestion(questionId):
     cur.execute(query)
     result = cur.fetchall()
 
-    processedResults = []
-    for row in result:
-        processedResults.append(row[0])
-
     conn.close()
 
-    return {
-        'results':processedResults,
-        'questionId':questionId
-        }
+    return result[0][0]
 
-def updateSurveyAnswer(questionId, surveyResponse, personId):
+def upsertSurveyAnswer(questionId: int, surveyResponse: int, profSurvId: int):
     conn = client.getConnection()
     cur = conn.cursor()
 
     try:
         # Count distinct candidates in the person table
-        query = "INSERT INTO aichatlogs (personid, enddate, urlCode) VALUES (%s, %s, %s)"
+        query = "INSERT INTO professionalsurveyquestion (professionalsurveyid, surveyquestionid, answer) VALUES (%s, %s, %s)"
+
+        print(query)
+        print(profSurvId)
         
-        cur.execute(query, (profileid, weekFromNow, random_string))
+        #cur.execute(query, (profileid, weekFromNow, random_string))
 
     except Exception as e:
-        print(f'Cannot insert candidate answers. Attempting to update answer instead: {e}')
+        print(f'Cannot insert candidate answers: {e}')
 
     conn.commit()
     conn.close()
@@ -133,7 +142,7 @@ def getChat(urlcode: str):
             else:
                 openAiTranscript.append({'role':'user', 'content': r[splitLocation+1:]})
     else:
-        startText = f'Hi there {row[0]}! 👋 Thanks for taking the time to connect with us today.<br><br>I’m an AI recruitment assistant helping our team learn more about potential candidates. I’d love to ask you a few quick questions about your background, experience, and what you’re looking for in your next opportunity. This will help us see how your skills might align with current or upcoming roles.<br><br>It should only take a few minutes, and you can skip any question if you prefer. Ready to get started?'
+        startText = f"Hi there {row[0]}! 👋 Thanks for taking the time to connect with us today.<br><br>I'm an AI recruitment assistant helping our team learn more about potential candidates. I'd love to ask you a few quick questions about your background, experience, and what you're looking for in your next opportunity. This will help us see how your skills might align with current or upcoming roles.<br><br>It should only take a few minutes, and you can skip any question if you prefer. We'll start by asking how you feel about some statements on a scale from 1 to 5. Ready to get started?"
         openAiTranscript = [{'role':'assistant', 'content': startText}]
 
     return {
@@ -143,7 +152,9 @@ def getChat(urlcode: str):
         "personId": row[3],
         "chatEnd": row[4],
         "chatClosed": row[5],
-        "aiTranscript": openAiTranscript
+        "aiTranscript": openAiTranscript,
+        "surveyId": getSurveyId(row[3]),
+        "questionCount": countQuestions()
     }
 
 def saveChat(chatUrl: str, userName: str, aiTranscript: list):
@@ -153,13 +164,10 @@ def saveChat(chatUrl: str, userName: str, aiTranscript: list):
         fixedTranscript = []
 
         for item in aiTranscript:
-            print(item)
             if item['role'] == 'user':
                 fixedTranscript.append(f'{userName}:{item['content']}')
             elif item['role'] == 'assistant':
                 fixedTranscript.append(f'DevReady AI:{item['content']}')
-
-        print(fixedTranscript)
 
         conn = client.getConnection()
         cur = conn.cursor()

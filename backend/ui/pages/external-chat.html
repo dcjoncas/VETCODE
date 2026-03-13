@@ -79,6 +79,9 @@
       let chatTranscript = [];
 
       let userName = "";
+      let surveyId = "";
+      let questionNumber = 1;
+      let maxQuestions = 100;
 
       // Add new messages to the chat
       function appendMessage(sender, message) {
@@ -98,7 +101,11 @@
           method: "GET",
         });
 
+        console.log(chatHistory);
+
         userName = chatHistory.firstName;
+        surveyId = chatHistory.surveyId;
+        maxQuestions = chatHistory.questionCount;
 
         document.getElementById("candidateNameSpan").innerHTML =
           `Vetting • ${chatHistory.firstName} ${chatHistory.lastName}`;
@@ -127,10 +134,20 @@
         fd.append("candidateName", userName);
         fd.append("chatUrl", candidate);
 
-        const aiResponse = await api("/api/chat/sendChat", {
-          method: "POST",
-          body: fd,
-        });
+        let aiResponse = {};
+
+        if (questionNumber <= maxQuestions) {
+          aiResponse = await api(`/api/chat/sendChat/${questionNumber}`, {
+            method: "POST",
+            body: fd,
+          });
+        } else if (questionNumber == maxQuestions) {
+          // TODO: Must save final question response here
+        } else {
+          // Get into normal chat
+        }
+
+        questionNumber++;
 
         // Add AI response and replace old transcript
         appendMessage("DevReady AI", aiResponse.recentMessage);
