@@ -71,13 +71,9 @@
     <script>
       const queryString = window.location.search;
       const urlParams = new URLSearchParams(queryString);
-      console.log(urlParams);
 
       const query = urlParams.get("query");
       const candidate = urlParams.get("candidate") || null;
-      console.log(query);
-
-      console.log(candidate);
 
       const chatWindow = document.getElementById("chatWindow");
       let chatTranscript = [];
@@ -129,6 +125,7 @@
         const fd = new FormData();
         fd.append("transcript", JSON.stringify(chatTranscript));
         fd.append("candidateName", userName);
+        fd.append("chatUrl", candidate);
 
         const aiResponse = await api("/api/chat/sendChat", {
           method: "POST",

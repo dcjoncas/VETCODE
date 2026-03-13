@@ -1,17 +1,16 @@
 from openAI.client import getOpenAPIClient
+from azure.storage.chatLogs import getQuestions, saveChat
 
-def askQuestions(transcript: list, candidateName: str):
+candidateQuestions = getQuestions()
+
+def askQuestions(transcript: list, candidateName: str, chatUrl: str):
     systemInstructions = [{"role": "system",
                           "content":f'''You are an AI recruitment assistant. You will be chating with {candidateName}. MAKE NO HIRING PROMISES.
-    It is your job to ask them the following questions in a casual yet professional manner.\nWhat is the most important part of a company's culture to you?'''}]
+    It is your job to talk to them about the following statements in a casual yet professional manner. Focus on one statement at a time. Bring them up organically.\n{candidateQuestions}'''}]
 
     client = getOpenAPIClient()
 
-    print(transcript)
-
     fullTranscript = systemInstructions + transcript
-
-    print(fullTranscript)
 
     try:
         response = client.chat.completions.create(
@@ -21,12 +20,11 @@ def askQuestions(transcript: list, candidateName: str):
             temperature=0.7 # Control the randomness of the response
         )
 
-        # Extract and print the response text
-        print('AI Response:' + response.choices[0].message.content.strip())
-
         client.close()
 
         transcript.append({"role":"assistant", "content":response.choices[0].message.content.strip()})
+        saveChat(chatUrl,candidateName,transcript)
+
         # Return the transcript to keep track of conversation along with most recent message
         return {"aiTranscript": transcript, "recentMessage": response.choices[0].message.content.strip()}
 

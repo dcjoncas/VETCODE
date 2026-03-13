@@ -3,6 +3,7 @@ import azure.storage.processingFunctions as processing
 from datetime import datetime, timedelta
 import random
 import string
+import json
 
 def scheduleChat(profileid: str):
     weekFromNow = (datetime.now() + timedelta(weeks=1)).date()
@@ -26,6 +27,24 @@ def scheduleChat(profileid: str):
     conn.close()
     
     return random_string
+
+def getQuestions():
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    # Count distinct candidates in the person table
+    query = f"SELECT description FROM question"
+
+    cur.execute(query)
+    result = cur.fetchall()
+
+    processedResults = []
+    for row in result:
+        processedResults.append(row[0])
+
+    conn.close()
+
+    return processedResults
 
 def getChat(urlcode: str):
     conn = client.getConnection()
@@ -61,3 +80,32 @@ def getChat(urlcode: str):
         "chatClosed": row[5],
         "aiTranscript": openAiTranscript
     }
+
+def saveChat(chatUrl: str, userName: str, aiTranscript: list):
+    print(f'Saving transcript for {userName}')
+
+    try:
+        fixedTranscript = []
+
+        for item in aiTranscript:
+            print(item)
+            if item['role'] == 'user':
+                fixedTranscript.append(f'{userName}:{item['content']}')
+            elif item['role'] == 'assistant':
+                fixedTranscript.append(f'DevReady AI:{item['content']}')
+
+        print(fixedTranscript)
+
+        conn = client.getConnection()
+        cur = conn.cursor()
+
+        # Count distinct candidates in the person table
+        query = "UPDATE aichatlogs SET transcript = %s WHERE urlcode = %s"
+        cur.execute(query, (fixedTranscript, chatUrl))
+
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        # Handle potential API errors (e.g., authentication issues, rate limits)
+        print(f"An API error occurred when saving transcript: {e}")
+        raise
