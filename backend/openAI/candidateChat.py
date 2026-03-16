@@ -113,7 +113,9 @@ def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumb
 
         print(f'{candidateName} Answered: {questionAnswer}')
 
-        if questionAnswer > 5:
+        if questionAnswer > 5 and questionAnswer < 10:
+            questionAnswer = 5
+        elif questionAnswer > 5:
             # Account for decimals in answer above
             questionAnswer = round(float(questionAnswer)/(10**(len(str(questionAnswer))-1)))
         elif questionAnswer < 1:
