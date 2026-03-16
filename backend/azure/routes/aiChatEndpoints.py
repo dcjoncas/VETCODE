@@ -32,5 +32,5 @@ async def getChat(transcript: str = Form(...), candidateName: str = Form("Not Fo
 @router.post("/sendChat/{questionNumber}")
 async def getChat(transcript: str = Form(...), candidateName: str = Form("Not Found"), chatUrl: str = Form("Not Found"), questionNumber: int = 0):
     transcript_list = json.loads(transcript)
-    print(f"Sending chat for candidate: {candidateName}")
+    print(f"Sending {questionNumber} chat for candidate: {candidateName}")
     return candidateChat.askQuestion(transcript_list, candidateName, chatUrl, questionNumber)

@@ -116,6 +116,8 @@
           else appendMessage(userName, row.content);
         });
 
+        questionNumber = Math.ceil(chatTranscript.length / 2);
+
         document.getElementById("sendBtn").disabled = false;
       }
 

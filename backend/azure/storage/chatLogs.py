@@ -41,6 +41,24 @@ def getChatUrl(personId: str):
     except Exception as e:
         print(f'Failed to grab chat URL for {personId}: {e}')
         return None
+    
+def getSurveyId(profId: str):
+    try:
+        conn = client.getConnection()
+        cur = conn.cursor()
+
+        query = f"SELECT id FROM professionalsurvey WHERE profileid = '{profId}' ORDER BY id DESC;"
+        
+        cur.execute(query)
+        result = cur.fetchone()
+
+        conn.close()
+        
+        return result[0]
+    
+    except Exception as e:
+        print(f'Failed to grab candidate ID for {profId}: {e}')
+        return None
 
 def scheduleChat(profileid: str):
     weekFromNow = (datetime.now() + timedelta(weeks=1)).date()
@@ -124,9 +142,12 @@ def getQuestion(questionId: int) -> str:
 
     return result[0][0]
 
-def upsertSurveyAnswer(questionId: int, surveyResponse: int, profSurvId: int):
+def upsertSurveyAnswer(questionId: int, surveyResponse: int, profId: int):
+    print(f'profId: {profId}')
     conn = client.getConnection()
     cur = conn.cursor()
+
+    profSurvId = profId
 
     try:
         # Count distinct candidates in the person table
@@ -135,7 +156,7 @@ def upsertSurveyAnswer(questionId: int, surveyResponse: int, profSurvId: int):
         print(query)
         print(profSurvId)
         
-        #cur.execute(query, (profileid, weekFromNow, random_string))
+        cur.execute(query, (profSurvId, questionId, surveyResponse))
 
     except Exception as e:
         print(f'Cannot insert candidate answers: {e}')

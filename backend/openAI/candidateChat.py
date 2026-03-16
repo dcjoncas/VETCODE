@@ -67,13 +67,36 @@ def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumb
     question = f'On a scale from 1 to 5, how much do you agree with the statement "{question[0].lower() + question[1:]}"'
     questionAnswer = 0
 
+    systemInstructions = [{"role": "system",
+                          "content":f'''You are an AI recruitment assistant. You will be chating with {candidateName}. MAKE NO HIRING PROMISES.
+    It is your job to ask them about the following statement in a casual yet professional manner. Focus on one statement at a time. Bring them up organically.\n{question}'''}]
+
+    client = getOpenAPIClient()
+
+    fullTranscript = systemInstructions + transcript
+
+    response = client.chat.completions.create(
+            model="gpt-3.5-turbo",  # Specify the model
+            messages=fullTranscript,
+            max_tokens=100, # Limit the response length to manage costs
+            temperature=0.7 # Control the randomness of the response
+        )
+
+    client.close()
+
+    question = response.choices[0].message.content.strip()
+
     # If first question
-    if questionNumber <= 1:
-        question = "Great, let's start with the first question: " + question
+    if (questionNumber <= 1) or ('skip' in userResponse.lower()):
+        # question = "Great, let's start with the first question: " + question
+        print('skipping')
+        transcript.append({"role":"assistant", "content":question})
+        saveChat(chatUrl,candidateName,transcript)
         return {"aiTranscript": transcript, "recentMessage": question, "answered": True}
     # If candidate wants to skip
-    elif 'skip' in userResponse.lower():
-        question = "No worries, let's move on. " + question
+    #elif 'skip' in userResponse.lower():
+        # question = "No worries, let's move on. " + question
+        #return {"aiTranscript": transcript, "recentMessage": question, "answered": True}
     else:
         try:
             questionAnswer = int(re.sub(r'[^0-9]', '', userResponse))
@@ -85,9 +108,10 @@ def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumb
             except Exception as e:
                 print(f'Could not pull value using AI. Asking user to repeat: {e}')
                 transcript.append({"role":"assistant", "content":"Sorry, I wasn't able to process that. Could you answer that question again as an integer value?"})
+                saveChat(chatUrl,candidateName,transcript)
                 return {"aiTranscript": transcript, "recentMessage": "Sorry, I wasn't able to process that. Could you answer that question again as an integer value?", "answered": False}
 
-        print(f'Answered: {questionAnswer}')
+        print(f'{candidateName} Answered: {questionAnswer}')
 
         if questionAnswer > 5:
             # Account for decimals in answer above
@@ -98,13 +122,15 @@ def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumb
             # Account for AI not understanding what an integer is
             round(questionAnswer)
 
-        print(f'Corrected Answer: {questionAnswer}')
+        print(f'{candidateName} Corrected Answer: {questionAnswer}')
 
-    upsertSurveyAnswer(questionNumber, questionAnswer, getSurveyId(getPersonId(chatUrl)))
+    print(getSurveyId(getPersonId(chatUrl)))
+
+    upsertSurveyAnswer(questionNumber-1, questionAnswer, getSurveyId(getPersonId(chatUrl)))
 
     transcript.append({"role":"assistant", "content":question})
 
-    # saveChat(chatUrl,candidateName,transcript)
+    saveChat(chatUrl,candidateName,transcript)
 
     # Return the transcript to keep track of conversation along with most recent message
     return {"aiTranscript": transcript, "recentMessage": question, "answered": True}

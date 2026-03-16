@@ -238,7 +238,7 @@
         console.log(urlString);
 
         document.getElementById("chatUrl").innerHTML =
-          `AI Chat Link: ${urlString}`;
+          `AI Chat Link: <a href='http://${urlString}'>${urlString}</a>`;
       }
 
       function appendMessage(sender, message) {
