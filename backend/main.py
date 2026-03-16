@@ -826,9 +826,10 @@ def people_labs_search(
 
     return {"status": "success", "returnMessage": "Successfully searched PeopleDataLabs!", "results": outcome['data'] }
 
-from azure.routes import azureEndpoints
+from azure.routes import azureEndpoints, aiChatEndpoints
 
 app.include_router(azureEndpoints.router)
+app.include_router(aiChatEndpoints.router)
 
 @app.get("/", response_class=HTMLResponse)
 def root():

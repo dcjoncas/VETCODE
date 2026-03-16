@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady • Candidate Chat</title>
+    <link rel="stylesheet" href="../assets/styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <aside class="sidebar">
+        <div class="brand">
+          <img
+            src="../assets/logo.svg"
+            alt="DevReady"
+            style="width: 42px; height: 42px"
+          />
+          <div class="title">
+            <span>DEV</span>
+            <span>READY</span>
+            <span id="candidateNameSpan" class="sub"
+              >Vetting • No Candidate Selected</span
+            >
+          </div>
+        </div>
+
+        <div class="footer">
+          DevReady • <a href="https://www.devready.io">www.devready.io</a>
+        </div>
+      </aside>
+
+      <main
+        class="main"
+        style="display: flex; height: 100vh; flex-direction: column"
+      >
+        <div class="topbar">
+          <div class="page-title">DevReady • Candidate Chat</div>
+          <div class="breadcrumb">Vetting Process • AI Interview</div>
+        </div>
+
+        <div class="chat">
+          <div class="head">
+            <div style="font-weight: 900">DevReady AI</div>
+            <small>Private + Public profile build</small>
+          </div>
+          <div id="chatWindow" class="msgs"></div>
+          <form class="send">
+            <input
+              id="msgInput"
+              class="input"
+              style="min-width: 0; flex: 1"
+              placeholder="Type a message…"
+              autocomplete="off"
+            />
+            <button id="sendBtn" class="btn" type="submit" disabled>
+              Send
+            </button>
+            <button
+              class="btn secondary"
+              type="button"
+              onclick="alert('Mock: end chat')"
+            >
+              End Chat
+            </button>
+          </form>
+        </div>
+      </main>
+    </div>
+
+    <script src="JS/apiScripts.js"></script>
+    <script>
+      const queryString = window.location.search;
+      const urlParams = new URLSearchParams(queryString);
+
+      const query = urlParams.get("query");
+      const candidate = urlParams.get("candidate") || null;
+
+      const chatWindow = document.getElementById("chatWindow");
+      let chatTranscript = [];
+
+      let userName = "";
+      let surveyId = "";
+      let questionNumber = 1;
+      let maxQuestions = 100;
+
+      // Add new messages to the chat
+      function appendMessage(sender, message) {
+        const chatMsg = document.createElement("div");
+        chatMsg.classList.add("bubble");
+
+        if (sender === "DevReady AI") chatMsg.classList.add("ai");
+        else chatMsg.classList.add("me");
+
+        chatMsg.innerHTML = `<strong>${sender}:</strong> ${message}`;
+
+        chatWindow.appendChild(chatMsg);
+      }
+
+      async function getChatHistory() {
+        const chatHistory = await api(`/api/chat/getChat/${candidate}`, {
+          method: "GET",
+        });
+
+        userName = chatHistory.firstName;
+        surveyId = chatHistory.surveyId;
+        maxQuestions = chatHistory.questionCount;
+
+        document.getElementById("candidateNameSpan").innerHTML =
+          `Vetting • ${chatHistory.firstName} ${chatHistory.lastName}`;
+
+        chatTranscript = chatHistory.aiTranscript;
+
+        chatTranscript.forEach((row, i) => {
+          if (row.role === "assistant")
+            appendMessage("DevReady AI", row.content);
+          else appendMessage(userName, row.content);
+        });
+
+        questionNumber = Math.ceil(chatTranscript.length / 2);
+
+        document.getElementById("sendBtn").disabled = false;
+      }
+
+      async function sendMessage() {
+        userMsg = document.getElementById("msgInput").value;
+        document.getElementById("msgInput").value = "";
+
+        appendMessage(userName, userMsg);
+
+        chatTranscript.push({ role: "user", content: userMsg });
+
+        const fd = new FormData();
+        fd.append("transcript", JSON.stringify(chatTranscript));
+        fd.append("candidateName", userName);
+        fd.append("chatUrl", candidate);
+
+        let aiResponse = {};
+
+        if (questionNumber <= maxQuestions) {
+          aiResponse = await api(`/api/chat/sendChat/${questionNumber}`, {
+            method: "POST",
+            body: fd,
+          });
+        } else if (questionNumber == maxQuestions) {
+          // TODO: Must save final question response here
+        } else {
+          // Get into normal chat
+        }
+
+        questionNumber++;
+
+        // Add AI response and replace old transcript
+        appendMessage("DevReady AI", aiResponse.recentMessage);
+        chatTranscript = aiResponse.aiTranscript;
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        document
+          .getElementById("sendBtn")
+          .addEventListener("click", (event) => {
+            event.preventDefault();
+
+            sendButton = document.getElementById("sendBtn");
+            // Disable to prevent user from messaging AI while it is thinking
+            sendButton.disabled = true;
+            sendMessage();
+            sendButton.disabled = false;
+          });
+        getChatHistory();
+      });
+    </script>
+  </body>
+</html>
