@@ -22,188 +22,155 @@
         <div class="topbar">
           <div>
             <div class="page-title">Screen 3 — Candidate Chat</div>
-            <div class="breadcrumb">Vetting Process • AI Interview</div>
+            <div id="candidateNameSpan" class="breadcrumb">
+              Vetting Process • AI Interview
+            </div>
           </div>
           <div id="searchBar"></div>
         </div>
 
         <div id="processFlow"></div>
 
-        <div class="grid">
-          <section class="card">
-            <h2>AI-guided candidate chat (build private + public profile)</h2>
-            <p>
-              The AI runs a structured interview (up to ~200 questions) and
-              continuously updates the candidate’s private record and the
-              client-safe public profile.
-            </p>
+        <!--<div class="grid">-->
+        <section class="card">
+          <h2>AI-guided candidate chat (build private + public profile)</h2>
+          <p id="chatUrl">No Chat Scheduled</p>
 
-            <div class="split">
-              <div>
-                <div class="notice">
-                  Candidate selected:
-                  <strong id="candidateName">Giovanni S</strong> • Status:
-                  <strong id="candidateStatus">In Vetting</strong>
-                </div>
-                <div
-                  class="card"
-                  style="
-                    margin-top: 12px;
-                    padding: 14px;
-                    border-radius: 18px;
-                    box-shadow: none;
-                  "
-                >
-                  <div
-                    style="
-                      display: flex;
-                      justify-content: space-between;
-                      align-items: center;
-                      gap: 10px;
-                      flex-wrap: wrap;
-                    "
-                  >
-                    <div style="font-weight: 900">Progress</div>
-                    <small>92 questions remaining</small>
-                  </div>
-                  <div class="progress" style="margin-top: 10px">
-                    <div style="width: 54%"></div>
-                  </div>
-                  <div class="pills" style="margin-top: 10px">
-                    <span class="pill">Tech depth</span>
-                    <span class="pill">Communication</span>
-                    <span class="pill">Leadership</span>
-                    <span class="pill">Portfolio proof</span>
-                  </div>
-                </div>
+          <div class="split">
+            <div>
+              <div class="notice">
+                Candidate selected:
+                <strong id="candidateName">Giovanni S</strong> • Status:
+                <strong id="candidateStatus">In Vetting</strong>
               </div>
-
               <div
                 class="card"
-                style="padding: 14px; border-radius: 18px; box-shadow: none"
+                style="
+                  margin-top: 12px;
+                  padding: 14px;
+                  border-radius: 18px;
+                  box-shadow: none;
+                "
               >
-                <h2 style="margin: 0 0 8px 0">AI interview mode</h2>
-                <p style="margin: 0 0 10px 0">
-                  Select the interview track and strictness. (Mock only)
-                </p>
-                <div class="split">
-                  <div class="field">
-                    <label>Track</label>
-                    <select>
-                      <option>Senior Full-Stack</option>
-                      <option>VR / Unity</option>
-                      <option>Data Platform</option>
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label>Difficulty</label>
-                    <select>
-                      <option>Balanced</option>
-                      <option>Hard</option>
-                      <option>Expert</option>
-                    </select>
-                  </div>
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 10px;
+                    flex-wrap: wrap;
+                  "
+                >
+                  <div style="font-weight: 900">Progress</div>
+                  <small>92 questions remaining</small>
                 </div>
-                <div class="row-actions">
-                  <button class="btn" type="button" id="scheduleButton">
-                    Schedule AI Chat
-                  </button>
-                  <button
-                    class="btn secondary"
-                    type="button"
-                    onclick="alert('Mock: open question bank')"
-                  >
-                    Question bank
-                  </button>
+                <div class="progress" style="margin-top: 10px">
+                  <div style="width: 54%"></div>
+                </div>
+                <div class="pills" style="margin-top: 10px">
+                  <span class="pill">Tech depth</span>
+                  <span class="pill">Communication</span>
+                  <span class="pill">Leadership</span>
+                  <span class="pill">Portfolio proof</span>
                 </div>
               </div>
             </div>
 
-            <div style="margin-top: 16px" class="chat">
-              <div class="head">
-                <div style="font-weight: 900">DevReady AI</div>
-                <small>Private + Public profile build</small>
-              </div>
-              <div class="msgs">
-                <div class="bubble ai">
-                  <strong>AI:</strong> Quick start — confirm your current role,
-                  top 3 technologies, and the most recent project you shipped
-                  end-to-end.
+            <div
+              class="card"
+              style="padding: 14px; border-radius: 18px; box-shadow: none"
+            >
+              <h2 style="margin: 0 0 8px 0">AI interview mode</h2>
+              <p style="margin: 0 0 10px 0">
+                Select the interview track and strictness. (Mock only)
+              </p>
+              <div class="split">
+                <div class="field">
+                  <label>Track</label>
+                  <select>
+                    <option>Senior Full-Stack</option>
+                    <option>VR / Unity</option>
+                    <option>Data Platform</option>
+                  </select>
                 </div>
-                <div class="bubble me">
-                  <strong>Candidate:</strong> Senior backend engineer; Python,
-                  C#, React. Recently shipped an identity verification workflow
-                  with document scanning + fraud checks.
-                </div>
-                <div class="bubble ai">
-                  <strong>AI:</strong> Great. Next: describe your API design
-                  approach (auth, versioning, error handling). Provide a real
-                  example.
-                </div>
-                <div class="bubble ai">
-                  <strong>AI:</strong> While we chat, I’m updating:
-                  <em
-                    >skills, seniority signals, portfolio artifacts, and
-                    client-safe summary</em
-                  >.
+                <div class="field">
+                  <label>Difficulty</label>
+                  <select>
+                    <option>Balanced</option>
+                    <option>Hard</option>
+                    <option>Expert</option>
+                  </select>
                 </div>
               </div>
-              <div class="send">
-                <input
-                  class="input"
-                  style="min-width: 0; flex: 1"
-                  placeholder="Type a message (mock)…"
-                />
-                <button class="btn" type="button" onclick="alert('Mock: send')">
-                  Send
+              <div class="row-actions">
+                <button class="btn" type="button" id="scheduleButton">
+                  Schedule AI Chat
+                </button>
+                <button
+                  class="btn secondary"
+                  type="button"
+                  onclick="alert('Mock: open question bank')"
+                >
+                  Question bank
                 </button>
               </div>
             </div>
+          </div>
 
-            <h2 style="margin-top: 18px">Question bank (sample sections)</h2>
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Section</th>
-                  <th>Examples</th>
-                  <th>Count</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>Backend & APIs</strong></td>
-                  <td>REST patterns, auth, async, scaling</td>
-                  <td>55</td>
-                </tr>
-                <tr>
-                  <td><strong>Frontend</strong></td>
-                  <td>React patterns, state, perf, testing</td>
-                  <td>35</td>
-                </tr>
-                <tr>
-                  <td><strong>Data</strong></td>
-                  <td>SQL design, tuning, migrations</td>
-                  <td>25</td>
-                </tr>
-                <tr>
-                  <td><strong>System design</strong></td>
-                  <td>trade-offs, caching, queues, observability</td>
-                  <td>35</td>
-                </tr>
-                <tr>
-                  <td><strong>Business & communication</strong></td>
-                  <td>stakeholders, conflict, clarity</td>
-                  <td>20</td>
-                </tr>
-                <tr>
-                  <td><strong>Leadership</strong></td>
-                  <td>mentoring, estimation, delivery</td>
-                  <td>30</td>
-                </tr>
-              </tbody>
-            </table>
-          </section>
-          <aside class="card">
+          <div style="margin-top: 16px" class="chat">
+            <div class="head">
+              <div id="msgWindowHeader" style="font-weight: 900">
+                No Chat To Show
+              </div>
+              <small>Private + Public profile build</small>
+            </div>
+            <div id="chatWindow" class="msgs" hidden></div>
+          </div>
+
+          <h2 style="margin-top: 18px">Question bank (sample sections)</h2>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Section</th>
+                <th>Examples</th>
+                <th>Count</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Backend & APIs</strong></td>
+                <td>REST patterns, auth, async, scaling</td>
+                <td>55</td>
+              </tr>
+              <tr>
+                <td><strong>Frontend</strong></td>
+                <td>React patterns, state, perf, testing</td>
+                <td>35</td>
+              </tr>
+              <tr>
+                <td><strong>Data</strong></td>
+                <td>SQL design, tuning, migrations</td>
+                <td>25</td>
+              </tr>
+              <tr>
+                <td><strong>System design</strong></td>
+                <td>trade-offs, caching, queues, observability</td>
+                <td>35</td>
+              </tr>
+              <tr>
+                <td><strong>Business & communication</strong></td>
+                <td>stakeholders, conflict, clarity</td>
+                <td>20</td>
+              </tr>
+              <tr>
+                <td><strong>Leadership</strong></td>
+                <td>mentoring, estimation, delivery</td>
+                <td>30</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <!--<aside class="card">
             <h2>What happens on this screen</h2>
             <p>UX-only guidance for this screen.</p>
             <ul
@@ -240,13 +207,19 @@
               All actions here are mocked. The goal is to validate layout, flow,
               and labels.
             </div>
-          </aside>
-        </div>
+          </aside>-->
+        <!--</div>-->
       </main>
     </div>
 
     <script src="JS/apiScripts.js"></script>
     <script>
+      const candidateName = sessionStorage.getItem("candidateName");
+      const candidateStatus = sessionStorage.getItem("candidateStatus");
+      const candidateId = sessionStorage.getItem("candidateId");
+      const chatWindow = document.getElementById("chatWindow");
+      let chatTranscript = [];
+
       // tiny UX sugar (mock only)
       document
         .querySelectorAll("a.step")
@@ -254,23 +227,71 @@
 
       async function scheduleAiChat() {
         const fd = new FormData();
-        fd.append("profileid", sessionStorage.getItem("candidateId"));
+        fd.append("profileid", candidateId);
 
         const result = await api("/api/chat/scheduleChat", {
           method: "POST",
           body: fd,
         });
-        const urlString = window.location.host;
+        const urlString = `${window.location.host}/ui/pages/external-chat.html?candidate=${result}`;
 
-        console.log(
-          `${urlString}/ui/pages/external-chat.html?candidate=${result}`,
-        );
+        console.log(urlString);
+
+        document.getElementById("chatUrl").innerHTML =
+          `AI Chat Link: ${urlString}`;
+      }
+
+      function appendMessage(sender, message) {
+        const chatMsg = document.createElement("div");
+        chatMsg.classList.add("bubble");
+
+        if (sender === "DevReady AI") chatMsg.classList.add("me");
+        else chatMsg.classList.add("ai");
+
+        chatMsg.innerHTML = `<strong>${sender}:</strong> ${message}`;
+
+        chatWindow.appendChild(chatMsg);
+      }
+
+      async function getChatHistory() {
+        const chatUrlCode = await api(`/api/chat/getUrlCode/${candidateId}`, {
+          method: "GET",
+        });
+
+        if (!chatUrlCode) return;
+
+        const urlString = `${window.location.host}/ui/pages/external-chat.html?candidate=${chatUrlCode}`;
+
+        document.getElementById("chatUrl").innerHTML =
+          `AI Chat Link: <a href='http://${urlString}'>${urlString}</a>`;
+
+        const chatHistory = await api(`/api/chat/getChat/${chatUrlCode}`, {
+          method: "GET",
+        });
+
+        if (!chatHistory) return;
+
+        document.getElementById("candidateNameSpan").innerHTML =
+          `Vetting • ${chatHistory.firstName} ${chatHistory.lastName} - AI Interview`;
+
+        chatTranscript = chatHistory.aiTranscript;
+
+        // Do not show the chat if only the initial AI message is present.
+        if (chatTranscript.length < 2) {
+          return;
+        }
+
+        document.getElementById("msgWindowHeader").innerHTML = "DevReady AI";
+        chatWindow.hidden = false;
+
+        chatTranscript.forEach((row, i) => {
+          if (row.role === "assistant")
+            appendMessage("DevReady AI", row.content);
+          else appendMessage(chatHistory.firstName, row.content);
+        });
       }
 
       document.addEventListener("DOMContentLoaded", function () {
-        const candidateName = sessionStorage.getItem("candidateName");
-        const candidateStatus = sessionStorage.getItem("candidateStatus");
-
         if (candidateName) {
           document.getElementById("candidateName").innerText =
             `${candidateName}`;
@@ -290,6 +311,8 @@
         document
           .getElementById("scheduleButton")
           .addEventListener("click", scheduleAiChat);
+
+        getChatHistory();
       });
     </script>
   </body>
