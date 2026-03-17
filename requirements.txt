@@ -8,3 +8,5 @@ requests
 dotenv
 openai
 psycopg[binary]
+httpx
+python-jose
