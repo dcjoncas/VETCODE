@@ -26,3 +26,11 @@ def jdCreate(company: str = Form(...), title: str = Form(...), jd_text: str = Fo
         return {"company": company, "title": title, "domain": domain, "jd_skills": skills, "jd_text": jd_text}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": 'Failed to upload job description.', "trace": traceback.format_exc()})
+
+@router.get("/list/{domain}/{amount}")
+def jd_list(domain: str = "technology", amount: int = 5):
+    return jobs.listJobs(domain, amount)
+    
+@router.get("/list/search/{domain}/{query}/{amount}")
+def jd_list(domain: str = "technology", query: str = '', amount: int = 5):
+    return jobs.searchJobs(domain, query, amount)

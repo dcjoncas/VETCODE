@@ -216,10 +216,7 @@
       async function refreshExistingDescriptions() {
         try {
           // const ps = await api("/api/profile/list");
-          const jds = await api("/api/jd/list");
-
-          // const profiles = Array.isArray(ps) ? ps : [];
-          const jdsList = Array.isArray(jds) ? jds : [];
+          const jds = await api("/api/azureJobs/list/technology/5");
 
           // TODO: Update this code
           // renderProfilesList(profiles);
@@ -229,7 +226,7 @@
 
           matchPicker.innerHTML =
             `<option value="">Select Description</option>` +
-            jdsList
+            jds
               .map(
                 (j) =>
                   `<option value="${escapeHtml(j.jd_id)}">${escapeHtml((j.company || "") + (j.company ? " — " : "") + (j.title || j.jd_id))}</option>`,
@@ -392,6 +389,9 @@
             body: fd,
           });
           selectedJdId = j.jd_id;
+          sessionStorage.setItem("jobID", j.jd_id);
+          sessionStorage.setItem("jobCompany", company);
+          sessionStorage.setItem("jobTitle", title);
           // document.getElementById("jdStatus").textContent = `Saved JD: ${j.jd_id}`;
           // enable the buttons for viewing the saved JD
           document.getElementById("btnJdHtml").disabled = false;
