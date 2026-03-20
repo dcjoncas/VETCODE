@@ -304,7 +304,12 @@
         fd.append("top_k", String(top_k));
 
         try {
-          const j = await api("/api/match/run", { method: "POST", body: fd });
+          const j = await api("/api/azureJobs/match/run", {
+            method: "POST",
+            body: fd,
+          });
+
+          console.log(j);
 
           // Save job info for searching
           sessionStorage.setItem("jobID", jd_id);
@@ -412,7 +417,6 @@
 
       function enableJDButtons() {
         const value = $("#jdSelect").val();
-        console.log(value);
 
         if (!document.getElementById("jdSelect").value) {
           document.getElementById("btnJdHtml").disabled = true;
@@ -438,8 +442,6 @@
             delay: 250, // debounce
 
             processResults: function (data) {
-              console.log(data);
-
               return {
                 results: data.map((item) => ({
                   id: item.jd_id,

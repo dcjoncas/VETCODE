@@ -29,6 +29,26 @@ def uploadJob(company: str, title: str, domain: str, jd_text: str, skills: list[
         print(f'Cannot insert job description: {e}')
         conn.close()
 
+def getJob(jobId: int):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    query = f"SELECT job.id, job.domain, job.company, job.jobtitle, ARRAY_AGG(skill.title), ARRAY_AGG(skill.id) FROM jobdescription job LEFT JOIN jobskills js ON job.id = js.jobid JOIN skill ON js.skillid = skill.id WHERE job.id = {jobId} GROUP BY job.id, job.domain, job.company, job.jobtitle"
+    cur.execute(query)
+
+    result = cur.fetchone()
+
+    conn.close()
+
+    return {
+        'jd_id':result[0],
+        'domain':result[1],
+        'company':result[2],
+        'title':result[3],
+        'skills':result[4],
+        'skillIds':result[5]
+    }
+
 def searchJobs(domain: str, searchQuery: str, limit: int):
     conn = client.getConnection()
     cur = conn.cursor()
@@ -60,8 +80,6 @@ def listJobs(domain: str, limit: int):
     cur.execute(query)
 
     results = cur.fetchall()
-
-    print(results)
 
     conn.close()
 
