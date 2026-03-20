@@ -33,14 +33,24 @@ def searchJobs(domain: str, searchQuery: str, limit: int):
     conn = client.getConnection()
     cur = conn.cursor()
 
-    query = f"SELECT * FROM jobdescription WHERE (title ILIKE '%{searchQuery}%' OR company ILIKE '%{searchQuery}%') AND domain = '{domain}' ORDER BY id DESC LIMIT {limit}"
+    query = f"SELECT id, domain, company, jobtitle FROM jobdescription WHERE (jobtitle ILIKE '%{searchQuery}%' OR company ILIKE '%{searchQuery}%') AND domain = '{domain}' ORDER BY id DESC LIMIT {limit}"
     cur.execute(query)
 
     results = cur.fetchall()
 
-    print(results)
-
     conn.close()
+
+    processedResults = []
+
+    for result in results:
+        processedResults.append({
+            'jd_id':result[0],
+            'domain':result[1],
+            'company':result[2],
+            'title':result[3],
+        })
+
+    return processedResults
 
 def listJobs(domain: str, limit: int):
     conn = client.getConnection()

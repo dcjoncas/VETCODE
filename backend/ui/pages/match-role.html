@@ -10,8 +10,13 @@
       sizes="any"
       type="image/svg+xml"
     />
-    <link rel="stylesheet" href="../assets/styles.css" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/styles.css" />
     <script>
       $(function () {
         $("#siteSidebar").load("components/sidebar.html");
@@ -225,7 +230,7 @@
           const matchPicker = document.getElementById("jdSelect");
 
           matchPicker.innerHTML =
-            `<option value="">Select Description</option>` +
+            `<option value="" selected disabled hidden>Select Description</option>` +
             jds
               .map(
                 (j) =>
@@ -264,16 +269,16 @@
         // document.getElementById(`resultRow-${r.profile_id}`)
         /*setText("selectedRowLabel", `Selected: ${r.name || ""} (${r.email || ""})`);
 
-      // Enable ReadyIT buttons
-      setDisabled("btnReadyIT", false);
-      setDisabled("btnReadyIT2", false);
-      setDisabled("btnReportHtml", false);
-      setDisabled("btnReportDocx", false);
+            // Enable ReadyIT buttons
+            setDisabled("btnReadyIT", false);
+            setDisabled("btnReadyIT2", false);
+            setDisabled("btnReportHtml", false);
+            setDisabled("btnReportDocx", false);
 
-      clearRec();
-      await loadProfileIntoLeft(selectedProfileId);
+            clearRec();
+            await loadProfileIntoLeft(selectedProfileId);
 
-      log(`Selected row: ${r.name} score=${r.score}`);*/
+            log(`Selected row: ${r.name} score=${r.score}`);*/
 
         updateCandidate();
       }
@@ -396,7 +401,9 @@
           // enable the buttons for viewing the saved JD
           document.getElementById("btnJdHtml").disabled = false;
           document.getElementById("btnJdDocx").disabled = false;
-          await refreshExistingDescriptions();
+
+          //await refreshExistingDescriptions();
+          window.location.reload();
         } catch (e) {
           // document.getElementById("jdStatus").textContent = `JD save failed: ${e.message}`;
           console.log("Failed to save job description: " + e);
@@ -404,6 +411,9 @@
       }
 
       function enableJDButtons() {
+        const value = $("#jdSelect").val();
+        console.log(value);
+
         if (!document.getElementById("jdSelect").value) {
           document.getElementById("btnJdHtml").disabled = true;
           document.getElementById("btnJdDocx").disabled = true;
@@ -416,12 +426,43 @@
       }
 
       document.addEventListener("DOMContentLoaded", () => {
+        $("#jdSelect").select2({
+          minimumResultsForSearch: 0,
+          minimumInputLength: 0, // wait until user types
+          ajax: {
+            url: function (params) {
+              if (!params.term) return "/api/azureJobs/list/technology/5";
+              return `/api/azureJobs/list/search/technology/${params.term}/5`;
+            },
+            dataType: "json",
+            delay: 250, // debounce
+
+            processResults: function (data) {
+              console.log(data);
+
+              return {
+                results: data.map((item) => ({
+                  id: item.jd_id,
+                  text:
+                    (item.company || "") + " — " + (item.title || item.jd_id),
+                })),
+              };
+            },
+
+            cache: true,
+          },
+        });
+
+        $("#jdSelect").on("change", function () {
+          enableJDButtons();
+        });
+
         document.getElementById("btnRank").addEventListener("click", rank);
         document.getElementById("btnSaveJd").addEventListener("click", saveJD);
         document
           .getElementById("jdSelect")
           .addEventListener("change", enableJDButtons);
-        refreshExistingDescriptions();
+        //refreshExistingDescriptions();
 
         document
           .getElementById("btnJdHtml")

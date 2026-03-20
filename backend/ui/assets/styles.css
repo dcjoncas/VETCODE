@@ -181,13 +181,22 @@ small{color:var(--muted)}
 .field label{
   display:block; font-size:12px; color:var(--muted); margin-bottom:6px; font-weight:700
 }
-.field input, .field textarea, .field select{
+.field input, .field textarea, .field select, .select2-container .select2-selection--single, .select2-dropdown{
   width:100%;
   border:1px solid var(--line);
   border-radius:14px;
   padding:10px 12px;
   font-family:var(--font);
   background:#fff;
+  color:var(--text);
+  font-size: 13px;
+}
+.select2-selection--single {
+  height: auto !important;
+  width: 100%;
+}
+.select2-selection__arrow b {
+    display: none;
 }
 .field textarea{min-height:130px; resize:vertical}
 .kpi{
