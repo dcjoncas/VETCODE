@@ -89,8 +89,6 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
         #p = storage.get_profile(DB_PATH, row["profile_id"])
         #score, parts = match((p or {}).get("skills", {}), jd_skills)
         score, parts = azureJobMatch(row['skillMatches'],peopleDataSkills)
-
-        print(parts)
         
         ranked.append({
             "profile_id": row["id"],
