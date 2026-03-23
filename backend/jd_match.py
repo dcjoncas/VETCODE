@@ -65,3 +65,6 @@ def match(profile_skills: dict, jd_skills: dict):
 # Normalize Azure profiles and return data
 def azureMatch(profile_skills: list, jd_skills: dict):
     return match(normalize_jd(','.join(profile_skills)),jd_skills)
+
+def azureJobMatch(profile_skills: list, jd_skills: list):
+    return match(normalize_jd(','.join(profile_skills)),normalize_jd(','.join(jd_skills)))

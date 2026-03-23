@@ -1,6 +1,5 @@
 import azure.storage.client as client
 import azure.storage.processingFunctions as processing
-from typing import Optional, List
 
 def countCandidates():
     conn = client.getConnection()
@@ -143,6 +142,34 @@ def searchCandidatesBySkills(query: str, limit: int = 5):
     query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) GROUP BY person.id, prof.email ORDER BY skillMatches DESC LIMIT {limit};"
     
     cur.execute(query, (queryArray,))
+    results = cur.fetchall()
+
+    conn.close()
+
+    resultsProcessed = []
+
+    for r in results:
+        resultsProcessed.append({
+            "id":r[0],
+            "firstName":r[1],
+            "lastName":r[2],
+            "email":r[3],
+            "skillCount":r[4],
+            "skillMatches":r[5],
+            "step": processing.stepProcessingOverall(r[6])
+        })
+    
+    return resultsProcessed
+
+def searchCandidatesBySkillId(queryList: list[int], limit: int = 5):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    # Search for user by skills attached to the account
+    # Order by id descending to get the most recent matches first, and limit the number of results
+    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.id = ANY(%s) GROUP BY person.id, prof.email ORDER BY skillMatches DESC LIMIT {limit};"
+    
+    cur.execute(query, (queryList,))
     results = cur.fetchall()
 
     conn.close()
