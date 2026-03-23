@@ -60,7 +60,6 @@ def jd_list(domain: str = "technology", query: str = '', amount: int = 5):
 def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: int = Form(10)):
     # TODO: Set up job descriptions in the database
     jd = jobs.getJob(jd_id)
-    print (jd)
 
     if not jd:
         raise HTTPException(status_code=400, detail="No job description loaded yet. Normalize a JD first.")
@@ -73,6 +72,7 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
         peopleDataSkills = jd["skills"]
     
     returnedExternalPeople = []
+    print(jd["skillIds"])
 
     # TODO: Get location search working
     print('No location extracted from JD. Running external search based on skills only.')
@@ -81,8 +81,7 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
     except Exception as e:
         print(f'Error during external people search: {e}')
 
-    #profiles = storage.list_profiles(DB_PATH, domain=domain, limit=top_k, skills_filter=peopleDataSkills)
-    profiles = candidates.searchCandidatesBySkills(','.join(map(str,jd["skills"])), top_k)
+    profiles = candidates.searchCandidatesBySkillId(jd["skillIds"], top_k)
 
     ranked = []
     for row in profiles:
