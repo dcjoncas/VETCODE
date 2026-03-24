@@ -59,7 +59,7 @@
                 <button class="btn" type="button" id="btnSaveJd">
                   Normalize &amp; Save
                 </button>
-                <button
+                <!--<button
                   class="btn secondary"
                   type="button"
                   id="btnJdHtml"
@@ -74,7 +74,7 @@
                   disabled
                 >
                   Download Description (DOCX)
-                </button>
+                </button>-->
               </div>
               <small
                 >Tip: keep requirements crisp — must-have vs
@@ -121,13 +121,13 @@
                   <button class="btn" type="button" id="btnRank">
                     Rank Profiles
                   </button>
-                  <button
+                  <!--<button
                     class="btn secondary"
                     type="button"
                     onclick="alert('Mock: show rationale')"
                   >
                     Show rationale
-                  </button>
+                  </button>-->
                 </div>
               </div>
             </div>
@@ -409,8 +409,8 @@
           sessionStorage.setItem("jobTitle", title);
           // document.getElementById("jdStatus").textContent = `Saved JD: ${j.jd_id}`;
           // enable the buttons for viewing the saved JD
-          document.getElementById("btnJdHtml").disabled = false;
-          document.getElementById("btnJdDocx").disabled = false;
+          //document.getElementById("btnJdHtml").disabled = false;
+          //document.getElementById("btnJdDocx").disabled = false;
 
           //await refreshExistingDescriptions();
           window.location.reload();
@@ -424,13 +424,13 @@
         const value = $("#jdSelect").val();
 
         if (!document.getElementById("jdSelect").value) {
-          document.getElementById("btnJdHtml").disabled = true;
-          document.getElementById("btnJdDocx").disabled = true;
+          //document.getElementById("btnJdHtml").disabled = true;
+          //document.getElementById("btnJdDocx").disabled = true;
           return;
         } else {
           selectedJdId = document.getElementById("jdSelect").value;
-          document.getElementById("btnJdHtml").disabled = false;
-          document.getElementById("btnJdDocx").disabled = false;
+          //document.getElementById("btnJdHtml").disabled = false;
+          //document.getElementById("btnJdDocx").disabled = false;
         }
       }
 
@@ -471,7 +471,7 @@
           .addEventListener("change", enableJDButtons);
         //refreshExistingDescriptions();
 
-        document
+        /*document
           .getElementById("btnJdHtml")
           .addEventListener("click", () =>
             window.open(`${API_BASE}/api/jd/${selectedJdId}/html`, "_blank"),
@@ -482,7 +482,7 @@
             "click",
             () =>
               (window.location.href = `${API_BASE}/api/jd/${selectedJdId}/docx`),
-          );
+          );*/
       });
     </script>
   </body>

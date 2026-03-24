@@ -1,4 +1,5 @@
 import azure.storage.client as client
+import openAI.jobProcessing as aiProcessing
 
 def uploadJob(company: str, title: str, domain: str, jd_text: str, skills: list[str]):
     conn = client.getConnection()
@@ -22,6 +23,7 @@ def uploadJob(company: str, title: str, domain: str, jd_text: str, skills: list[
             query = "INSERT INTO jobskills (jobid, skillid) VALUES (%s, %s)"
             cur.execute(query, (jobId, cur.fetchone()[0]))
 
+        aiProcessing.processPersonalities(jobId, jd_text, cur)
         conn.commit()
         conn.close()
 
