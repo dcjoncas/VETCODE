@@ -198,6 +198,10 @@ small{color:var(--muted)}
 .select2-selection__arrow b {
     display: none;
 }
+.select2-selection__rendered{
+  line-height: unset !important;
+  width: 100%;
+}
 .field textarea{min-height:130px; resize:vertical}
 .kpi{
   display:grid;

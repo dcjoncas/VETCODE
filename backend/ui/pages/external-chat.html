@@ -141,13 +141,14 @@
             method: "POST",
             body: fd,
           });
-        } else if (questionNumber == maxQuestions) {
-          // TODO: Must save final question response here
         } else {
-          // Get into normal chat
+          aiResponse = await api(`/api/chat/sendChat`, {
+            method: "POST",
+            body: fd,
+          });
         }
 
-        questionNumber++;
+        if (aiResponse.answered) questionNumber++;
 
         // Add AI response and replace old transcript
         appendMessage("DevReady AI", aiResponse.recentMessage);

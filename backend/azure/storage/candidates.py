@@ -139,7 +139,7 @@ def searchCandidatesBySkills(query: str, limit: int = 5):
 
     # Search for user by skills attached to the account
     # Order by id descending to get the most recent matches first, and limit the number of results
-    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) GROUP BY person.id, prof.email ORDER BY skillMatches DESC LIMIT {limit};"
+    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) GROUP BY person.id, prof.email ORDER BY skillMatches DESC LIMIT {limit};"
     
     cur.execute(query, (queryArray,))
     results = cur.fetchall()
@@ -167,16 +167,24 @@ def searchCandidatesBySkillId(queryList: list[int], limit: int = 5):
 
     # Search for user by skills attached to the account
     # Order by id descending to get the most recent matches first, and limit the number of results
-    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.id = ANY(%s) GROUP BY person.id, prof.email ORDER BY skillMatches DESC LIMIT {limit};"
+    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.id = ANY(%s::int[]) GROUP BY person.id, prof.email, person.firstname, person.lastname ORDER BY skillMatches DESC LIMIT {limit};"
     
     cur.execute(query, (queryList,))
     results = cur.fetchall()
 
-    conn.close()
-
     resultsProcessed = []
 
     for r in results:
+        query = f"SELECT p.title, p.id, AVG(psq.answer) FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalsurvey ps ON ps.profileid = profper.id JOIN professionalsurveyquestion psq ON psq.professionalsurveyid = ps.id JOIN surveyquestion ON psq.surveyquestionid = surveyquestion.id JOIN question ON surveyquestion.questionid = question.id JOIN personality p ON p.id = question.personalityid WHERE person.id = {r[0]} GROUP BY p.title, p.id"
+        cur.execute(query)
+
+        personalityResult = cur.fetchall()
+
+        personalityArray = []
+
+        for row in personalityResult:
+            personalityArray.append({'title':row[0], 'id':row[1], 'score': row[2]})
+
         resultsProcessed.append({
             "id":r[0],
             "firstName":r[1],
@@ -184,8 +192,11 @@ def searchCandidatesBySkillId(queryList: list[int], limit: int = 5):
             "email":r[3],
             "skillCount":r[4],
             "skillMatches":r[5],
-            "step": processing.stepProcessingOverall(r[6])
+            "step": processing.stepProcessingOverall(r[6]),
+            "personality": personalityArray
         })
+
+    conn.close()
     
     return resultsProcessed
 

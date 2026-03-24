@@ -187,7 +187,7 @@ def getChat(urlcode: str):
                 else:
                     openAiTranscript.append({'role':'user', 'content': r[splitLocation+1:]})
         else:
-            startText = f"Hi there {row[0]}! 👋 Thanks for taking the time to connect with us today.<br><br>I'm an AI recruitment assistant helping our team learn more about potential candidates. I'd love to ask you a few quick questions about your background, experience, and what you're looking for in your next opportunity. This will help us see how your skills might align with current or upcoming roles.<br><br>It should only take a few minutes, and you can skip any question if you prefer. We'll start by asking how you feel about some statements on a scale from 1 to 5. Ready to get started?"
+            startText = f"Hi there {row[0]}! 👋 Thanks for taking the time to connect with us today.<br><br>I'm an AI recruitment assistant helping our team learn more about potential candidates. I'd love to ask you a few quick questions about what your thought process is as a developer. This will help us see how your skills might align with current or upcoming roles.<br><br>I've got a list of questions for you, and you can skip any that you'd prefer not to answer. Please answer each question on a scale from 1 to 5. Ready to get started?"
             openAiTranscript = [{'role':'assistant', 'content': startText}]
 
         return {

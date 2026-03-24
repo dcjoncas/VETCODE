@@ -12,6 +12,8 @@ def uploadJob(company: str, title: str, domain: str, jd_text: str, skills: list[
 
         jobId = cur.fetchone()[0]
 
+        print(f"Job ID: {jobId}")
+
         for skill in skills:
             query = f"SELECT id FROM skill WHERE title ILIKE '%{skill}%' ORDER BY id DESC LIMIT 1"
             cur.execute(query)
@@ -33,12 +35,22 @@ def getJob(jobId: int):
     conn = client.getConnection()
     cur = conn.cursor()
 
-    query = f"SELECT job.id, job.domain, job.company, job.jobtitle, ARRAY_AGG(skill.title), ARRAY_AGG(skill.id) FROM jobdescription job LEFT JOIN jobskills js ON job.id = js.jobid JOIN skill ON js.skillid = skill.id WHERE job.id = {jobId} GROUP BY job.id, job.domain, job.company, job.jobtitle"
+    query = f"SELECT job.id, job.domain, job.company, job.jobtitle, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT skill.id) FROM jobdescription job LEFT JOIN jobskills js ON job.id = js.jobid JOIN skill ON js.skillid = skill.id WHERE job.id = {jobId} GROUP BY job.id, job.domain, job.company, job.jobtitle"
     cur.execute(query)
 
     result = cur.fetchone()
 
+    query = f"SELECT p.title, jp.personalityid, jp.score FROM jobdescription job LEFT JOIN jobpersonalities jp ON job.id=jp.jobid JOIN personality p ON jp.personalityid = p.id WHERE job.id = {jobId}"
+    cur.execute(query)
+
+    personalityResult = cur.fetchall()
+
     conn.close()
+
+    personalityArray = []
+
+    for row in personalityResult:
+        personalityArray.append({'title':row[0], 'id':row[1], 'score': row[2]})
 
     return {
         'jd_id':result[0],
@@ -46,7 +58,8 @@ def getJob(jobId: int):
         'company':result[2],
         'title':result[3],
         'skills':result[4],
-        'skillIds':result[5]
+        'skillIds':result[5],
+        'personalities':personalityArray
     }
 
 def searchJobs(domain: str, searchQuery: str, limit: int):

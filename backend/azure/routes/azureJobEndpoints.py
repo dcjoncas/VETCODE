@@ -60,7 +60,6 @@ def jd_list(domain: str = "technology", query: str = '', amount: int = 5):
 def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: int = Form(10)):
     # TODO: Set up job descriptions in the database
     jd = jobs.getJob(jd_id)
-    print (jd)
 
     if not jd:
         raise HTTPException(status_code=400, detail="No job description loaded yet. Normalize a JD first.")
@@ -81,14 +80,28 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
     except Exception as e:
         print(f'Error during external people search: {e}')
 
-    #profiles = storage.list_profiles(DB_PATH, domain=domain, limit=top_k, skills_filter=peopleDataSkills)
-    profiles = candidates.searchCandidatesBySkills(','.join(map(str,jd["skills"])), top_k)
+    profiles = candidates.searchCandidatesBySkillId(jd["skillIds"], top_k)
 
     ranked = []
     for row in profiles:
         #p = storage.get_profile(DB_PATH, row["profile_id"])
         #score, parts = match((p or {}).get("skills", {}), jd_skills)
         score, parts = azureJobMatch(row['skillMatches'],peopleDataSkills)
+
+        # Set empty and negative values for easy existance checking
+        personalityDifferences = []
+        averageDifference = -1
+        percentageNum = -1
+
+        for personality in row['personality']:
+            # Get the stat that matches the current one
+            matchingStat = next((i for i in jd['personalities'] if i['title'] == personality['title']),None)
+            personalityDifferences.append(abs(matchingStat['score']-personality['score']))
+
+        if len(personalityDifferences)>0:
+            averageDifference = sum(personalityDifferences)/len(personalityDifferences)
+            # numbers closer to zero are better and scale is of 5, so take percentage out of five, then subtract from 1 to determine closeness to zero
+            percentageNum = round((1-(averageDifference/5))*100)
         
         ranked.append({
             "profile_id": row["id"],
@@ -96,7 +109,8 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
             "email": row["email"],
             "score": score,
             "top_matches": top_matches_from_parts(parts),
-            "breakdown": parts
+            "breakdown": parts,
+            'culture_match': percentageNum
         })
 
     ranked.sort(key=lambda x: x["score"], reverse=True)

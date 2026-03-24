@@ -146,7 +146,8 @@
                 <th>Candidate</th>
                 <th>Email</th>
                 <th>Score</th>
-                <th>Top matches</th>
+                <th>Top Matches</th>
+                <th>Culture Match</th>
                 <th></th>
               </tr>
             </thead>
@@ -167,7 +168,7 @@
                 <th>Email</th>
                 <th>Estimated Salary (USD)</th>
                 <th>Score</th>
-                <th>Top matches</th>
+                <th>Top Matches</th>
               </tr>
             </thead>
             <tbody>
@@ -337,9 +338,13 @@
               tr.classList.add("active-candidate-row");
             }
 
+            // Handling incase candidate has not done an AI chat
+            matchPercentage =
+              r.culture_match >= 0 ? `${r.culture_match}%` : "N/A";
+
             tr.id = `resultRow-${r.profile_id}`;
             tr.style.cursor = "pointer";
-            tr.innerHTML = `<td>${i + 1}</td><td>${r.name || ""}</td><td>${r.email || ""}</td><td>${Math.round(r._score100 || 0)}%</td><td>${(r.top_matches || []).slice(0, 6).join(", ")}</td>`;
+            tr.innerHTML = `<td>${i + 1}</td><td>${r.name || ""}</td><td>${r.email || ""}</td><td>${Math.round(r._score100 || 0)}%</td><td>${(r.top_matches || []).slice(0, 6).join(", ")}</td><td>${matchPercentage}</td>`;
             tr.addEventListener("click", () => selectRow(r));
             tbody.appendChild(tr);
           });
