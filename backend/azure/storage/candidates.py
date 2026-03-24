@@ -172,6 +172,14 @@ def searchCandidatesBySkillId(queryList: list[int], limit: int = 5):
     cur.execute(query, (queryList,))
     results = cur.fetchall()
 
+    for candidate in results:
+        print(candidate)
+        query = f"SELECT p.title, p.id, AVG(psq.answer) FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalsurvey ps ON ps.profileid = profper.id JOIN professionalsurveyquestion psq ON psq.professionalsurveyid = ps.id JOIN surveyquestion ON psq.surveyquestionid = surveyquestion.id JOIN question ON surveyquestion.questionid = question.id JOIN personality p ON p.id = question.personalityid WHERE person.id = {candidate[0]} GROUP BY p.title, p.id"
+        cur.execute(query)
+
+        personalityResult = cur.fetchall()
+        print(personalityResult)
+
     conn.close()
 
     resultsProcessed = []

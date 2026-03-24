@@ -72,7 +72,6 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
         peopleDataSkills = jd["skills"]
     
     returnedExternalPeople = []
-    print(jd["skillIds"])
 
     # TODO: Get location search working
     print('No location extracted from JD. Running external search based on skills only.')
