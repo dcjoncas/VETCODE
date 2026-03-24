@@ -3,6 +3,7 @@ from azure.storage.chatLogs import getQuestions, saveChat, getQuestion, upsertSu
 import re
 
 candidateQuestions = getQuestions()
+totalQuestions = len(candidateQuestions)
 
 def askQuestions(transcript: list, candidateName: str, chatUrl: str):
     systemInstructions = [{"role": "system",
@@ -63,22 +64,29 @@ def getNumber(text: str):
     
 def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumber: int):
     userResponse = transcript[len(transcript)-1]['content']
-    question = getQuestion(questionNumber)
-    question = f'On a scale from 1 to 5, how much do you agree with the statement "{question[0].lower() + question[1:]}"'
-    questionAnswer = 0
+    
+    try:
+        question = getQuestion(questionNumber)
+        question = f'On a scale from 1 to 5, how much do you agree with the statement "{question[0].lower() + question[1:]}"'
+        questionAnswer = 0
 
-    systemInstructions = [{"role": "system",
-                          "content":f'''You are an AI recruitment assistant. You will be chating with {candidateName}. MAKE NO HIRING PROMISES.
-    It is your job to ask them about the following statement in a casual yet professional manner. Focus on one statement at a time. Bring them up organically.\n{question}'''}]
+        systemInstructions = [{"role": "system",
+                            "content":f'''You are an AI recruitment assistant. You will be chating with {candidateName}. MAKE NO HIRING PROMISES. NEVER SAY END THE CONVERSATION OR TELL THE CANDIDATE IT IS THE LAST QUESTION. THERE ARE {totalQuestions} QUESTIONS TO ANSWER.
+        It is your job to ask them about the following statement in a casual yet professional manner. FOCUS ONLY ON THE FOLLOWING STATEMENT:\n{question}'''}]
+
+    except Exception as e:
+        systemInstructions = [{"role": "system",
+                            "content":f'''You are an AI recruitment assistant. You will be chating with {candidateName}. MAKE NO HIRING PROMISES.
+                            Have a casual, yet professional conversation with them asking about their career goals and work experience.'''}]
 
     client = getOpenAPIClient()
 
     fullTranscript = systemInstructions + transcript
 
     response = client.chat.completions.create(
-            model="gpt-3.5-turbo",  # Specify the model
+            model="gpt-5.4-mini-2026-03-17",  # Specify the model
             messages=fullTranscript,
-            max_tokens=100, # Limit the response length to manage costs
+            max_completion_tokens=100, # Limit the response length to manage costs
             temperature=0.7 # Control the randomness of the response
         )
 
@@ -107,9 +115,28 @@ def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumb
                 questionAnswer = getNumber(userResponse)
             except Exception as e:
                 print(f'Could not pull value using AI. Asking user to repeat: {e}')
-                transcript.append({"role":"assistant", "content":"Sorry, I wasn't able to process that. Could you answer that question again as an integer value?"})
+                systemInstructions = [{"role": "system",
+                        "content":f'''The previous answer from the candidate could not be processed. Ask the candidate to repeat their answer to the following question as an integer value.
+                        FOCUS ONLY ON THE FOLLOWING STATEMENT:\n{question}'''}]
+                
+                client = getOpenAPIClient()
+
+                fullTranscript = systemInstructions + transcript
+
+                response = client.chat.completions.create(
+                        model="gpt-5.4-mini-2026-03-17",  # Specify the model
+                        messages=fullTranscript,
+                        max_completion_tokens=100, # Limit the response length to manage costs
+                        temperature=0.7 # Control the randomness of the response
+                    )
+                
+                question = response.choices[0].message.content.strip()
+
+                client.close()
+
+                transcript.append({"role":"assistant", "content":question})
                 saveChat(chatUrl,candidateName,transcript)
-                return {"aiTranscript": transcript, "recentMessage": "Sorry, I wasn't able to process that. Could you answer that question again as an integer value?", "answered": False}
+                return {"aiTranscript": transcript, "recentMessage": question, "answered": False}
 
         print(f'{candidateName} Answered: {questionAnswer}')
 
@@ -126,8 +153,6 @@ def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumb
 
         print(f'{candidateName} Corrected Answer: {questionAnswer}')
 
-    print(getSurveyId(getPersonId(chatUrl)))
-
     upsertSurveyAnswer(questionNumber-1, questionAnswer, getSurveyId(getPersonId(chatUrl)))
 
     transcript.append({"role":"assistant", "content":question})
@@ -136,3 +161,27 @@ def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumb
 
     # Return the transcript to keep track of conversation along with most recent message
     return {"aiTranscript": transcript, "recentMessage": question, "answered": True}
+
+def openEndedQuestion(transcript: list, candidateName: str, chatUrl: str):
+    systemInstructions = [{"role": "system",
+                          "content":f'''You are an AI recruitment assistant. You will be chating with {candidateName}. MAKE NO HIRING PROMISES.
+    Have a casual, yet professional conversation with them asking about their career goals and work experience.'''}]
+
+    fullTranscript = systemInstructions + transcript
+
+    client = getOpenAPIClient()
+
+    response = client.chat.completions.create(
+            model="gpt-3.5-turbo",  # Specify the model
+            messages=fullTranscript,
+            max_completion_tokens=100, # Limit the response length to manage costs
+            temperature=0.7 # Control the randomness of the response
+        )
+    
+    question = response.choices[0].message.content.strip()
+
+    client.close()
+
+    transcript.append({"role":"assistant", "content":question})
+    saveChat(chatUrl,candidateName,transcript)
+    return {"aiTranscript": transcript, "recentMessage": question}

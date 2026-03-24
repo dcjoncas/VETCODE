@@ -27,7 +27,7 @@ async def getId(personid: str):
 async def getChat(transcript: str = Form(...), candidateName: str = Form("Not Found"), chatUrl: str = Form("Not Found")):
     transcript_list = json.loads(transcript)
     print(f"Sending chat for candidate: {candidateName}")
-    return candidateChat.askQuestions(transcript_list, candidateName, chatUrl)
+    return candidateChat.openEndedQuestion(transcript_list, candidateName, chatUrl)
 
 @router.post("/sendChat/{questionNumber}")
 async def getChat(transcript: str = Form(...), candidateName: str = Form("Not Found"), chatUrl: str = Form("Not Found"), questionNumber: int = 0):
