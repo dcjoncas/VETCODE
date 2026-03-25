@@ -214,7 +214,7 @@
       let profileData = {};
 
       if (candidateId) {
-        profileData = await api(`/api/profile/${candidateId}`);
+        profileData = await api(`/api/azure/getProfile/${candidateId}`);
         
         console.log(profileData);
 

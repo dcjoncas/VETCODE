@@ -112,7 +112,7 @@ small{color:var(--muted)}
   color: var(--bg);
   border-radius:999px;
   padding:11px 14px;
-  font-weight:800;
+  font-weight:700;
   cursor:pointer;
   box-shadow:0 12px 22px rgba(127,191,63,.20);
 }

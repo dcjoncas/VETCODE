@@ -271,6 +271,8 @@ def searchPageCount(nameQuery: str, skillQuery: str = None, pageLimit: int = 5):
         rowCount = results[0][0] if results else 0
         pages = (rowCount // pageLimit) + (1 if rowCount and rowCount % pageLimit > 0 else 0)
 
+        conn.close()
+
         return [rowCount, pages]
     else:
         query = f"SELECT COUNT(DISTINCT person.id) FROM person JOIN professional prof ON person.id = prof.id WHERE person.firstname ILIKE '%{nameQuery}%' OR person.lastname ILIKE '%{nameQuery}%' OR person.goesbyname ILIKE '%{nameQuery}%' OR prof.email ILIKE '%{nameQuery}%';"
@@ -280,4 +282,79 @@ def searchPageCount(nameQuery: str, skillQuery: str = None, pageLimit: int = 5):
         rowCount = results[0][0] if results else 0
         pages = (rowCount // pageLimit) + (1 if rowCount and rowCount % pageLimit > 0 else 0)
 
+        conn.close()
+
         return [rowCount, pages]
+    
+def getProfile(profileId: str):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    query = f"SELECT person.firstname, person.middlename, person.lastname, person.goesbyname, person.urlimage, person.citizenship, person.birthday, person.leadsource, prof.status, prof.title, prof.maindescription, prof.url, prof.linkedinurl, prof.email, prof.hubspotcontactid, prof.hubspotdeveloperid, prof.referredby, address.city, address.state, address.country, address.timezone, address.longitude, address.latitude FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid WHERE person.id = {profileId} LIMIT 1;"
+
+    cur.execute(query)
+    results = cur.fetchone()
+
+    # Get Platform Activity
+    query = f"SELECT ARRAY_AGG(DISTINCT platact.step), ARRAY_AGG(DISTINCT platact.notes) FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.id = {profileId} GROUP BY person.id"
+    cur.execute(query)
+
+    platactResult = cur.fetchone()
+
+    platactProcessed = {'step':processing.stepProcessingOverall(platactResult[0]), 'attachedNotes':platactResult[1]}
+
+    # Get Personality Data
+    query = f"SELECT p.title, p.id, AVG(psq.answer) FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalsurvey ps ON ps.profileid = profper.id JOIN professionalsurveyquestion psq ON psq.professionalsurveyid = ps.id JOIN surveyquestion ON psq.surveyquestionid = surveyquestion.id JOIN question ON surveyquestion.questionid = question.id JOIN personality p ON p.id = question.personalityid WHERE person.id = {profileId} GROUP BY p.title, p.id"
+    cur.execute(query)
+
+    personalityResult = cur.fetchall()
+
+    personalityArray = []
+
+    for row in personalityResult:
+        personalityArray.append({'title':row[0], 'id':row[1], 'score': round((row[2]/5)*100)})
+
+    # Get Skill Data
+    query = f"SELECT DISTINCT profskill.years, skill.title, skill.id, skill.description, skill.type FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id WHERE person.id = {profileId}"
+    cur.execute(query)
+
+    skillResult = cur.fetchall()
+
+    skillArray = []
+
+    for row in skillResult:
+        skillArray.append({'years':row[0], 'skill':row[1], 'skillId': row[2], 'description': row[3], 'type': row[4]})
+
+    conn.close()
+
+    return {
+        'profile':{
+            'firstName': results[0],
+            'middleName': results[1],
+            'lastName': results[2],
+            'goesByName': results[3],
+            'imageUrl': results[4],
+            'citizenship':results[5],
+            'birthdate': results[6],
+            # TODO: Process 7 into actual results
+            'leadsource':results[7],
+            'status':processing.statusProcessing(results[8]),
+            'title': results[9],
+            'description': results[10],
+            'publicUrl': results[11],
+            'linkedinUrl': results[12],
+            'email': results[13],
+            'hubspotcontactid': results[14],
+            'hubspotdeveloperid': results[15],
+            'referredby': results[16],
+            'city': results[17],
+            'state': results[18],
+            'country': results[19],
+            'timezone': results[20],
+            'longitude': results[21],
+            'latitude': results[22]
+        },
+        'personality':personalityArray,
+        'platformActivity':platactProcessed,
+        'skills':skillArray
+    }

@@ -383,6 +383,7 @@
       }
 
       async function saveJD() {
+        document.getElementById("btnSaveJd").disabled = true;
         const company = document.getElementById("jdCompany").value.trim();
         const title = document.getElementById("jdTitle").value.trim();
         const text = document.getElementById("jdText").value.trim();
@@ -413,11 +414,12 @@
           //document.getElementById("btnJdDocx").disabled = false;
 
           //await refreshExistingDescriptions();
-          window.location.reload();
         } catch (e) {
           // document.getElementById("jdStatus").textContent = `JD save failed: ${e.message}`;
           console.log("Failed to save job description: " + e);
         }
+
+        document.getElementById("btnSaveJd").disabled = false;
       }
 
       function enableJDButtons() {
