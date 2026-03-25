@@ -1,89 +1,106 @@
-
-<div style="position: relative;">
-    <div class="search">
-        <input id="searchInput" class="input" style="position: relative; left: 0;" placeholder="Search for profiles (name / email)"/>
-        <button id="searchButton" class="btn secondary" type="button">Search</button>
-    </div>
-    <table id="searchResultsTable" class="card table" style="position: absolute; border: none;" hidden>
-        <tbody id="searchResults"><!-- Dynamically filled with ranked results --></tbody>
-        
-    </table>
+<div style="position: relative">
+  <div class="search">
+    <input
+      id="searchInput"
+      class="input"
+      style="position: relative; left: 0"
+      placeholder="Search for profiles (name / email)"
+    />
+    <button id="searchButton" class="btn" type="button">Search</button>
+  </div>
+  <table
+    id="searchResultsTable"
+    class="card table"
+    style="position: absolute; border: none"
+    hidden
+  >
+    <tbody id="searchResults">
+      <!-- Dynamically filled with ranked results -->
+    </tbody>
+  </table>
 </div>
 
 <script>
-    function searchButton() {
-        window.location.href = `profile-search-results.html?query=${encodeURIComponent(document.getElementById("searchInput").value)}&page=1&pageLimit=10`;
-    }
+  function searchButton() {
+    window.location.href = `profile-search-results.html?query=${encodeURIComponent(document.getElementById("searchInput").value)}&page=1&pageLimit=10`;
+  }
 
-    function searchSelect(profile) {
-        sessionStorage.setItem("candidateId", profile.id);
-        sessionStorage.setItem("candidateName", profile.firstName + " " + profile.lastName);
-        sessionStorage.setItem("candidateStatus", profile.step);
+  function searchSelect(profile) {
+    sessionStorage.setItem("candidateId", profile.id);
+    sessionStorage.setItem(
+      "candidateName",
+      profile.firstName + " " + profile.lastName,
+    );
+    sessionStorage.setItem("candidateStatus", profile.step);
 
-        window.location.href = "profile-preview.html";
-    }
+    window.location.href = "profile-preview.html";
+  }
 
-    async function searchProfiles() {
-        try {
-            const query = document.getElementById("searchInput").value.trim();
+  async function searchProfiles() {
+    try {
+      const query = document.getElementById("searchInput").value.trim();
 
-            if (query.length === 0) {
-                document.getElementById("searchResultsTable").hidden = true;
-                return;
-            }
-            else {
-                document.getElementById("searchResultsTable").hidden = false;
-            }
+      if (query.length === 0) {
+        document.getElementById("searchResultsTable").hidden = true;
+        return;
+      } else {
+        document.getElementById("searchResultsTable").hidden = false;
+      }
 
-            const fd = new FormData();
-            fd.append("domain", "technology");
-            fd.append("search_string", query);
+      const fd = new FormData();
+      fd.append("domain", "technology");
+      fd.append("search_string", query);
 
-            const responseAzure = await fetch("/api/azure/searchNameEmail", {
-                method: "POST",
-                body: fd
-            });
+      const responseAzure = await fetch("/api/azure/searchNameEmail", {
+        method: "POST",
+        body: fd,
+      });
 
-            const resultsAzure = await responseAzure.json();
+      const resultsAzure = await responseAzure.json();
 
-            const tbody = document.getElementById("searchResults");
-            tbody.innerHTML = "";
+      const tbody = document.getElementById("searchResults");
+      tbody.innerHTML = "";
 
-            if (resultsAzure.length === 0) {
-                tbody.innerHTML = '<tr class="search-result-row"><td class="search-result-row">No results found.</td></tr>';
-                return;
-            }
+      if (resultsAzure.length === 0) {
+        tbody.innerHTML =
+          '<tr class="search-result-row"><td class="search-result-row">No results found.</td></tr>';
+        return;
+      }
 
-            const candidateId = sessionStorage.getItem("candidateId");
+      const candidateId = sessionStorage.getItem("candidateId");
 
-            resultsAzure.forEach((r, i) => {
-                const tr = document.createElement("tr");
+      resultsAzure.forEach((r, i) => {
+        const tr = document.createElement("tr");
 
-                tr.classList.add("search-result-row");
+        tr.classList.add("search-result-row");
 
-                if (candidateId && r.id + '' === candidateId) {
-                    tr.classList.add("active-candidate-row");
-                }
-
-                tr.id = `searchRow-${r._id}`;
-                tr.style.cursor = "pointer";
-                tr.innerHTML = `<td class="search-result-formatting"><h3 class="search-result-formatting">${r.firstName || ""} ${r.lastName || ""}</h3><p class="muted search-result-formatting" style="margin: 1px; padding: 1px;">${r.email || ""}</p></td>`;
-                tr.addEventListener("click", () => searchSelect(r));
-                tbody.appendChild(tr);
-            });
-        } catch (error) {
-            console.error("Error searching profiles:", error);
+        if (candidateId && r.id + "" === candidateId) {
+          tr.classList.add("active-candidate-row");
         }
+
+        tr.id = `searchRow-${r._id}`;
+        tr.style.cursor = "pointer";
+        tr.innerHTML = `<td class="search-result-formatting"><h3 class="search-result-formatting">${r.firstName || ""} ${r.lastName || ""}</h3><p class="muted search-result-formatting" style="margin: 1px; padding: 1px;">${r.email || ""}</p></td>`;
+        tr.addEventListener("click", () => searchSelect(r));
+        tbody.appendChild(tr);
+      });
+    } catch (error) {
+      console.error("Error searching profiles:", error);
     }
+  }
 
-    document.getElementById("searchInput").addEventListener("input", searchProfiles);
+  document
+    .getElementById("searchInput")
+    .addEventListener("input", searchProfiles);
 
-    // Hide search results when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.search-container')) {
-            document.getElementById("searchResultsTable").hidden = true;
-        }
-    });
+  // Hide search results when clicking outside
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".search-container")) {
+      document.getElementById("searchResultsTable").hidden = true;
+    }
+  });
 
-    document.getElementById("searchButton").addEventListener("click", searchButton);
+  document
+    .getElementById("searchButton")
+    .addEventListener("click", searchButton);
 </script>

@@ -109,7 +109,7 @@ small{color:var(--muted)}
 .btn{
   border:1px solid transparent;
   background:var(--primary);
-  color:#0b1a12;
+  color: var(--bg);
   border-radius:999px;
   padding:11px 14px;
   font-weight:800;
@@ -117,9 +117,9 @@ small{color:var(--muted)}
   box-shadow:0 12px 22px rgba(127,191,63,.20);
 }
 .btn.secondary{
-  background:var(--card);
+  background:var(--primary-2);
   border-color:var(--line);
-  color:var(--text);
+  color:var(--bg);
   box-shadow:none;
 }
 .btn.secondary:disabled, .btn:disabled{
