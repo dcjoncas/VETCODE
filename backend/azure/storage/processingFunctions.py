@@ -17,7 +17,7 @@ def stepProcessingOverall(stepEnum: list[int]) -> str:
             return 'Certified'
             
         if s == 6:
-            return 'Certified'
+            return 'Onboarded'
             
         if s == 5:
             return 'Reviewed'

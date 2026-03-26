@@ -60,3 +60,9 @@ def profile_page_search(domain: str = Form(default="technology"), search_string:
         return candidates.searchCandidatesBySkillsNamesPaginated(search_string,skills,pageLimit,currentPage)
     else:
         return candidates.searchCandidatesByNameEmailPaginated(search_string,pageLimit,currentPage)
+    
+@router.get("/getProfile/{profileId}")
+def get_profile(profileId: str = ""):
+    print(f"Fetching profile {profileId}")
+
+    return candidates.getProfile(profileId)

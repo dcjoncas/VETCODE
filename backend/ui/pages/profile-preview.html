@@ -34,13 +34,14 @@
         <section class="card">
           
 <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-  <div style="width:68px;height:68px;border-radius:20px;background:linear-gradient(135deg, rgba(127,191,63,.35), rgba(47,125,75,.25));border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:900">
-    GS
+  <div id="noImageFound" class="imageBox">
+    No Image
   </div>
+  <img id="candidateImage" class="imageBox" style="display: none;">
   <div style="flex:1;min-width:260px">
     <div id="profileHeader" style="font-size:22px;font-weight:900;line-height:1">No Candidate Loaded</div>
     <div id="profileSubHeader" style="color:var(--muted);margin-top:6px;">
-      <div id="candidateAddress" style="display: inline;">No Address Listed</div> • <div id="candidateJobTitle" style="display: inline;">No Job Title Listed</div> • <div id="candidateAvailability" style="display: inline;">No Availability Listed</div>
+      <div id="candidateAddress" style="display: inline;"><p id="candidateCity" style="display: inline;">No Location Listed</p><p id="candidateState" style="display: inline;"></p><p id="candidateCountry" style="display: inline;"></p></div> • <div id="candidateJobTitle" style="display: inline;">No Job Title Listed</div><!-- • <div id="candidateAvailability" style="display: inline;">No Availability Listed</div>-->
     </div>
     <div id="topMatches" class="pills">
       No Skills Found
@@ -51,6 +52,9 @@
     <button class="btn secondary" type="button" onclick="alert('Mock: download private profile')">Download Private (PDF)</button>
   </div>
 </div>
+
+<h2 id="descriptionHeader" style="margin-top: 5px;" hidden></h2>
+<p id="descriptionText" hidden></p>
 
 <div class="split" style="margin-top:16px;">
   <div class="flexCard" style="grid-column: 1;grid-row: 1;">
@@ -139,20 +143,58 @@
   </div>
 
   <div class="flexCard" style="padding:14px;border-radius:18px;box-shadow:none;grid-column: 2;grid-row: 1/4;">
-    <h2 style="margin:0 0 8px 0">Feature Experience</h2>
+    <!--<h2 style="margin:0 0 8px 0">Feature Experience</h2>
     <div class="pills">
       <span class="pill">Authentication</span>
       <span class="pill">Fraud detection</span>
       <span class="pill">API platforms</span>
       <span class="pill">Role-based access</span>
       <span class="pill">Observability</span>
-    </div>
+    </div>-->
 
     <div id="skillBarDiv">
       <div style="margin-top:14px">
         <h2>Overall Experience</h2>
         <div style="display:flex;justify-content:space-between"><small>Beginner</small><small>Expert</small></div>
         <div class="progress" style="margin-top:6px"><div id="overallBar" style="width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flexCard" style="padding:14px;border-radius:18px;box-shadow:none;grid-column: 2;grid-row: 2;">
+    <div id="personalityBarDiv">
+      <div style="margin-top:14px">
+        <h2>Developer Personality</h2>
+        <div class="split">
+          <div style="grid-column: 1;grid-row: 1;">
+            <div style="display:flex;justify-content:space-between"><small>Independent</small></div>
+            <div class="progressLeft" style="margin-top:6px"><div id="IndependentBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Trailblazer</small></div>
+            <div class="progressLeft" style="margin-top:6px"><div id="TrailblazerBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Generalist</small></div>
+            <div class="progressLeft" style="margin-top:6px"><div id="GeneralistBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Planner</small></div>
+            <div class="progressLeft" style="margin-top:6px"><div id="PlannerBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Idealist</small></div>
+            <div class="progressLeft" style="margin-top:6px"><div id="IdealistBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Abstraction</small></div>
+            <div class="progressLeft" style="margin-top:6px"><div id="AbstractionBar" style="width:0%"></div></div>
+          </div>
+          <div style="grid-column: 2;grid-row: 1;">
+            <div style="display:flex;justify-content:space-between"><small>Collaborative</small></div>
+            <div class="progress" style="margin-top:6px"><div id="CollaborativeBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Conservative</small></div>
+            <div class="progress" style="margin-top:6px"><div id="ConservativeBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Specialist</small></div>
+            <div class="progress" style="margin-top:6px"><div id="SpecialistBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Doer</small></div>
+            <div class="progress" style="margin-top:6px"><div id="DoerBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Pragmatist</small></div>
+            <div class="progress" style="margin-top:6px"><div id="PragmatistBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Control</small></div>
+            <div class="progress" style="margin-top:6px"><div id="ControlBar" style="width:0%"></div></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -214,7 +256,7 @@
       let profileData = {};
 
       if (candidateId) {
-        profileData = await api(`/api/profile/${candidateId}`);
+        profileData = await api(`/api/azure/getProfile/${candidateId}`);
         
         console.log(profileData);
 
@@ -225,18 +267,13 @@
         } else if (profileData.skills) {
           // TODO: Figure out actual top skills from a profile
           let skillCount = 0;
-          Object.keys(profileData.skills).forEach(category => 
+          profileData.skills.forEach(skill => 
             {
               if(skillCount >= 5)
                 return;
               
-              profileData.skills[category].forEach(skill => {
-                if(skillCount >= 5)
-                  return;
-                
-                topMatches.push(skill);
-                skillCount++;
-              });
+              topMatches.push(skill.skill);
+              skillCount++;
             }
           );
         }
@@ -247,36 +284,55 @@
         });
         document.getElementById("topMatches").innerHTML = topMatchesHtml;
         
-        document.getElementById("profilePageTitle").innerText = `DevReady • ${profileData.contact.full_name} — Profile Preview`;
-        document.getElementById("pageTitle").innerText = `${profileData.contact.full_name} — Profile Preview`;
-        document.getElementById("profileHeader").innerText = `${profileData.contact.full_name}`;
+        document.getElementById("profilePageTitle").innerText = `DevReady • ${profileData.profile.firstName} ${profileData.profile.lastName} — Profile Preview`;
+        document.getElementById("pageTitle").innerText = `${profileData.profile.firstName} ${profileData.profile.lastName} — Profile Preview`;
+        document.getElementById("profileHeader").innerText = `${profileData.profile.firstName} ${profileData.profile.lastName}`;
         
-        document.getElementById("candidateAddress").innerText = profileData.contact.location || "No Location Listed";
-        document.getElementById("candidateJobTitle").innerText = profileData.contact.job_title || "No Job Title Listed";
-        document.getElementById("candidateAvailability").innerText = profileData.contact.availability || "No Availability Listed";
+        document.getElementById("candidateCity").innerText = (profileData.profile.city && profileData.profile.city.length > 0) ? profileData.profile.city : "No City Listed";
+        document.getElementById("candidateState").innerText = (profileData.profile.state && profileData.profile.state.length > 0) ? ', ' + profileData.profile.state : "";
+        document.getElementById("candidateCountry").innerText = (profileData.profile.country && profileData.profile.country.length > 0) ? ', ' + profileData.profile.country : "";
+
+        if (profileData.profile.description && profileData.profile.description.length > 0){
+          document.getElementById("descriptionHeader").innerText = 'About ' + profileData.profile.firstName;
+          document.getElementById("descriptionHeader").removeAttribute("hidden")
+          document.getElementById("descriptionText").innerText = profileData.profile.description;
+          document.getElementById("descriptionText").removeAttribute("hidden")
+        }
+
+        document.getElementById("candidateJobTitle").innerText = (profileData.profile.title && profileData.profile.title.length > 0) ? profileData.profile.title : "No Job Title Listed";
+        // document.getElementById("candidateAvailability").innerText = profileData.profile.availability || "No Availability Listed";
+
+        if (profileData.profile.imageUrl && profileData.profile.imageUrl.length > 0){
+          document.getElementById("noImageFound").style.display = 'none'
+          document.getElementById("candidateImage").src = profileData.profile.imageUrl
+          document.getElementById("candidateImage").style.display = 'block'
+        }
 
         const skillBarDiv = document.getElementById("skillBarDiv");
 
         let totalScore = 0;
         let scoreCount = 0;
-        Object.keys(profileData.scores).forEach(scoreName => {
-          skillBarDiv.insertAdjacentHTML("beforeend", `
+        profileData.skills.forEach(skill => {
+          if (topMatches.some(topSkill => skill.skill.toLowerCase().includes(topSkill.toLowerCase())))
+          {
+            skillBarDiv.insertAdjacentHTML("beforeend", `
             <div style="margin-top:14px">
-              <h2>${scoreName}</h2>
+              <h2>${skill.skill}</h2>
               <div style="display:flex;justify-content:space-between"><small>Beginner</small><small>Expert</small></div>
-              <div class="progress" style="margin-top:6px"><div style="width:${profileData.scores[scoreName].score * 10}%"></div></div>
+              <div class="progress" style="margin-top:6px"><div style="width:${skill.years * 10}%"></div></div>
             </div>
           `);
-          totalScore += profileData.scores[scoreName].score;
+        }
+          totalScore += skill.years;
           scoreCount++;
 
-          let scoreLevel = Math.floor(profileData.scores[scoreName].score);
+          let scoreLevel = Math.floor(skill.years);
           if(scoreLevel < 1) scoreLevel = 1;
           else if(scoreLevel > 10) scoreLevel = 10;
           
 
           // Populate skills chart (use skill rating as above for now since we don't have years of experience in the mock data)
-          document.getElementById(`level${scoreLevel}`).insertAdjacentHTML("afterbegin", `<div class="chartPillCell"><div class="chartPill" title="${scoreName}" >${scoreName}</div></div>`);
+          document.getElementById(`level${scoreLevel}`).insertAdjacentHTML("afterbegin", `<div class="chartPillCell"><div class="chartPill" title="${skill.skill}" >${skill.skill}</div></div>`);
           
         });
         
@@ -285,6 +341,11 @@
           const averageScore = (totalScore / scoreCount) * 10;
           document.getElementById("overallBar").style.width = averageScore.toFixed(2) + "%";
         }
+
+        // Personality bars
+        profileData.personality.forEach(personality => {
+          document.getElementById(personality.title + "Bar").style.width = personality.score + "%"
+        })
 
       }
     });
