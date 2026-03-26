@@ -160,6 +160,44 @@
       </div>
     </div>
   </div>
+
+  <div class="flexCard" style="padding:14px;border-radius:18px;box-shadow:none;grid-column: 2;grid-row: 2;">
+    <div id="personalityBarDiv">
+      <div style="margin-top:14px">
+        <h2>Developer Personality</h2>
+        <div class="split">
+          <div style="grid-column: 1;grid-row: 1;">
+            <div style="display:flex;justify-content:space-between"><small>Independent</small></div>
+            <div class="progressLeft" style="margin-top:6px"><div id="IndependentBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Trailblazer</small></div>
+            <div class="progressLeft" style="margin-top:6px"><div id="TrailblazerBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Generalist</small></div>
+            <div class="progressLeft" style="margin-top:6px"><div id="GeneralistBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Planner</small></div>
+            <div class="progressLeft" style="margin-top:6px"><div id="PlannerBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Idealist</small></div>
+            <div class="progressLeft" style="margin-top:6px"><div id="IdealistBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Abstraction</small></div>
+            <div class="progressLeft" style="margin-top:6px"><div id="AbstractionBar" style="width:0%"></div></div>
+          </div>
+          <div style="grid-column: 2;grid-row: 1;">
+            <div style="display:flex;justify-content:space-between"><small>Collaborative</small></div>
+            <div class="progress" style="margin-top:6px"><div id="CollaborativeBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Conservative</small></div>
+            <div class="progress" style="margin-top:6px"><div id="ConservativeBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Specialist</small></div>
+            <div class="progress" style="margin-top:6px"><div id="SpecialistBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Doer</small></div>
+            <div class="progress" style="margin-top:6px"><div id="DoerBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Pragmatist</small></div>
+            <div class="progress" style="margin-top:6px"><div id="PragmatistBar" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between"><small>Control</small></div>
+            <div class="progress" style="margin-top:6px"><div id="ControlBar" style="width:0%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <h2 style="margin-top:18px">Portfolio (client-safe excerpts)</h2>
@@ -303,6 +341,11 @@
           const averageScore = (totalScore / scoreCount) * 10;
           document.getElementById("overallBar").style.width = averageScore.toFixed(2) + "%";
         }
+
+        // Personality bars
+        profileData.personality.forEach(personality => {
+          document.getElementById(personality.title + "Bar").style.width = personality.score + "%"
+        })
 
       }
     });
