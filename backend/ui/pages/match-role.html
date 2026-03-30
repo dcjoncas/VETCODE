@@ -249,7 +249,10 @@
         // selectedProfileId = r.profile_id;
 
         const candidateId = sessionStorage.getItem("candidateId");
-        if (candidateId) {
+        if (
+          candidateId &&
+          document.getElementById(`resultRow-${candidateId}`)
+        ) {
           document
             .getElementById(`resultRow-${candidateId}`)
             .classList.remove("active-candidate-row");
