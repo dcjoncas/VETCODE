@@ -228,7 +228,8 @@ small {
   margin: 0 0 10px 0;
   font-size: 16px;
 }
-.card p {
+.card p,
+.card li {
   margin: 0 0 10px 0;
   color: var(--muted);
   line-height: 1.35;
@@ -239,16 +240,26 @@ small {
   gap: 8px;
   margin-top: 10px;
 }
-.pill {
+.pill,
+.pillFeature {
   display: inline-block;
   margin-bottom: 5px;
-  border: 1px solid rgba(47, 125, 75, 0.25);
-  background: rgba(127, 191, 63, 0.12);
+  /*border: 1px solid rgba(47, 125, 75, 0.25);*/
   color: var(--primary-2);
   padding: 6px 10px;
   border-radius: 999px;
   font-weight: 700;
   font-size: 12px;
+}
+.pill {
+  background: var(--primary);
+  color: var(--card);
+}
+.pillFeature {
+  background: var(--card);
+  color: var(--primary);
+  border: 1px solid;
+  border-color: var(--primary);
 }
 .split {
   display: grid;

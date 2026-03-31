@@ -169,7 +169,7 @@
     <div id="skillBarDiv">
       <div style="margin-top:14px">
         <h2>Overall Experience</h2>
-        <div style="display:flex;justify-content:space-between"><small>Beginner</small><small>Expert</small></div>
+        <div style="display:flex;justify-content:space-between"><small>Moderate</small><small>Extensive</small><small>Expert</small></div>
         <div class="progress" style="margin-top:6px"><div id="overallBar" style="width:0%"></div></div>
       </div>
     </div>
@@ -214,28 +214,10 @@
   </div>
 </div>
 
-<h2 style="margin-top:18px">Portfolio (client-safe excerpts)</h2>
+<h2 style="margin-top:18px">Portfolio</h2>
 <table class="table">
-  <thead><tr><th>Company</th><th>Role</th><th>Highlights</th><th>Skills</th></tr></thead>
-  <tbody>
-    <tr>
-      <td><strong>Interactive</strong><br/><small>2019–Present</small></td>
-      <td>Senior Developer</td>
-      <td>Built APIs + admin UI to identify and replace problematic KYC flows; improved fraud detection and processing time.</td>
-      <td><span class="pill">Python</span> <span class="pill">APIs</span> <span class="pill">React</span></td>
-    </tr>
-    <tr>
-      <td><strong>IBM</strong><br/><small>2016–2019</small></td>
-      <td>Senior Architect</td>
-      <td>Designed a verification component used by banks; document scanning + identity match pipelines.</td>
-      <td><span class="pill">C#</span> <span class="pill">SQL</span> <span class="pill">Auth</span></td>
-    </tr>
-    <tr>
-      <td><strong>Socopa Invest</strong><br/><small>2015–2016</small></td>
-      <td>Senior Developer</td>
-      <td>Implemented monitoring and automation; improved latency and reliability for trading back office.</td>
-      <td><span class="pill">Observability</span> <span class="pill">SQL</span></td>
-    </tr>
+  <thead><tr><th>Company</th><th>Role</th><th>Highlights</th><th>Skills</th><th>Features</th></tr></thead>
+  <tbody id="portfolioBody">
   </tbody>
 </table>
 
@@ -281,7 +263,8 @@
         } else if (profileData.skills) {
           // TODO: Figure out actual top skills from a profile
           let skillCount = 0;
-          profileData.skills.forEach(skill => 
+          const sortedSkills = profileData.skills.sort((a,b) => b.years - a.years);
+          sortedSkills.forEach(skill => 
             {
               if(skillCount >= 5)
                 return;
@@ -334,13 +317,14 @@
 
         let totalScore = 0;
         let scoreCount = 0;
-        profileData.skills.forEach(skill => {
-          if (topMatches.some(topSkill => skill.skill.toLowerCase().includes(topSkill.toLowerCase())))
+        const sortedSkills = profileData.skills.sort((a,b) => b.years - a.years);
+        
+        sortedSkills.forEach(skill => {
+          if (topMatches.some(topSkill => skill.skill.toLowerCase().includes(topSkill.toLowerCase())) && scoreCount < 5)
           {
             skillBarDiv.insertAdjacentHTML("beforeend", `
             <div style="margin-top:14px">
               <h2>${skill.skill}</h2>
-              <div style="display:flex;justify-content:space-between"><small>Beginner</small><small>Expert</small></div>
               <div class="progress" style="margin-top:6px"><div style="width:${skill.years * 10}%"></div></div>
             </div>
           `);
@@ -368,6 +352,32 @@
         profileData.personality.forEach(personality => {
           document.getElementById(personality.title + "Bar").style.width = personality.score + "%"
         })
+
+        profileData.portfolioExperience.forEach(experience => {
+          let skillsHtml = "";
+          experience.skills.forEach(skill => {
+            skillsHtml += `<span class="pill">${skill}</span> `
+          })
+
+          let featuresHtml = "";
+          experience.features.forEach(feature => {
+            featuresHtml += `<span class="pillFeature">${feature}</span> `
+          })
+
+          let processedDescription = experience.description.length > 0 ? experience.description : "No description provided.";
+          processedDescription = processedDescription.replaceAll("<strong>", "");
+          processedDescription = processedDescription.replaceAll("</strong>", "");
+
+          document.getElementById("portfolioBody").insertAdjacentHTML("beforeend", `
+            <tr>
+              <td><strong>${experience.companyname}</strong><br/><small>${experience.startdate} - ${experience.ispresent ? 'Present' : experience.finishdate}</small></td>
+              <td>${experience.mainrole}</td>
+              <td>${processedDescription}</td>
+              <td>${skillsHtml}</td>
+              <td>${featuresHtml}</td>
+            </tr>
+          `);
+        });
 
       }
     });

@@ -315,7 +315,7 @@ def getProfile(profileId: str):
     for row in personalityResult:
         personalityArray.append({'title':row[0], 'id':row[1], 'score': round((row[2]/5)*100)})
 
-    # Get Skill Data
+    # Get Professional Skills Data
     query = f"SELECT DISTINCT profskill.years, skill.title, skill.id, skill.description, skill.type FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id WHERE person.id = {profileId}"
     cur.execute(query)
 
@@ -325,6 +325,28 @@ def getProfile(profileId: str):
 
     for row in skillResult:
         skillArray.append({'years':row[0], 'skill':row[1], 'skillId': row[2], 'description': row[3], 'type': row[4]})
+
+    # Get Technical Skills Data
+    query = f"SELECT DISTINCT ts.level, skill.title, skill.id, skill.description, skill.type FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN techskill ts ON profper.id = ts.profileid JOIN skill ON ts.skillid = skill.id WHERE person.id = {profileId}"
+    cur.execute(query)
+
+    techSkillResult = cur.fetchall()
+
+    techSkillArray = []
+
+    for row in techSkillResult:
+        techSkillArray.append({'level':row[0], 'skill':row[1], 'skillId': row[2], 'description': row[3], 'type': row[4]})
+
+    # Get Portfolio Experience Data
+    query = f"SELECT pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT pf.title) FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalexperience pe ON profper.id = pe.profileid LEFT JOIN portfolioskill por ON pe.id = por.professionalexperienceid JOIN skill ON por.skillid = skill.id LEFT JOIN portfoliofeature pf ON pe.id = pf.professionalexperienceid WHERE person.id = {profileId} GROUP BY pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent ORDER BY pe.startdate DESC"
+    cur.execute(query)
+
+    portfolioSkillResult = cur.fetchall()
+
+    portfolioSkillArray = []
+
+    for row in portfolioSkillResult:
+        portfolioSkillArray.append({'description':row[0], 'mainrole':row[1], 'workexperience': row[2], 'companyname': row[3], 'startdate': row[4], 'finishdate': row[5], 'ispresent': row[6], 'skills': row[7], 'features': row[8]})
 
     conn.close()
 
@@ -357,5 +379,7 @@ def getProfile(profileId: str):
         },
         'personality':personalityArray,
         'platformActivity':platactProcessed,
-        'skills':skillArray
+        'skills':skillArray,
+        'technicalSkills':techSkillArray,
+        'portfolioExperience': portfolioSkillArray
     }
