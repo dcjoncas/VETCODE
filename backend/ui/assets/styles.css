@@ -368,9 +368,8 @@ small {
   color: var(--muted);
 }
 .step.on {
-  background: rgba(127, 191, 63, 0.16);
-  border-color: rgba(47, 125, 75, 0.28);
-  color: var(--primary-2);
+  background: var(--primary);
+  color: var(--card);
 }
 .chat {
   display: grid;
@@ -547,9 +546,8 @@ small {
   cursor: pointer;
 
   margin-bottom: 2px;
-  border: 1px solid rgba(47, 125, 75, 0.25);
-  background: rgba(127, 191, 63, 0.12);
-  color: var(--primary-2);
+  background: var(--primary);
+  color: var(--card);
   padding: 6px 10px;
   border-radius: 999px;
   font-weight: 600;
