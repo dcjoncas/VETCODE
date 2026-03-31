@@ -53,8 +53,22 @@
   </div>
 </div>
 
-<h2 id="descriptionHeader" style="margin-top: 5px;" hidden></h2>
-<p id="descriptionText" hidden></p>
+<div class="split" style="margin: 10px;grid-template-columns: 1fr 4fr;">
+  <div id="descriptionDiv" style="grid-column: 2;grid-row: 1; text-align: left;" hidden>
+    <h2 id="descriptionHeader" style="margin-top: 5px;"></h2>
+    <p id="descriptionText"></p>
+  </div>
+  <div id="mapDiv" style="text-align: center;width: 300px; grid-column: 1;grid-row: 1;" hidden>
+    <iframe
+      id="mapIFrame"
+      width="300px"
+      height="300px"
+      style="border: 0; border-radius: 20%;"
+      allowfullscreen
+      referrerpolicy="no-referrer-when-downgrade">
+    </iframe>
+  </div>
+</div>
 
 <div class="split" style="margin-top:16px;">
   <div class="flexCard" style="grid-column: 1;grid-row: 1;">
@@ -142,7 +156,7 @@
     </table>
   </div>
 
-  <div class="flexCard" style="padding:14px;border-radius:18px;box-shadow:none;grid-column: 2;grid-row: 1/4;">
+  <div class="flexCard" style="padding:14px;border-radius:18px;box-shadow:none;grid-column: 2;grid-row: 1;">
     <!--<h2 style="margin:0 0 8px 0">Feature Experience</h2>
     <div class="pills">
       <span class="pill">Authentication</span>
@@ -294,10 +308,18 @@
 
         if (profileData.profile.description && profileData.profile.description.length > 0){
           document.getElementById("descriptionHeader").innerText = 'About ' + profileData.profile.firstName;
-          document.getElementById("descriptionHeader").removeAttribute("hidden")
           document.getElementById("descriptionText").innerText = profileData.profile.description;
-          document.getElementById("descriptionText").removeAttribute("hidden")
+          document.getElementById("descriptionDiv").removeAttribute("hidden")
         }
+
+        if (profileData.profile.longitude && profileData.profile.latitude){
+          document.getElementById("mapIFrame").src = `https://www.google.com/maps?q=${profileData.profile.latitude},${profileData.profile.longitude}&z=5&output=embed`;
+          document.getElementById("mapDiv").removeAttribute("hidden")
+        }
+        else {
+          document.getElementById("descriptionDiv").style.gridColumn = "1 / span 2";
+        }
+
 
         document.getElementById("candidateJobTitle").innerText = (profileData.profile.title && profileData.profile.title.length > 0) ? profileData.profile.title : "No Job Title Listed";
         // document.getElementById("candidateAvailability").innerText = profileData.profile.availability || "No Availability Listed";
