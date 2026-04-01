@@ -142,41 +142,23 @@
   </div>
 </div>
 
-  <div class="flexCard" style="grid-column: 1;grid-row: 2;">
-    <h2 style="margin:0 0 8px 0">Skills snapshot</h2>
-    <p style="margin:0 0 10px 0">Clean, client-friendly view of primary skills and levels.</p>
-    <table class="table" style="margin-top:0">
-      <thead><tr><th>Skill</th><th>Level</th><th>Evidence</th></tr></thead>
-      <tbody>
-        <tr><td><strong>Python</strong></td><td>Advanced</td><td>Identity workflows • APIs</td></tr>
-        <tr><td><strong>C# / .NET</strong></td><td>Advanced</td><td>Core services • integrations</td></tr>
-        <tr><td><strong>React</strong></td><td>Proficient</td><td>Admin console • dashboards</td></tr>
-        <tr><td><strong>SQL</strong></td><td>Proficient</td><td>Modeling • tuning</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="flexCard" style="padding:14px;border-radius:18px;box-shadow:none;grid-column: 2;grid-row: 1;">
-    <!--<h2 style="margin:0 0 8px 0">Feature Experience</h2>
-    <div class="pills">
-      <span class="pill">Authentication</span>
-      <span class="pill">Fraud detection</span>
-      <span class="pill">API platforms</span>
-      <span class="pill">Role-based access</span>
-      <span class="pill">Observability</span>
-    </div>-->
-
-    <div id="skillBarDiv">
+  <div class="flexCard" style="padding:14px;border-radius:18px;box-shadow:none;grid-column: 2;grid-row: 1/4;">
+    <div>
       <div style="margin-top:14px">
         <h2>Overall Experience</h2>
         <div style="display:flex;justify-content:space-between"><small>Moderate</small><small>Extensive</small><small>Expert</small></div>
         <div class="progress" style="margin-top:6px"><div id="overallBar" style="width:0%"></div></div>
       </div>
-      <h2 style="margin-top: 8px;">Feature Experience</h2>
+      <div id="featureSkillDiv" style="margin-top: 12px;" hidden>
+        <h2>Feature Experience</h2>
+      </div>
+      <div id="culturalSkillDiv" style="margin-top: 12px;" hidden>
+        <h2>Cultural Experience</h2>
+      </div>
     </div>
   </div>
 
-  <div class="flexCard" style="padding:14px;border-radius:18px;box-shadow:none;grid-column: 2;grid-row: 2;">
+  <div class="flexCard" style="padding:14px;border-radius:18px;box-shadow:none;grid-column: 1;grid-row: 2;">
     <div id="personalityBarDiv">
       <div style="margin-top:14px">
         <h2>Developer Personality</h2>
@@ -221,10 +203,6 @@
   <tbody id="portfolioBody">
   </tbody>
 </table>
-
-<div class="notice" style="margin-top:12px">
-  Next: send the shortlist and narrative to the end client, then schedule interviews.
-</div>
 <!--
         </section>
         <aside class="card">
@@ -277,13 +255,30 @@
         }
         
         let featurePillHtml = "";
-        const skillBarDiv = document.getElementById("skillBarDiv");
+        const featureSkillDiv = document.getElementById("featureSkillDiv");
+
+        if (profileData.features && profileData.features.length > 0)
+          featureSkillDiv.hidden = false;
 
         profileData.features.forEach(feature => {
           featurePillHtml += `<span class="pill">${feature.title}</span>`;
 
-            skillBarDiv.insertAdjacentHTML("beforeend", `
-            <div style="margin-top:14px">
+          featureSkillDiv.insertAdjacentHTML("beforeend", `
+            <div style="margin-top:8px">
+              <p>${feature.title}</p>
+              <div class="progress" style="margin-top:6px"><div style="width:${(feature.level/3) * 100}%"></div></div>
+            </div>
+          `);
+        });
+
+        const culturalSkillDiv = document.getElementById("culturalSkillDiv");
+
+        if (profileData.culturalExperience && profileData.culturalExperience.length > 0)
+          culturalSkillDiv.hidden = false;
+
+        profileData.culturalExperience.forEach(feature => {
+          culturalSkillDiv.insertAdjacentHTML("beforeend", `
+            <div style="margin-top:8px">
               <p>${feature.title}</p>
               <div class="progress" style="margin-top:6px"><div style="width:${(feature.level/3) * 100}%"></div></div>
             </div>

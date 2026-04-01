@@ -361,6 +361,16 @@ def getProfile(profileId: str):
     for row in featureResult:
         featureArray.append({'title': row[0], 'level': row[1]})
 
+    # Get Cultural Feature Data
+    query = f"SELECT pce.title, pce.level FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalculturalexperience pce ON profper.id = pce.profileid WHERE person.id = {profileId}"
+    cur.execute(query)
+
+    culturalExperienceResult = cur.fetchall()
+
+    culturalExperienceArray = []
+
+    for row in culturalExperienceResult:
+        culturalExperienceArray.append({'title': row[0], 'level': row[1]})
 
     conn.close()
 
@@ -395,5 +405,6 @@ def getProfile(profileId: str):
         'skills':skillArray,
         'technicalSkills':techSkillArray,
         'portfolioExperience': portfolioSkillArray,
-        'features': featureArray
+        'features': featureArray,
+        'culturalExperience': culturalExperienceArray
     }
