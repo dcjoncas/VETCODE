@@ -99,6 +99,22 @@ small {
   font-weight: 900;
   text-align: center;
 }
+.imageBoxPublic {
+  width: 200px;
+  height: 200px;
+  border-radius: 20px;
+  background: linear-gradient(
+    135deg,
+    rgba(127, 191, 63, 0.35),
+    rgba(47, 125, 75, 0.25)
+  );
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  text-align: center;
+}
 .userbox {
   margin-top: 18px;
   background: rgba(255, 255, 255, 0.15);

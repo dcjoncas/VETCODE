@@ -16,11 +16,21 @@
     <main class="main" style="padding: 0%">
       <section class="card" style="border-radius: 0%">
         <div
-          style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap"
+          style="
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+          "
         >
-          <div id="noImageFound" class="imageBox">No Image</div>
-          <img id="candidateImage" class="imageBox" style="display: none" />
-          <div style="flex: 1; min-width: 260px">
+          <div id="noImageFound" class="imageBoxPublic">No Image</div>
+          <img
+            id="candidateImage"
+            class="imageBoxPublic"
+            style="display: none"
+          />
+          <div style="min-width: 260px">
             <div
               id="profileHeader"
               style="font-size: 22px; font-weight: 900; line-height: 1"
@@ -46,25 +56,13 @@
             </div>
             <div id="topMatches" class="pills">No Skills Found</div>
           </div>
-          <div class="row-actions" style="margin: 0">
-            <button
-              class="btn"
-              type="button"
-              onclick="alert('Mock: download public profile')"
-            >
-              Download Public (PDF)
-            </button>
-            <button
-              class="btn secondary"
-              type="button"
-              onclick="alert('Mock: download private profile')"
-            >
-              Download Private (PDF)
-            </button>
-          </div>
         </div>
 
-        <div class="split" style="margin: 10px; grid-template-columns: 1fr 4fr">
+        <div
+          class="split"
+          style="margin: 10px; grid-template-columns: 1fr 2fr 1fr 1fr"
+        >
+          <div style="grid-column: 1; grid-row: 1"></div>
           <div
             id="descriptionDiv"
             style="grid-column: 2; grid-row: 1; text-align: left"
@@ -78,7 +76,7 @@
             style="
               text-align: center;
               width: 300px;
-              grid-column: 1;
+              grid-column: 3;
               grid-row: 1;
             "
             hidden
@@ -93,6 +91,7 @@
             >
             </iframe>
           </div>
+          <div style="grid-column: 4; grid-row: 1"></div>
         </div>
 
         <div class="split" style="margin-top: 16px">
