@@ -1,211 +1,412 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title id="profilePageTitle">DevReady • Screen 4 — Profile Preview</title>
-  <link rel="icon" href="../assets/logo.svg" sizes="any" type="image/svg+xml"/>
-  <link rel="stylesheet" href="../assets/styles.css"/>
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-  <script> 
-    $(function(){
-      $("#siteSidebar").load("components/sidebar.html");
-      $("#processFlow").load("components/processFlow.html");
-      $("#searchBar").load("components/searchBar.html");
-    });
-  </script> 
-</head>
-<body>
-  <div class="container">
-    <div id="siteSidebar"></div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title id="profilePageTitle">DevReady • Screen 4 — Profile Preview</title>
+    <link
+      rel="icon"
+      href="../assets/logo.svg"
+      sizes="any"
+      type="image/svg+xml"
+    />
+    <link rel="stylesheet" href="../assets/styles.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html");
+        $("#processFlow").load("components/processFlow.html");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
 
-    <main class="main">
-      <div class="topbar">
-        <div>
-          <div id="pageTitle" class="page-title">Screen 4 — Profile Preview</div>
-          <div class="breadcrumb">Vetting Process • Profile Output</div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div id="pageTitle" class="page-title">
+              Screen 4 — Profile Preview
+            </div>
+            <div class="breadcrumb">Vetting Process • Profile Output</div>
+          </div>
+          <div id="searchBar"></div>
         </div>
-        <div id="searchBar"></div>
-      </div>
 
-      <div id="processFlow"></div>
+        <div id="processFlow"></div>
 
-      <!--<div class="grid">-->
+        <!--<div class="grid">-->
         <section class="card">
-          
-<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-  <div id="noImageFound" class="imageBox">
-    No Image
-  </div>
-  <img id="candidateImage" class="imageBox" style="display: none;">
-  <div style="flex:1;min-width:260px">
-    <div id="profileHeader" style="font-size:22px;font-weight:900;line-height:1">No Candidate Loaded</div>
-    <div id="profileSubHeader" style="color:var(--muted);margin-top:6px;">
-      <div id="candidateAddress" style="display: inline;"><p id="candidateCity" style="display: inline;">No Location Listed</p><p id="candidateState" style="display: inline;"></p><p id="candidateCountry" style="display: inline;"></p></div> • <div id="candidateJobTitle" style="display: inline;">No Job Title Listed</div><!-- • <div id="candidateAvailability" style="display: inline;">No Availability Listed</div>-->
-    </div>
-    <div id="topMatches" class="pills">
-      No Skills Found
-    </div>
-  </div>
-  <div class="row-actions" style="margin:0">
-    <button class="btn" type="button" onclick="alert('Mock: download public profile')">Download Public (PDF)</button>
-    <button class="btn secondary" type="button" onclick="alert('Mock: download private profile')">Download Private (PDF)</button>
-  </div>
-</div>
-
-<div class="split" style="margin: 10px;grid-template-columns: 1fr 4fr;">
-  <div id="descriptionDiv" style="grid-column: 2;grid-row: 1; text-align: left;" hidden>
-    <h2 id="descriptionHeader" style="margin-top: 5px;"></h2>
-    <p id="descriptionText"></p>
-  </div>
-  <div id="mapDiv" style="text-align: center;width: 300px; grid-column: 1;grid-row: 1;" hidden>
-    <iframe
-      id="mapIFrame"
-      width="300px"
-      height="300px"
-      style="border: 0; border-radius: 20%;"
-      allowfullscreen
-      referrerpolicy="no-referrer-when-downgrade">
-    </iframe>
-  </div>
-</div>
-
-<div class="split" style="margin-top:16px;">
-  <div class="flexCard" style="grid-column: 1;grid-row: 1;">
-  <h2>Skills</h2>
-  <div id="skillsChart" class="skillChart">
-    <div id="introColumn" class="skillChartColumnEmpty" style="grid-column: 1;">
-      <div class="bottom-chart-alignment">
-        <span class="skillChartCell">Rating</span>
-      </div>
-    </div>
-    <div id="level1" class="skillChartColumn" style="grid-column: 2;">
-      <div class="bottom-chart-alignment">
-        <span class="skillChartCell">&nbsp;</span>
-        <span class="skillChartCell">1</span>
-      </div>
-    </div>
-    <div id="level2" class="skillChartColumn" style="grid-column: 3;">
-      <div class="bottom-chart-alignment">
-        <span class="skillChartCell">&nbsp;</span>
-        <span class="skillChartCell">2</span>
-      </div>
-    </div>
-    <div id="level3" class="skillChartColumn" style="grid-column: 4;">
-      <div class="bottom-chart-alignment">
-        <span class="skillChartCell">&nbsp;</span>
-        <span class="skillChartCell">3</span>
-      </div>
-    </div>
-    <div id="level4" class="skillChartColumn" style="grid-column: 5;">
-      <div class="bottom-chart-alignment">
-        <span class="skillChartCell">&nbsp;</span>
-        <span class="skillChartCell">4</span>
-      </div>
-    </div>
-    <div id="level5" class="skillChartColumn" style="grid-column: 6;">
-      <div class="bottom-chart-alignment">
-        <span class="skillChartCell">&nbsp;</span>
-        <span class="skillChartCell">5</span>
-      </div>
-    </div>
-    <div id="level6" class="skillChartColumn" style="grid-column: 7;">
-      <div class="bottom-chart-alignment">
-        <span class="skillChartCell">&nbsp;</span>
-        <span class="skillChartCell">6</span>
-      </div>
-    </div>
-    <div id="level7" class="skillChartColumn" style="grid-column: 8;">
-      <div class="bottom-chart-alignment">
-        <span class="skillChartCell">&nbsp;</span>
-        <span class="skillChartCell">7</span>
-      </div>
-    </div>
-    <div id="level8" class="skillChartColumn" style="grid-column: 9;">
-      <div class="bottom-chart-alignment">
-        <span class="skillChartCell">&nbsp;</span>
-        <span class="skillChartCell">8</span>
-      </div>
-    </div>
-    <div id="level9" class="skillChartColumn" style="grid-column: 10;">
-      <div class="bottom-chart-alignment">
-        <span class="skillChartCell">&nbsp;</span>
-        <span class="skillChartCell">9</span>
-      </div>
-    </div>
-    <div id="level10" class="skillChartColumn" style="grid-column: 11;">
-      <div class="bottom-chart-alignment">
-        <span class="skillChartCell">&nbsp;</span>
-        <span class="skillChartCell">10</span>
-      </div>
-    </div>
-  </div>
-</div>
-
-  <div class="flexCard" style="padding:14px;border-radius:18px;box-shadow:none;grid-column: 2;grid-row: 1/4;">
-    <div>
-      <div style="margin-top:14px">
-        <h2>Overall Experience</h2>
-        <div style="display:flex;justify-content:space-between"><small>Moderate</small><small>Extensive</small><small>Expert</small></div>
-        <div class="progress" style="margin-top:6px"><div id="overallBar" style="width:0%"></div></div>
-      </div>
-      <div id="featureSkillDiv" style="margin-top: 12px;" hidden>
-        <h2>Feature Experience</h2>
-      </div>
-      <div id="culturalSkillDiv" style="margin-top: 12px;" hidden>
-        <h2>Cultural Experience</h2>
-      </div>
-    </div>
-  </div>
-
-  <div class="flexCard" style="padding:14px;border-radius:18px;box-shadow:none;grid-column: 1;grid-row: 2;">
-    <div id="personalityBarDiv">
-      <div style="margin-top:14px">
-        <h2>Developer Personality</h2>
-        <div class="split">
-          <div style="grid-column: 1;grid-row: 1;">
-            <div style="display:flex;justify-content:space-between"><small>Independent</small></div>
-            <div class="progressLeft" style="margin-top:6px"><div id="IndependentBar" style="width:0%"></div></div>
-            <div style="display:flex;justify-content:space-between"><small>Trailblazer</small></div>
-            <div class="progressLeft" style="margin-top:6px"><div id="TrailblazerBar" style="width:0%"></div></div>
-            <div style="display:flex;justify-content:space-between"><small>Generalist</small></div>
-            <div class="progressLeft" style="margin-top:6px"><div id="GeneralistBar" style="width:0%"></div></div>
-            <div style="display:flex;justify-content:space-between"><small>Planner</small></div>
-            <div class="progressLeft" style="margin-top:6px"><div id="PlannerBar" style="width:0%"></div></div>
-            <div style="display:flex;justify-content:space-between"><small>Idealist</small></div>
-            <div class="progressLeft" style="margin-top:6px"><div id="IdealistBar" style="width:0%"></div></div>
-            <div style="display:flex;justify-content:space-between"><small>Abstraction</small></div>
-            <div class="progressLeft" style="margin-top:6px"><div id="AbstractionBar" style="width:0%"></div></div>
+          <div
+            style="
+              display: flex;
+              gap: 16px;
+              align-items: center;
+              flex-wrap: wrap;
+            "
+          >
+            <div id="noImageFound" class="imageBox">No Image</div>
+            <img id="candidateImage" class="imageBox" style="display: none" />
+            <div style="flex: 1; min-width: 260px">
+              <div
+                id="profileHeader"
+                style="font-size: 22px; font-weight: 900; line-height: 1"
+              >
+                No Candidate Loaded
+              </div>
+              <div
+                id="profileSubHeader"
+                style="color: var(--muted); margin-top: 6px"
+              >
+                <div id="candidateAddress" style="display: inline">
+                  <p id="candidateCity" style="display: inline">
+                    No Location Listed
+                  </p>
+                  <p id="candidateState" style="display: inline"></p>
+                  <p id="candidateCountry" style="display: inline"></p>
+                </div>
+                •
+                <div id="candidateJobTitle" style="display: inline">
+                  No Job Title Listed
+                </div>
+                <!-- • <div id="candidateAvailability" style="display: inline;">No Availability Listed</div>-->
+              </div>
+              <div id="topMatches" class="pills">No Skills Found</div>
+            </div>
+            <div class="row-actions" style="margin: 0">
+              <a id="publicBtnLink" href="profile-public.html" target="_blank"
+                ><button id="publicBtn" class="btn" type="button" disabled>
+                  Public Profile
+                </button></a
+              >
+              <!--<button class="btn" type="button" onclick="alert('Mock: download public profile')">Download Public (PDF)</button>-->
+              <button
+                class="btn secondary"
+                type="button"
+                onclick="alert('Mock: download private profile')"
+              >
+                Download Private (PDF)
+              </button>
+            </div>
           </div>
-          <div style="grid-column: 2;grid-row: 1;">
-            <div style="display:flex;justify-content:space-between"><small>Collaborative</small></div>
-            <div class="progress" style="margin-top:6px"><div id="CollaborativeBar" style="width:0%"></div></div>
-            <div style="display:flex;justify-content:space-between"><small>Conservative</small></div>
-            <div class="progress" style="margin-top:6px"><div id="ConservativeBar" style="width:0%"></div></div>
-            <div style="display:flex;justify-content:space-between"><small>Specialist</small></div>
-            <div class="progress" style="margin-top:6px"><div id="SpecialistBar" style="width:0%"></div></div>
-            <div style="display:flex;justify-content:space-between"><small>Doer</small></div>
-            <div class="progress" style="margin-top:6px"><div id="DoerBar" style="width:0%"></div></div>
-            <div style="display:flex;justify-content:space-between"><small>Pragmatist</small></div>
-            <div class="progress" style="margin-top:6px"><div id="PragmatistBar" style="width:0%"></div></div>
-            <div style="display:flex;justify-content:space-between"><small>Control</small></div>
-            <div class="progress" style="margin-top:6px"><div id="ControlBar" style="width:0%"></div></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
-<h2 style="margin-top:18px">Portfolio</h2>
-<table class="table">
-  <thead><tr><th>Company</th><th>Role</th><th>Highlights</th><th>Skills</th><th>Features</th></tr></thead>
-  <tbody id="portfolioBody">
-  </tbody>
-</table>
-<!--
+          <div
+            class="split"
+            style="margin: 10px; grid-template-columns: 1fr 4fr"
+          >
+            <div
+              id="descriptionDiv"
+              style="grid-column: 2; grid-row: 1; text-align: left"
+              hidden
+            >
+              <h2 id="descriptionHeader" style="margin-top: 5px"></h2>
+              <p id="descriptionText"></p>
+            </div>
+            <div
+              id="mapDiv"
+              style="
+                text-align: center;
+                width: 300px;
+                grid-column: 1;
+                grid-row: 1;
+              "
+              hidden
+            >
+              <iframe
+                id="mapIFrame"
+                width="300px"
+                height="300px"
+                style="border: 0; border-radius: 20%"
+                allowfullscreen
+                referrerpolicy="no-referrer-when-downgrade"
+              >
+              </iframe>
+            </div>
+          </div>
+
+          <div class="split" style="margin-top: 16px">
+            <div class="flexCard" style="grid-column: 1; grid-row: 1">
+              <h2>Skills</h2>
+              <div id="skillsChart" class="skillChart">
+                <div
+                  id="introColumn"
+                  class="skillChartColumnEmpty"
+                  style="grid-column: 1"
+                >
+                  <div class="bottom-chart-alignment">
+                    <span class="skillChartCell">Rating</span>
+                  </div>
+                </div>
+                <div
+                  id="level1"
+                  class="skillChartColumn"
+                  style="grid-column: 2"
+                >
+                  <div class="bottom-chart-alignment">
+                    <span class="skillChartCell">&nbsp;</span>
+                    <span class="skillChartCell">1</span>
+                  </div>
+                </div>
+                <div
+                  id="level2"
+                  class="skillChartColumn"
+                  style="grid-column: 3"
+                >
+                  <div class="bottom-chart-alignment">
+                    <span class="skillChartCell">&nbsp;</span>
+                    <span class="skillChartCell">2</span>
+                  </div>
+                </div>
+                <div
+                  id="level3"
+                  class="skillChartColumn"
+                  style="grid-column: 4"
+                >
+                  <div class="bottom-chart-alignment">
+                    <span class="skillChartCell">&nbsp;</span>
+                    <span class="skillChartCell">3</span>
+                  </div>
+                </div>
+                <div
+                  id="level4"
+                  class="skillChartColumn"
+                  style="grid-column: 5"
+                >
+                  <div class="bottom-chart-alignment">
+                    <span class="skillChartCell">&nbsp;</span>
+                    <span class="skillChartCell">4</span>
+                  </div>
+                </div>
+                <div
+                  id="level5"
+                  class="skillChartColumn"
+                  style="grid-column: 6"
+                >
+                  <div class="bottom-chart-alignment">
+                    <span class="skillChartCell">&nbsp;</span>
+                    <span class="skillChartCell">5</span>
+                  </div>
+                </div>
+                <div
+                  id="level6"
+                  class="skillChartColumn"
+                  style="grid-column: 7"
+                >
+                  <div class="bottom-chart-alignment">
+                    <span class="skillChartCell">&nbsp;</span>
+                    <span class="skillChartCell">6</span>
+                  </div>
+                </div>
+                <div
+                  id="level7"
+                  class="skillChartColumn"
+                  style="grid-column: 8"
+                >
+                  <div class="bottom-chart-alignment">
+                    <span class="skillChartCell">&nbsp;</span>
+                    <span class="skillChartCell">7</span>
+                  </div>
+                </div>
+                <div
+                  id="level8"
+                  class="skillChartColumn"
+                  style="grid-column: 9"
+                >
+                  <div class="bottom-chart-alignment">
+                    <span class="skillChartCell">&nbsp;</span>
+                    <span class="skillChartCell">8</span>
+                  </div>
+                </div>
+                <div
+                  id="level9"
+                  class="skillChartColumn"
+                  style="grid-column: 10"
+                >
+                  <div class="bottom-chart-alignment">
+                    <span class="skillChartCell">&nbsp;</span>
+                    <span class="skillChartCell">9</span>
+                  </div>
+                </div>
+                <div
+                  id="level10"
+                  class="skillChartColumn"
+                  style="grid-column: 11"
+                >
+                  <div class="bottom-chart-alignment">
+                    <span class="skillChartCell">&nbsp;</span>
+                    <span class="skillChartCell">10</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="flexCard"
+              style="
+                padding: 14px;
+                border-radius: 18px;
+                box-shadow: none;
+                grid-column: 2;
+                grid-row: 1/4;
+              "
+            >
+              <div>
+                <div style="margin-top: 14px">
+                  <h2>Overall Experience</h2>
+                  <div style="display: flex; justify-content: space-between">
+                    <small>Moderate</small><small>Extensive</small
+                    ><small>Expert</small>
+                  </div>
+                  <div class="progress" style="margin-top: 6px">
+                    <div id="overallBar" style="width: 0%"></div>
+                  </div>
+                </div>
+                <div id="featureSkillDiv" style="margin-top: 12px" hidden>
+                  <h2>Feature Experience</h2>
+                </div>
+                <div id="culturalSkillDiv" style="margin-top: 12px" hidden>
+                  <h2>Cultural Experience</h2>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="flexCard"
+              style="
+                padding: 14px;
+                border-radius: 18px;
+                box-shadow: none;
+                grid-column: 1;
+                grid-row: 2;
+              "
+            >
+              <div id="personalityBarDiv">
+                <div style="margin-top: 14px">
+                  <h2>Developer Personality</h2>
+                  <div class="split">
+                    <div style="grid-column: 1; grid-row: 1">
+                      <div
+                        style="display: flex; justify-content: space-between"
+                      >
+                        <small>Independent</small>
+                      </div>
+                      <div class="progressLeft" style="margin-top: 6px">
+                        <div id="IndependentBar" style="width: 0%"></div>
+                      </div>
+                      <div
+                        style="display: flex; justify-content: space-between"
+                      >
+                        <small>Trailblazer</small>
+                      </div>
+                      <div class="progressLeft" style="margin-top: 6px">
+                        <div id="TrailblazerBar" style="width: 0%"></div>
+                      </div>
+                      <div
+                        style="display: flex; justify-content: space-between"
+                      >
+                        <small>Generalist</small>
+                      </div>
+                      <div class="progressLeft" style="margin-top: 6px">
+                        <div id="GeneralistBar" style="width: 0%"></div>
+                      </div>
+                      <div
+                        style="display: flex; justify-content: space-between"
+                      >
+                        <small>Planner</small>
+                      </div>
+                      <div class="progressLeft" style="margin-top: 6px">
+                        <div id="PlannerBar" style="width: 0%"></div>
+                      </div>
+                      <div
+                        style="display: flex; justify-content: space-between"
+                      >
+                        <small>Idealist</small>
+                      </div>
+                      <div class="progressLeft" style="margin-top: 6px">
+                        <div id="IdealistBar" style="width: 0%"></div>
+                      </div>
+                      <div
+                        style="display: flex; justify-content: space-between"
+                      >
+                        <small>Abstraction</small>
+                      </div>
+                      <div class="progressLeft" style="margin-top: 6px">
+                        <div id="AbstractionBar" style="width: 0%"></div>
+                      </div>
+                    </div>
+                    <div style="grid-column: 2; grid-row: 1">
+                      <div
+                        style="display: flex; justify-content: space-between"
+                      >
+                        <small>Collaborative</small>
+                      </div>
+                      <div class="progress" style="margin-top: 6px">
+                        <div id="CollaborativeBar" style="width: 0%"></div>
+                      </div>
+                      <div
+                        style="display: flex; justify-content: space-between"
+                      >
+                        <small>Conservative</small>
+                      </div>
+                      <div class="progress" style="margin-top: 6px">
+                        <div id="ConservativeBar" style="width: 0%"></div>
+                      </div>
+                      <div
+                        style="display: flex; justify-content: space-between"
+                      >
+                        <small>Specialist</small>
+                      </div>
+                      <div class="progress" style="margin-top: 6px">
+                        <div id="SpecialistBar" style="width: 0%"></div>
+                      </div>
+                      <div
+                        style="display: flex; justify-content: space-between"
+                      >
+                        <small>Doer</small>
+                      </div>
+                      <div class="progress" style="margin-top: 6px">
+                        <div id="DoerBar" style="width: 0%"></div>
+                      </div>
+                      <div
+                        style="display: flex; justify-content: space-between"
+                      >
+                        <small>Pragmatist</small>
+                      </div>
+                      <div class="progress" style="margin-top: 6px">
+                        <div id="PragmatistBar" style="width: 0%"></div>
+                      </div>
+                      <div
+                        style="display: flex; justify-content: space-between"
+                      >
+                        <small>Control</small>
+                      </div>
+                      <div class="progress" style="margin-top: 6px">
+                        <div id="ControlBar" style="width: 0%"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <h2 style="margin-top: 18px">Portfolio</h2>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Company</th>
+                <th>Role</th>
+                <th>Highlights</th>
+                <th>Skills</th>
+                <th>Features</th>
+              </tr>
+            </thead>
+            <tbody id="portfolioBody"></tbody>
+          </table>
         </section>
-        <aside class="card">
+        <!--<aside class="card">
           
       <h2>What happens on this screen</h2>
       <p>UX-only guidance for this screen.</p>
@@ -215,170 +416,230 @@
     
         </aside>
       </div>-->
-    </main>
-  </div>
+      </main>
+    </div>
 
-  <script src="JS/apiScripts.js"></script>
+    <script src="JS/apiScripts.js"></script>
 
-  <script>
-    // tiny UX sugar (mock only)
-    document.querySelectorAll('a.step').forEach(a=>a.addEventListener('click', ()=>{}));
+    <script>
+      // tiny UX sugar (mock only)
+      document
+        .querySelectorAll("a.step")
+        .forEach((a) => a.addEventListener("click", () => {}));
 
-    document.addEventListener("DOMContentLoaded", async () => {
-      // Get session variables
-      const candidateId = sessionStorage.getItem("candidateId");
+      document.addEventListener("DOMContentLoaded", async () => {
+        // Get session variables
+        const candidateId = sessionStorage.getItem("candidateId");
 
-      let profileData = {};
+        let profileData = {};
 
-      if (candidateId) {
-        profileData = await api(`/api/azure/getProfile/${candidateId}`);
-        
-        console.log(profileData);
+        if (candidateId) {
+          profileData = await api(`/api/azure/getProfile/${candidateId}`);
 
-        const topMatchesFromSession = sessionStorage.getItem("candidateTopMatches");
-        let topMatches= [];
-        if (topMatchesFromSession && topMatchesFromSession.length > 0) {
-          topMatches = topMatchesFromSession.split(",") || [];
-        } else if (profileData.skills) {
-          // TODO: Figure out actual top skills from a profile
-          let skillCount = 0;
-          const sortedSkills = profileData.skills.sort((a,b) => b.years - a.years);
-          sortedSkills.forEach(skill => 
-            {
-              if(skillCount >= 5)
-                return;
-              
+          console.log(profileData);
+          console.log(profileData.profile.publicUrl);
+
+          if (profileData.profile.publicUrl) {
+            document.getElementById("publicBtnLink").href +=
+              `?user=${profileData.profile.publicUrl}`;
+            document.getElementById("publicBtn").removeAttribute("disabled");
+          }
+
+          const topMatchesFromSession = sessionStorage.getItem(
+            "candidateTopMatches",
+          );
+          let topMatches = [];
+          if (topMatchesFromSession && topMatchesFromSession.length > 0) {
+            topMatches = topMatchesFromSession.split(",") || [];
+          } else if (profileData.skills) {
+            // TODO: Figure out actual top skills from a profile
+            let skillCount = 0;
+            const sortedSkills = profileData.skills.sort(
+              (a, b) => b.years - a.years,
+            );
+            sortedSkills.forEach((skill) => {
+              if (skillCount >= 5) return;
+
               topMatches.push(skill.skill);
               skillCount++;
-            }
+            });
+          }
+
+          let featurePillHtml = "";
+          const featureSkillDiv = document.getElementById("featureSkillDiv");
+
+          if (profileData.features && profileData.features.length > 0)
+            featureSkillDiv.hidden = false;
+
+          profileData.features.forEach((feature) => {
+            featurePillHtml += `<span class="pill">${feature.title}</span>`;
+
+            featureSkillDiv.insertAdjacentHTML(
+              "beforeend",
+              `
+            <div style="margin-top:8px">
+              <p>${feature.title}</p>
+              <div class="progress" style="margin-top:6px"><div style="width:${(feature.level / 3) * 100}%"></div></div>
+            </div>
+          `,
+            );
+          });
+
+          const culturalSkillDiv = document.getElementById("culturalSkillDiv");
+
+          if (
+            profileData.culturalExperience &&
+            profileData.culturalExperience.length > 0
+          )
+            culturalSkillDiv.hidden = false;
+
+          profileData.culturalExperience.forEach((feature) => {
+            culturalSkillDiv.insertAdjacentHTML(
+              "beforeend",
+              `
+            <div style="margin-top:8px">
+              <p>${feature.title}</p>
+              <div class="progress" style="margin-top:6px"><div style="width:${(feature.level / 3) * 100}%"></div></div>
+            </div>
+          `,
+            );
+          });
+
+          document.getElementById("topMatches").innerHTML = featurePillHtml;
+
+          document.getElementById("profilePageTitle").innerText =
+            `DevReady • ${profileData.profile.firstName} ${profileData.profile.lastName} — Profile Preview`;
+          document.getElementById("pageTitle").innerText =
+            `${profileData.profile.firstName} ${profileData.profile.lastName} — Profile Preview`;
+          document.getElementById("profileHeader").innerText =
+            `${profileData.profile.firstName} ${profileData.profile.lastName}`;
+
+          document.getElementById("candidateCity").innerText =
+            profileData.profile.city && profileData.profile.city.length > 0
+              ? profileData.profile.city
+              : "No City Listed";
+          document.getElementById("candidateState").innerText =
+            profileData.profile.state && profileData.profile.state.length > 0
+              ? ", " + profileData.profile.state
+              : "";
+          document.getElementById("candidateCountry").innerText =
+            profileData.profile.country &&
+            profileData.profile.country.length > 0
+              ? ", " + profileData.profile.country
+              : "";
+
+          if (
+            profileData.profile.description &&
+            profileData.profile.description.length > 0
+          ) {
+            document.getElementById("descriptionHeader").innerText =
+              "About " + profileData.profile.firstName;
+            document.getElementById("descriptionText").innerText =
+              profileData.profile.description;
+            document.getElementById("descriptionDiv").removeAttribute("hidden");
+          }
+
+          if (profileData.profile.longitude && profileData.profile.latitude) {
+            document.getElementById("mapIFrame").src =
+              `https://www.google.com/maps?q=${profileData.profile.latitude},${profileData.profile.longitude}&z=5&output=embed`;
+            document.getElementById("mapDiv").removeAttribute("hidden");
+          } else {
+            document.getElementById("descriptionDiv").style.gridColumn =
+              "1 / span 2";
+          }
+
+          document.getElementById("candidateJobTitle").innerText =
+            profileData.profile.title && profileData.profile.title.length > 0
+              ? profileData.profile.title
+              : "No Job Title Listed";
+          // document.getElementById("candidateAvailability").innerText = profileData.profile.availability || "No Availability Listed";
+
+          if (
+            profileData.profile.imageUrl &&
+            profileData.profile.imageUrl.length > 0
+          ) {
+            document.getElementById("noImageFound").style.display = "none";
+            document.getElementById("candidateImage").src =
+              profileData.profile.imageUrl;
+            document.getElementById("candidateImage").style.display = "block";
+          }
+
+          let totalScore = 0;
+          let scoreCount = 0;
+          const sortedSkills = profileData.skills.sort(
+            (a, b) => b.years - a.years,
           );
-        }
-        
-        let featurePillHtml = "";
-        const featureSkillDiv = document.getElementById("featureSkillDiv");
 
-        if (profileData.features && profileData.features.length > 0)
-          featureSkillDiv.hidden = false;
+          sortedSkills.forEach((skill) => {
+            totalScore += skill.years;
+            scoreCount++;
 
-        profileData.features.forEach(feature => {
-          featurePillHtml += `<span class="pill">${feature.title}</span>`;
+            let scoreLevel = Math.floor(skill.years);
+            if (scoreLevel < 1) scoreLevel = 1;
+            else if (scoreLevel > 10) scoreLevel = 10;
 
-          featureSkillDiv.insertAdjacentHTML("beforeend", `
-            <div style="margin-top:8px">
-              <p>${feature.title}</p>
-              <div class="progress" style="margin-top:6px"><div style="width:${(feature.level/3) * 100}%"></div></div>
-            </div>
-          `);
-        });
+            // Populate skills chart (use skill rating as above for now since we don't have years of experience in the mock data)
+            document
+              .getElementById(`level${scoreLevel}`)
+              .insertAdjacentHTML(
+                "afterbegin",
+                `<div class="chartPillCell"><div class="chartPill" title="${skill.skill}" >${skill.skill}</div></div>`,
+              );
+          });
 
-        const culturalSkillDiv = document.getElementById("culturalSkillDiv");
+          // Display average score as a percentage
+          if (scoreCount > 0) {
+            const averageScore = (totalScore / scoreCount) * 10;
+            document.getElementById("overallBar").style.width =
+              averageScore.toFixed(2) + "%";
+          }
 
-        if (profileData.culturalExperience && profileData.culturalExperience.length > 0)
-          culturalSkillDiv.hidden = false;
+          // Personality bars
+          profileData.personality.forEach((personality) => {
+            document.getElementById(personality.title + "Bar").style.width =
+              personality.score + "%";
+          });
 
-        profileData.culturalExperience.forEach(feature => {
-          culturalSkillDiv.insertAdjacentHTML("beforeend", `
-            <div style="margin-top:8px">
-              <p>${feature.title}</p>
-              <div class="progress" style="margin-top:6px"><div style="width:${(feature.level/3) * 100}%"></div></div>
-            </div>
-          `);
-        });
+          profileData.portfolioExperience.forEach((experience) => {
+            let skillsHtml = "";
+            experience.skills.forEach((skill) => {
+              skillsHtml += `<span class="pill">${skill}</span> `;
+            });
 
-        document.getElementById("topMatches").innerHTML = featurePillHtml;
-        
-        document.getElementById("profilePageTitle").innerText = `DevReady • ${profileData.profile.firstName} ${profileData.profile.lastName} — Profile Preview`;
-        document.getElementById("pageTitle").innerText = `${profileData.profile.firstName} ${profileData.profile.lastName} — Profile Preview`;
-        document.getElementById("profileHeader").innerText = `${profileData.profile.firstName} ${profileData.profile.lastName}`;
-        
-        document.getElementById("candidateCity").innerText = (profileData.profile.city && profileData.profile.city.length > 0) ? profileData.profile.city : "No City Listed";
-        document.getElementById("candidateState").innerText = (profileData.profile.state && profileData.profile.state.length > 0) ? ', ' + profileData.profile.state : "";
-        document.getElementById("candidateCountry").innerText = (profileData.profile.country && profileData.profile.country.length > 0) ? ', ' + profileData.profile.country : "";
+            let featuresHtml = "";
+            experience.features.forEach((feature) => {
+              if (!feature || feature.length < 1) return;
+              featuresHtml += `<span class="pillFeature">${feature}</span> `;
+            });
 
-        if (profileData.profile.description && profileData.profile.description.length > 0){
-          document.getElementById("descriptionHeader").innerText = 'About ' + profileData.profile.firstName;
-          document.getElementById("descriptionText").innerText = profileData.profile.description;
-          document.getElementById("descriptionDiv").removeAttribute("hidden")
-        }
+            let processedDescription =
+              experience.description.length > 0
+                ? experience.description
+                : "No description provided.";
+            processedDescription = processedDescription.replaceAll(
+              "<strong>",
+              "",
+            );
+            processedDescription = processedDescription.replaceAll(
+              "</strong>",
+              "",
+            );
 
-        if (profileData.profile.longitude && profileData.profile.latitude){
-          document.getElementById("mapIFrame").src = `https://www.google.com/maps?q=${profileData.profile.latitude},${profileData.profile.longitude}&z=5&output=embed`;
-          document.getElementById("mapDiv").removeAttribute("hidden")
-        }
-        else {
-          document.getElementById("descriptionDiv").style.gridColumn = "1 / span 2";
-        }
-
-
-        document.getElementById("candidateJobTitle").innerText = (profileData.profile.title && profileData.profile.title.length > 0) ? profileData.profile.title : "No Job Title Listed";
-        // document.getElementById("candidateAvailability").innerText = profileData.profile.availability || "No Availability Listed";
-
-        if (profileData.profile.imageUrl && profileData.profile.imageUrl.length > 0){
-          document.getElementById("noImageFound").style.display = 'none'
-          document.getElementById("candidateImage").src = profileData.profile.imageUrl
-          document.getElementById("candidateImage").style.display = 'block'
-        }
-
-        let totalScore = 0;
-        let scoreCount = 0;
-        const sortedSkills = profileData.skills.sort((a,b) => b.years - a.years);
-        
-        sortedSkills.forEach(skill => {
-          
-          totalScore += skill.years;
-          scoreCount++;
-
-          let scoreLevel = Math.floor(skill.years);
-          if(scoreLevel < 1) scoreLevel = 1;
-          else if(scoreLevel > 10) scoreLevel = 10;
-          
-
-          // Populate skills chart (use skill rating as above for now since we don't have years of experience in the mock data)
-          document.getElementById(`level${scoreLevel}`).insertAdjacentHTML("afterbegin", `<div class="chartPillCell"><div class="chartPill" title="${skill.skill}" >${skill.skill}</div></div>`);
-          
-        });
-        
-        // Display average score as a percentage
-        if (scoreCount > 0) {
-          const averageScore = (totalScore / scoreCount) * 10;
-          document.getElementById("overallBar").style.width = averageScore.toFixed(2) + "%";
-        }
-
-        // Personality bars
-        profileData.personality.forEach(personality => {
-          document.getElementById(personality.title + "Bar").style.width = personality.score + "%"
-        })
-
-        profileData.portfolioExperience.forEach(experience => {
-          let skillsHtml = "";
-          experience.skills.forEach(skill => {
-            skillsHtml += `<span class="pill">${skill}</span> `
-          })
-
-          let featuresHtml = "";
-          experience.features.forEach(feature => {
-            if (!feature || feature.length < 1)
-              return;
-            featuresHtml += `<span class="pillFeature">${feature}</span> `
-          })
-
-          let processedDescription = experience.description.length > 0 ? experience.description : "No description provided.";
-          processedDescription = processedDescription.replaceAll("<strong>", "");
-          processedDescription = processedDescription.replaceAll("</strong>", "");
-
-          document.getElementById("portfolioBody").insertAdjacentHTML("beforeend", `
+            document.getElementById("portfolioBody").insertAdjacentHTML(
+              "beforeend",
+              `
             <tr>
-              <td><strong>${experience.companyname}</strong><br/><small>${experience.startdate} - ${experience.ispresent ? 'Present' : experience.finishdate}</small></td>
+              <td><strong>${experience.companyname}</strong><br/><small>${experience.startdate} - ${experience.ispresent ? "Present" : experience.finishdate}</small></td>
               <td>${experience.mainrole}</td>
               <td>${processedDescription}</td>
               <td>${skillsHtml}</td>
               <td>${featuresHtml}</td>
             </tr>
-          `);
-        });
-
-      }
-    });
-  </script>
-</body>
+          `,
+            );
+          });
+        }
+      });
+    </script>
+  </body>
 </html>

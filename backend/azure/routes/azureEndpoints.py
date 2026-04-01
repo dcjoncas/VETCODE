@@ -66,3 +66,9 @@ def get_profile(profileId: str = ""):
     print(f"Fetching profile {profileId}")
 
     return candidates.getProfile(profileId)
+
+@router.get("/public/{profileUrl}")
+def get_profile(profileUrl: str = ""):
+    print(f"Fetching profile {profileUrl}")
+
+    return candidates.getProfilePublic(profileUrl)

@@ -408,3 +408,16 @@ def getProfile(profileId: str):
         'features': featureArray,
         'culturalExperience': culturalExperienceArray
     }
+
+def getProfilePublic(profileUrl: str):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    query = f"SELECT person.id FROM person JOIN professional prof ON person.id = prof.id WHERE prof.url = '{profileUrl}' LIMIT 1;"
+    cur.execute(query)
+    result = cur.fetchone()
+
+    if result:
+        return getProfile(result[0])
+    else:
+        raise Exception("Profile not found")
