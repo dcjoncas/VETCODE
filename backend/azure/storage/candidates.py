@@ -296,6 +296,8 @@ def getProfile(profileId: str):
     cur.execute(query)
     results = cur.fetchone()
 
+    leadSourceProcessed = processing.leadSourceProcessing(results[7])
+
     # Get Platform Activity
     query = f"SELECT ARRAY_AGG(DISTINCT platact.step), ARRAY_AGG(DISTINCT platact.notes) FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.id = {profileId} GROUP BY person.id"
     cur.execute(query)
@@ -338,7 +340,7 @@ def getProfile(profileId: str):
         techSkillArray.append({'level':row[0], 'skill':row[1], 'skillId': row[2], 'description': row[3], 'type': row[4]})
 
     # Get Portfolio Experience Data
-    query = f"SELECT pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT pf.title) FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalexperience pe ON profper.id = pe.profileid LEFT JOIN portfolioskill por ON pe.id = por.professionalexperienceid JOIN skill ON por.skillid = skill.id LEFT JOIN portfoliofeature pf ON pe.id = pf.professionalexperienceid WHERE person.id = {profileId} GROUP BY pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent ORDER BY pe.startdate DESC"
+    query = f"SELECT pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT pf.title) FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalexperience pe ON profper.id = pe.profileid LEFT JOIN portfolioskill por ON pe.id = por.professionalexperienceid JOIN skill ON por.skillid = skill.id LEFT JOIN portfoliofeature pf ON pe.id = pf.professionalexperienceid WHERE person.id = {profileId} GROUP BY pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent ORDER BY pe.startdate DESC"
     cur.execute(query)
 
     portfolioSkillResult = cur.fetchall()
@@ -347,6 +349,18 @@ def getProfile(profileId: str):
 
     for row in portfolioSkillResult:
         portfolioSkillArray.append({'description':row[0], 'mainrole':row[1], 'workexperience': row[2], 'companyname': row[3], 'startdate': row[4], 'finishdate': row[5], 'ispresent': row[6], 'skills': row[7], 'features': row[8]})
+
+    # Get Professional Feature Data
+    query = f"SELECT pf.title, pf.level FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalfeature pf ON profper.id = pf.profileid WHERE person.id = {profileId}"
+    cur.execute(query)
+
+    featureResult = cur.fetchall()
+
+    featureArray = []
+
+    for row in featureResult:
+        featureArray.append({'title': row[0], 'level': row[1]})
+
 
     conn.close()
 
@@ -359,8 +373,7 @@ def getProfile(profileId: str):
             'imageUrl': results[4],
             'citizenship':results[5],
             'birthdate': results[6],
-            # TODO: Process 7 into actual results
-            'leadsource':results[7],
+            'leadsource':leadSourceProcessed,
             'status':processing.statusProcessing(results[8]),
             'title': results[9],
             'description': results[10],
@@ -375,11 +388,12 @@ def getProfile(profileId: str):
             'country': results[19],
             'timezone': results[20],
             'longitude': results[21],
-            'latitude': results[22]
+            'latitude': results[22],
         },
         'personality':personalityArray,
         'platformActivity':platactProcessed,
         'skills':skillArray,
         'technicalSkills':techSkillArray,
-        'portfolioExperience': portfolioSkillArray
+        'portfolioExperience': portfolioSkillArray,
+        'features': featureArray
     }

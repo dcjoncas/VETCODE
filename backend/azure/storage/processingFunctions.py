@@ -56,3 +56,11 @@ def stepProcessingOverall(stepEnum: list[int]) -> str:
     NoteTechnicalVetting = 19,
     NoteCommunity = 20,
     Unpublished = 21,'''
+
+def leadSourceProcessing(leadSourceEnum: int) -> str:
+    if leadSourceEnum == 1:
+        return "Recruiter Sourcing"
+    elif leadSourceEnum == 2:
+        return "Candidate Referral"
+    else:
+        return "Other"

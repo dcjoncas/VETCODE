@@ -172,6 +172,7 @@
         <div style="display:flex;justify-content:space-between"><small>Moderate</small><small>Extensive</small><small>Expert</small></div>
         <div class="progress" style="margin-top:6px"><div id="overallBar" style="width:0%"></div></div>
       </div>
+      <h2 style="margin-top: 8px;">Feature Experience</h2>
     </div>
   </div>
 
@@ -275,11 +276,21 @@
           );
         }
         
-        let topMatchesHtml = "";
-        topMatches.forEach(match => {
-          topMatchesHtml += `<span class="pill">${match}</span>`;
+        let featurePillHtml = "";
+        const skillBarDiv = document.getElementById("skillBarDiv");
+
+        profileData.features.forEach(feature => {
+          featurePillHtml += `<span class="pill">${feature.title}</span>`;
+
+            skillBarDiv.insertAdjacentHTML("beforeend", `
+            <div style="margin-top:14px">
+              <p>${feature.title}</p>
+              <div class="progress" style="margin-top:6px"><div style="width:${(feature.level/3) * 100}%"></div></div>
+            </div>
+          `);
         });
-        document.getElementById("topMatches").innerHTML = topMatchesHtml;
+
+        document.getElementById("topMatches").innerHTML = featurePillHtml;
         
         document.getElementById("profilePageTitle").innerText = `DevReady • ${profileData.profile.firstName} ${profileData.profile.lastName} — Profile Preview`;
         document.getElementById("pageTitle").innerText = `${profileData.profile.firstName} ${profileData.profile.lastName} — Profile Preview`;
@@ -313,22 +324,12 @@
           document.getElementById("candidateImage").style.display = 'block'
         }
 
-        const skillBarDiv = document.getElementById("skillBarDiv");
-
         let totalScore = 0;
         let scoreCount = 0;
         const sortedSkills = profileData.skills.sort((a,b) => b.years - a.years);
         
         sortedSkills.forEach(skill => {
-          if (topMatches.some(topSkill => skill.skill.toLowerCase().includes(topSkill.toLowerCase())) && scoreCount < 5)
-          {
-            skillBarDiv.insertAdjacentHTML("beforeend", `
-            <div style="margin-top:14px">
-              <h2>${skill.skill}</h2>
-              <div class="progress" style="margin-top:6px"><div style="width:${skill.years * 10}%"></div></div>
-            </div>
-          `);
-        }
+          
           totalScore += skill.years;
           scoreCount++;
 
@@ -361,6 +362,8 @@
 
           let featuresHtml = "";
           experience.features.forEach(feature => {
+            if (!feature || feature.length < 1)
+              return;
             featuresHtml += `<span class="pillFeature">${feature}</span> `
           })
 

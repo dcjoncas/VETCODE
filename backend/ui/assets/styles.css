@@ -430,12 +430,12 @@ small {
 .progress > div {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, var(--primary), var(--primary-2));
+  background: linear-gradient(90deg, var(--primary-2), var(--primary));
 }
 .progressLeft > div {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, var(--primary-2), var(--primary));
+  background: linear-gradient(90deg, var(--primary), var(--primary-2));
   margin-left: auto; /* pushes the fill to the right */
 }
 .badge {
