@@ -84,7 +84,7 @@ def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumb
     fullTranscript = systemInstructions + transcript
 
     response = client.chat.completions.create(
-            model="gpt-5.4-mini-2026-03-17",  # Specify the model
+            model="gpt-5.4-mini",  # Specify the model
             messages=fullTranscript,
             max_completion_tokens=100, # Limit the response length to manage costs
             temperature=0.7 # Control the randomness of the response
@@ -124,7 +124,7 @@ def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumb
                 fullTranscript = systemInstructions + transcript
 
                 response = client.chat.completions.create(
-                        model="gpt-5.4-mini-2026-03-17",  # Specify the model
+                        model="gpt-5.4-mini",  # Specify the model
                         messages=fullTranscript,
                         max_completion_tokens=100, # Limit the response length to manage costs
                         temperature=0.7 # Control the randomness of the response

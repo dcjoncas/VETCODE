@@ -421,3 +421,46 @@ def getProfilePublic(profileUrl: str):
         return getProfile(result[0])
     else:
         raise Exception("Profile not found")
+    
+def uploadProfile(skills: list[str], fullName: str, candidateDescription: str, email: str = "N/A", linkedInUrl: str = "N/A"):
+    print(f"Uploading profile for {fullName} with email {email} and LinkedIn URL {linkedInUrl}. Skills: {skills}")
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    splitName = fullName.split(" ")
+    firstName = splitName[0]
+    lastName = splitName[-1] if len(splitName) > 1 else ""
+
+    query = "INSERT INTO person (firstname, lastname) VALUES (%s, %s) RETURNING id"    
+    cur.execute(query, (firstName, lastName))
+
+    personId = cur.fetchone()[0]
+
+    print(f"Person ID: {personId}")
+
+    query = "INSERT INTO professional (personid,email,linkedinurl,maindescription, status) VALUES (%s, %s, %s, %s, %s) RETURNING id"    
+    cur.execute(query, (personId, email, linkedInUrl, candidateDescription, 1))
+
+    professionalId = cur.fetchone()[0]
+
+    query = "INSERT INTO professionalprofile (professionalid) VALUES (%s) RETURNING id"    
+    cur.execute(query, (professionalId,))
+
+    professionalprofileId = cur.fetchone()[0]
+
+    for skill in skills:
+        # Check if skill already exists
+        query = f"SELECT id FROM skill WHERE title ILIKE '%{skill.strip()}%' LIMIT 1"
+        cur.execute(query)
+        skillId = cur.fetchone()[0] if cur.rowcount > 0 else None
+
+        if not skillId:
+            continue
+
+        # Associate skill with professional profile
+        query = "INSERT INTO resumeskill (profileid, skillid) VALUES (%s, %s)"
+        cur.execute(query, (professionalprofileId, skillId))
+    
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": f"Profile for {fullName} uploaded successfully.", "personid": personId}

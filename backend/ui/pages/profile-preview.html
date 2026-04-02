@@ -468,7 +468,11 @@
           let featurePillHtml = "";
           const featureSkillDiv = document.getElementById("featureSkillDiv");
 
-          if (profileData.features && profileData.features.length > 0)
+          if (
+            profileData.features &&
+            profileData.features.length > 0 &&
+            profileData.features[0].title
+          )
             featureSkillDiv.hidden = false;
 
           profileData.features.forEach((feature) => {
@@ -489,7 +493,8 @@
 
           if (
             profileData.culturalExperience &&
-            profileData.culturalExperience.length > 0
+            profileData.culturalExperience.length > 0 &&
+            profileData.culturalExperience[0].title
           )
             culturalSkillDiv.hidden = false;
 

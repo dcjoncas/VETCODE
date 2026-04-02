@@ -83,12 +83,12 @@
               <label>Upload Resume</label>
               <div class="row">
                 <input id="resumeFile" type="file" />
-                <select id="resumeType">
-                  <option value="PDF">PDF</option>
-                  <option value="DOCX">DOCX</option>
-                </select>
-                <button class="btn primary" id="btnUpload">
-                  Upload & Build
+                <button
+                  class="btn primary"
+                  style="margin-top: 12px"
+                  id="btnUpload"
+                >
+                  Upload
                 </button>
               </div>
               <label>Import from internet</label>
@@ -125,10 +125,6 @@
                 >
                   Consent policy
                 </button>
-              </div>
-              <div style="margin-top: 12px" class="notice">
-                Next: the system normalizes the candidate into a DevReady
-                profile and sends you to “Match to role”.
               </div>
             </div>
           </div>
@@ -262,6 +258,53 @@
         }
       }
 
+      async function uploadResume() {
+        const f = document.getElementById("resumeFile").files[0];
+        if (!f) return alert("Pick a resume file first.");
+
+        // Get file extension
+        const splitName = f.name.split(".");
+        const source_type = splitName[splitName.length - 1].toLowerCase();
+
+        if (!["pdf", "docx"].includes(source_type)) {
+          return alert("Unsupported file type. Please upload a PDF or DOCX.");
+        }
+
+        //document.getElementById("uploadStatus").textContent = "Uploading...";
+        const fd = new FormData();
+        fd.append("file", f);
+
+        // Backwards/forwards compatible: send BOTH names so either backend style works
+        fd.append("source_type", source_type);
+        fd.append("domain", "technology");
+
+        try {
+          const j = await api("/api/azure/resume/upload", {
+            method: "POST",
+            body: fd,
+          });
+
+          console.log(j);
+
+          /*const prof = j && typeof j === "object" && j.profile ? j.profile : j;
+          const pid =
+            j && typeof j === "object" && j.profile_id
+              ? j.profile_id
+              : prof?.meta?.profile_id || prof?.profile_id;
+
+          selectedProfileId = pid || null;
+          renderProfile(prof);
+
+          document.getElementById("uploadStatus").textContent =
+            `Saved profile: ${selectedProfileId || "(unknown id)"}`;
+          await refreshLists();*/
+        } catch (e) {
+          document.getElementById("uploadStatus").textContent =
+            `Upload failed: ${e.message}`;
+          log(`Upload error: ${e.message}`);
+        }
+      }
+
       document.addEventListener("DOMContentLoaded", function () {
         // Counts won't change often, so check to see if we've already pulled them this session
         // TODO: Start caching serverside
@@ -284,6 +327,10 @@
         document
           .getElementById("searchProfilesBtn")
           .addEventListener("click", searchSkillList);
+
+        document
+          .getElementById("btnUpload")
+          .addEventListener("click", uploadResume);
       });
     </script>
   </body>
