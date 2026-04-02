@@ -1,94 +1,152 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>DevReady • Screen 1 — Find Candidate</title>
-  <link rel="icon" href="../assets/logo.svg" sizes="any" type="image/svg+xml"/>
-  <link rel="stylesheet" href="../assets/styles.css"/>
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-  <script> 
-    $(function(){
-      $("#siteSidebar").load("components/sidebar.html");
-      $("#processFlow").load("components/processFlow.html");
-      $("#searchBar").load("components/searchBar.html");
-    });
-  </script> 
-</head>
-<body>
-  <div class="container">
-    <div id="siteSidebar"></div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady • Screen 1 — Find Candidate</title>
+    <link
+      rel="icon"
+      href="../assets/logo.svg"
+      sizes="any"
+      type="image/svg+xml"
+    />
+    <link rel="stylesheet" href="../assets/styles.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html");
+        $("#processFlow").load("components/processFlow.html");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
 
-    <main class="main">
-      <div class="topbar">
-        <div>
-          <div class="page-title">Screen 1 — Find Candidate</div>
-          <div class="breadcrumb">Vetting Process • Intake</div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Screen 1 — Find Candidate</div>
+            <div class="breadcrumb">Vetting Process • Intake</div>
+          </div>
+          <div id="searchBar"></div>
         </div>
-        <div id="searchBar"></div>
-      </div>
 
-      <div id="processFlow"></div>
+        <div id="processFlow"></div>
 
-      <!--<div class="grid">-->
+        <!--<div class="grid">-->
         <section class="card">
-          
-<h2>Find a candidate (system or internet)</h2>
-<p>Search existing DevReady profiles, or pull a new profile from an external source (e.g., People Data / LinkedIn URL) and queue it for normalization.</p>
+          <h2>Find a candidate (system or internet)</h2>
+          <p>
+            Search existing DevReady profiles, or pull a new profile from an
+            external source (e.g., People Data / LinkedIn URL) and queue it for
+            normalization.
+          </p>
 
-<div class="split">
-  <div class="field">
-    <label>Search existing profiles</label>
-    <input id="findSearchBar" placeholder="Name, email, comma separated skills (e.g. Python, C#, React)"/>
-    <div class="row-actions">
-      <button id="searchProfilesBtn" class="btn" type="button">Search Profiles</button>
-      <button class="btn secondary" type="button" onclick="alert('Mock: open advanced filters')">Advanced Filters</button>
-    </div>
-    <div class="kpi" style="margin-top:12px">
-      <div class="k"><div id="totalCandidateCount" class="v">N/A</div><div class="l">Profiles in system</div></div>
-      <div class="k"><div id="newThisWeekCount" class="v">N/A</div><div class="l">New this week</div></div>
-      <div class="k"><div id="inInterviewCount" class="v">N/A</div><div class="l">In interview pipeline</div></div>
-    </div>
-  </div>
+          <div class="split">
+            <div class="field">
+              <label>Search existing profiles</label>
+              <input
+                id="findSearchBar"
+                placeholder="Name, email, comma separated skills (e.g. Python, C#, React)"
+              />
+              <div class="row-actions">
+                <button id="searchProfilesBtn" class="btn" type="button">
+                  Search Profiles
+                </button>
+                <button
+                  class="btn secondary"
+                  type="button"
+                  onclick="alert('Mock: open advanced filters')"
+                >
+                  Advanced Filters
+                </button>
+              </div>
+              <div class="kpi" style="margin-top: 12px">
+                <div class="k">
+                  <div id="totalCandidateCount" class="v">N/A</div>
+                  <div class="l">Profiles in system</div>
+                </div>
+                <div class="k">
+                  <div id="newThisWeekCount" class="v">N/A</div>
+                  <div class="l">New this week</div>
+                </div>
+                <div class="k">
+                  <div id="inInterviewCount" class="v">N/A</div>
+                  <div class="l">In interview pipeline</div>
+                </div>
+              </div>
+            </div>
 
-  <div class="field">
-    <label>Import from internet</label>
-    <input placeholder="LinkedIn URL or PeopleData ID"/>
-    <div class="split" style="margin-top:10px">
-      <div class="field">
-        <label>Source</label>
-        <select>
-          <option>People Data (API)</option>
-          <option>Dux-Soup (LinkedIn URL → PDF)</option>
-          <option>Manual upload (PDF / DOCX)</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Consent captured</label>
-        <select>
-          <option>Yes (candidate opted-in)</option>
-          <option>No (do not contact)</option>
-        </select>
-      </div>
-    </div>
-    <div class="row-actions">
-      <button class="btn" type="button" onclick="alert('Mock: queue import')">Queue Profile</button>
-      <button class="btn secondary" type="button" onclick="alert('Mock: open consent policy')">Consent policy</button>
-    </div>
-    <div style="margin-top:12px" class="notice">
-      Next: the system normalizes the candidate into a DevReady profile and sends you to “Match to role”.
-    </div>
-  </div>
-</div>
+            <div class="field">
+              <label>Upload Resume</label>
+              <div class="row">
+                <input id="resumeFile" type="file" />
+                <select id="resumeType">
+                  <option value="PDF">PDF</option>
+                  <option value="DOCX">DOCX</option>
+                </select>
+                <button class="btn primary" id="btnUpload">
+                  Upload & Build
+                </button>
+              </div>
+              <label>Import from internet</label>
+              <input placeholder="LinkedIn URL or PeopleData ID" />
+              <div class="split" style="margin-top: 10px">
+                <div class="field">
+                  <label>Source</label>
+                  <select>
+                    <option>People Data (API)</option>
+                    <option>Dux-Soup (LinkedIn URL → PDF)</option>
+                    <option>Manual upload (PDF / DOCX)</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Consent captured</label>
+                  <select>
+                    <option>Yes (candidate opted-in)</option>
+                    <option>No (do not contact)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row-actions">
+                <button
+                  class="btn"
+                  type="button"
+                  onclick="alert('Mock: queue import')"
+                >
+                  Queue Profile
+                </button>
+                <button
+                  class="btn secondary"
+                  type="button"
+                  onclick="alert('Mock: open consent policy')"
+                >
+                  Consent policy
+                </button>
+              </div>
+              <div style="margin-top: 12px" class="notice">
+                Next: the system normalizes the candidate into a DevReady
+                profile and sends you to “Match to role”.
+              </div>
+            </div>
+          </div>
 
-<h2 style="margin-top:18px">Search results</h2>
-<table class="table">
-  <thead><tr><th>#</th><th>Candidate</th><th>Email</th><th>Primary stack</th><th>Status</th><th></th></tr></thead>
-  <tbody id="cadidateSearchResults">
-    
-  </tbody>
-</table>
-
+          <h2 style="margin-top: 18px">Search results</h2>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Candidate</th>
+                <th>Email</th>
+                <th>Primary stack</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="cadidateSearchResults"></tbody>
+          </table>
         </section>
         <!--<aside class="card">
           
@@ -99,107 +157,134 @@
       <div class="notice" style="margin-top:14px">All actions here are mocked. The goal is to validate layout, flow, and labels.</div>
     
         </aside>-->
-      <!--</div>-->
-    </main>
-  </div>
+        <!--</div>-->
+      </main>
+    </div>
 
-  <script src="JS/apiScripts.js"></script>
-  <script src="JS/updateProcessFlow.js"></script>
-  <script>
-    // tiny UX sugar (mock only)
-    document.querySelectorAll('a.step').forEach(a=>a.addEventListener('click', ()=>{}));
+    <script src="JS/apiScripts.js"></script>
+    <script src="JS/updateProcessFlow.js"></script>
+    <script>
+      // tiny UX sugar (mock only)
+      document
+        .querySelectorAll("a.step")
+        .forEach((a) => a.addEventListener("click", () => {}));
 
-    async function updateCounts() {
-      const responseTotal = await fetch("/api/azure/countCandidates/all?domain=technology");
-      const totalCount = await responseTotal.json();
-      
-      document.getElementById("totalCandidateCount").textContent = totalCount.total;
-      document.getElementById("newThisWeekCount").textContent = totalCount.recent;
-      document.getElementById("inInterviewCount").textContent = totalCount.statusCounts.Draft + totalCount.statusCounts.Pending;
+      async function updateCounts() {
+        const responseTotal = await fetch(
+          "/api/azure/countCandidates/all?domain=technology",
+        );
+        const totalCount = await responseTotal.json();
 
-      sessionStorage.setItem("totalProfiles", totalCount.total);
-      sessionStorage.setItem("recentProfiles", totalCount.recent);
-      sessionStorage.setItem("pipelineProfiles", totalCount.statusCounts.Draft + totalCount.statusCounts.Pending);
-    }
+        document.getElementById("totalCandidateCount").textContent =
+          totalCount.total;
+        document.getElementById("newThisWeekCount").textContent =
+          totalCount.recent;
+        document.getElementById("inInterviewCount").textContent =
+          totalCount.statusCounts.Draft + totalCount.statusCounts.Pending;
 
-    function findSelect(profile) {
+        sessionStorage.setItem("totalProfiles", totalCount.total);
+        sessionStorage.setItem("recentProfiles", totalCount.recent);
+        sessionStorage.setItem(
+          "pipelineProfiles",
+          totalCount.statusCounts.Draft + totalCount.statusCounts.Pending,
+        );
+      }
+
+      function findSelect(profile) {
         sessionStorage.setItem("candidateId", profile.id);
-        sessionStorage.setItem("candidateName", profile.firstName + " " + profile.lastName);
+        sessionStorage.setItem(
+          "candidateName",
+          profile.firstName + " " + profile.lastName,
+        );
         sessionStorage.setItem("candidateStatus", profile.step);
 
         window.location.href = "profile-preview.html";
-    }
+      }
 
-    async function searchSkillList(params) {
-      const searchInput = document.getElementById("findSearchBar").value.trim();
-      const skills = searchInput.split(",").map(s => s.trim()).filter(s => s.length > 0);
-      let limit = 5
+      async function searchSkillList(params) {
+        const searchInput = document
+          .getElementById("findSearchBar")
+          .value.trim();
+        const skills = searchInput
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
+        let limit = 5;
 
-      const fd = new FormData();
-      fd.append("domain", "technology");
-      fd.append("skills", skills.join(","));
-      fd.append("limit", limit);
+        const fd = new FormData();
+        fd.append("domain", "technology");
+        fd.append("skills", skills.join(","));
+        fd.append("limit", limit);
 
-      try {
-        let profiles = await api("/api/azure/searchSkills", { method: "POST", body: fd });
-        console.log(profiles);
+        try {
+          let profiles = await api("/api/azure/searchSkills", {
+            method: "POST",
+            body: fd,
+          });
+          console.log(profiles);
 
-        // TODO: Add logic to remove rows with no overlap and fill in blanks with second call
-        if (profiles.length < limit) {
-          limit = limit - profiles.length
+          // TODO: Add logic to remove rows with no overlap and fill in blanks with second call
+          if (profiles.length < limit) {
+            limit = limit - profiles.length;
 
-          fd.set("limit", limit)
-          fd.append("search_string", searchInput);
-          profiles = await api("/api/azure/searchNameEmail", { method: "POST", body: fd });
-        }
-        
-
-        const tbody = document.getElementById("cadidateSearchResults");
-        tbody.innerHTML = "";
-        
-        const candidateId = sessionStorage.getItem("candidateId");
-
-        profiles.forEach((r, i) => {
-          const tr = document.createElement("tr");
-          tr.classList.add('search-result-row')
-
-          if (candidateId && r.id + '' === candidateId) {
-            console.log('hello');
-            
-            tr.classList.add("active-candidate-row");
+            fd.set("limit", limit);
+            fd.append("search_string", searchInput);
+            profiles = await api("/api/azure/searchNameEmail", {
+              method: "POST",
+              body: fd,
+            });
           }
 
-          tr.id = `resultRow-${r.id}`;
-          //tr.style.cursor = "pointer";
-          tr.innerHTML = `<td>${i + 1}</td><td>${r.firstName || ""} ${r.lastName || ""}</td><td>${r.email || ""}</td><td>Placeholder</td><td><div class="pill">${r.step}</div></td>`;
-          tr.addEventListener("click", () => findSelect(r));
-          tr.style.cursor = "pointer";
-          tbody.appendChild(tr);
-        });
-      } catch (error) {
-        console.log(error);
-      }
-    }
+          const tbody = document.getElementById("cadidateSearchResults");
+          tbody.innerHTML = "";
 
-    document.addEventListener('DOMContentLoaded', function() {
-      // Counts won't change often, so check to see if we've already pulled them this session
-      // TODO: Start caching serverside
-      const totalProfiles = sessionStorage.getItem("totalProfiles")
+          const candidateId = sessionStorage.getItem("candidateId");
 
-      if (totalProfiles){
-        const recentProfiles = sessionStorage.getItem("recentProfiles")
-        const pipelineProfiles = sessionStorage.getItem("pipelineProfiles")
+          profiles.forEach((r, i) => {
+            const tr = document.createElement("tr");
+            tr.classList.add("search-result-row");
 
-        document.getElementById("totalCandidateCount").textContent = totalProfiles;
-        document.getElementById("newThisWeekCount").textContent = recentProfiles;
-        document.getElementById("inInterviewCount").textContent = pipelineProfiles;
+            if (candidateId && r.id + "" === candidateId) {
+              console.log("hello");
+
+              tr.classList.add("active-candidate-row");
+            }
+
+            tr.id = `resultRow-${r.id}`;
+            //tr.style.cursor = "pointer";
+            tr.innerHTML = `<td>${i + 1}</td><td>${r.firstName || ""} ${r.lastName || ""}</td><td>${r.email || ""}</td><td>Placeholder</td><td><div class="pill">${r.step}</div></td>`;
+            tr.addEventListener("click", () => findSelect(r));
+            tr.style.cursor = "pointer";
+            tbody.appendChild(tr);
+          });
+        } catch (error) {
+          console.log(error);
+        }
       }
-      else{
-        updateCounts();
-      }
-      
-      document.getElementById("searchProfilesBtn").addEventListener("click", searchSkillList);
-    });
-  </script>
-</body>
+
+      document.addEventListener("DOMContentLoaded", function () {
+        // Counts won't change often, so check to see if we've already pulled them this session
+        // TODO: Start caching serverside
+        const totalProfiles = sessionStorage.getItem("totalProfiles");
+
+        if (totalProfiles) {
+          const recentProfiles = sessionStorage.getItem("recentProfiles");
+          const pipelineProfiles = sessionStorage.getItem("pipelineProfiles");
+
+          document.getElementById("totalCandidateCount").textContent =
+            totalProfiles;
+          document.getElementById("newThisWeekCount").textContent =
+            recentProfiles;
+          document.getElementById("inInterviewCount").textContent =
+            pipelineProfiles;
+        } else {
+          updateCounts();
+        }
+
+        document
+          .getElementById("searchProfilesBtn")
+          .addEventListener("click", searchSkillList);
+      });
+    </script>
+  </body>
 </html>
