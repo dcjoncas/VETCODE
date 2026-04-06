@@ -169,7 +169,6 @@ def searchCandidatesBySkillId(queryList: list[int], limit: int = 5):
     # Order by id descending to get the most recent matches first, and limit the number of results
     query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN (SELECT profileid, skillid FROM professionalskill UNION SELECT profileid, skillid FROM resumeskill) allskills ON allskills.profileid = profper.id JOIN skill ON allskills.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.id = ANY(%s::int[]) GROUP BY person.id, prof.email, person.firstname, person.lastname ORDER BY skillMatches DESC LIMIT {limit};"
     
-    print(queryList)
     cur.execute(query, (queryList,))
     results = cur.fetchall()
 
@@ -463,4 +462,4 @@ def uploadProfile(skills: list[str], fullName: str, candidateDescription: str, e
     
     conn.commit()
     conn.close()
-    return {"status": "success", "message": f"Profile for {fullName} uploaded successfully.", "personid": personId}
+    return {"status": "success", "message": f"Profile for {fullName} uploaded successfully.", "personid": personId, "name": fullName}

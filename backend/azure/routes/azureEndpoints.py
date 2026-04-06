@@ -102,6 +102,5 @@ async def upload_resume(
         flatSkills.extend(value)
 
     description = candidateDescription(raw)
-    print(f"Candidate Description: {description}")
 
     return candidates.uploadProfile(skills=flatSkills, fullName=profile["contact"]["full_name"], email=profile["contact"]["email"], linkedInUrl=profile["contact"]["linkedin"], candidateDescription=description)

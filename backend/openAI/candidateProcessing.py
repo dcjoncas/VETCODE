@@ -35,8 +35,6 @@ def candidateDescription(resumeText: str):
         
     fullTranscript = systemInstructions + personalityInput
 
-    print(fullTranscript)
-
     response = client.chat.completions.create(
             model="gpt-3.5-turbo",  # Specify the model
             messages=fullTranscript,

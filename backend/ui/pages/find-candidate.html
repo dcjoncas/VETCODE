@@ -259,6 +259,7 @@
       }
 
       async function uploadResume() {
+        document.getElementById("btnUpload").disabled = true;
         const f = document.getElementById("resumeFile").files[0];
         if (!f) return alert("Pick a resume file first.");
 
@@ -284,25 +285,17 @@
             body: fd,
           });
 
-          console.log(j);
-
-          /*const prof = j && typeof j === "object" && j.profile ? j.profile : j;
-          const pid =
-            j && typeof j === "object" && j.profile_id
-              ? j.profile_id
-              : prof?.meta?.profile_id || prof?.profile_id;
-
-          selectedProfileId = pid || null;
-          renderProfile(prof);
-
-          document.getElementById("uploadStatus").textContent =
-            `Saved profile: ${selectedProfileId || "(unknown id)"}`;
-          await refreshLists();*/
+          sessionStorage.setItem("candidateId", j.personid);
+          sessionStorage.setItem("candidateName", j.name);
+          updateCandidate();
         } catch (e) {
           document.getElementById("uploadStatus").textContent =
             `Upload failed: ${e.message}`;
           log(`Upload error: ${e.message}`);
         }
+
+        document.getElementById("resumeFile").value = null;
+        document.getElementById("btnUpload").disabled = false;
       }
 
       document.addEventListener("DOMContentLoaded", function () {
