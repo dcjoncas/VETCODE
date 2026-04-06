@@ -8,3 +8,4 @@ requests
 dotenv
 openai
 psycopg[binary]
+pdfplumber

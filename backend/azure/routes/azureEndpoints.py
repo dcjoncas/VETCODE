@@ -1,5 +1,8 @@
-from fastapi import APIRouter, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from azure.storage import candidates
+from resumeProcessing.processing import ingest
+from deterministic_profile import build_profile_from_text
+from openAI.candidateProcessing import candidateDescription
 
 router = APIRouter(
     prefix="/api/azure",
@@ -72,3 +75,32 @@ def get_profile(profileUrl: str = ""):
     print(f"Fetching profile {profileUrl}")
 
     return candidates.getProfilePublic(profileUrl)
+
+@router.post("/resume/upload")
+async def upload_resume(
+    file: UploadFile = File(...),
+    source_type: str = Form(None),
+    domain: str = Form("technology"),
+):
+    print(file)
+    
+    #try:
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file name received.")
+    #path = os.path.join(UPLOAD_DIR, os.path.basename(file.filename))
+    #with open(path, "wb") as f:
+    #    shutil.copyfileobj(file.file, f)
+
+    file_bytes = await file.read()
+
+    raw = ingest(source_type, file_bytes)
+    profile = build_profile_from_text(raw)
+
+    flatSkills = []
+
+    for key, value in profile["skills"].items():
+        flatSkills.extend(value)
+
+    description = candidateDescription(raw)
+
+    return candidates.uploadProfile(skills=flatSkills, fullName=profile["contact"]["full_name"], email=profile["contact"]["email"], linkedInUrl=profile["contact"]["linkedin"], candidateDescription=description)

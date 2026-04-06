@@ -1,6 +1,7 @@
 import re
 from profile_schema import empty_devready_profile
 from skill_lexicon import SKILL_GROUPS, SENIORITY_HINTS
+from openAI.candidateProcessing import processGeneral
 
 _EMAIL_RE = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.IGNORECASE)
 _PHONE_RE = re.compile(r"(\+?\d[\d\s().-]{7,}\d)")
@@ -24,17 +25,8 @@ def build_profile_from_text(text: str):
     p["debug"]["text_lines"] = len(lines)
     p["debug"]["text_chars"] = len(text or "")
 
-    name = ""
-    for ln in lines[:12]:
-        if "@" in ln:
-            continue
-        if len(ln) > 80:
-            continue
-        if ln.lower() in {"resume","curriculum vitae","cv"}:
-            continue
-        name = ln
-        break
-    p["contact"]["full_name"] = name or "Candidate"
+    # Use AI to grab name
+    p["contact"]["full_name"] = processGeneral(text, "full name")
 
     m = _EMAIL_RE.search(text or "")
     if m:
