@@ -1,5 +1,6 @@
 import azure.storage.client as client
 import azure.storage.processingFunctions as processing
+from openAI.candidateProcessing import processSkillYears
 
 def countCandidates():
     conn = client.getConnection()
@@ -81,7 +82,7 @@ def getProfessionalProfileId(personId: str):
 
     # Search for user by firstname, lastname, goesbyname, or email using ILIKE for case-insensitive search
     # Order by id descending to get the most recent matches first, and limit the number of results
-    query = f"SELECT profper.id FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid WHERE person.id = {personId};"
+    query = f"SELECT profper.id FROM person JOIN professional prof ON person.id = prof.personid JOIN professionalprofile profper ON prof.id = profper.professionalid WHERE person.id = {personId};"
     
     cur.execute(query)
     result = cur.fetchone()
@@ -96,7 +97,7 @@ def getSurveyId(personId: str):
 
     # Search for user by firstname, lastname, goesbyname, or email using ILIKE for case-insensitive search
     # Order by id descending to get the most recent matches first, and limit the number of results
-    query = f"SELECT profper.id FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalsurvey profsur ON profper.id = profsur.profileid WHERE person.id = {personId};"
+    query = f"SELECT profper.id FROM person JOIN professional prof ON person.id = prof.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalsurvey profsur ON profper.id = profsur.profileid WHERE person.id = {personId};"
     
     cur.execute(query)
     result = cur.fetchone()
@@ -111,7 +112,7 @@ def searchCandidatesByNameEmail(query: str, limit: int = 5):
 
     # Search for user by firstname, lastname, goesbyname, or email using ILIKE for case-insensitive search
     # Order by id descending to get the most recent matches first, and limit the number of results
-    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE (person.firstname || ' ' || person.lastname) ILIKE '%{query}%' OR (person.goesbyname || ' ' || person.lastname) ILIKE '%{query}%' OR prof.email ILIKE '%{query}%' GROUP BY person.id, prof.email ORDER BY id DESC LIMIT {limit};"
+    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE (person.firstname || ' ' || person.lastname) ILIKE '%{query}%' OR (person.goesbyname || ' ' || person.lastname) ILIKE '%{query}%' OR prof.email ILIKE '%{query}%' GROUP BY person.id, prof.email ORDER BY id DESC LIMIT {limit};"
     
     cur.execute(query)
     results = cur.fetchall()
@@ -139,7 +140,7 @@ def searchCandidatesBySkills(query: str, limit: int = 5):
 
     # Search for user by skills attached to the account
     # Order by id descending to get the most recent matches first, and limit the number of results
-    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN (SELECT profileid, skillid FROM professionalskill UNION SELECT profileid, skillid FROM resumeskill) allskills ON allskills.profileid = profper.id JOIN skill ON allskills.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) GROUP BY person.id, prof.email ORDER BY skillMatches DESC LIMIT {limit};"
+    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN (SELECT profileid, skillid FROM professionalskill UNION SELECT profileid, skillid FROM resumeskill) allskills ON allskills.profileid = profper.id JOIN skill ON allskills.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) GROUP BY person.id, prof.email ORDER BY skillMatches DESC LIMIT {limit};"
     
     cur.execute(query, (queryArray,))
     results = cur.fetchall()
@@ -167,7 +168,7 @@ def searchCandidatesBySkillId(queryList: list[int], limit: int = 5):
 
     # Search for user by skills attached to the account
     # Order by id descending to get the most recent matches first, and limit the number of results
-    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN (SELECT profileid, skillid FROM professionalskill UNION SELECT profileid, skillid FROM resumeskill) allskills ON allskills.profileid = profper.id JOIN skill ON allskills.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.id = ANY(%s::int[]) GROUP BY person.id, prof.email, person.firstname, person.lastname ORDER BY skillMatches DESC LIMIT {limit};"
+    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN (SELECT profileid, skillid FROM professionalskill UNION SELECT profileid, skillid FROM resumeskill) allskills ON allskills.profileid = profper.id JOIN skill ON allskills.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.id = ANY(%s::int[]) GROUP BY person.id, prof.email, person.firstname, person.lastname ORDER BY skillMatches DESC LIMIT {limit};"
     
     cur.execute(query, (queryList,))
     results = cur.fetchall()
@@ -175,7 +176,7 @@ def searchCandidatesBySkillId(queryList: list[int], limit: int = 5):
     resultsProcessed = []
 
     for r in results:
-        query = f"SELECT p.title, p.id, AVG(psq.answer) FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalsurvey ps ON ps.profileid = profper.id JOIN professionalsurveyquestion psq ON psq.professionalsurveyid = ps.id JOIN surveyquestion ON psq.surveyquestionid = surveyquestion.id JOIN question ON surveyquestion.questionid = question.id JOIN personality p ON p.id = question.personalityid WHERE person.id = {r[0]} GROUP BY p.title, p.id"
+        query = f"SELECT p.title, p.id, AVG(psq.answer) FROM person JOIN professional prof ON person.id = prof.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalsurvey ps ON ps.profileid = profper.id JOIN professionalsurveyquestion psq ON psq.professionalsurveyid = ps.id JOIN surveyquestion ON psq.surveyquestionid = surveyquestion.id JOIN question ON surveyquestion.questionid = question.id JOIN personality p ON p.id = question.personalityid WHERE person.id = {r[0]} GROUP BY p.title, p.id"
         cur.execute(query)
 
         personalityResult = cur.fetchall()
@@ -209,7 +210,7 @@ def searchCandidatesBySkillsNamesPaginated(nameQuery: str, skillQuery: str, page
     # Search for user by skills attached to the account
     # Order by id descending to get the most recent matches first, and limit the number of results
     wildcard = f'%{nameQuery}%'
-    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step), address.city, address.state, address.country FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) AND ((person.firstname || ' ' || person.lastname) ILIKE %s OR (person.goesbyname || ' ' || person.lastname) ILIKE %s OR prof.email ILIKE %s) GROUP BY person.id, prof.email, address.city, address.state, address.country ORDER BY skillMatches DESC LIMIT {pageLimit} OFFSET {pageLimit * currentPage};"
+    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step), address.city, address.state, address.country FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) AND ((person.firstname || ' ' || person.lastname) ILIKE %s OR (person.goesbyname || ' ' || person.lastname) ILIKE %s OR prof.email ILIKE %s) GROUP BY person.id, prof.email, address.city, address.state, address.country ORDER BY skillMatches DESC LIMIT {pageLimit} OFFSET {pageLimit * currentPage};"
 
     cur.execute(query, (queryArray, wildcard, wildcard, wildcard, wildcard))
     results = cur.fetchall()
@@ -236,7 +237,7 @@ def searchCandidatesByNameEmailPaginated(query: str, pageLimit: int = 5, current
 
     # Search for user by firstname, lastname, goesbyname, or email using ILIKE for case-insensitive search
     # Order by id descending to get the most recent matches first, and limit the number of results
-    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step), ARRAY_AGG(DISTINCT skill.title), address.city, address.state, address.country FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.firstname ILIKE '%{query}%' OR person.lastname ILIKE '%{query}%' OR person.goesbyname ILIKE '%{query}%' OR prof.email ILIKE '%{query}%' GROUP BY person.id, prof.email, address.city, address.state, address.country ORDER BY id DESC LIMIT {pageLimit} OFFSET {pageLimit * currentPage};"
+    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step), ARRAY_AGG(DISTINCT skill.title), address.city, address.state, address.country FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.firstname ILIKE '%{query}%' OR person.lastname ILIKE '%{query}%' OR person.goesbyname ILIKE '%{query}%' OR prof.email ILIKE '%{query}%' GROUP BY person.id, prof.email, address.city, address.state, address.country ORDER BY id DESC LIMIT {pageLimit} OFFSET {pageLimit * currentPage};"
 
     cur.execute(query)
     results = cur.fetchall()
@@ -264,7 +265,7 @@ def searchPageCount(nameQuery: str, skillQuery: str = None, pageLimit: int = 5):
     if skillQuery:
         queryArray = [item.strip() for item in skillQuery.split(',')]
         wildcard = f'%{nameQuery}%'
-        query = f"SELECT COUNT(DISTINCT person.id) FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) AND (person.firstname ILIKE %s OR person.lastname ILIKE %s OR person.goesbyname ILIKE %s OR prof.email ILIKE %s);"
+        query = f"SELECT COUNT(DISTINCT person.id) FROM person JOIN professional prof ON person.id = prof.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) AND (person.firstname ILIKE %s OR person.lastname ILIKE %s OR person.goesbyname ILIKE %s OR prof.email ILIKE %s);"
         cur.execute(query, (queryArray, wildcard, wildcard, wildcard, wildcard))
         results = cur.fetchall()
 
@@ -275,7 +276,7 @@ def searchPageCount(nameQuery: str, skillQuery: str = None, pageLimit: int = 5):
 
         return [rowCount, pages]
     else:
-        query = f"SELECT COUNT(DISTINCT person.id) FROM person JOIN professional prof ON person.id = prof.id WHERE person.firstname ILIKE '%{nameQuery}%' OR person.lastname ILIKE '%{nameQuery}%' OR person.goesbyname ILIKE '%{nameQuery}%' OR prof.email ILIKE '%{nameQuery}%';"
+        query = f"SELECT COUNT(DISTINCT person.id) FROM person JOIN professional prof ON person.id = prof.personid WHERE person.firstname ILIKE '%{nameQuery}%' OR person.lastname ILIKE '%{nameQuery}%' OR person.goesbyname ILIKE '%{nameQuery}%' OR prof.email ILIKE '%{nameQuery}%';"
         cur.execute(query)
         results = cur.fetchall()
 
@@ -290,7 +291,7 @@ def getProfile(profileId: str):
     conn = client.getConnection()
     cur = conn.cursor()
 
-    query = f"SELECT person.firstname, person.middlename, person.lastname, person.goesbyname, person.urlimage, person.citizenship, person.birthday, person.leadsource, prof.status, prof.title, prof.maindescription, prof.url, prof.linkedinurl, prof.email, prof.hubspotcontactid, prof.hubspotdeveloperid, prof.referredby, address.city, address.state, address.country, address.timezone, address.longitude, address.latitude FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid WHERE person.id = {profileId} LIMIT 1;"
+    query = f"SELECT person.firstname, person.middlename, person.lastname, person.goesbyname, person.urlimage, person.citizenship, person.birthday, person.leadsource, prof.status, prof.title, prof.maindescription, prof.url, prof.linkedinurl, prof.email, prof.hubspotcontactid, prof.hubspotdeveloperid, prof.referredby, address.city, address.state, address.country, address.timezone, address.longitude, address.latitude FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid WHERE person.id = {profileId} LIMIT 1;"
 
     cur.execute(query)
     results = cur.fetchone()
@@ -298,7 +299,7 @@ def getProfile(profileId: str):
     leadSourceProcessed = processing.leadSourceProcessing(results[7])
 
     # Get Platform Activity
-    query = f"SELECT ARRAY_AGG(DISTINCT platact.step), ARRAY_AGG(DISTINCT platact.notes) FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.id = {profileId} GROUP BY person.id"
+    query = f"SELECT ARRAY_AGG(DISTINCT platact.step), ARRAY_AGG(DISTINCT platact.notes) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.id = {profileId} GROUP BY person.id"
     cur.execute(query)
 
     platactResult = cur.fetchone()
@@ -306,7 +307,7 @@ def getProfile(profileId: str):
     platactProcessed = {'step':processing.stepProcessingOverall(platactResult[0]), 'attachedNotes':platactResult[1]}
 
     # Get Personality Data
-    query = f"SELECT p.title, p.id, AVG(psq.answer) FROM person JOIN professional prof ON person.id = prof.id JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalsurvey ps ON ps.profileid = profper.id JOIN professionalsurveyquestion psq ON psq.professionalsurveyid = ps.id JOIN surveyquestion ON psq.surveyquestionid = surveyquestion.id JOIN question ON surveyquestion.questionid = question.id JOIN personality p ON p.id = question.personalityid WHERE person.id = {profileId} GROUP BY p.title, p.id"
+    query = f"SELECT p.title, p.id, AVG(psq.answer) FROM person JOIN professional prof ON person.id = prof.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalsurvey ps ON ps.profileid = profper.id JOIN professionalsurveyquestion psq ON psq.professionalsurveyid = ps.id JOIN surveyquestion ON psq.surveyquestionid = surveyquestion.id JOIN question ON surveyquestion.questionid = question.id JOIN personality p ON p.id = question.personalityid WHERE person.id = {profileId} GROUP BY p.title, p.id"
     cur.execute(query)
 
     personalityResult = cur.fetchall()
@@ -317,7 +318,7 @@ def getProfile(profileId: str):
         personalityArray.append({'title':row[0], 'id':row[1], 'score': round((row[2]/5)*100)})
 
     # Get Professional Skills Data
-    query = f"SELECT DISTINCT profskill.years, skill.title, skill.id, skill.description, skill.type FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id WHERE person.id = {profileId}"
+    query = f"SELECT DISTINCT profskill.years, skill.title, skill.id, skill.description, skill.type FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id WHERE person.id = {profileId}"
     cur.execute(query)
 
     skillResult = cur.fetchall()
@@ -328,7 +329,7 @@ def getProfile(profileId: str):
         skillArray.append({'years':row[0], 'skill':row[1], 'skillId': row[2], 'description': row[3], 'type': row[4]})
 
     # Get Technical Skills Data
-    query = f"SELECT DISTINCT ts.level, skill.title, skill.id, skill.description, skill.type FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN techskill ts ON profper.id = ts.profileid JOIN skill ON ts.skillid = skill.id WHERE person.id = {profileId}"
+    query = f"SELECT DISTINCT ts.level, skill.title, skill.id, skill.description, skill.type FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN techskill ts ON profper.id = ts.profileid JOIN skill ON ts.skillid = skill.id WHERE person.id = {profileId}"
     cur.execute(query)
 
     techSkillResult = cur.fetchall()
@@ -339,7 +340,7 @@ def getProfile(profileId: str):
         techSkillArray.append({'level':row[0], 'skill':row[1], 'skillId': row[2], 'description': row[3], 'type': row[4]})
 
     # Get Portfolio Experience Data
-    query = f"SELECT pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT pf.title) FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalexperience pe ON profper.id = pe.profileid LEFT JOIN portfolioskill por ON pe.id = por.professionalexperienceid JOIN skill ON por.skillid = skill.id LEFT JOIN portfoliofeature pf ON pe.id = pf.professionalexperienceid WHERE person.id = {profileId} GROUP BY pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent ORDER BY pe.startdate DESC"
+    query = f"SELECT pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT pf.title) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalexperience pe ON profper.id = pe.profileid LEFT JOIN portfolioskill por ON pe.id = por.professionalexperienceid JOIN skill ON por.skillid = skill.id LEFT JOIN portfoliofeature pf ON pe.id = pf.professionalexperienceid WHERE person.id = {profileId} GROUP BY pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent ORDER BY pe.startdate DESC"
     cur.execute(query)
 
     portfolioSkillResult = cur.fetchall()
@@ -350,7 +351,7 @@ def getProfile(profileId: str):
         portfolioSkillArray.append({'description':row[0], 'mainrole':row[1], 'workexperience': row[2], 'companyname': row[3], 'startdate': row[4], 'finishdate': row[5], 'ispresent': row[6], 'skills': row[7], 'features': row[8]})
 
     # Get Professional Feature Data
-    query = f"SELECT pf.title, pf.level FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalfeature pf ON profper.id = pf.profileid WHERE person.id = {profileId}"
+    query = f"SELECT pf.title, pf.level FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalfeature pf ON profper.id = pf.profileid WHERE person.id = {profileId}"
     cur.execute(query)
 
     featureResult = cur.fetchall()
@@ -361,7 +362,7 @@ def getProfile(profileId: str):
         featureArray.append({'title': row[0], 'level': row[1]})
 
     # Get Cultural Feature Data
-    query = f"SELECT pce.title, pce.level FROM person JOIN professional prof ON person.id = prof.id LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalculturalexperience pce ON profper.id = pce.profileid WHERE person.id = {profileId}"
+    query = f"SELECT pce.title, pce.level FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalculturalexperience pce ON profper.id = pce.profileid WHERE person.id = {profileId}"
     cur.execute(query)
 
     culturalExperienceResult = cur.fetchall()
@@ -412,7 +413,7 @@ def getProfilePublic(profileUrl: str):
     conn = client.getConnection()
     cur = conn.cursor()
 
-    query = f"SELECT person.id FROM person JOIN professional prof ON person.id = prof.id WHERE prof.url = '{profileUrl}' LIMIT 1;"
+    query = f"SELECT person.id FROM person JOIN professional prof ON person.id = prof.personid WHERE prof.url = '{profileUrl}' LIMIT 1;"
     cur.execute(query)
     result = cur.fetchone()
 
@@ -421,7 +422,7 @@ def getProfilePublic(profileUrl: str):
     else:
         raise Exception("Profile not found")
     
-def uploadProfile(skills: list[str], fullName: str, candidateDescription: str, email: str = "N/A", linkedInUrl: str = "N/A"):
+def uploadProfile(skills: list, fullName: str, candidateDescription: str, email: str = "N/A", linkedInUrl: str = "N/A", culturalExperiences: list = [], candidateCity: str = "N/A", candidateState: str = "N/A", candidateCountry: str = "N/A"):
     print(f"Uploading profile for {fullName} with email {email} and LinkedIn URL {linkedInUrl}. Skills: {skills}")
     conn = client.getConnection()
     cur = conn.cursor()
@@ -430,17 +431,39 @@ def uploadProfile(skills: list[str], fullName: str, candidateDescription: str, e
     firstName = splitName[0]
     lastName = splitName[-1] if len(splitName) > 1 else ""
 
-    query = "INSERT INTO person (firstname, lastname) VALUES (%s, %s) RETURNING id"    
-    cur.execute(query, (firstName, lastName))
+    query = "INSERT INTO person (firstname, lastname, leadsource) VALUES (%s, %s, %s) RETURNING id"    
+    cur.execute(query, (firstName, lastName, 1))
+    print(cur.statusmessage)
 
     personId = cur.fetchone()[0]
+    url = f"{firstName.lower()}-{lastName.lower()}-{personId}"
 
     print(f"Person ID: {personId}")
 
-    query = "INSERT INTO professional (personid,email,linkedinurl,maindescription, status) VALUES (%s, %s, %s, %s, %s) RETURNING id"    
-    cur.execute(query, (personId, email, linkedInUrl, candidateDescription, 1))
+    query = "INSERT INTO address (personid, city, state, country) VALUES (%s, %s, %s, %s)"
+    cur.execute(query, (personId, candidateCity, candidateState, candidateCountry))
 
-    professionalId = cur.fetchone()[0]
+    if len(linkedInUrl) < 1:
+        linkedInUrl = "N/A"
+
+    professionalId = ""
+
+    try:
+        cur.execute(
+            "INSERT INTO professional (personid,email,linkedinurl,maindescription, status, url) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+            (personId, email, linkedInUrl, candidateDescription, 1, url)
+        )
+        print("INSERT professional:", cur.statusmessage)
+        rawRow = cur.fetchone()
+        print("Raw Row:", rawRow)
+        professionalId = rawRow[0]
+        print(f"Professional ID: {professionalId}")
+    except Exception as e:
+        print("❌ PROFESSIONAL INSERT FAILED")
+        print("DATA:", personId, email, linkedInUrl, candidateDescription, 1, url)
+        print("ERROR:", e)
+        conn.rollback()
+        raise e
 
     query = "INSERT INTO professionalprofile (professionalid) VALUES (%s) RETURNING id"    
     cur.execute(query, (professionalId,))
@@ -449,7 +472,7 @@ def uploadProfile(skills: list[str], fullName: str, candidateDescription: str, e
 
     for skill in skills:
         # Check if skill already exists
-        query = f"SELECT id FROM skill WHERE title ILIKE '%{skill.strip()}%' LIMIT 1"
+        query = f"SELECT id FROM skill WHERE title ILIKE '%{skill['title'].strip()}%' LIMIT 1"
         cur.execute(query)
         skillId = cur.fetchone()[0] if cur.rowcount > 0 else None
 
@@ -459,7 +482,15 @@ def uploadProfile(skills: list[str], fullName: str, candidateDescription: str, e
         # Associate skill with professional profile
         query = "INSERT INTO resumeskill (profileid, skillid) VALUES (%s, %s)"
         cur.execute(query, (professionalprofileId, skillId))
+
+        query = "INSERT INTO professionalskill (profileid, skillid, years) VALUES (%s, %s, %s)"
+        cur.execute(query, (professionalprofileId, skillId, skill['years']))
+
+    for experience in culturalExperiences:
+        query = "INSERT INTO professionalculturalexperience (profileid, title, level) VALUES (%s, %s, %s)"
+        cur.execute(query, (professionalprofileId, experience["experience"], experience["level"]))
     
     conn.commit()
     conn.close()
+    print(f"Profile for {fullName} uploaded successfully with ID {personId}.")
     return {"status": "success", "message": f"Profile for {fullName} uploaded successfully.", "personid": personId, "name": fullName}

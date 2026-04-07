@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from concurrent.futures import ThreadPoolExecutor
 from azure.storage import candidates
 from resumeProcessing.processing import ingest
 from deterministic_profile import build_profile_from_text
-from openAI.candidateProcessing import candidateDescription
+from openAI.candidateProcessing import candidateDescription, processGeneral, candidateCulturalExperience, processSkillYears
 
 router = APIRouter(
     prefix="/api/azure",
@@ -76,6 +77,13 @@ def get_profile(profileUrl: str = ""):
 
     return candidates.getProfilePublic(profileUrl)
 
+# For multithreading
+def process_skill(raw: str, key: str):
+    return {
+        "title": key,
+        "years": processSkillYears(raw, key)
+    }
+
 @router.post("/resume/upload")
 async def upload_resume(
     file: UploadFile = File(...),
@@ -98,9 +106,24 @@ async def upload_resume(
 
     flatSkills = []
 
-    for key, value in profile["skills"].items():
-        flatSkills.extend(value)
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        results = executor.map(process_skill, [raw] * len(profile["skills"]), profile["skills"].keys())
 
-    description = candidateDescription(raw)
+        flatSkills = list(results)
 
-    return candidates.uploadProfile(skills=flatSkills, fullName=profile["contact"]["full_name"], email=profile["contact"]["email"], linkedInUrl=profile["contact"]["linkedin"], candidateDescription=description)
+    # TODO: Make python call all AI functions in parallel to speed up processing time. Currently doing sequentially which is not efficient.
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        description_future = executor.submit(candidateDescription, raw)
+        culturalExperiences_future = executor.submit(candidateCulturalExperience, raw)
+        candidateCity_future = executor.submit(processGeneral, raw, "currently lived in city (DO NOT RETURN PROVINCE OR STATE. DO NOT RETURN ASSOCIATED JOBS OR COMPANIES. ONLY RETURN CITY NAME)")
+        candidateState_future = executor.submit(processGeneral, raw, "currently lived in state or province (DO NOT RETURN CITY. DO NOT RETURN ASSOCIATED JOBS OR COMPANIES. ONLY RETURN STATE OR PROVINCE NAME. RETURN NO ADDITIONAL COMMENTARY)")
+        candidateCountry_future = executor.submit(processGeneral, raw, "currently lived in country (DO NOT RETURN CITY, STATE OR PROVINCE. ONLY RETURN COUNTRY NAME)")
+
+
+    description = description_future.result()
+    culturalExperiences = culturalExperiences_future.result()
+    candidateCity = candidateCity_future.result()
+    candidateState = candidateState_future.result()
+    candidateCountry = candidateCountry_future.result()
+
+    return candidates.uploadProfile(skills=flatSkills, fullName=profile["contact"]["full_name"], email=profile["contact"]["email"], linkedInUrl=profile["contact"]["linkedin"], candidateDescription=description, culturalExperiences=culturalExperiences, candidateCity=candidateCity, candidateState=candidateState, candidateCountry=candidateCountry)
