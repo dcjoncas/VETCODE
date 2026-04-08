@@ -1,6 +1,6 @@
-import azure.storage.client as client
-import azure.storage.processingFunctions as processing
-from azure.storage.candidates import getProfessionalProfileId, getSurveyId
+import azureUtils.storage.client as client
+import azureUtils.storage.processingFunctions as processing
+from azureUtils.storage.candidates import getProfessionalProfileId, getSurveyId
 from datetime import datetime, timedelta
 import random
 import string

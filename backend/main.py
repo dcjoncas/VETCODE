@@ -524,7 +524,7 @@ def jd_latest(domain: str = "technology", jd_id: Optional[str] = None):
 
 from openAI import externalPeopleSearch
 import peopleDataLabs.peopleSearch as peopleDataLabs
-from azure.storage import candidates
+from azureUtils.storage import candidates
 
 @app.post("/api/match/run")
 def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: int = Form(10)):
@@ -826,7 +826,7 @@ def people_labs_search(
 
     return {"status": "success", "returnMessage": "Successfully searched PeopleDataLabs!", "results": outcome['data'] }
 
-from azure.routes import azureEndpoints, aiChatEndpoints, azureJobEndpoints
+from azureUtils.routes import azureEndpoints, aiChatEndpoints, azureJobEndpoints
 
 app.include_router(azureEndpoints.router)
 app.include_router(aiChatEndpoints.router)

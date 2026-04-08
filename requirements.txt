@@ -9,3 +9,4 @@ dotenv
 openai
 psycopg[binary]
 pdfplumber
+azure-storage-blob
