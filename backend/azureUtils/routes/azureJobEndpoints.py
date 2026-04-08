@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 import os, shutil, traceback
-from azure.storage import jobs, candidates
+from azureUtils.storage import jobs, candidates
 from jd_match import normalize_jd, azureJobMatch
 from openAI import externalPeopleSearch
 import peopleDataLabs.peopleSearch as peopleDataLabs

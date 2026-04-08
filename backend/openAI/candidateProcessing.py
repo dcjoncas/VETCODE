@@ -99,8 +99,6 @@ def candidateCulturalExperience(resumeText: str):
     
     experienceList = response.choices[0].message.content.strip().split(',')
 
-    print(experienceList)
-
     processedExperienceList = []
 
     for experience in experienceList:

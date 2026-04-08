@@ -1,4 +1,4 @@
-import azure.storage.client as client
+import azureUtils.storage.client as client
 import openAI.jobProcessing as aiProcessing
 
 def uploadJob(company: str, title: str, domain: str, jd_text: str, skills: list[str]):

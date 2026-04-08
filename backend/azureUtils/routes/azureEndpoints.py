@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from concurrent.futures import ThreadPoolExecutor
-from azure.storage import candidates
+from azureUtils.storage import candidates, resumes
 from resumeProcessing.processing import ingest
 from deterministic_profile import build_profile_from_text
 from openAI.candidateProcessing import candidateDescription, processGeneral, candidateCulturalExperience, processSkillYears
@@ -104,6 +104,9 @@ async def upload_resume(
     raw = ingest(source_type, file_bytes)
     profile = build_profile_from_text(raw)
 
+    # Reset file pointer before uploading
+    file.file.seek(0)
+
     flatSkills = []
 
     with ThreadPoolExecutor(max_workers=5) as executor:
@@ -112,13 +115,14 @@ async def upload_resume(
         flatSkills = list(results)
 
     # TODO: Make python call all AI functions in parallel to speed up processing time. Currently doing sequentially which is not efficient.
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=6) as executor:
         description_future = executor.submit(candidateDescription, raw)
         culturalExperiences_future = executor.submit(candidateCulturalExperience, raw)
         candidateCity_future = executor.submit(processGeneral, raw, "currently lived in city (DO NOT RETURN PROVINCE OR STATE. DO NOT RETURN ASSOCIATED JOBS OR COMPANIES. ONLY RETURN CITY NAME)")
         candidateState_future = executor.submit(processGeneral, raw, "currently lived in state or province (DO NOT RETURN CITY. DO NOT RETURN ASSOCIATED JOBS OR COMPANIES. ONLY RETURN STATE OR PROVINCE NAME. RETURN NO ADDITIONAL COMMENTARY)")
         candidateCountry_future = executor.submit(processGeneral, raw, "currently lived in country (DO NOT RETURN CITY, STATE OR PROVINCE. ONLY RETURN COUNTRY NAME)")
 
+    print(profile)
 
     description = description_future.result()
     culturalExperiences = culturalExperiences_future.result()
@@ -126,4 +130,13 @@ async def upload_resume(
     candidateState = candidateState_future.result()
     candidateCountry = candidateCountry_future.result()
 
-    return candidates.uploadProfile(skills=flatSkills, fullName=profile["contact"]["full_name"], email=profile["contact"]["email"], linkedInUrl=profile["contact"]["linkedin"], candidateDescription=description, culturalExperiences=culturalExperiences, candidateCity=candidateCity, candidateState=candidateState, candidateCountry=candidateCountry)
+    profileResult = candidates.uploadProfile(skills=flatSkills, fullName=profile["contact"]["full_name"], email=profile["contact"]["email"], linkedInUrl=profile["contact"]["linkedin"], candidateDescription=description, culturalExperiences=culturalExperiences, candidateCity=candidateCity, candidateState=candidateState, candidateCountry=candidateCountry)
+
+    await resumes.uploadResume(file, profileResult["personid"])
+
+    return profileResult
+
+@router.get("/resume/{profileId}")
+async def get_resume(profileId: str):
+    print(f"Getting resume for profile {profileId}")
+    return await resumes.getResume(int(profileId))

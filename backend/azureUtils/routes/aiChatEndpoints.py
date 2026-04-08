@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Form
-from azure.storage import chatLogs
+from azureUtils.storage import chatLogs
 from openAI import candidateChat
 import json
 

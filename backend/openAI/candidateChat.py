@@ -1,5 +1,5 @@
 from openAI.client import getOpenAPIClient
-from azure.storage.chatLogs import getQuestions, saveChat, getQuestion, upsertSurveyAnswer, getPersonId, getSurveyId
+from azureUtils.storage.chatLogs import getQuestions, saveChat, getQuestion, upsertSurveyAnswer, getPersonId, getSurveyId
 import re
 
 candidateQuestions = getQuestions()

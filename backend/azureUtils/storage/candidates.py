@@ -1,5 +1,5 @@
-import azure.storage.client as client
-import azure.storage.processingFunctions as processing
+import azureUtils.storage.client as client
+import azureUtils.storage.processingFunctions as processing
 from openAI.candidateProcessing import processSkillYears
 
 def countCandidates():
@@ -448,22 +448,13 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, email:
 
     professionalId = ""
 
-    try:
-        cur.execute(
-            "INSERT INTO professional (personid,email,linkedinurl,maindescription, status, url) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
-            (personId, email, linkedInUrl, candidateDescription, 1, url)
-        )
-        print("INSERT professional:", cur.statusmessage)
-        rawRow = cur.fetchone()
-        print("Raw Row:", rawRow)
-        professionalId = rawRow[0]
-        print(f"Professional ID: {professionalId}")
-    except Exception as e:
-        print("❌ PROFESSIONAL INSERT FAILED")
-        print("DATA:", personId, email, linkedInUrl, candidateDescription, 1, url)
-        print("ERROR:", e)
-        conn.rollback()
-        raise e
+    cur.execute(
+        "INSERT INTO professional (personid,email,linkedinurl,maindescription, status, url) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+        (personId, email, linkedInUrl, candidateDescription, 1, url)
+    )
+    rawRow = cur.fetchone()
+    professionalId = rawRow[0]
+    print(f"Professional ID: {professionalId}")
 
     query = "INSERT INTO professionalprofile (professionalid) VALUES (%s) RETURNING id"    
     cur.execute(query, (professionalId,))
