@@ -69,7 +69,7 @@ def candidateDescription(resumeText: str):
     response = client.chat.completions.create(
             model="gpt-3.5-turbo",  # Specify the model
             messages=fullTranscript,
-            max_completion_tokens=100, # Limit the response length to manage costs
+            max_completion_tokens=500, # Limit the response length to manage costs
             temperature=0.7 # Control the randomness of the response
         )
     

@@ -49,67 +49,56 @@
           >
             <div id="noImageFound" class="imageBox">No Image</div>
             <img id="candidateImage" class="imageBox" style="display: none" />
-            <div style="flex: 1; min-width: 260px">
-              <div
-                id="profileHeader"
-                style="font-size: 22px; font-weight: 900; line-height: 1"
-              >
-                No Candidate Loaded
-              </div>
-              <div
-                id="profileSubHeader"
-                style="color: var(--muted); margin-top: 6px"
-              >
-                <div id="candidateAddress" style="display: inline">
-                  <p id="candidateCity" style="display: inline">
-                    No Location Listed
-                  </p>
-                  <p id="candidateState" style="display: inline"></p>
-                  <p id="candidateCountry" style="display: inline"></p>
-                </div>
-                •
-                <div id="candidateJobTitle" style="display: inline">
-                  No Job Title Listed
-                </div>
-                <!-- • <div id="candidateAvailability" style="display: inline;">No Availability Listed</div>-->
-              </div>
-              <div id="topMatches" class="pills">No Skills Found</div>
-            </div>
-            <div class="row-actions" style="margin: 0">
-              <a id="publicBtnLink" href="profile-public.html" target="_blank"
-                ><button id="publicBtn" class="btn" type="button" disabled>
-                  Public Profile
-                </button></a
-              >
-              <a href="profile-preview-edit.html"
-                ><button
-                  id="editBtn"
-                  class="btn secondary"
-                  type="button"
-                  disabled
+            <form
+              id="editCandidateBasics"
+              style="display: flex; flex: 1; gap: 16px"
+            >
+              <div style="flex: 1; min-width: 260px">
+                <input
+                  type="text"
+                  id="profileFirstNameInput"
+                  placeholder="Candidate First Name"
+                />
+                <input
+                  type="text"
+                  id="profileLastNameInput"
+                  placeholder="Candidate Last Name"
+                />
+                <div
+                  id="profileSubHeader"
+                  style="color: var(--muted); margin-top: 6px"
                 >
-                  Edit Profile
-                </button></a
-              >
-              <a id="resumeBtnLink" href="profile-public.html" target="_blank"
-                ><button
-                  id="resumeBtn"
-                  class="btn secondary"
-                  type="button"
-                  disabled
-                >
-                  Download Resume
-                </button></a
-              >
-              <!--<button class="btn" type="button" onclick="alert('Mock: download public profile')">Download Public (PDF)</button>
-              <button
-                class="btn secondary"
-                type="button"
-                onclick="alert('Mock: download private profile')"
-              >
-                Download Private (PDF)
-              </button>-->
-            </div>
+                  <div id="candidateAddress" style="display: inline">
+                    <input
+                      id="candidateCity"
+                      type="text"
+                      placeholder="City"
+                      style="display: inline"
+                    />
+                    <input
+                      id="candidateState"
+                      type="text"
+                      placeholder="State"
+                      style="display: inline"
+                    />
+                    <input
+                      id="candidateCountry"
+                      type="text"
+                      placeholder="Country"
+                      style="display: inline"
+                    />
+                  </div>
+                  •
+                  <input
+                    id="candidateJobTitle"
+                    type="text"
+                    placeholder="Job Title"
+                    style="display: inline"
+                  />
+                </div>
+                <div id="topMatches" class="pills">No Skills Found</div>
+              </div>
+            </form>
           </div>
 
           <div
@@ -119,10 +108,14 @@
             <div
               id="descriptionDiv"
               style="grid-column: 2; grid-row: 1; text-align: left"
-              hidden
             >
               <h2 id="descriptionHeader" style="margin-top: 5px"></h2>
-              <p id="descriptionText"></p>
+              <textarea
+                id="descriptionText"
+                placeholder="Candidate Description..."
+                style="width: 100%; height: 200px"
+              >
+              </textarea>
             </div>
             <div
               id="mapDiv"
@@ -132,7 +125,6 @@
                 grid-column: 1;
                 grid-row: 1;
               "
-              hidden
             >
               <iframe
                 id="mapIFrame"
@@ -426,16 +418,6 @@
             <tbody id="portfolioBody"></tbody>
           </table>
         </section>
-        <!--<aside class="card">
-          
-      <h2>What happens on this screen</h2>
-      <p>UX-only guidance for this screen.</p>
-      <ul style="margin:0 0 14px 18px;color:var(--muted);line-height:1.4"><li>Public profile: client-safe summary, skills, portfolio excerpts.</li><li>Private profile: deeper notes, ratings, transcripts, risks.</li><li>Outcome: shortlist candidate(s) for client review.</li></ul>
-      <div class="row-actions"><a class="btn " href="client-comm.html" style="text-decoration:none;display:inline-block">Next: Client comms →</a><a class="btn secondary" href="candidate-chat.html" style="text-decoration:none;display:inline-block">Back: Candidate chat</a></div>
-      <div class="notice" style="margin-top:14px">All actions here are mocked. The goal is to validate layout, flow, and labels.</div>
-    
-        </aside>
-      </div>-->
       </main>
     </div>
 
@@ -456,15 +438,7 @@
         if (candidateId) {
           profileData = await api(`/api/azure/getProfile/${candidateId}`);
 
-          document.getElementById("editBtn").removeAttribute("disabled");
-
           console.log(profileData);
-
-          if (profileData.profile.publicUrl) {
-            document.getElementById("publicBtnLink").href +=
-              `?user=${profileData.profile.publicUrl}`;
-            document.getElementById("publicBtn").removeAttribute("disabled");
-          }
 
           const topMatchesFromSession = sessionStorage.getItem(
             "candidateTopMatches",
@@ -537,22 +511,24 @@
             `DevReady • ${profileData.profile.firstName} ${profileData.profile.lastName} — Profile Preview`;
           document.getElementById("pageTitle").innerText =
             `${profileData.profile.firstName} ${profileData.profile.lastName} — Profile Preview`;
-          document.getElementById("profileHeader").innerText =
-            `${profileData.profile.firstName} ${profileData.profile.lastName}`;
+          document.getElementById("profileFirstNameInput").value =
+            `${profileData.profile.firstName}`;
+          document.getElementById("profileLastNameInput").value =
+            `${profileData.profile.lastName}`;
 
-          document.getElementById("candidateCity").innerText =
+          document.getElementById("candidateCity").value =
             profileData.profile.city && profileData.profile.city.length > 0
               ? profileData.profile.city
-              : "No City Listed";
-          document.getElementById("candidateState").innerText =
+              : null;
+          document.getElementById("candidateState").value =
             profileData.profile.state && profileData.profile.state.length > 0
-              ? ", " + profileData.profile.state
-              : "";
-          document.getElementById("candidateCountry").innerText =
+              ? profileData.profile.state
+              : null;
+          document.getElementById("candidateCountry").value =
             profileData.profile.country &&
             profileData.profile.country.length > 0
-              ? ", " + profileData.profile.country
-              : "";
+              ? profileData.profile.country
+              : null;
 
           if (
             profileData.profile.description &&
@@ -560,7 +536,7 @@
           ) {
             document.getElementById("descriptionHeader").innerText =
               "About " + profileData.profile.firstName;
-            document.getElementById("descriptionText").innerText =
+            document.getElementById("descriptionText").value =
               profileData.profile.description;
             document.getElementById("descriptionDiv").removeAttribute("hidden");
           }
@@ -664,18 +640,6 @@
           `,
             );
           });
-
-          // Get resume
-          try {
-            const resumeData = await fetch(`/api/azure/resume/${candidateId}`);
-            const resumeJson = await resumeData.json();
-            console.log(resumeJson);
-
-            document.getElementById("resumeBtnLink").href = resumeJson.url;
-            document.getElementById("resumeBtn").removeAttribute("disabled");
-          } catch (error) {
-            console.log("Could not fetch resume.");
-          }
         }
       });
     </script>
