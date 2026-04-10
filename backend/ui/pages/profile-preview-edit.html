@@ -419,6 +419,12 @@
             skills: skillsToUpdate,
           }),
         });
+
+        if (result.ok) {
+          location.reload();
+        } else {
+          alert("Error updating skills.");
+        }
       }
 
       async function addSkill() {
