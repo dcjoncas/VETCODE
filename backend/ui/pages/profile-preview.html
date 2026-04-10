@@ -61,11 +61,20 @@
                 style="color: var(--muted); margin-top: 6px"
               >
                 <div id="candidateAddress" style="display: inline">
-                  <p id="candidateCity" style="display: inline">
+                  <p
+                    id="candidateCity"
+                    style="display: inline; margin-right: 0px; margin-left: 0px"
+                  >
                     No Location Listed
                   </p>
-                  <p id="candidateState" style="display: inline"></p>
-                  <p id="candidateCountry" style="display: inline"></p>
+                  <p
+                    id="candidateState"
+                    style="display: inline; margin-right: 0px; margin-left: 0px"
+                  ></p>
+                  <p
+                    id="candidateCountry"
+                    style="display: inline; margin-right: 0px; margin-left: 0px"
+                  ></p>
                 </div>
                 •
                 <div id="candidateJobTitle" style="display: inline">
@@ -497,6 +506,8 @@
             featureSkillDiv.hidden = false;
 
           profileData.features.forEach((feature) => {
+            if (!feature || !feature.title) return;
+
             featurePillHtml += `<span class="pill">${feature.title}</span>`;
 
             featureSkillDiv.insertAdjacentHTML(
@@ -542,17 +553,17 @@
 
           document.getElementById("candidateCity").innerText =
             profileData.profile.city && profileData.profile.city.length > 0
-              ? profileData.profile.city
-              : "No City Listed";
+              ? profileData.profile.city + ","
+              : "No City Listed,";
           document.getElementById("candidateState").innerText =
             profileData.profile.state && profileData.profile.state.length > 0
-              ? ", " + profileData.profile.state
-              : "";
+              ? profileData.profile.state + ","
+              : "No State Listed, ";
           document.getElementById("candidateCountry").innerText =
             profileData.profile.country &&
             profileData.profile.country.length > 0
-              ? ", " + profileData.profile.country
-              : "";
+              ? profileData.profile.country
+              : "No Country Listed";
 
           if (
             profileData.profile.description &&

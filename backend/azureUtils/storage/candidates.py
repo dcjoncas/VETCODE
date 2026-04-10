@@ -485,3 +485,21 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, email:
     conn.close()
     print(f"Profile for {fullName} uploaded successfully with ID {personId}.")
     return {"status": "success", "message": f"Profile for {fullName} uploaded successfully.", "personid": personId, "name": fullName}
+
+def updateCandidate(personId: str, firstName: str, lastName: str, city: str = "", state: str = "", country: str = "", description: str = ""):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    query = f"UPDATE person SET firstname = %s, lastname = %s WHERE id = {personId}"
+    cur.execute(query, (firstName, lastName))
+
+    query = f"UPDATE address SET city = %s, state = %s, country = %s WHERE personid = {personId}"
+    cur.execute(query, (city, state, country))
+
+    query = f"UPDATE professional SET maindescription = %s WHERE personid = {personId}"
+    cur.execute(query, (description,))
+
+    conn.commit()
+    conn.close()
+
+    return {"status": "success"}

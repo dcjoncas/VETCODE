@@ -49,7 +49,7 @@
           >
             <div id="noImageFound" class="imageBox">No Image</div>
             <img id="candidateImage" class="imageBox" style="display: none" />
-            <form
+            <section
               id="editCandidateBasics"
               style="display: flex; flex: 1; gap: 16px"
             >
@@ -96,9 +96,14 @@
                     style="display: inline"
                   />
                 </div>
-                <div id="topMatches" class="pills">No Skills Found</div>
+                <div id="topMatches" class="pills"></div>
               </div>
-            </form>
+              <div class="row-actions" style="margin: 0">
+                <button id="saveBtn" class="btn" type="button">
+                  Save Changes
+                </button>
+              </div>
+            </section>
           </div>
 
           <div
@@ -319,7 +324,42 @@
         .querySelectorAll("a.step")
         .forEach((a) => a.addEventListener("click", () => {}));
 
+      async function saveProfile() {
+        const candidateId = sessionStorage.getItem("candidateId");
+
+        if (!candidateId) {
+          alert("No candidate ID found in session. Cannot save profile.");
+          return;
+        }
+
+        const fd = new FormData();
+        fd.append("personId", candidateId);
+        fd.append(
+          "first_name",
+          document.getElementById("profileFirstNameInput").value,
+        );
+        fd.append(
+          "last_name",
+          document.getElementById("profileLastNameInput").value,
+        );
+        fd.append("city", document.getElementById("candidateCity").value);
+        fd.append("state", document.getElementById("candidateState").value);
+        fd.append("country", document.getElementById("candidateCountry").value);
+        fd.append(
+          "description",
+          document.getElementById("descriptionText").value,
+        );
+
+        const result = await api(`/api/azure/profile/update`, {
+          method: "POST",
+          body: fd,
+        });
+      }
+
       document.addEventListener("DOMContentLoaded", async () => {
+        document
+          .getElementById("saveBtn")
+          .addEventListener("click", saveProfile);
         // Get session variables
         const candidateId = sessionStorage.getItem("candidateId");
 
@@ -329,26 +369,6 @@
           profileData = await api(`/api/azure/getProfile/${candidateId}`);
 
           console.log(profileData);
-
-          const topMatchesFromSession = sessionStorage.getItem(
-            "candidateTopMatches",
-          );
-          let topMatches = [];
-          if (topMatchesFromSession && topMatchesFromSession.length > 0) {
-            topMatches = topMatchesFromSession.split(",") || [];
-          } else if (profileData.skills) {
-            // TODO: Figure out actual top skills from a profile
-            let skillCount = 0;
-            const sortedSkills = profileData.skills.sort(
-              (a, b) => b.years - a.years,
-            );
-            sortedSkills.forEach((skill) => {
-              if (skillCount >= 5) return;
-
-              topMatches.push(skill.skill);
-              skillCount++;
-            });
-          }
 
           let featurePillHtml = "";
           const featureSkillDiv = document.getElementById("featureSkillDiv");
@@ -361,8 +381,6 @@
             featureSkillDiv.hidden = false;
 
           profileData.features.forEach((feature) => {
-            featurePillHtml += `<span class="pill">${feature.title}</span>`;
-
             featureSkillDiv.insertAdjacentHTML(
               "beforeend",
               `
@@ -492,17 +510,6 @@
           });
 
           profileData.portfolioExperience.forEach((experience) => {
-            let skillsHtml = "";
-            experience.skills.forEach((skill) => {
-              skillsHtml += `<span class="pill">${skill}</span> `;
-            });
-
-            let featuresHtml = "";
-            experience.features.forEach((feature) => {
-              if (!feature || feature.length < 1) return;
-              featuresHtml += `<span class="pillFeature">${feature}</span> `;
-            });
-
             let processedDescription =
               experience.description.length > 0
                 ? experience.description

@@ -54,7 +54,7 @@
               </div>
               <!-- • <div id="candidateAvailability" style="display: inline;">No Availability Listed</div>-->
             </div>
-            <div id="topMatches" class="pills">No Skills Found</div>
+            <div id="topMatches" class="pills"></div>
           </div>
         </div>
 
@@ -364,6 +364,8 @@
             featureSkillDiv.hidden = false;
 
           profileData.features.forEach((feature) => {
+            if (!feature || !feature.title) return;
+
             featurePillHtml += `<span class="pill">${feature.title}</span>`;
 
             featureSkillDiv.insertAdjacentHTML(
@@ -406,17 +408,17 @@
 
           document.getElementById("candidateCity").innerText =
             profileData.profile.city && profileData.profile.city.length > 0
-              ? profileData.profile.city
-              : "No City Listed";
+              ? profileData.profile.city + ","
+              : "No City Listed,";
           document.getElementById("candidateState").innerText =
             profileData.profile.state && profileData.profile.state.length > 0
-              ? ", " + profileData.profile.state
-              : "";
+              ? profileData.profile.state + ","
+              : "No State Listed, ";
           document.getElementById("candidateCountry").innerText =
             profileData.profile.country &&
             profileData.profile.country.length > 0
-              ? ", " + profileData.profile.country
-              : "";
+              ? profileData.profile.country
+              : "No Country Listed";
 
           if (
             profileData.profile.description &&

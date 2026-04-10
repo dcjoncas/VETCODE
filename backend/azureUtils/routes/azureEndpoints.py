@@ -77,6 +77,15 @@ def get_profile(profileUrl: str = ""):
 
     return candidates.getProfilePublic(profileUrl)
 
+@router.post("/profile/update")
+async def update_profile(personId: str = Form(...), first_name: str = Form(...), last_name: str = Form(...), city: str = Form(default=""), state: str = Form(default=""), country: str = Form(default=""), description: str = Form(default="")):
+    if not personId or personId == "" or not first_name or first_name == "" or not last_name or last_name == "":
+        raise HTTPException(status_code=400, detail="Missing Basic Details. personId, first_name and last_name are required.")
+
+    print(f"Updating profile {personId}")
+
+    return candidates.updateCandidate(personId=personId, firstName=first_name, lastName=last_name, city=city, state=state, country=country, description=description)
+
 # For multithreading
 def process_skill(raw: str, key: str):
     return {
