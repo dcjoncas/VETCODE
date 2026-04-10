@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from pydantic import BaseModel
 from concurrent.futures import ThreadPoolExecutor
 from azureUtils.storage import candidates, resumes
 from resumeProcessing.processing import ingest
@@ -9,6 +10,14 @@ router = APIRouter(
     prefix="/api/azure",
     tags=["azure", "candidates"]
 )
+
+@router.get("/skills")
+async def skills_list():
+    return candidates.getSkills()
+
+@router.get("/skills/{searchQuery}")
+async def search_skills(searchQuery: str):
+    return candidates.searchSkills(searchQuery)
 
 @router.get("/countCandidates")
 async def count_candidates(domain: str = "all"):
@@ -78,13 +87,29 @@ def get_profile(profileUrl: str = ""):
     return candidates.getProfilePublic(profileUrl)
 
 @router.post("/profile/update")
-async def update_profile(personId: str = Form(...), first_name: str = Form(...), last_name: str = Form(...), city: str = Form(default=""), state: str = Form(default=""), country: str = Form(default=""), description: str = Form(default="")):
+async def update_profile_core(personId: str = Form(...), first_name: str = Form(...), last_name: str = Form(...), city: str = Form(default=""), state: str = Form(default=""), country: str = Form(default=""), description: str = Form(default=""), job_title: str = Form(default="")):
     if not personId or personId == "" or not first_name or first_name == "" or not last_name or last_name == "":
         raise HTTPException(status_code=400, detail="Missing Basic Details. personId, first_name and last_name are required.")
 
     print(f"Updating profile {personId}")
 
-    return candidates.updateCandidate(personId=personId, firstName=first_name, lastName=last_name, city=city, state=state, country=country, description=description)
+    return candidates.updateCandidateCore(personId=personId, firstName=first_name, lastName=last_name, city=city, state=state, country=country, description=description, jobTitle=job_title)
+
+class profileSkillsUpdateRequest(BaseModel):
+    personId: str
+    skills: list
+
+@router.post("/profile/updateSkills")
+async def update_profile_skills(profileSkillsUpdate: profileSkillsUpdateRequest):
+    personId = profileSkillsUpdate.personId
+    skills = profileSkillsUpdate.skills
+
+    if not personId or personId == "":
+        raise HTTPException(status_code=400, detail="Missing personId.")
+
+    print(f"Updating skills for profile {personId}")
+
+    return candidates.updateCandidateSkills(personId=personId, skills=skills)
 
 # For multithreading
 def process_skill(raw: str, key: str):
@@ -130,6 +155,7 @@ async def upload_resume(
         candidateCity_future = executor.submit(processGeneral, raw, "currently lived in city (DO NOT RETURN PROVINCE OR STATE. DO NOT RETURN ASSOCIATED JOBS OR COMPANIES. ONLY RETURN CITY NAME)")
         candidateState_future = executor.submit(processGeneral, raw, "currently lived in state or province (DO NOT RETURN CITY. DO NOT RETURN ASSOCIATED JOBS OR COMPANIES. ONLY RETURN STATE OR PROVINCE NAME. RETURN NO ADDITIONAL COMMENTARY)")
         candidateCountry_future = executor.submit(processGeneral, raw, "currently lived in country (DO NOT RETURN CITY, STATE OR PROVINCE. ONLY RETURN COUNTRY NAME)")
+        candidateTitle_future = executor.submit(processGeneral, raw, "current or most recent job title (DO NOT RETURN ANY ASSOCIATED COMPANIES OR JOBS. ONLY RETURN JOB TITLE. RETURN NO ADDITIONAL COMMENTARY)")
 
     print(profile)
 
@@ -138,8 +164,9 @@ async def upload_resume(
     candidateCity = candidateCity_future.result()
     candidateState = candidateState_future.result()
     candidateCountry = candidateCountry_future.result()
+    candidateTitle = candidateTitle_future.result()
 
-    profileResult = candidates.uploadProfile(skills=flatSkills, fullName=profile["contact"]["full_name"], email=profile["contact"]["email"], linkedInUrl=profile["contact"]["linkedin"], candidateDescription=description, culturalExperiences=culturalExperiences, candidateCity=candidateCity, candidateState=candidateState, candidateCountry=candidateCountry)
+    profileResult = candidates.uploadProfile(skills=flatSkills, fullName=profile["contact"]["full_name"], email=profile["contact"]["email"], linkedInUrl=profile["contact"]["linkedin"], candidateDescription=description, culturalExperiences=culturalExperiences, candidateCity=candidateCity, candidateState=candidateState, candidateCountry=candidateCountry, candidateTitle=candidateTitle)
 
     await resumes.uploadResume(file, profileResult["personid"])
 

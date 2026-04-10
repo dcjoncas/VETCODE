@@ -12,6 +12,11 @@
     />
     <link rel="stylesheet" href="../assets/styles.css" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
+      rel="stylesheet"
+    />
     <script>
       $(function () {
         $("#siteSidebar").load("components/sidebar.html");
@@ -99,7 +104,12 @@
                 <div id="topMatches" class="pills"></div>
               </div>
               <div class="row-actions" style="margin: 0">
-                <button id="saveBtn" class="btn" type="button">
+                <button
+                  id="saveBtn"
+                  class="btn"
+                  type="button"
+                  style="height: min-content"
+                >
                   Save Changes
                 </button>
               </div>
@@ -147,6 +157,22 @@
             <div class="flexCard" style="grid-column: 1; grid-row: 1">
               <h2>Skills (Years)</h2>
               <div id="skillsChart"></div>
+              <button
+                id="newSkillBtn"
+                class="btn secondary"
+                type="button"
+                style="height: min-content; margin-top: 10px"
+              >
+                Add New Skill
+              </button>
+              <button
+                id="saveSkillsBtn"
+                class="btn"
+                type="button"
+                style="height: min-content; margin-top: 10px"
+              >
+                Save Skills
+              </button>
             </div>
 
             <div
@@ -319,12 +345,14 @@
     <script src="JS/apiScripts.js"></script>
 
     <script>
+      let skillCount = 0;
+
       // tiny UX sugar (mock only)
       document
         .querySelectorAll("a.step")
         .forEach((a) => a.addEventListener("click", () => {}));
 
-      async function saveProfile() {
+      async function saveProfileCore() {
         const candidateId = sessionStorage.getItem("candidateId");
 
         if (!candidateId) {
@@ -350,16 +378,104 @@
           document.getElementById("descriptionText").value,
         );
 
+        fd.append(
+          "job_title",
+          document.getElementById("candidateJobTitle").value,
+        );
+
         const result = await api(`/api/azure/profile/update`, {
           method: "POST",
           body: fd,
         });
       }
 
+      async function saveProfileSkills() {
+        const candidateId = sessionStorage.getItem("candidateId");
+
+        if (!candidateId) {
+          alert("No candidate ID found in session. Cannot save profile.");
+          return;
+        }
+
+        const skillsToUpdate = [];
+
+        for (let i = 0; i < skillCount; i++) {
+          const skillId = document.getElementById(`skillHidden${i}`).value;
+          const skillYears = document.getElementById(`skill${i}`).value;
+
+          skillsToUpdate.push({
+            skill: skillId,
+            years: skillYears,
+          });
+        }
+
+        const result = await fetch(`/api/azure/profile/updateSkills`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            personId: candidateId,
+            skills: skillsToUpdate,
+          }),
+        });
+      }
+
+      async function addSkill() {
+        document.getElementById(`skillsChart`).insertAdjacentHTML(
+          "beforeend",
+          `<div style="display: block; margin-top: 10px;"><p style="display: inline; margin-right: 10px;">
+            <select id="skillHidden${skillCount}">
+              <option value="" selected>
+                Select Description
+              </option>
+            </select hidden>
+            <input id="skill${skillCount}" type="number" min="0" max="10" value="0" style="display: inline" hidden/>
+          </div>`,
+        );
+
+        $(`#skillHidden${skillCount}`).select2({
+          minimumResultsForSearch: 0,
+          minimumInputLength: 0,
+          ajax: {
+            url: function (params) {
+              if (!params.term) return "/api/azure/skills";
+              return `/api/azure/skills/${params.term}`;
+            },
+            dataType: "json",
+            delay: 250, // debounce
+
+            processResults: function (data) {
+              return {
+                results: data.map((item) => ({
+                  id: item.id,
+                  text: item.title || "",
+                })),
+              };
+            },
+
+            cache: true,
+          },
+        });
+
+        document.getElementById(`skillHidden${skillCount}`).hidden = false;
+        document.getElementById(`skill${skillCount}`).hidden = false;
+
+        skillCount++;
+      }
+
       document.addEventListener("DOMContentLoaded", async () => {
         document
           .getElementById("saveBtn")
-          .addEventListener("click", saveProfile);
+          .addEventListener("click", saveProfileCore);
+
+        document
+          .getElementById("saveSkillsBtn")
+          .addEventListener("click", saveProfileSkills);
+
+        document
+          .getElementById("newSkillBtn")
+          .addEventListener("click", addSkill);
         // Get session variables
         const candidateId = sessionStorage.getItem("candidateId");
 
@@ -457,7 +573,7 @@
               `https://www.google.com/maps?q=-80,0&z=1&output=embed`;
           }
 
-          document.getElementById("candidateJobTitle").innerText =
+          document.getElementById("candidateJobTitle").value =
             profileData.profile.title && profileData.profile.title.length > 0
               ? profileData.profile.title
               : "No Job Title Listed";
@@ -492,8 +608,9 @@
               .getElementById(`skillsChart`)
               .insertAdjacentHTML(
                 "afterbegin",
-                `<div style="display: block; margin-top: 10px;"><p style="display: inline; margin-right: 10px;">${skill.skill}</p><input id="${skill.skill.replace(/\s+/g, "_")}" type="number" min="0" max="10" value="${skill.years}" style="display: inline"/></div>`,
+                `<div style="display: block; margin-top: 10px;"><p style="display: inline; margin-right: 10px;">${skill.skill}</p><input id="skill${skillCount}" type="number" min="0" max="10" value="${skill.years}" style="display: inline"/><input id="skillHidden${skillCount}" type="hidden" value="${skill.skillId}"/></div>`,
               );
+            skillCount++;
           });
 
           // Display average score as a percentage
