@@ -111,6 +111,24 @@ async def update_profile_skills(profileSkillsUpdate: profileSkillsUpdateRequest)
 
     return candidates.updateCandidateSkills(personId=personId, skills=skills)
 
+class profileFeaturesUpdateRequest(BaseModel):
+    personId: str
+    features: list
+    cultural: list
+
+@router.post("/profile/updateFeatures")
+async def update_profile_features(profileFeaturesUpdate: profileFeaturesUpdateRequest):
+    personId = profileFeaturesUpdate.personId
+    features = profileFeaturesUpdate.features
+    cultural = profileFeaturesUpdate.cultural
+
+    if not personId or personId == "":
+        raise HTTPException(status_code=400, detail="Missing personId.")
+
+    print(f"Updating features for profile {personId}")
+
+    return candidates.updateCandidateFeatures(personId=personId, features=features, cultural=cultural)
+
 # For multithreading
 def process_skill(raw: str, key: str):
     return {

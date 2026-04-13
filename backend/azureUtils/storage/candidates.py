@@ -566,3 +566,46 @@ def updateCandidateSkills(personId: str, skills: list):
     conn.close()
 
     return {"status": "success"}
+
+def updateCandidateFeatures(personId: str, features: list, cultural: list):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    query = f"SELECT profper.id FROM professionalprofile profper JOIN professional prof ON profper.professionalid = prof.id WHERE prof.personid = {personId}"
+    cur.execute(query)
+    profileId = cur.fetchone()[0]
+
+    # Delete existing features
+    query = f"DELETE FROM professionalfeature WHERE profileid = {profileId}"
+    cur.execute(query)
+
+    for feature in features:
+        feature["level"] = int(feature["level"])
+
+        if feature["level"] <1:
+            feature["level"] = 1
+        elif feature["level"] >3:
+            feature["level"] = 3
+        # Associate feature with professional profile
+        query = "INSERT INTO professionalfeature (profileid, title, level) VALUES (%s, %s, %s)"
+        cur.execute(query, (profileId, feature["title"], feature['level']))
+
+    # Delete existing cultural experiences
+    query = f"DELETE FROM professionalculturalexperience WHERE profileid = {profileId}"
+    cur.execute(query)
+
+    for feature in cultural:
+        feature["level"] = int(feature["level"])
+
+        if feature["level"] <1:
+            feature["level"] = 1
+        elif feature["level"] >3:
+            feature["level"] = 3
+        # Associate cultural experience with professional profile
+        query = "INSERT INTO professionalculturalexperience (profileid, title, level) VALUES (%s, %s, %s)"
+        cur.execute(query, (profileId, feature["title"], feature['level']))
+
+    conn.commit()
+    conn.close()
+
+    return {"status": "success"}

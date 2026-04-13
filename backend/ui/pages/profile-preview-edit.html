@@ -110,7 +110,15 @@
                   type="button"
                   style="height: min-content"
                 >
-                  Save Changes
+                  Save Bio
+                </button>
+                <button
+                  id="saveAllBtn"
+                  class="btn secondary"
+                  type="button"
+                  style="height: min-content"
+                >
+                  Save All
                 </button>
               </div>
             </section>
@@ -163,7 +171,7 @@
                 type="button"
                 style="height: min-content; margin-top: 10px"
               >
-                Add New Skill
+                New Skill
               </button>
               <button
                 id="saveSkillsBtn"
@@ -186,131 +194,39 @@
               "
             >
               <div>
-                <div id="featureSkillDiv" style="margin-top: 12px" hidden>
+                <p>
+                  Experience in these fields are measured on a scale of 1 to 3
+                </p>
+                <div id="featureSkillDiv" style="margin-top: 12px">
                   <h2>Feature Experience</h2>
                 </div>
-                <div id="culturalSkillDiv" style="margin-top: 12px" hidden>
+                <button
+                  id="newFeatureBtn"
+                  class="btn secondary"
+                  type="button"
+                  style="height: min-content; margin-top: 10px"
+                >
+                  New Feature
+                </button>
+                <div id="culturalSkillDiv" style="margin-top: 12px">
                   <h2>Cultural Experience</h2>
                 </div>
-              </div>
-            </div>
-
-            <div
-              class="flexCard"
-              style="
-                padding: 14px;
-                border-radius: 18px;
-                box-shadow: none;
-                grid-column: 1;
-                grid-row: 2;
-              "
-            >
-              <div id="personalityBarDiv">
-                <div style="margin-top: 14px">
-                  <h2>Developer Personality</h2>
-                  <div class="split">
-                    <div style="grid-column: 1; grid-row: 1">
-                      <div
-                        style="display: flex; justify-content: space-between"
-                      >
-                        <small>Independent</small>
-                      </div>
-                      <div class="progressLeft" style="margin-top: 6px">
-                        <div id="IndependentBar" style="width: 0%"></div>
-                      </div>
-                      <div
-                        style="display: flex; justify-content: space-between"
-                      >
-                        <small>Trailblazer</small>
-                      </div>
-                      <div class="progressLeft" style="margin-top: 6px">
-                        <div id="TrailblazerBar" style="width: 0%"></div>
-                      </div>
-                      <div
-                        style="display: flex; justify-content: space-between"
-                      >
-                        <small>Generalist</small>
-                      </div>
-                      <div class="progressLeft" style="margin-top: 6px">
-                        <div id="GeneralistBar" style="width: 0%"></div>
-                      </div>
-                      <div
-                        style="display: flex; justify-content: space-between"
-                      >
-                        <small>Planner</small>
-                      </div>
-                      <div class="progressLeft" style="margin-top: 6px">
-                        <div id="PlannerBar" style="width: 0%"></div>
-                      </div>
-                      <div
-                        style="display: flex; justify-content: space-between"
-                      >
-                        <small>Idealist</small>
-                      </div>
-                      <div class="progressLeft" style="margin-top: 6px">
-                        <div id="IdealistBar" style="width: 0%"></div>
-                      </div>
-                      <div
-                        style="display: flex; justify-content: space-between"
-                      >
-                        <small>Abstraction</small>
-                      </div>
-                      <div class="progressLeft" style="margin-top: 6px">
-                        <div id="AbstractionBar" style="width: 0%"></div>
-                      </div>
-                    </div>
-                    <div style="grid-column: 2; grid-row: 1">
-                      <div
-                        style="display: flex; justify-content: space-between"
-                      >
-                        <small>Collaborative</small>
-                      </div>
-                      <div class="progress" style="margin-top: 6px">
-                        <div id="CollaborativeBar" style="width: 0%"></div>
-                      </div>
-                      <div
-                        style="display: flex; justify-content: space-between"
-                      >
-                        <small>Conservative</small>
-                      </div>
-                      <div class="progress" style="margin-top: 6px">
-                        <div id="ConservativeBar" style="width: 0%"></div>
-                      </div>
-                      <div
-                        style="display: flex; justify-content: space-between"
-                      >
-                        <small>Specialist</small>
-                      </div>
-                      <div class="progress" style="margin-top: 6px">
-                        <div id="SpecialistBar" style="width: 0%"></div>
-                      </div>
-                      <div
-                        style="display: flex; justify-content: space-between"
-                      >
-                        <small>Doer</small>
-                      </div>
-                      <div class="progress" style="margin-top: 6px">
-                        <div id="DoerBar" style="width: 0%"></div>
-                      </div>
-                      <div
-                        style="display: flex; justify-content: space-between"
-                      >
-                        <small>Pragmatist</small>
-                      </div>
-                      <div class="progress" style="margin-top: 6px">
-                        <div id="PragmatistBar" style="width: 0%"></div>
-                      </div>
-                      <div
-                        style="display: flex; justify-content: space-between"
-                      >
-                        <small>Control</small>
-                      </div>
-                      <div class="progress" style="margin-top: 6px">
-                        <div id="ControlBar" style="width: 0%"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <button
+                  id="newCulturalBtn"
+                  class="btn secondary"
+                  type="button"
+                  style="height: min-content; margin-top: 10px"
+                >
+                  New Cultural Experience
+                </button>
+                <button
+                  id="saveExperienceBtn"
+                  class="btn"
+                  type="button"
+                  style="height: min-content; margin-top: 10px"
+                >
+                  Save Experience
+                </button>
               </div>
             </div>
           </div>
@@ -336,6 +252,8 @@
 
     <script>
       let skillCount = 0;
+      let culturalCount = 0;
+      let featureCount = 0;
 
       // tiny UX sugar (mock only)
       document
@@ -416,11 +334,7 @@
           }),
         });
 
-        if (result.ok) {
-          location.reload();
-        } else {
-          alert("Error updating skills.");
-        }
+        if (!result.ok) alert("Error updating skills.");
       }
 
       async function addSkill() {
@@ -470,18 +384,141 @@
         document.getElementById(`skillHidden${id}`).parentElement.remove();
       }
 
+      function addFeature(type) {
+        const containerId =
+          type === "feature"
+            ? "featureSkillDiv"
+            : type === "cultural"
+              ? "culturalSkillDiv"
+              : null;
+
+        if (!containerId) return;
+
+        document
+          .getElementById(containerId)
+          .insertAdjacentHTML(
+            "beforeend",
+            `<div style="display: block; margin-top: 10px;"><input id="${type}${type === "feature" ? featureCount : culturalCount}" type="text" placeholder="Description" style="display: inline; margin-right: 10px;"/><input id="${type}Level${type === "feature" ? featureCount : culturalCount}" type="number" min="0" max="3" value="0" style="display: inline"/><button onclick="removeFeature('${type}', ${type === "feature" ? featureCount : culturalCount})" class="btn remove">Remove</button></div>`,
+          );
+
+        if (type == "feature") featureCount++;
+        else if (type === "cultural") culturalCount++;
+      }
+
+      function removeFeature(type, id) {
+        document.getElementById(`${type}${id}`).parentElement.remove();
+      }
+
+      async function saveFeatures() {
+        const candidateId = sessionStorage.getItem("candidateId");
+
+        if (!candidateId) {
+          alert("No candidate ID found in session. Cannot save profile.");
+          return;
+        }
+
+        const featuresToUpdate = [];
+        const culturalToUpdate = [];
+
+        for (let i = 0; i < featureCount; i++) {
+          if (
+            document.getElementById(`feature${i}`) == null ||
+            document.getElementById(`featureLevel${i}`) == null ||
+            document.getElementById(`feature${i}`).value.trim() === "" ||
+            document.getElementById(`featureLevel${i}`).value.trim() === ""
+          )
+            continue;
+
+          const featureTitle = document.getElementById(`feature${i}`).value;
+          const featureLevel = document.getElementById(
+            `featureLevel${i}`,
+          ).value;
+
+          featuresToUpdate.push({
+            title: featureTitle,
+            level: featureLevel,
+          });
+        }
+
+        for (let i = 0; i < culturalCount; i++) {
+          if (
+            document.getElementById(`cultural${i}`) == null ||
+            document.getElementById(`culturalLevel${i}`) == null ||
+            document.getElementById(`cultural${i}`).value.trim() === "" ||
+            document.getElementById(`culturalLevel${i}`).value.trim() === ""
+          )
+            continue;
+
+          const culturalTitle = document.getElementById(`cultural${i}`).value;
+          const culturalLevel = document.getElementById(
+            `culturalLevel${i}`,
+          ).value;
+
+          culturalToUpdate.push({
+            title: culturalTitle,
+            level: culturalLevel,
+          });
+        }
+
+        console.log(culturalToUpdate);
+        console.log(featuresToUpdate);
+
+        const result = await fetch(`/api/azure/profile/updateFeatures`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            personId: candidateId,
+            features: featuresToUpdate,
+            cultural: culturalToUpdate,
+          }),
+        });
+
+        if (!result.ok) alert("Error updating skills.");
+      }
+
       document.addEventListener("DOMContentLoaded", async () => {
         document
           .getElementById("saveBtn")
           .addEventListener("click", saveProfileCore);
 
+        document.getElementById("saveAllBtn").addEventListener(
+          "click",
+          (saveAll = async () => {
+            await saveProfileCore();
+            await saveProfileSkills();
+            await saveFeatures();
+            location.reload();
+          }),
+        );
+
         document
           .getElementById("saveSkillsBtn")
-          .addEventListener("click", saveProfileSkills);
+          .addEventListener("click", () => {
+            saveProfileSkills();
+            location.reload();
+          });
 
         document
           .getElementById("newSkillBtn")
           .addEventListener("click", addSkill);
+
+        document
+          .getElementById("newFeatureBtn")
+          .addEventListener("click", () => addFeature("feature"));
+
+        document
+          .getElementById("newCulturalBtn")
+          .addEventListener("click", () => addFeature("cultural"));
+
+        document
+          .getElementById("saveExperienceBtn")
+          .addEventListener("click", () => {
+            saveFeatures();
+            location.reload();
+          });
+
         // Get session variables
         const candidateId = sessionStorage.getItem("candidateId");
 
@@ -500,19 +537,13 @@
             profileData.features.length > 0 &&
             profileData.features[0].title
           )
-            featureSkillDiv.hidden = false;
-
-          profileData.features.forEach((feature) => {
-            featureSkillDiv.insertAdjacentHTML(
-              "beforeend",
-              `
-            <div style="margin-top:8px">
-              <p>${feature.title}</p>
-              <div class="progress" style="margin-top:6px"><div style="width:${(feature.level / 3) * 100}%"></div></div>
-            </div>
-          `,
-            );
-          });
+            profileData.features.forEach((feature) => {
+              featureSkillDiv.insertAdjacentHTML(
+                "beforeend",
+                `<div style="display: block; margin-top: 10px;"><input id="feature${featureCount}" type="text" value="${feature.title}" style="display: inline; margin-right: 10px;"/><input id="featureLevel${featureCount}" type="number" min="0" max="3" value="${feature.level}" style="display: inline"/><button onclick="removeFeature('feature',${featureCount})" class="btn remove">Remove</button></div>`,
+              );
+              featureCount++;
+            });
 
           const culturalSkillDiv = document.getElementById("culturalSkillDiv");
 
@@ -521,19 +552,13 @@
             profileData.culturalExperience.length > 0 &&
             profileData.culturalExperience[0].title
           )
-            culturalSkillDiv.hidden = false;
-
-          profileData.culturalExperience.forEach((feature) => {
-            culturalSkillDiv.insertAdjacentHTML(
-              "beforeend",
-              `
-            <div style="margin-top:8px">
-              <p>${feature.title}</p>
-              <div class="progress" style="margin-top:6px"><div style="width:${(feature.level / 3) * 100}%"></div></div>
-            </div>
-          `,
-            );
-          });
+            profileData.culturalExperience.forEach((feature) => {
+              culturalSkillDiv.insertAdjacentHTML(
+                "beforeend",
+                `<div style="display: block; margin-top: 10px;"><input id="cultural${culturalCount}" type="text" value="${feature.title}" style="display: inline; margin-right: 10px;"/><input id="culturalLevel${culturalCount}" type="number" min="0" max="3" value="${feature.level}" style="display: inline"/><button onclick="removeFeature('cultural',${culturalCount})" class="btn remove">Remove</button></div>`,
+              );
+              culturalCount++;
+            });
 
           document.getElementById("topMatches").innerHTML = featurePillHtml;
 
@@ -617,12 +642,6 @@
                 `<div style="display: block; margin-top: 10px;"><p style="display: inline; margin-right: 10px;">${skill.skill}</p><input id="skill${skillCount}" type="number" min="0" max="10" value="${skill.years}" style="display: inline"/><input id="skillHidden${skillCount}" type="hidden" value="${skill.skillId}"/><button onclick="removeSkill(${skillCount})" class="btn remove">Remove</button></div>`,
               );
             skillCount++;
-          });
-
-          // Personality bars
-          profileData.personality.forEach((personality) => {
-            document.getElementById(personality.title + "Bar").style.width =
-              personality.score + "%";
           });
 
           profileData.portfolioExperience.forEach((experience) => {
