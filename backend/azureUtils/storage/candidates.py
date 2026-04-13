@@ -1,6 +1,47 @@
 import azureUtils.storage.client as client
 import azureUtils.storage.processingFunctions as processing
-from openAI.candidateProcessing import processSkillYears
+
+def getSkills():
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    query = f"SELECT id, title FROM skill ORDER BY id DESC LIMIT 10;"
+    
+    cur.execute(query)
+    results = cur.fetchall()
+
+    conn.close()
+
+    skills = []
+
+    for r in results:
+        skills.append({
+            "id": r[0],
+            "title": r[1]
+        })
+    
+    return skills
+
+def searchSkills(searchQuery: str):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    query = f"SELECT id, title FROM skill WHERE title ILIKE '%{searchQuery}%' ORDER BY id DESC LIMIT 10;"
+    
+    cur.execute(query)
+    results = cur.fetchall()
+
+    conn.close()
+
+    skills = []
+
+    for r in results:
+        skills.append({
+            "id": r[0],
+            "title": r[1]
+        })
+    
+    return skills
 
 def countCandidates():
     conn = client.getConnection()
@@ -422,7 +463,7 @@ def getProfilePublic(profileUrl: str):
     else:
         raise Exception("Profile not found")
     
-def uploadProfile(skills: list, fullName: str, candidateDescription: str, email: str = "N/A", linkedInUrl: str = "N/A", culturalExperiences: list = [], candidateCity: str = "N/A", candidateState: str = "N/A", candidateCountry: str = "N/A"):
+def uploadProfile(skills: list, fullName: str, candidateDescription: str, email: str = None, linkedInUrl: str = None, culturalExperiences: list = [], candidateCity: str = None, candidateState: str = None, candidateCountry: str = None, candidateTitle: str = None):
     print(f"Uploading profile for {fullName} with email {email} and LinkedIn URL {linkedInUrl}. Skills: {skills}")
     conn = client.getConnection()
     cur = conn.cursor()
@@ -449,8 +490,8 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, email:
     professionalId = ""
 
     cur.execute(
-        "INSERT INTO professional (personid,email,linkedinurl,maindescription, status, url) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
-        (personId, email, linkedInUrl, candidateDescription, 1, url)
+        "INSERT INTO professional (personid, email, linkedinurl, maindescription, status, url, title) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
+        (personId, email, linkedInUrl, candidateDescription, 1, url, candidateTitle)
     )
     rawRow = cur.fetchone()
     professionalId = rawRow[0]
@@ -485,3 +526,86 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, email:
     conn.close()
     print(f"Profile for {fullName} uploaded successfully with ID {personId}.")
     return {"status": "success", "message": f"Profile for {fullName} uploaded successfully.", "personid": personId, "name": fullName}
+
+def updateCandidateCore(personId: str, firstName: str, lastName: str, city: str = "", state: str = "", country: str = "", description: str = "", jobTitle: str = ""):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    query = f"UPDATE person SET firstname = %s, lastname = %s WHERE id = {personId}"
+    cur.execute(query, (firstName, lastName))
+
+    query = f"UPDATE address SET city = %s, state = %s, country = %s WHERE personid = {personId}"
+    cur.execute(query, (city, state, country))
+
+    query = f"UPDATE professional SET maindescription = %s, title = %s WHERE personid = {personId}"
+    cur.execute(query, (description, jobTitle))
+
+    conn.commit()
+    conn.close()
+
+    return {"status": "success"}
+
+def updateCandidateSkills(personId: str, skills: list):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    query = f"SELECT profper.id FROM professionalprofile profper JOIN professional prof ON profper.professionalid = prof.id WHERE prof.personid = {personId}"
+    cur.execute(query)
+    profileId = cur.fetchone()[0]
+
+    # Delete existing skills
+    query = f"DELETE FROM professionalskill WHERE profileid = {profileId}"
+    cur.execute(query)
+
+    for skill in skills:
+        # Associate skill with professional profile
+        query = "INSERT INTO professionalskill (profileid, skillid, years) VALUES (%s, %s, %s)"
+        cur.execute(query, (profileId, skill["skill"], skill['years']))
+
+    conn.commit()
+    conn.close()
+
+    return {"status": "success"}
+
+def updateCandidateFeatures(personId: str, features: list, cultural: list):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    query = f"SELECT profper.id FROM professionalprofile profper JOIN professional prof ON profper.professionalid = prof.id WHERE prof.personid = {personId}"
+    cur.execute(query)
+    profileId = cur.fetchone()[0]
+
+    # Delete existing features
+    query = f"DELETE FROM professionalfeature WHERE profileid = {profileId}"
+    cur.execute(query)
+
+    for feature in features:
+        feature["level"] = int(feature["level"])
+
+        if feature["level"] <1:
+            feature["level"] = 1
+        elif feature["level"] >3:
+            feature["level"] = 3
+        # Associate feature with professional profile
+        query = "INSERT INTO professionalfeature (profileid, title, level) VALUES (%s, %s, %s)"
+        cur.execute(query, (profileId, feature["title"], feature['level']))
+
+    # Delete existing cultural experiences
+    query = f"DELETE FROM professionalculturalexperience WHERE profileid = {profileId}"
+    cur.execute(query)
+
+    for feature in cultural:
+        feature["level"] = int(feature["level"])
+
+        if feature["level"] <1:
+            feature["level"] = 1
+        elif feature["level"] >3:
+            feature["level"] = 3
+        # Associate cultural experience with professional profile
+        query = "INSERT INTO professionalculturalexperience (profileid, title, level) VALUES (%s, %s, %s)"
+        cur.execute(query, (profileId, feature["title"], feature['level']))
+
+    conn.commit()
+    conn.close()
+
+    return {"status": "success"}

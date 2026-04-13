@@ -212,6 +212,15 @@ small {
   box-shadow: none;
   cursor: not-allowed;
 }
+.btn.remove {
+  margin-left: 10px;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
+  border-radius: 5px;
+}
 .btn.ghost {
   background: transparent;
   border-color: rgba(255, 255, 255, 0.35);

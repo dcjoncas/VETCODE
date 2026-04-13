@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title id="profilePageTitle">DevReady • Screen 4 — Profile Preview</title>
+    <link
+      rel="icon"
+      href="../assets/logo.svg"
+      sizes="any"
+      type="image/svg+xml"
+    />
+    <link rel="stylesheet" href="../assets/styles.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
+      rel="stylesheet"
+    />
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html");
+        $("#processFlow").load("components/processFlow.html");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div id="pageTitle" class="page-title">
+              Screen 4 — Profile Preview
+            </div>
+            <div class="breadcrumb">Vetting Process • Profile Output</div>
+          </div>
+          <div id="searchBar"></div>
+        </div>
+
+        <div id="processFlow"></div>
+
+        <!--<div class="grid">-->
+        <section class="card">
+          <div
+            style="
+              display: flex;
+              gap: 16px;
+              align-items: center;
+              flex-wrap: wrap;
+            "
+          >
+            <div id="noImageFound" class="imageBox">No Image</div>
+            <img id="candidateImage" class="imageBox" style="display: none" />
+            <section
+              id="editCandidateBasics"
+              style="display: flex; flex: 1; gap: 16px"
+            >
+              <div style="flex: 1; min-width: 260px">
+                <input
+                  type="text"
+                  id="profileFirstNameInput"
+                  placeholder="Candidate First Name"
+                />
+                <input
+                  type="text"
+                  id="profileLastNameInput"
+                  placeholder="Candidate Last Name"
+                />
+                <div
+                  id="profileSubHeader"
+                  style="color: var(--muted); margin-top: 6px"
+                >
+                  <div id="candidateAddress" style="display: inline">
+                    <input
+                      id="candidateCity"
+                      type="text"
+                      placeholder="City"
+                      style="display: inline"
+                    />
+                    <input
+                      id="candidateState"
+                      type="text"
+                      placeholder="State"
+                      style="display: inline"
+                    />
+                    <input
+                      id="candidateCountry"
+                      type="text"
+                      placeholder="Country"
+                      style="display: inline"
+                    />
+                  </div>
+                  •
+                  <input
+                    id="candidateJobTitle"
+                    type="text"
+                    placeholder="Job Title"
+                    style="display: inline"
+                  />
+                </div>
+                <div id="topMatches" class="pills"></div>
+              </div>
+              <div class="row-actions" style="margin: 0">
+                <button
+                  id="saveBtn"
+                  class="btn"
+                  type="button"
+                  style="height: min-content"
+                >
+                  Save Bio
+                </button>
+                <button
+                  id="saveAllBtn"
+                  class="btn secondary"
+                  type="button"
+                  style="height: min-content"
+                >
+                  Save All
+                </button>
+              </div>
+            </section>
+          </div>
+
+          <div
+            class="split"
+            style="margin: 10px; grid-template-columns: 1fr 4fr"
+          >
+            <div
+              id="descriptionDiv"
+              style="grid-column: 2; grid-row: 1; text-align: left"
+            >
+              <h2 id="descriptionHeader" style="margin-top: 5px"></h2>
+              <textarea
+                id="descriptionText"
+                placeholder="Candidate Description..."
+                style="width: 100%; height: 200px"
+              >
+              </textarea>
+            </div>
+            <!-- TODO: FIGURE OUT HOW TO EDIT MAP-->
+            <div
+              style="
+                text-align: center;
+                width: 300px;
+                grid-column: 1;
+                grid-row: 1;
+              "
+            >
+              <iframe
+                id="mapIFrame"
+                width="300px"
+                height="300px"
+                style="border: 0; border-radius: 20%"
+                allowfullscreen
+                referrerpolicy="no-referrer-when-downgrade"
+              >
+              </iframe>
+            </div>
+          </div>
+
+          <div class="split" style="margin-top: 16px">
+            <div class="flexCard" style="grid-column: 1; grid-row: 1">
+              <h2>Skills (Years)</h2>
+              <div id="skillsChart"></div>
+              <button
+                id="newSkillBtn"
+                class="btn secondary"
+                type="button"
+                style="height: min-content; margin-top: 10px"
+              >
+                New Skill
+              </button>
+              <button
+                id="saveSkillsBtn"
+                class="btn"
+                type="button"
+                style="height: min-content; margin-top: 10px"
+              >
+                Save Skills
+              </button>
+            </div>
+
+            <div
+              class="flexCard"
+              style="
+                padding: 14px;
+                border-radius: 18px;
+                box-shadow: none;
+                grid-column: 2;
+                grid-row: 1/4;
+              "
+            >
+              <div>
+                <p>
+                  Experience in these fields are measured on a scale of 1 to 3
+                </p>
+                <div id="featureSkillDiv" style="margin-top: 12px">
+                  <h2>Feature Experience</h2>
+                </div>
+                <button
+                  id="newFeatureBtn"
+                  class="btn secondary"
+                  type="button"
+                  style="height: min-content; margin-top: 10px"
+                >
+                  New Feature
+                </button>
+                <div id="culturalSkillDiv" style="margin-top: 12px">
+                  <h2>Cultural Experience</h2>
+                </div>
+                <button
+                  id="newCulturalBtn"
+                  class="btn secondary"
+                  type="button"
+                  style="height: min-content; margin-top: 10px"
+                >
+                  New Cultural Experience
+                </button>
+                <button
+                  id="saveExperienceBtn"
+                  class="btn"
+                  type="button"
+                  style="height: min-content; margin-top: 10px"
+                >
+                  Save Experience
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <h2 style="margin-top: 18px">Portfolio</h2>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Company</th>
+                <th>Role</th>
+                <th>Highlights</th>
+                <th>Skills</th>
+                <th>Features</th>
+              </tr>
+            </thead>
+            <tbody id="portfolioBody"></tbody>
+          </table>
+        </section>
+      </main>
+    </div>
+
+    <script src="JS/apiScripts.js"></script>
+
+    <script>
+      let skillCount = 0;
+      let culturalCount = 0;
+      let featureCount = 0;
+
+      // tiny UX sugar (mock only)
+      document
+        .querySelectorAll("a.step")
+        .forEach((a) => a.addEventListener("click", () => {}));
+
+      async function saveProfileCore() {
+        const candidateId = sessionStorage.getItem("candidateId");
+
+        if (!candidateId) {
+          alert("No candidate ID found in session. Cannot save profile.");
+          return;
+        }
+
+        const fd = new FormData();
+        fd.append("personId", candidateId);
+        fd.append(
+          "first_name",
+          document.getElementById("profileFirstNameInput").value,
+        );
+        fd.append(
+          "last_name",
+          document.getElementById("profileLastNameInput").value,
+        );
+        fd.append("city", document.getElementById("candidateCity").value);
+        fd.append("state", document.getElementById("candidateState").value);
+        fd.append("country", document.getElementById("candidateCountry").value);
+        fd.append(
+          "description",
+          document.getElementById("descriptionText").value,
+        );
+
+        fd.append(
+          "job_title",
+          document.getElementById("candidateJobTitle").value,
+        );
+
+        const result = await api(`/api/azure/profile/update`, {
+          method: "POST",
+          body: fd,
+        });
+      }
+
+      async function saveProfileSkills() {
+        const candidateId = sessionStorage.getItem("candidateId");
+
+        if (!candidateId) {
+          alert("No candidate ID found in session. Cannot save profile.");
+          return;
+        }
+
+        const skillsToUpdate = [];
+
+        for (let i = 0; i < skillCount; i++) {
+          if (
+            document.getElementById(`skillHidden${i}`) == null ||
+            document.getElementById(`skill${i}`) == null
+          )
+            continue;
+
+          const skillId = document.getElementById(`skillHidden${i}`).value;
+          const skillYears = document.getElementById(`skill${i}`).value;
+
+          skillsToUpdate.push({
+            skill: skillId,
+            years: skillYears,
+          });
+        }
+
+        const result = await fetch(`/api/azure/profile/updateSkills`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            personId: candidateId,
+            skills: skillsToUpdate,
+          }),
+        });
+
+        if (!result.ok) alert("Error updating skills.");
+      }
+
+      async function addSkill() {
+        document.getElementById(`skillsChart`).insertAdjacentHTML(
+          "beforeend",
+          `<div style="display: block; margin-top: 10px;"><p style="display: inline; margin-right: 10px;">
+            <select id="skillHidden${skillCount}">
+              <option value="" selected>
+                Select Description
+              </option>
+            </select hidden>
+            <input id="skill${skillCount}" type="number" min="0" max="10" value="0" style="display: inline" hidden/>
+          </div>`,
+        );
+
+        $(`#skillHidden${skillCount}`).select2({
+          minimumResultsForSearch: 0,
+          minimumInputLength: 0,
+          ajax: {
+            url: function (params) {
+              if (!params.term) return "/api/azure/skills";
+              return `/api/azure/skills/${params.term}`;
+            },
+            dataType: "json",
+            delay: 250, // debounce
+
+            processResults: function (data) {
+              return {
+                results: data.map((item) => ({
+                  id: item.id,
+                  text: item.title || "",
+                })),
+              };
+            },
+
+            cache: true,
+          },
+        });
+
+        document.getElementById(`skillHidden${skillCount}`).hidden = false;
+        document.getElementById(`skill${skillCount}`).hidden = false;
+
+        skillCount++;
+      }
+
+      function removeSkill(id) {
+        document.getElementById(`skillHidden${id}`).parentElement.remove();
+      }
+
+      function addFeature(type) {
+        const containerId =
+          type === "feature"
+            ? "featureSkillDiv"
+            : type === "cultural"
+              ? "culturalSkillDiv"
+              : null;
+
+        if (!containerId) return;
+
+        document
+          .getElementById(containerId)
+          .insertAdjacentHTML(
+            "beforeend",
+            `<div style="display: block; margin-top: 10px;"><input id="${type}${type === "feature" ? featureCount : culturalCount}" type="text" placeholder="Description" style="display: inline; margin-right: 10px;"/><input id="${type}Level${type === "feature" ? featureCount : culturalCount}" type="number" min="0" max="3" value="0" style="display: inline"/><button onclick="removeFeature('${type}', ${type === "feature" ? featureCount : culturalCount})" class="btn remove">Remove</button></div>`,
+          );
+
+        if (type == "feature") featureCount++;
+        else if (type === "cultural") culturalCount++;
+      }
+
+      function removeFeature(type, id) {
+        document.getElementById(`${type}${id}`).parentElement.remove();
+      }
+
+      async function saveFeatures() {
+        const candidateId = sessionStorage.getItem("candidateId");
+
+        if (!candidateId) {
+          alert("No candidate ID found in session. Cannot save profile.");
+          return;
+        }
+
+        const featuresToUpdate = [];
+        const culturalToUpdate = [];
+
+        for (let i = 0; i < featureCount; i++) {
+          if (
+            document.getElementById(`feature${i}`) == null ||
+            document.getElementById(`featureLevel${i}`) == null ||
+            document.getElementById(`feature${i}`).value.trim() === "" ||
+            document.getElementById(`featureLevel${i}`).value.trim() === ""
+          )
+            continue;
+
+          const featureTitle = document.getElementById(`feature${i}`).value;
+          const featureLevel = document.getElementById(
+            `featureLevel${i}`,
+          ).value;
+
+          featuresToUpdate.push({
+            title: featureTitle,
+            level: featureLevel,
+          });
+        }
+
+        for (let i = 0; i < culturalCount; i++) {
+          if (
+            document.getElementById(`cultural${i}`) == null ||
+            document.getElementById(`culturalLevel${i}`) == null ||
+            document.getElementById(`cultural${i}`).value.trim() === "" ||
+            document.getElementById(`culturalLevel${i}`).value.trim() === ""
+          )
+            continue;
+
+          const culturalTitle = document.getElementById(`cultural${i}`).value;
+          const culturalLevel = document.getElementById(
+            `culturalLevel${i}`,
+          ).value;
+
+          culturalToUpdate.push({
+            title: culturalTitle,
+            level: culturalLevel,
+          });
+        }
+
+        console.log(culturalToUpdate);
+        console.log(featuresToUpdate);
+
+        const result = await fetch(`/api/azure/profile/updateFeatures`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            personId: candidateId,
+            features: featuresToUpdate,
+            cultural: culturalToUpdate,
+          }),
+        });
+
+        if (!result.ok) alert("Error updating skills.");
+      }
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        document
+          .getElementById("saveBtn")
+          .addEventListener("click", saveProfileCore);
+
+        document.getElementById("saveAllBtn").addEventListener(
+          "click",
+          (saveAll = async () => {
+            await saveProfileCore();
+            await saveProfileSkills();
+            await saveFeatures();
+            location.reload();
+          }),
+        );
+
+        document
+          .getElementById("saveSkillsBtn")
+          .addEventListener("click", () => {
+            saveProfileSkills();
+            location.reload();
+          });
+
+        document
+          .getElementById("newSkillBtn")
+          .addEventListener("click", addSkill);
+
+        document
+          .getElementById("newFeatureBtn")
+          .addEventListener("click", () => addFeature("feature"));
+
+        document
+          .getElementById("newCulturalBtn")
+          .addEventListener("click", () => addFeature("cultural"));
+
+        document
+          .getElementById("saveExperienceBtn")
+          .addEventListener("click", () => {
+            saveFeatures();
+            location.reload();
+          });
+
+        // Get session variables
+        const candidateId = sessionStorage.getItem("candidateId");
+
+        let profileData = {};
+
+        if (candidateId) {
+          profileData = await api(`/api/azure/getProfile/${candidateId}`);
+
+          console.log(profileData);
+
+          let featurePillHtml = "";
+          const featureSkillDiv = document.getElementById("featureSkillDiv");
+
+          if (
+            profileData.features &&
+            profileData.features.length > 0 &&
+            profileData.features[0].title
+          )
+            profileData.features.forEach((feature) => {
+              featureSkillDiv.insertAdjacentHTML(
+                "beforeend",
+                `<div style="display: block; margin-top: 10px;"><input id="feature${featureCount}" type="text" value="${feature.title}" style="display: inline; margin-right: 10px;"/><input id="featureLevel${featureCount}" type="number" min="0" max="3" value="${feature.level}" style="display: inline"/><button onclick="removeFeature('feature',${featureCount})" class="btn remove">Remove</button></div>`,
+              );
+              featureCount++;
+            });
+
+          const culturalSkillDiv = document.getElementById("culturalSkillDiv");
+
+          if (
+            profileData.culturalExperience &&
+            profileData.culturalExperience.length > 0 &&
+            profileData.culturalExperience[0].title
+          )
+            profileData.culturalExperience.forEach((feature) => {
+              culturalSkillDiv.insertAdjacentHTML(
+                "beforeend",
+                `<div style="display: block; margin-top: 10px;"><input id="cultural${culturalCount}" type="text" value="${feature.title}" style="display: inline; margin-right: 10px;"/><input id="culturalLevel${culturalCount}" type="number" min="0" max="3" value="${feature.level}" style="display: inline"/><button onclick="removeFeature('cultural',${culturalCount})" class="btn remove">Remove</button></div>`,
+              );
+              culturalCount++;
+            });
+
+          document.getElementById("topMatches").innerHTML = featurePillHtml;
+
+          document.getElementById("profilePageTitle").innerText =
+            `DevReady • ${profileData.profile.firstName} ${profileData.profile.lastName} — Profile Preview`;
+          document.getElementById("pageTitle").innerText =
+            `${profileData.profile.firstName} ${profileData.profile.lastName} — Profile Preview`;
+          document.getElementById("profileFirstNameInput").value =
+            `${profileData.profile.firstName}`;
+          document.getElementById("profileLastNameInput").value =
+            `${profileData.profile.lastName}`;
+
+          document.getElementById("candidateCity").value =
+            profileData.profile.city && profileData.profile.city.length > 0
+              ? profileData.profile.city
+              : null;
+          document.getElementById("candidateState").value =
+            profileData.profile.state && profileData.profile.state.length > 0
+              ? profileData.profile.state
+              : null;
+          document.getElementById("candidateCountry").value =
+            profileData.profile.country &&
+            profileData.profile.country.length > 0
+              ? profileData.profile.country
+              : null;
+
+          if (
+            profileData.profile.description &&
+            profileData.profile.description.length > 0
+          ) {
+            document.getElementById("descriptionHeader").innerText =
+              "About " + profileData.profile.firstName;
+            document.getElementById("descriptionText").value =
+              profileData.profile.description;
+            document.getElementById("descriptionDiv").removeAttribute("hidden");
+          }
+
+          if (profileData.profile.longitude && profileData.profile.latitude) {
+            document.getElementById("mapIFrame").src =
+              `https://www.google.com/maps?q=${profileData.profile.latitude},${profileData.profile.longitude}&z=5&output=embed`;
+          } else {
+            document.getElementById("mapIFrame").src =
+              `https://www.google.com/maps?q=-80,0&z=1&output=embed`;
+          }
+
+          document.getElementById("candidateJobTitle").value =
+            profileData.profile.title && profileData.profile.title.length > 0
+              ? profileData.profile.title
+              : "No Job Title Listed";
+          // document.getElementById("candidateAvailability").innerText = profileData.profile.availability || "No Availability Listed";
+
+          if (
+            profileData.profile.imageUrl &&
+            profileData.profile.imageUrl.length > 0
+          ) {
+            document.getElementById("noImageFound").style.display = "none";
+            document.getElementById("candidateImage").src =
+              profileData.profile.imageUrl;
+            document.getElementById("candidateImage").style.display = "block";
+          }
+
+          let totalScore = 0;
+          let scoreCount = 0;
+          const sortedSkills = profileData.skills.sort(
+            (a, b) => b.years - a.years,
+          );
+
+          sortedSkills.forEach((skill) => {
+            totalScore += skill.years;
+            scoreCount++;
+
+            let scoreLevel = Math.floor(skill.years);
+            if (scoreLevel < 1) scoreLevel = 1;
+            else if (scoreLevel > 10) scoreLevel = 10;
+
+            // Populate skills chart (use skill rating as above for now since we don't have years of experience in the mock data)
+            document
+              .getElementById(`skillsChart`)
+              .insertAdjacentHTML(
+                "afterbegin",
+                `<div style="display: block; margin-top: 10px;"><p style="display: inline; margin-right: 10px;">${skill.skill}</p><input id="skill${skillCount}" type="number" min="0" max="10" value="${skill.years}" style="display: inline"/><input id="skillHidden${skillCount}" type="hidden" value="${skill.skillId}"/><button onclick="removeSkill(${skillCount})" class="btn remove">Remove</button></div>`,
+              );
+            skillCount++;
+          });
+
+          profileData.portfolioExperience.forEach((experience) => {
+            let processedDescription =
+              experience.description.length > 0
+                ? experience.description
+                : "No description provided.";
+            processedDescription = processedDescription.replaceAll(
+              "<strong>",
+              "",
+            );
+            processedDescription = processedDescription.replaceAll(
+              "</strong>",
+              "",
+            );
+
+            document.getElementById("portfolioBody").insertAdjacentHTML(
+              "beforeend",
+              `
+            <tr>
+              <td><strong>${experience.companyname}</strong><br/><small>${experience.startdate} - ${experience.ispresent ? "Present" : experience.finishdate}</small></td>
+              <td>${experience.mainrole}</td>
+              <td>${processedDescription}</td>
+              <td>${skillsHtml}</td>
+              <td>${featuresHtml}</td>
+            </tr>
+          `,
+            );
+          });
+        }
+      });
+    </script>
+  </body>
+</html>
