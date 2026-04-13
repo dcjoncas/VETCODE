@@ -186,16 +186,6 @@
               "
             >
               <div>
-                <div style="margin-top: 14px">
-                  <h2>Overall Experience</h2>
-                  <div style="display: flex; justify-content: space-between">
-                    <small>Moderate</small><small>Extensive</small
-                    ><small>Expert</small>
-                  </div>
-                  <div class="progress" style="margin-top: 6px">
-                    <div id="overallBar" style="width: 0%"></div>
-                  </div>
-                </div>
                 <div id="featureSkillDiv" style="margin-top: 12px" hidden>
                   <h2>Feature Experience</h2>
                 </div>
@@ -400,6 +390,12 @@
         const skillsToUpdate = [];
 
         for (let i = 0; i < skillCount; i++) {
+          if (
+            document.getElementById(`skillHidden${i}`) == null ||
+            document.getElementById(`skill${i}`) == null
+          )
+            continue;
+
           const skillId = document.getElementById(`skillHidden${i}`).value;
           const skillYears = document.getElementById(`skill${i}`).value;
 
@@ -468,6 +464,10 @@
         document.getElementById(`skill${skillCount}`).hidden = false;
 
         skillCount++;
+      }
+
+      function removeSkill(id) {
+        document.getElementById(`skillHidden${id}`).parentElement.remove();
       }
 
       document.addEventListener("DOMContentLoaded", async () => {
@@ -614,17 +614,10 @@
               .getElementById(`skillsChart`)
               .insertAdjacentHTML(
                 "afterbegin",
-                `<div style="display: block; margin-top: 10px;"><p style="display: inline; margin-right: 10px;">${skill.skill}</p><input id="skill${skillCount}" type="number" min="0" max="10" value="${skill.years}" style="display: inline"/><input id="skillHidden${skillCount}" type="hidden" value="${skill.skillId}"/></div>`,
+                `<div style="display: block; margin-top: 10px;"><p style="display: inline; margin-right: 10px;">${skill.skill}</p><input id="skill${skillCount}" type="number" min="0" max="10" value="${skill.years}" style="display: inline"/><input id="skillHidden${skillCount}" type="hidden" value="${skill.skillId}"/><button onclick="removeSkill(${skillCount})" class="btn remove">Remove</button></div>`,
               );
             skillCount++;
           });
-
-          // Display average score as a percentage
-          if (scoreCount > 0) {
-            const averageScore = (totalScore / scoreCount) * 10;
-            document.getElementById("overallBar").style.width =
-              averageScore.toFixed(2) + "%";
-          }
 
           // Personality bars
           profileData.personality.forEach((personality) => {
