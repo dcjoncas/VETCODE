@@ -44,6 +44,9 @@ a:hover {
 small {
   color: var(--muted);
 }
+input[type="checkbox"] {
+  accent-color: var(--primary-2); /* Use any hex, rgb, or named color */
+}
 .container {
   display: grid;
   grid-template-columns: 280px 1fr;

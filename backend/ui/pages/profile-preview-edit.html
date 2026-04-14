@@ -251,9 +251,12 @@
     <script src="JS/apiScripts.js"></script>
 
     <script>
+      // Counters for dynamic skill/feature inputs to ensure unique IDs
       let skillCount = 0;
       let culturalCount = 0;
       let featureCount = 0;
+      let portfolioCount = 0;
+      let portfolioSkillCounts = [];
 
       // tiny UX sugar (mock only)
       document
@@ -478,6 +481,69 @@
         if (!result.ok) alert("Error updating skills.");
       }
 
+      function swapIsPresentCheckbox(portfolioId) {
+        const isPresentCheckbox = document.getElementById(
+          `isPresent${portfolioId}`,
+        );
+        const finishDateInput = document.getElementById(
+          `finishDate${portfolioId}`,
+        );
+
+        if (isPresentCheckbox.checked) {
+          finishDateInput.value = "";
+          finishDateInput.disabled = true;
+        } else {
+          finishDateInput.disabled = false;
+        }
+      }
+
+      function addPortfolioSkill(jobId) {
+        document.getElementById(`skillsContainer${jobId}`).insertAdjacentHTML(
+          "beforeend",
+          `<div style="display: block; margin-top: 10px;"><p style="display: inline; margin-right: 10px;">
+            <select id="job${jobId}SkillHidden${portfolioSkillCounts[jobId] || 0}">
+              <option value="" selected>
+                Select Description
+              </option>
+            </select hidden>
+            <button onclick="removePortfolioSkill(${portfolioCount}, ${portfolioSkillCounts[jobId] || 0})" class="btn remove">Remove</button>
+          </div>`,
+        );
+        $(`#job${jobId}SkillHidden${portfolioSkillCounts[jobId] || 0}`).select2(
+          {
+            minimumResultsForSearch: 0,
+            minimumInputLength: 0,
+            ajax: {
+              url: function (params) {
+                if (!params.term) return "/api/azure/skills";
+                return `/api/azure/skills/${params.term}`;
+              },
+              dataType: "json",
+              delay: 250, // debounce
+
+              processResults: function (data) {
+                return {
+                  results: data.map((item) => ({
+                    id: item.id,
+                    text: item.title || "",
+                  })),
+                };
+              },
+
+              cache: true,
+            },
+          },
+        );
+
+        portfolioSkillCounts[jobId] = (portfolioSkillCounts[jobId] || 0) + 1;
+      }
+
+      function removePortfolioSkill(jobId, skillId) {
+        document
+          .getElementById(`job${jobId}SkillHidden${skillId}`)
+          .parentElement.remove();
+      }
+
       document.addEventListener("DOMContentLoaded", async () => {
         document
           .getElementById("saveBtn")
@@ -645,6 +711,23 @@
           });
 
           profileData.portfolioExperience.forEach((experience) => {
+            let skillsHtml = "";
+            let portfolioSkillCount = 0;
+
+            experience.skills.forEach((skill) => {
+              skillsHtml += `<div style="display: block; margin-top: 10px;"><p style="display: inline; margin-right: 10px;">${skill.skill}</p><input id="job${portfolioCount}SkillHidden${portfolioSkillCount}" type="hidden" value="${skill.skillId}"/><button onclick="removePortfolioSkill(${portfolioCount}, ${portfolioSkillCount})" class="btn remove">Remove</button></div>`;
+
+              portfolioSkillCount++;
+            });
+
+            portfolioSkillCounts.push(portfolioSkillCount);
+
+            let featuresHtml = "";
+            experience.features.forEach((feature) => {
+              if (!feature || feature.length < 1) return;
+              featuresHtml += `<span class="pillFeature">${feature}</span> `;
+            });
+
             let processedDescription =
               experience.description.length > 0
                 ? experience.description
@@ -662,14 +745,25 @@
               "beforeend",
               `
             <tr>
-              <td><strong>${experience.companyname}</strong><br/><small>${experience.startdate} - ${experience.ispresent ? "Present" : experience.finishdate}</small></td>
-              <td>${experience.mainrole}</td>
-              <td>${processedDescription}</td>
-              <td>${skillsHtml}</td>
+              <td style="width: 200px;"><input id="companyName${portfolioCount}" type="text" value="${experience.companyname}" placeholder="Company Name"/><br/><input id="startDate${portfolioCount}" type="number" value="${experience.startdate}" placeholder="Start Date"/> - <input id="finishDate${portfolioCount}" type="number" value="${experience.ispresent ? "" : experience.finishdate}" ${experience.ispresent ? "disabled" : ""}/><br>Is Present?<input id="isPresent${portfolioCount}" type="checkbox" value="${experience.ispresent}" ${experience.ispresent ? "checked" : ""} onchange="swapIsPresentCheckbox(${portfolioCount})"/></td>
+              <td><input id="mainRole${portfolioCount}" type="text" value="${experience.mainrole}" placeholder="Main Role"/></td>
+              <td><textarea id="description${portfolioCount}" style="width: 400px; height: 100px;" placeholder="Description">${processedDescription}</textarea></td>
+              <td style="width: fit-content;"><div id="skillsContainer${portfolioCount}">${skillsHtml}</div>
+                <button
+                  class="btn secondary"
+                  type="button"
+                  style="height: min-content; margin-top: 10px"
+                  onclick="addPortfolioSkill(${portfolioCount})"
+                >
+                  New Skill
+                </button>
+              </td>
               <td>${featuresHtml}</td>
             </tr>
           `,
             );
+
+            portfolioCount++;
           });
         }
       });
