@@ -1,3 +1,5 @@
+from pydantic import BaseModel
+
 import azureUtils.storage.client as client
 import azureUtils.storage.processingFunctions as processing
 
@@ -610,6 +612,59 @@ def updateCandidateFeatures(personId: str, features: list, cultural: list):
         # Associate cultural experience with professional profile
         query = "INSERT INTO professionalculturalexperience (profileid, title, level) VALUES (%s, %s, %s)"
         cur.execute(query, (profileId, feature["title"], feature['level']))
+
+    conn.commit()
+    conn.close()
+
+    return {"status": "success"}
+
+class PortfolioExperience(BaseModel):
+    description: str
+    mainRole: str
+    companyName: str
+    startDate: int | str
+    finishDate: int | str | None
+    isPresent: bool
+    skills: list[str]
+    features: list[str]
+class profilePortfolioUpdateRequest(BaseModel):
+    personId: str
+    portfolio: list[PortfolioExperience]
+
+def updateCandidatePortfolio(personId: str, portfolio: list[PortfolioExperience]):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    query = f"SELECT profper.id FROM professionalprofile profper JOIN professional prof ON profper.professionalid = prof.id WHERE prof.personid = {personId}"
+    cur.execute(query)
+    profileId = cur.fetchone()[0]
+
+    # Delete existing portfolio experience
+    query = f"DELETE FROM professionalexperience WHERE profileid = {profileId}"
+    cur.execute(query)
+
+    for experience in portfolio:
+        print(experience)
+
+        if experience.finishDate is not None and experience.finishDate != "":
+            experience.finishDate = int(experience.finishDate)
+            query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, finishdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"
+            cur.execute(query, (profileId, experience.description, experience.mainRole, experience.companyName, experience.startDate, experience.finishDate, experience.isPresent))
+        else:
+            query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id"
+            cur.execute(query, (profileId, experience.description, experience.mainRole, experience.companyName, experience.startDate, experience.isPresent))
+        experienceId = cur.fetchone()[0]
+
+        print(experienceId)
+        print(cur.statusmessage)
+
+        for skill in experience.skills:
+            query = "INSERT INTO portfolioskill (professionalexperienceid, skillid) VALUES (%s, %s)"
+            cur.execute(query, (experienceId, skill))
+
+        for feature in experience.features:
+            query = "INSERT INTO portfoliofeature (professionalexperienceid, title) VALUES (%s, %s)"
+            cur.execute(query, (experienceId, feature))
 
     conn.commit()
     conn.close()
