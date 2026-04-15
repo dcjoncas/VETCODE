@@ -1,3 +1,5 @@
+from pydantic import BaseModel
+
 import azureUtils.storage.client as client
 import azureUtils.storage.processingFunctions as processing
 
@@ -381,7 +383,7 @@ def getProfile(profileId: str):
         techSkillArray.append({'level':row[0], 'skill':row[1], 'skillId': row[2], 'description': row[3], 'type': row[4]})
 
     # Get Portfolio Experience Data
-    query = f"SELECT pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT pf.title) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalexperience pe ON profper.id = pe.profileid LEFT JOIN portfolioskill por ON pe.id = por.professionalexperienceid JOIN skill ON por.skillid = skill.id LEFT JOIN portfoliofeature pf ON pe.id = pf.professionalexperienceid WHERE person.id = {profileId} GROUP BY pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent ORDER BY pe.startdate DESC"
+    query = f"SELECT pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT pf.title), ARRAY_AGG(DISTINCT skill.id) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalexperience pe ON profper.id = pe.profileid LEFT JOIN portfolioskill por ON pe.id = por.professionalexperienceid LEFT JOIN skill ON por.skillid = skill.id LEFT JOIN portfoliofeature pf ON pe.id = pf.professionalexperienceid WHERE person.id = {profileId} GROUP BY pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent ORDER BY pe.startdate DESC"
     cur.execute(query)
 
     portfolioSkillResult = cur.fetchall()
@@ -389,7 +391,13 @@ def getProfile(profileId: str):
     portfolioSkillArray = []
 
     for row in portfolioSkillResult:
-        portfolioSkillArray.append({'description':row[0], 'mainrole':row[1], 'workexperience': row[2], 'companyname': row[3], 'startdate': row[4], 'finishdate': row[5], 'ispresent': row[6], 'skills': row[7], 'features': row[8]})
+        portfolioSkillInnerArray = []
+
+        for i in range(len(portfolioSkillResult)):
+            if row[7][i] is not None:
+                portfolioSkillInnerArray.append({'skill': row[7][i], 'skillId': row[9][i]})
+
+        portfolioSkillArray.append({'description':row[0], 'mainrole':row[1], 'workexperience': row[2], 'companyname': row[3], 'startdate': row[4], 'finishdate': row[5], 'ispresent': row[6], 'skills': portfolioSkillInnerArray, 'features': row[8]})
 
     # Get Professional Feature Data
     query = f"SELECT pf.title, pf.level FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalfeature pf ON profper.id = pf.profileid WHERE person.id = {profileId}"
@@ -604,6 +612,63 @@ def updateCandidateFeatures(personId: str, features: list, cultural: list):
         # Associate cultural experience with professional profile
         query = "INSERT INTO professionalculturalexperience (profileid, title, level) VALUES (%s, %s, %s)"
         cur.execute(query, (profileId, feature["title"], feature['level']))
+
+    conn.commit()
+    conn.close()
+
+    return {"status": "success"}
+
+class PortfolioExperience(BaseModel):
+    description: str
+    mainRole: str
+    companyName: str
+    startDate: int | str
+    finishDate: int | str | None
+    isPresent: bool
+    skills: list[str]
+    features: list[str]
+class profilePortfolioUpdateRequest(BaseModel):
+    personId: str
+    portfolio: list[PortfolioExperience]
+
+def updateCandidatePortfolio(personId: str, portfolio: list[PortfolioExperience]):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    print(personId)
+
+    query = f"SELECT profper.id FROM professionalprofile profper JOIN professional prof ON profper.professionalid = prof.id WHERE prof.personid = {personId}"
+    cur.execute(query)
+    profileId = cur.fetchone()[0]
+
+    print(profileId)
+
+    # Delete existing portfolio experience
+    query = f"DELETE FROM professionalexperience WHERE profileid = {profileId}"
+    cur.execute(query)
+
+    for experience in portfolio:
+        print(experience)
+
+        if experience.finishDate is not None and experience.finishDate != "":
+            experience.finishDate = int(experience.finishDate)
+            query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, finishdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id"
+            cur.execute(query, (profileId, experience.description, experience.mainRole, experience.companyName, experience.startDate, experience.finishDate, experience.isPresent))
+        else:
+            query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id"
+            cur.execute(query, (profileId, experience.description, experience.mainRole, experience.companyName, experience.startDate, experience.isPresent))
+        experienceId = cur.fetchone()[0]
+
+        print(experienceId)
+        print(cur.statusmessage)
+
+        for skill in experience.skills:
+            query = "INSERT INTO portfolioskill (professionalexperienceid, skillid) VALUES (%s, %s)"
+            cur.execute(query, (experienceId, skill))
+
+        for feature in experience.features:
+            query = "INSERT INTO portfoliofeature (professionalexperienceid, title) VALUES (%s, %s)"
+            cur.execute(query, (experienceId, feature))
 
     conn.commit()
     conn.close()

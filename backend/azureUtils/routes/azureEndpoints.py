@@ -129,6 +129,19 @@ async def update_profile_features(profileFeaturesUpdate: profileFeaturesUpdateRe
 
     return candidates.updateCandidateFeatures(personId=personId, features=features, cultural=cultural)
 
+@router.post("/profile/updatePortfolio")
+async def update_profile_portfolio(portfolioUpdate: candidates.profilePortfolioUpdateRequest):
+    print(portfolioUpdate)
+    personId = portfolioUpdate.personId
+    portfolio = portfolioUpdate.portfolio
+
+    if not personId or personId == "":
+        raise HTTPException(status_code=400, detail="Missing personId.")
+
+    print(f"Updating portfolio for profile {personId}")
+
+    return candidates.updateCandidatePortfolio(personId=personId, portfolio=portfolio)
+
 # For multithreading
 def process_skill(raw: str, key: str):
     return {
