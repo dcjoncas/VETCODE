@@ -383,7 +383,7 @@ def getProfile(profileId: str):
         techSkillArray.append({'level':row[0], 'skill':row[1], 'skillId': row[2], 'description': row[3], 'type': row[4]})
 
     # Get Portfolio Experience Data
-    query = f"SELECT pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT pf.title), ARRAY_AGG(DISTINCT skill.id) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalexperience pe ON profper.id = pe.profileid LEFT JOIN portfolioskill por ON pe.id = por.professionalexperienceid JOIN skill ON por.skillid = skill.id LEFT JOIN portfoliofeature pf ON pe.id = pf.professionalexperienceid WHERE person.id = {profileId} GROUP BY pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent ORDER BY pe.startdate DESC"
+    query = f"SELECT pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT pf.title), ARRAY_AGG(DISTINCT skill.id) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalexperience pe ON profper.id = pe.profileid LEFT JOIN portfolioskill por ON pe.id = por.professionalexperienceid LEFT JOIN skill ON por.skillid = skill.id LEFT JOIN portfoliofeature pf ON pe.id = pf.professionalexperienceid WHERE person.id = {profileId} GROUP BY pe.description, pe.mainrole, pe.workexperience, pe.companyname, pe.startdate, pe.finishdate, pe.ispresent ORDER BY pe.startdate DESC"
     cur.execute(query)
 
     portfolioSkillResult = cur.fetchall()
@@ -635,9 +635,13 @@ def updateCandidatePortfolio(personId: str, portfolio: list[PortfolioExperience]
     conn = client.getConnection()
     cur = conn.cursor()
 
+    print(personId)
+
     query = f"SELECT profper.id FROM professionalprofile profper JOIN professional prof ON profper.professionalid = prof.id WHERE prof.personid = {personId}"
     cur.execute(query)
     profileId = cur.fetchone()[0]
+
+    print(profileId)
 
     # Delete existing portfolio experience
     query = f"DELETE FROM professionalexperience WHERE profileid = {profileId}"
@@ -648,7 +652,7 @@ def updateCandidatePortfolio(personId: str, portfolio: list[PortfolioExperience]
 
         if experience.finishDate is not None and experience.finishDate != "":
             experience.finishDate = int(experience.finishDate)
-            query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, finishdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"
+            query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, finishdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id"
             cur.execute(query, (profileId, experience.description, experience.mainRole, experience.companyName, experience.startDate, experience.finishDate, experience.isPresent))
         else:
             query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id"
