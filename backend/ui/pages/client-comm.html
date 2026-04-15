@@ -119,18 +119,18 @@
             <div class="field">
               <label>Client message (draft)</label>
               <textarea>
-                  Hi [Client Name],
+Hi [Client Name],
 
-                  Based on your JD, we ranked and vetted the top candidates. Below are the top 3 recommendations with rationale and links to public profiles.
+Based on your JD, we ranked and vetted the top candidates. Below are the top 3 recommendations with rationale and links to public profiles.
 
-                  1) Giovanni S — Senior backend, strong identity + API experience. Score 92.
-                  2) Maria T — Full-stack Angular/SQL, strong delivery record. Score 88.
-                  3) Kevin P — React/Node/AWS, strong product mindset. Score 81.
+1) Giovanni S — Senior backend, strong identity + API experience. Score 92.
+2) Maria T — Full-stack Angular/SQL, strong delivery record. Score 88.
+3) Kevin P — React/Node/AWS, strong product mindset. Score 81.
 
-                  If you confirm the top 1–3 candidates, we’ll schedule interviews and provide an interview plan.
+If you confirm the top 1–3 candidates, we’ll schedule interviews and provide an interview plan.
 
-                  Best,
-                  DJ</textarea
+Best,
+DJ</textarea
               >
               <div class="row-actions">
                 <button
@@ -163,7 +163,7 @@
                 <thead>
                   <tr>
                     <th>Candidate</th>
-                    <!--<th>Score</th>-->
+                    <th>Score</th>
                     <th>Status</th>
                     <th></th>
                     <th></th>
@@ -219,12 +219,18 @@
         .querySelectorAll("a.step")
         .forEach((a) => a.addEventListener("click", () => {}));
 
+      // TODO: complete below functions
       function openProfile(profileId) {
+        console.log(profileId);
+      }
+
+      function removeProfile(profileId) {
         console.log(profileId);
       }
 
       document.addEventListener("DOMContentLoaded", async () => {
         const shortlist = sessionStorage.getItem("shortlist");
+        const jobId = sessionStorage.getItem("jobID");
 
         if (shortlist && shortlist.length > 0) {
           let shortlistArray = shortlist.split(",");
@@ -233,19 +239,20 @@
 
           const shortlistTable = document.getElementById("shortlistBody");
 
-          shortlistArray.forEach(async (candidate) => {
-            try {
-              profileData = await api(
-                `/api/azure/getProfile/short/${candidate}`,
-              );
+          if (!jobId || jobId.length < 1) {
+            shortlistArray.forEach(async (candidate) => {
+              try {
+                const profileData = await api(
+                  `/api/azure/getProfile/short/${candidate}`,
+                );
 
-              console.log(profileData);
+                console.log(profileData);
 
-              // TODO: Work out candidate scores
-              shortlistTable.insertAdjacentHTML(
-                "beforeend",
-                `<tr>
+                shortlistTable.insertAdjacentHTML(
+                  "beforeend",
+                  `<tr>
                     <td><strong>${profileData.firstName} ${profileData.lastName}</strong></td>
+                    <td>Job Missing</td>
                     <td><span class="pill" ${!profileData.status ? 'style="background: red;"' : ""}>${profileData.status || "Status Missing"}</span></td>
                     <td>
                       <button
@@ -260,19 +267,60 @@
                       <button
                         class="btn remove"
                         style="padding: 8px 12px"
-                        onclick="openProfile(${candidate})"
+                        onclick="removeProfile(${candidate})"
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>`,
+                );
+              } catch (error) {
+                console.log(error);
+
+                console.log("Could not find candidate with ID " + candidate);
+              }
+            });
+          } else {
+            const fd = new FormData();
+            fd.append("profileIds", shortlist);
+
+            const profileData = await api(
+              `/api/azure/getProfile/short/score/${jobId}`,
+              { method: "POST", body: fd },
+            );
+
+            console.log(profileData);
+
+            // TODO: Work out candidate scores
+            profileData.forEach((candidate) => {
+              shortlistTable.insertAdjacentHTML(
+                "beforeend",
+                `<tr>
+                    <td><strong>${candidate.firstName} ${candidate.lastName}</strong></td>
+                    <td>${candidate.score * 10}</td>
+                    <td><span class="pill" ${!candidate.status ? 'style="background: red;"' : ""}>${candidate.status || "Status Missing"}</span></td>
+                    <td>
+                      <button
+                        class="btn secondary"
+                        style="padding: 8px 12px"
+                        onclick="openProfile(${candidate.id})"
+                      >
+                        Open
+                      </button>
+                    </td>
+                    <td>
+                      <button
+                        class="btn remove"
+                        style="padding: 8px 12px"
+                        onclick="removeProfile(${candidate.id})"
                       >
                         Remove
                       </button>
                     </td>
                   </tr>`,
               );
-            } catch (error) {
-              console.log(error);
-
-              console.log("Could not find candidate with ID " + candidate);
-            }
-          });
+            });
+          }
         }
       });
     </script>
