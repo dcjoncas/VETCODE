@@ -471,6 +471,23 @@ def getProfilePublic(profileUrl: str):
     else:
         raise Exception("Profile not found")
     
+def getProfileShort(profileId: str):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    query = f"SELECT person.firstname, person.lastname, ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.id = {profileId} GROUP BY person.firstname, person.lastname LIMIT 1;"
+
+    cur.execute(query)
+    results = cur.fetchone()
+
+    conn.close()
+
+    return {
+        'firstName': results[0],
+        'lastName': results[1],
+        'status':processing.stepProcessingOverall(results[2]),
+    }
+    
 def uploadProfile(skills: list, fullName: str, candidateDescription: str, email: str = None, linkedInUrl: str = None, culturalExperiences: list = [], candidateCity: str = None, candidateState: str = None, candidateCountry: str = None, candidateTitle: str = None):
     print(f"Uploading profile for {fullName} with email {email} and LinkedIn URL {linkedInUrl}. Skills: {skills}")
     conn = client.getConnection()
@@ -509,6 +526,9 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, email:
     cur.execute(query, (professionalId,))
 
     professionalprofileId = cur.fetchone()[0]
+
+    query = "INSERT INTO platformactivity (profileid, step, result, date) VALUES (%s, 1, 1, NOW()) RETURNING id"
+    cur.execute(query, (professionalprofileId,))
 
     for skill in skills:
         # Check if skill already exists

@@ -64,3 +64,21 @@ def leadSourceProcessing(leadSourceEnum: int) -> str:
         return "Candidate Referral"
     else:
         return "Other"
+    
+# TODO: figure out results enum processing:
+'''public enum PlatformActivityResultEnum
+{
+    Complete = 1,
+    Pass = 2,
+    PassRole = 3,
+    PassCommunity = 4,
+    Fail = 5,
+    QualityIssue = 6,
+    Connected = 7,
+    NoShow = 8,
+    Late = 9,
+    Rescheduled = 10,
+    Canceled = 11,
+    DateSet = 12,
+    Documented = 13,
+}'''
