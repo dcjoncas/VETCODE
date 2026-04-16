@@ -135,18 +135,29 @@ DJ</textarea
 
     <script src="JS/apiScripts.js"></script>
     <script>
+      let shortlistArray = [];
       // tiny UX sugar (mock only)
       document
         .querySelectorAll("a.step")
         .forEach((a) => a.addEventListener("click", () => {}));
 
       // TODO: complete below functions
-      function openProfile(profileId) {
-        console.log(profileId);
+      function openProfile(profileId, firstName, lastName, step) {
+        sessionStorage.setItem("candidateId", profileId);
+        sessionStorage.setItem("candidateName", firstName + " " + lastName);
+        sessionStorage.setItem("candidateStatus", step);
+
+        window.location.href = "profile-preview.html";
       }
 
       function removeProfile(profileId) {
-        console.log(profileId);
+        shortlistArray = shortlistArray.filter(
+          (candidate) => candidate === profileId,
+        );
+
+        sessionStorage.setItem("shortlist", shortlistArray);
+
+        document.getElementById("candidate" + profileId).remove();
       }
 
       document.addEventListener("DOMContentLoaded", async () => {
@@ -154,7 +165,7 @@ DJ</textarea
         const jobId = sessionStorage.getItem("jobID");
 
         if (shortlist && shortlist.length > 0) {
-          let shortlistArray = shortlist.split(",");
+          shortlistArray = shortlist.split(",");
           document.getElementById("shortlistCount").innerText =
             `Shortlist (Top ${shortlistArray.length})`;
 
@@ -171,7 +182,7 @@ DJ</textarea
 
                 shortlistTable.insertAdjacentHTML(
                   "beforeend",
-                  `<tr>
+                  `<tr id="candidate${candidate}">
                     <td><strong>${profileData.firstName} ${profileData.lastName}</strong></td>
                     <td>Job Missing</td>
                     <td><span class="pill" ${!profileData.status ? 'style="background: red;"' : ""}>${profileData.status || "Status Missing"}</span></td>
@@ -224,7 +235,7 @@ DJ</textarea
                       <button
                         class="btn secondary"
                         style="padding: 8px 12px"
-                        onclick="openProfile(${candidate.id})"
+                        onclick="openProfile(${candidate.id},${candidate.firstName},${candidate.lastName},${candidate.status})"
                       >
                         Open
                       </button>

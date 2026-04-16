@@ -667,6 +667,8 @@
           });
 
           profileData.portfolioExperience.forEach((experience) => {
+            if (!experience.mainrole) return;
+
             let skillsHtml = "";
             experience.skills.forEach((skill) => {
               skillsHtml += `<span class="pill">${skill.skill}</span> `;
@@ -679,7 +681,7 @@
             });
 
             let processedDescription =
-              experience.description.length > 0
+              experience.description && experience.description.length > 0
                 ? experience.description
                 : "No description provided.";
             processedDescription = processedDescription.replaceAll(
