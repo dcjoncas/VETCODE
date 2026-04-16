@@ -37,7 +37,7 @@ def getJob(jobId: int):
     conn = client.getConnection()
     cur = conn.cursor()
 
-    query = f"SELECT job.id, job.domain, job.company, job.jobtitle, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT skill.id) FROM jobdescription job LEFT JOIN jobskills js ON job.id = js.jobid JOIN skill ON js.skillid = skill.id WHERE job.id = {jobId} GROUP BY job.id, job.domain, job.company, job.jobtitle"
+    query = f"SELECT job.id, job.domain, job.company, job.jobtitle, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT skill.id), job.description FROM jobdescription job LEFT JOIN jobskills js ON job.id = js.jobid JOIN skill ON js.skillid = skill.id WHERE job.id = {jobId} GROUP BY job.id, job.domain, job.company, job.jobtitle, job.description LIMIT 1"
     cur.execute(query)
 
     result = cur.fetchone()
@@ -61,6 +61,7 @@ def getJob(jobId: int):
         'title':result[3],
         'skills':result[4],
         'skillIds':result[5],
+        'description':result[6],
         'personalities':personalityArray
     }
 

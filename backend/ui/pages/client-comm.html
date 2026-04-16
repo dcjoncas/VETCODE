@@ -39,7 +39,7 @@
           <div class="split">
             <div class="field">
               <label>Client message (draft)</label>
-              <textarea>
+              <textarea id="emailArea">
 Hi [Client Name],
 
 Based on your JD, we ranked and vetted the top candidates. Below are the top 3 recommendations with rationale and links to public profiles.
@@ -64,8 +64,11 @@ DJ</textarea
                 <button
                   class="btn secondary"
                   type="button"
-                  onclick="alert('Mock: generate variant')"
+                  onclick="generateEmail()"
                 >
+                  Generate Email
+                </button>
+                <button class="btn secondary" type="button" hidden>
                   Generate variant
                 </button>
                 <button
@@ -136,6 +139,8 @@ DJ</textarea
     <script src="JS/apiScripts.js"></script>
     <script>
       let shortlistArray = [];
+      // Used to store an array of JSON objects containing candidate scores
+      let shortlistScores = [];
       // tiny UX sugar (mock only)
       document
         .querySelectorAll("a.step")
@@ -152,12 +157,38 @@ DJ</textarea
 
       function removeProfile(profileId) {
         shortlistArray = shortlistArray.filter(
-          (candidate) => candidate === profileId,
+          (candidate) => candidate !== profileId,
+        );
+
+        shortlistScores = shortlistScores.filter(
+          (candidate) => candidate.id !== profileId,
         );
 
         sessionStorage.setItem("shortlist", shortlistArray);
 
         document.getElementById("candidate" + profileId).remove();
+      }
+
+      async function generateEmail() {
+        const jobId = sessionStorage.getItem("jobID");
+        console.log(shortlistScores);
+
+        const result = await fetch(`/api/ai/clientEmail/shortlist`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            jobId: jobId,
+            candidateScores: shortlistScores,
+          }),
+        });
+
+        if (!result.ok) alert("Error generating email.");
+
+        const emailData = await result.json();
+
+        document.getElementById("emailArea").innerHTML = emailData.email;
       }
 
       document.addEventListener("DOMContentLoaded", async () => {
@@ -178,8 +209,6 @@ DJ</textarea
                   `/api/azure/getProfile/short/${candidate}`,
                 );
 
-                console.log(profileData);
-
                 shortlistTable.insertAdjacentHTML(
                   "beforeend",
                   `<tr id="candidate${candidate}">
@@ -190,7 +219,7 @@ DJ</textarea
                       <button
                         class="btn secondary"
                         style="padding: 8px 12px"
-                        onclick="openProfile(${candidate})"
+                        onclick="openProfile('${candidate}','${candidate.firstName}','${candidate.lastName}','${candidate.status}')"
                       >
                         Open
                       </button>
@@ -199,7 +228,7 @@ DJ</textarea
                       <button
                         class="btn remove"
                         style="padding: 8px 12px"
-                        onclick="removeProfile(${candidate})"
+                        onclick="removeProfile('${candidate}')"
                       >
                         Remove
                       </button>
@@ -225,9 +254,15 @@ DJ</textarea
 
             // TODO: Work out candidate scores
             profileData.forEach((candidate) => {
+              shortlistScores.push({
+                id: candidate.id,
+                name: candidate.firstName + candidate.lastName,
+                score: candidate.score * 10 + "%",
+              });
+
               shortlistTable.insertAdjacentHTML(
                 "beforeend",
-                `<tr>
+                `<tr id="candidate${candidate.id}">
                     <td><strong>${candidate.firstName} ${candidate.lastName}</strong></td>
                     <td>${candidate.score * 10}</td>
                     <td><span class="pill" ${!candidate.status ? 'style="background: red;"' : ""}>${candidate.status || "Status Missing"}</span></td>
@@ -235,7 +270,7 @@ DJ</textarea
                       <button
                         class="btn secondary"
                         style="padding: 8px 12px"
-                        onclick="openProfile(${candidate.id},${candidate.firstName},${candidate.lastName},${candidate.status})"
+                        onclick="openProfile('${candidate.id}','${candidate.firstName}','${candidate.lastName}','${candidate.status}')"
                       >
                         Open
                       </button>
@@ -244,7 +279,7 @@ DJ</textarea
                       <button
                         class="btn remove"
                         style="padding: 8px 12px"
-                        onclick="removeProfile(${candidate.id})"
+                        onclick="removeProfile('${candidate.id}')"
                       >
                         Remove
                       </button>
