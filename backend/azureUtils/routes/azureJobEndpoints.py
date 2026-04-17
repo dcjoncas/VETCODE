@@ -121,6 +121,12 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
         inferredSalary = None
         if "inferred_salary" in row:
             inferredSalary = row["inferred_salary"]
+
+        flattenedMatches = []
+
+        for key, value in parts.items():
+            if len(value['matched']) > 0:
+                flattenedMatches = flattenedMatches + value['matched']
         
         rankedExternal.append({
             "profile_id": row["id"],
@@ -130,7 +136,7 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
             "linkedin_url": row["linkedin_url"],
             "inferred_salary": inferredSalary,
             "score": score,
-            "top_matches": parts,
+            "top_matches": list(set(flattenedMatches)),
             "breakdown": parts
         })
 

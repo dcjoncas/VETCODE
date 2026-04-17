@@ -133,16 +133,11 @@ def upsertSurveyAnswer(questionId: int, surveyResponse: int, profId: int):
     conn = client.getConnection()
     cur = conn.cursor()
 
-    profSurvId = profId
-
     try:
         # Count distinct candidates in the person table
         query = "INSERT INTO professionalsurveyquestion (professionalsurveyid, surveyquestionid, answer) VALUES (%s, %s, %s)"
-
-        print(query)
-        print(profSurvId)
         
-        cur.execute(query, (profSurvId, questionId, surveyResponse))
+        cur.execute(query, (profId, questionId, surveyResponse))
 
     except Exception as e:
         print(f'Cannot insert candidate answers: {e}')
