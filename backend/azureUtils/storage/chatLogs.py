@@ -42,22 +42,8 @@ def getChatUrl(personId: str):
         print(f'Failed to grab chat URL for {personId}: {e}')
         return None
     
-def getSurveyId(profId: str):
-    try:
-        conn = client.getConnection()
-        cur = conn.cursor()
-
-        query = f"SELECT id FROM professionalsurvey WHERE profileid = '{profId}' ORDER BY id DESC;"
-        
-        cur.execute(query)
-        result = cur.fetchone()
-
-        conn.close()
-        
-        return result[0]
-    
     except Exception as e:
-        print(f'Failed to grab candidate ID for {profId}: {e}')
+        print(f'Failed to grab survey ID for {profId}: {e}')
         return None
 
 def scheduleChat(profileid: str):
