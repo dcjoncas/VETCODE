@@ -1,7 +1,9 @@
 from pydantic import BaseModel
-
+from fastapi import HTTPException
 import azureUtils.storage.client as client
 import azureUtils.storage.processingFunctions as processing
+from azureUtils.storage.jobs import getJob
+from jd_match import azureJobMatch
 
 def getSkills():
     conn = client.getConnection()
@@ -140,7 +142,7 @@ def getSurveyId(personId: str):
 
     # Search for user by firstname, lastname, goesbyname, or email using ILIKE for case-insensitive search
     # Order by id descending to get the most recent matches first, and limit the number of results
-    query = f"SELECT profper.id FROM person JOIN professional prof ON person.id = prof.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalsurvey profsur ON profper.id = profsur.profileid WHERE person.id = {personId};"
+    query = f"SELECT profsur.id FROM person JOIN professional prof ON person.id = prof.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalsurvey profsur ON profper.id = profsur.profileid WHERE person.id = {personId};"
     
     cur.execute(query)
     result = cur.fetchone()
@@ -393,9 +395,10 @@ def getProfile(profileId: str):
     for row in portfolioSkillResult:
         portfolioSkillInnerArray = []
 
-        for i in range(len(portfolioSkillResult)):
-            if row[7][i] is not None:
-                portfolioSkillInnerArray.append({'skill': row[7][i], 'skillId': row[9][i]})
+        if len(row[7]) > 0:
+            for i in range(len(row[7])):
+                if row[7][i] is not None:
+                    portfolioSkillInnerArray.append({'skill': row[7][i], 'skillId': row[9][i]})
 
         portfolioSkillArray.append({'description':row[0], 'mainrole':row[1], 'workexperience': row[2], 'companyname': row[3], 'startdate': row[4], 'finishdate': row[5], 'ispresent': row[6], 'skills': portfolioSkillInnerArray, 'features': row[8]})
 
@@ -471,6 +474,78 @@ def getProfilePublic(profileUrl: str):
     else:
         raise Exception("Profile not found")
     
+def getProfileShort(profileId: str):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    query = f"SELECT person.firstname, person.lastname, ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.id = {profileId} GROUP BY person.firstname, person.lastname LIMIT 1;"
+
+    cur.execute(query)
+    results = cur.fetchone()
+
+    conn.close()
+
+    return {
+        'firstName': results[0],
+        'lastName': results[1],
+        'status':processing.stepProcessingOverall(results[2]),
+    }
+
+def getProfileShortScore(jobId: str, profileIds: list[str]):
+    jd = getJob(jobId)
+
+    if not jd:
+        raise HTTPException(status_code=400, detail="No job description loaded yet. Normalize a JD first.")
+    
+    jobSkills = []
+    jobSkillIds = []
+
+    if not jd["skills"]:
+        raise "No Job Skills Found"
+    else:
+        jobSkills = jd["skills"]
+        jobSkillIds = jd["skillIds"]
+
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    resultSet = []
+
+    for profile in profileIds:
+        query = f"SELECT person.firstname, person.lastname, ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.id = {profile} GROUP BY person.firstname, person.lastname LIMIT 1;"
+
+        cur.execute(query)
+        results = cur.fetchone()
+
+        # JOIN (SELECT profileid, skillid FROM professionalskill UNION SELECT profileid, skillid FROM resumeskill) allskills ON allskills.profileid = profper.id JOIN skill ON allskills.skillid = skill.id
+        query = f"SELECT DISTINCT skill.title, skill.id FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN (SELECT profileid, skillid FROM professionalskill UNION SELECT profileid, skillid FROM resumeskill) allskills ON allskills.profileid = profper.id JOIN skill ON allskills.skillid = skill.id WHERE person.id = {profile}"
+        cur.execute(query)
+
+        skillResult = cur.fetchall()
+
+        skillArray = []
+
+        for row in skillResult:
+            if row[1] in jobSkillIds:
+                skillArray.append(row[0])
+
+        score, parts = azureJobMatch(skillArray,jobSkills)
+
+        resultSet.append({
+            'id': profile,
+            'firstName': results[0],
+            'lastName': results[1],
+            'status':processing.stepProcessingOverall(results[2]),
+            'skills':skillArray,
+            'score': score,
+        })
+
+    conn.close()
+
+    resultSet.sort(key=lambda x: x["score"], reverse=True)
+    # Sort by skill match
+    return resultSet
+    
 def uploadProfile(skills: list, fullName: str, candidateDescription: str, email: str = None, linkedInUrl: str = None, culturalExperiences: list = [], candidateCity: str = None, candidateState: str = None, candidateCountry: str = None, candidateTitle: str = None):
     print(f"Uploading profile for {fullName} with email {email} and LinkedIn URL {linkedInUrl}. Skills: {skills}")
     conn = client.getConnection()
@@ -509,6 +584,9 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, email:
     cur.execute(query, (professionalId,))
 
     professionalprofileId = cur.fetchone()[0]
+
+    query = "INSERT INTO platformactivity (profileid, step, result, date) VALUES (%s, 1, 1, NOW()) RETURNING id"
+    cur.execute(query, (professionalprofileId,))
 
     for skill in skills:
         # Check if skill already exists

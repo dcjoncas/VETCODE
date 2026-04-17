@@ -27,9 +27,7 @@
       <main class="main">
         <div class="topbar">
           <div>
-            <div id="pageTitle" class="page-title">
-              Screen 4 — Profile Preview
-            </div>
+            <div id="pageTitle" class="page-title">Profile Preview</div>
             <div class="breadcrumb">Vetting Process • Profile Output</div>
           </div>
           <div id="searchBar"></div>
@@ -90,6 +88,15 @@
                   Public Profile
                 </button></a
               >
+              <button
+                id="shortlistBtn"
+                class="btn"
+                type="button"
+                onclick="shortlistCandidate()"
+                disabled
+              >
+                Shortlist
+              </button>
               <a href="profile-preview-edit.html"
                 ><button
                   id="editBtn"
@@ -165,7 +172,7 @@
                   style="grid-column: 1"
                 >
                   <div class="bottom-chart-alignment">
-                    <span class="skillChartCell">Rating</span>
+                    <span class="skillChartCell">Years</span>
                   </div>
                 </div>
                 <div
@@ -265,7 +272,7 @@
                 >
                   <div class="bottom-chart-alignment">
                     <span class="skillChartCell">&nbsp;</span>
-                    <span class="skillChartCell">10</span>
+                    <span class="skillChartCell">10+</span>
                   </div>
                 </div>
               </div>
@@ -456,6 +463,25 @@
         .querySelectorAll("a.step")
         .forEach((a) => a.addEventListener("click", () => {}));
 
+      function shortlistCandidate() {
+        const candidateId = sessionStorage.getItem("candidateId");
+        const shortlist = sessionStorage.getItem("shortlist");
+
+        // If first element, just add
+        if (!shortlist || shortlist.length < 1)
+          sessionStorage.setItem("shortlist", candidateId);
+        else {
+          let shortlistArray = shortlist.split(",");
+
+          // No duplicates
+          if (shortlistArray.includes(candidateId)) return;
+
+          shortlistArray.push(candidateId);
+
+          sessionStorage.setItem("shortlist", shortlistArray);
+        }
+      }
+
       document.addEventListener("DOMContentLoaded", async () => {
         // Get session variables
         const candidateId = sessionStorage.getItem("candidateId");
@@ -463,6 +489,7 @@
         let profileData = {};
 
         if (candidateId) {
+          document.getElementById("shortlistBtn").removeAttribute("disabled");
           profileData = await api(`/api/azure/getProfile/${candidateId}`);
 
           document.getElementById("editBtn").removeAttribute("disabled");
@@ -638,6 +665,8 @@
           });
 
           profileData.portfolioExperience.forEach((experience) => {
+            if (!experience.mainrole) return;
+
             let skillsHtml = "";
             experience.skills.forEach((skill) => {
               skillsHtml += `<span class="pill">${skill.skill}</span> `;
@@ -650,7 +679,7 @@
             });
 
             let processedDescription =
-              experience.description.length > 0
+              experience.description && experience.description.length > 0
                 ? experience.description
                 : "No description provided.";
             processedDescription = processedDescription.replaceAll(

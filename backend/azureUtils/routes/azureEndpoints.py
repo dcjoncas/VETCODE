@@ -86,6 +86,18 @@ def get_profile(profileUrl: str = ""):
 
     return candidates.getProfilePublic(profileUrl)
 
+@router.get("/getProfile/short/{profileId}")
+def get_profile_short(profileId: str = ""):
+    print(f"Fetching profile {profileId}")
+
+    return candidates.getProfileShort(profileId)
+
+@router.post("/getProfile/short/score/{jobId}")
+def get_profile_short_score(jobId: str = "", profileIds: str = Form(...)):
+    print(f"Fetching profiles {profileIds}")
+
+    return candidates.getProfileShortScore(jobId, profileIds.split(','))
+
 @router.post("/profile/update")
 async def update_profile_core(personId: str = Form(...), first_name: str = Form(...), last_name: str = Form(...), city: str = Form(default=""), state: str = Form(default=""), country: str = Form(default=""), description: str = Form(default=""), job_title: str = Form(default="")):
     if not personId or personId == "" or not first_name or first_name == "" or not last_name or last_name == "":

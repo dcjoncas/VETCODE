@@ -42,22 +42,8 @@ def getChatUrl(personId: str):
         print(f'Failed to grab chat URL for {personId}: {e}')
         return None
     
-def getSurveyId(profId: str):
-    try:
-        conn = client.getConnection()
-        cur = conn.cursor()
-
-        query = f"SELECT id FROM professionalsurvey WHERE profileid = '{profId}' ORDER BY id DESC;"
-        
-        cur.execute(query)
-        result = cur.fetchone()
-
-        conn.close()
-        
-        return result[0]
-    
     except Exception as e:
-        print(f'Failed to grab candidate ID for {profId}: {e}')
+        print(f'Failed to grab survey ID for {profId}: {e}')
         return None
 
 def scheduleChat(profileid: str):
@@ -147,16 +133,11 @@ def upsertSurveyAnswer(questionId: int, surveyResponse: int, profId: int):
     conn = client.getConnection()
     cur = conn.cursor()
 
-    profSurvId = profId
-
     try:
         # Count distinct candidates in the person table
         query = "INSERT INTO professionalsurveyquestion (professionalsurveyid, surveyquestionid, answer) VALUES (%s, %s, %s)"
-
-        print(query)
-        print(profSurvId)
         
-        cur.execute(query, (profSurvId, questionId, surveyResponse))
+        cur.execute(query, (profId, questionId, surveyResponse))
 
     except Exception as e:
         print(f'Cannot insert candidate answers: {e}')
