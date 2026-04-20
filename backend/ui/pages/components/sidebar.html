@@ -1,6 +1,7 @@
 <aside class="sidebar">
   <div class="brand">
     <img
+      class="domainLogo"
       src="../assets/devLogo.svg"
       alt="DevReady"
       style="width: 42px; height: 42px"
@@ -78,5 +79,12 @@
   function domainUpdate(currentDomain) {
     document.getElementById("domainLabelSidebar").innerHTML =
       currentDomain.toUpperCase();
+
+    const logoSet = document.getElementsByClassName("domainLogo");
+
+    for (const logo of logoSet) {
+      logo.src = `../assets/${currentDomain}Logo.svg`;
+      logo.href = `../assets/${currentDomain}Logo.svg`;
+    }
   }
 </script>
