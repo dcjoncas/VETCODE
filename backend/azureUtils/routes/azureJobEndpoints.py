@@ -31,7 +31,7 @@ router = APIRouter(
 )
 
 @router.post("/createJob")
-def jdCreate(company: str = Form(...), title: str = Form(...), jd_text: str = Form(...), domain: str = Form("technology")):
+def jdCreate(company: str = Form(...), title: str = Form(...), jd_text: str = Form(...), domain: str = Form(default="dev")):
     print(f"Uploading {title} at {company}")
     try:
         skills = normalize_jd(jd_text)
@@ -49,15 +49,15 @@ def jdCreate(company: str = Form(...), title: str = Form(...), jd_text: str = Fo
         return JSONResponse(status_code=500, content={"error": 'Failed to upload job description.', "trace": traceback.format_exc()})
 
 @router.get("/list/{domain}/{amount}")
-def jd_list(domain: str = "technology", amount: int = 5):
+def jd_list(domain: str = "dev", amount: int = 5):
     return jobs.listJobs(domain, amount)
     
 @router.get("/list/search/{domain}/{query}/{amount}")
-def jd_list(domain: str = "technology", query: str = '', amount: int = 5):
+def jd_list(domain: str = "dev", query: str = '', amount: int = 5):
     return jobs.searchJobs(domain, query, amount)
 
 @router.post("/match/run")
-def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: int = Form(10)):
+def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k: int = Form(10)):
     # TODO: Set up job descriptions in the database
     jd = jobs.getJob(jd_id)
 

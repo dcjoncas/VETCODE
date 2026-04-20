@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>DevReady • Role & Match</title>
     <link
+      class="domainLogo"
       rel="icon"
-      href="../assets/logo.svg"
+      href="../assets/devLogo.svg"
       sizes="any"
       type="image/svg+xml"
     />
@@ -16,7 +17,7 @@
       href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="../assets/styles.css" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
     <script>
       $(function () {
         $("#siteSidebar").load("components/sidebar.html");
@@ -222,7 +223,9 @@
       async function refreshExistingDescriptions() {
         try {
           // const ps = await api("/api/profile/list");
-          const jds = await api("/api/azureJobs/list/technology/5");
+          const jds = await api(
+            `/api/azureJobs/list/${sessionStorage.getItem("domain")}/5`,
+          );
 
           // TODO: Update this code
           // renderProfilesList(profiles);
@@ -303,7 +306,7 @@
           `Ranked Results (Top ${top_k})`;
 
         const fd = new FormData();
-        fd.append("domain", "technology");
+        fd.append("domain", sessionStorage.getItem("domain"));
         fd.append("jd_id", jd_id);
         fd.append("top_k", String(top_k));
 
@@ -398,7 +401,7 @@
         fd.append("company", company);
         fd.append("title", title);
         fd.append("jd_text", text);
-        fd.append("domain", "technology");
+        fd.append("domain", sessionStorage.getItem("domain"));
 
         // keep URL in the UI only (backend may ignore)
         // document.getElementById("jdStatus").textContent = "Saving...";
@@ -445,8 +448,9 @@
           minimumInputLength: 0, // wait until user types
           ajax: {
             url: function (params) {
-              if (!params.term) return "/api/azureJobs/list/technology/5";
-              return `/api/azureJobs/list/search/technology/${params.term}/5`;
+              if (!params.term)
+                return `/api/azureJobs/list/${sessionStorage.getItem("domain")}/5`;
+              return `/api/azureJobs/list/search/${sessionStorage.getItem("domain")}/${params.term}/5`;
             },
             dataType: "json",
             delay: 250, // debounce

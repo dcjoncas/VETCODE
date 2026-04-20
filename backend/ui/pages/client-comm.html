@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>DevReady • Client Communication</title>
     <link
+      class="domainLogo"
       rel="icon"
-      href="../assets/logo.svg"
+      href="../assets/devLogo.svg"
       sizes="any"
       type="image/svg+xml"
     />
-    <link rel="stylesheet" href="../assets/styles.css" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
       $(function () {
@@ -45,20 +46,7 @@
           <div class="split">
             <div class="field">
               <label>Client message (draft)</label>
-              <textarea id="emailArea">
-Hi [Client Name],
-
-Based on your JD, we ranked and vetted the top candidates. Below are the top 3 recommendations with rationale and links to public profiles.
-
-1) Giovanni S — Senior backend, strong identity + API experience. Score 92.
-2) Maria T — Full-stack Angular/SQL, strong delivery record. Score 88.
-3) Kevin P — React/Node/AWS, strong product mindset. Score 81.
-
-If you confirm the top 1–3 candidates, we’ll schedule interviews and provide an interview plan.
-
-Best,
-DJ</textarea
-              >
+              <textarea id="emailArea"></textarea>
               <div class="row-actions">
                 <button
                   class="btn"
@@ -195,11 +183,14 @@ DJ</textarea
         const emailData = await result.json();
 
         document.getElementById("emailArea").innerHTML = emailData.email;
+        sessionStorage.setItem("clientEmail", emailData.email);
       }
 
       document.addEventListener("DOMContentLoaded", async () => {
         const shortlist = sessionStorage.getItem("shortlist");
         const jobId = sessionStorage.getItem("jobID");
+        document.getElementById("emailArea").innerHTML =
+          sessionStorage.getItem("clientEmail");
 
         if (shortlist && shortlist.length > 0) {
           shortlistArray = shortlist.split(",");

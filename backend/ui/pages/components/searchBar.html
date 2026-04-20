@@ -49,7 +49,7 @@
       }
 
       const fd = new FormData();
-      fd.append("domain", "technology");
+      fd.append("domain", sessionStorage.getItem("domain"));
       fd.append("search_string", query);
 
       const responseAzure = await fetch("/api/azure/searchNameEmail", {

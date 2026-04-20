@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>DevReady • Talent</title>
     <link
+      class="domainLogo"
       rel="icon"
-      href="../assets/logo.svg"
+      href="../assets/devLogo.svg"
       sizes="any"
       type="image/svg+xml"
     />
-    <link rel="stylesheet" href="../assets/styles.css" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
       $(function () {
@@ -130,7 +131,7 @@
 
       async function updateCounts() {
         const responseTotal = await fetch(
-          "/api/azure/countCandidates/all?domain=technology",
+          `/api/azure/countCandidates/all?domain=${sessionStorage.getItem("domain")}`,
         );
         const totalCount = await responseTotal.json();
 
@@ -171,7 +172,7 @@
         let limit = 5;
 
         const fd = new FormData();
-        fd.append("domain", "technology");
+        fd.append("domain", sessionStorage.getItem("domain"));
         fd.append("skills", skills.join(","));
         fd.append("limit", limit);
 
@@ -240,7 +241,7 @@
 
         // Backwards/forwards compatible: send BOTH names so either backend style works
         fd.append("source_type", source_type);
-        fd.append("domain", "technology");
+        fd.append("domain", sessionStorage.getItem("domain"));
 
         try {
           const j = await api("/api/azure/resume/upload", {
