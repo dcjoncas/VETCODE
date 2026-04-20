@@ -1,197 +1,216 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title id="profilePageTitle">DevReady • Screen 4 — Profile Preview</title>
-  <link rel="icon" href="../assets/logo.svg" sizes="any" type="image/svg+xml"/>
-  <link rel="stylesheet" href="../assets/styles.css"/>
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-  <script> 
-    $(function(){
-      $("#siteSidebar").load("components/sidebar.html");
-      $("#processFlow").load("components/processFlow.html");
-      $("#searchBar").load("components/searchBar.html");
-    });
-  </script> 
-</head>
-<body>
-  <div class="container">
-    <div id="siteSidebar"></div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title id="profilePageTitle">DevReady • Screen 4 — Profile Preview</title>
+    <link
+      rel="icon"
+      href="../assets/devLogo.svg"
+      sizes="any"
+      type="image/svg+xml"
+    />
+    <link rel="stylesheet" href="../assets/styles.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html");
+        $("#processFlow").load("components/processFlow.html");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
 
-    <main class="main">
-      <div class="topbar">
-        <div>
-          <div id="pageTitle" class="page-title">Search Results</div>
-          <div class="breadcrumb">Vetting Process • Profile Search</div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div id="pageTitle" class="page-title">Search Results</div>
+            <div class="breadcrumb">Vetting Process • Profile Search</div>
+          </div>
+          <div id="searchBar"></div>
         </div>
-        <div id="searchBar"></div>
-      </div>
 
-      <div id="processFlow"></div>
+        <div id="processFlow"></div>
 
-      <section class="card">
-        <h2 id="searchHeader">Search Results</h2>
-        <p id="resultsCount">Showing results - of -.</p>
-        <table class="table">
-          <thead><tr><th>Name</th><th>Email</th><th>Location</th><th id="jobTopSkill">Top Skills</th></tr></thead>
-          <tbody id="searchResultsBody"><!-- Dynamically filled with ranked results --></tbody>
-        </table>
+        <section class="card">
+          <h2 id="searchHeader">Search Results</h2>
+          <p id="resultsCount">Showing results - of -.</p>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Location</th>
+                <th id="jobTopSkill">Top Skills</th>
+              </tr>
+            </thead>
+            <tbody id="searchResultsBody">
+              <!-- Dynamically filled with ranked results -->
+            </tbody>
+          </table>
 
-        <div id="paginationDiv" class="pagination">
-          <button id="prevPage" class="btn secondary" type="button">Previous</button>
-          <h2 id="pageIndicator" style="display: inline;">Page - of -</h2>
-          <button id="nextPage" class="btn secondary" type="button">Next</button>
-        </div>
-      </section>
+          <div id="paginationDiv" class="pagination">
+            <button id="prevPage" class="btn secondary" type="button">
+              Previous
+            </button>
+            <h2 id="pageIndicator" style="display: inline">Page - of -</h2>
+            <button id="nextPage" class="btn secondary" type="button">
+              Next
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="JS/apiScripts.js"></script>
 
-    </main>
-  </div>
-  <script src="JS/apiScripts.js"></script>
+    <script>
+      const queryString = window.location.search;
+      const urlParams = new URLSearchParams(queryString);
 
-  <script>
-    const queryString = window.location.search;
-    const urlParams = new URLSearchParams(queryString);
+      const query = urlParams.get("query");
+      let page = parseInt(urlParams.get("page")) || 1;
+      const pageLimit = parseInt(urlParams.get("pageLimit")) || 10;
 
-    const query = urlParams.get('query');
-    let page = parseInt(urlParams.get('page')) || 1;
-    const pageLimit = parseInt(urlParams.get('pageLimit')) || 10;
+      const jobTitle = sessionStorage.getItem("jobTitle") || "Selected Role";
 
-    const jobTitle = sessionStorage.getItem("jobTitle") || "Selected Role";
+      document.getElementById("searchHeader").textContent =
+        `Search Results for "${query}"`;
+      document.getElementById("jobTopSkill").textContent =
+        `Top Skills for ${jobTitle}`;
 
-    document.getElementById("searchHeader").textContent = `Search Results for "${query}"`;
-    document.getElementById("jobTopSkill").textContent = `Top Skills for ${jobTitle}`;
+      function updatePage(newPage) {
+        const newUrl = `profile-search-results.html?query=${encodeURIComponent(query)}&page=${newPage}&pageLimit=${pageLimit}`;
+        window.history.pushState({ path: newUrl }, "", newUrl);
+        page = newPage;
+        fetchSearchResults();
+      }
 
-    function updatePage(newPage) {
-      const newUrl = `profile-search-results.html?query=${encodeURIComponent(query)}&page=${newPage}&pageLimit=${pageLimit}`;
-      window.history.pushState({ path: newUrl }, '', newUrl);
-      page = newPage;
-      fetchSearchResults();
-    }
-
-    document.getElementById("prevPage").addEventListener("click", () => {
+      document.getElementById("prevPage").addEventListener("click", () => {
         if (page > 1) {
-            updatePage(page - 1);
+          updatePage(page - 1);
         }
-    });
+      });
 
-    document.getElementById("nextPage").addEventListener("click", () => {
+      document.getElementById("nextPage").addEventListener("click", () => {
         updatePage(page + 1);
-    });
+      });
 
-    async function fetchSearchResults() {
+      async function fetchSearchResults() {
         try {
-            const fd = new FormData();
-            fd.append("domain", "technology");
-            fd.append("search_string", query);
-            fd.append("pageLimit", pageLimit);
-            fd.append("skills", sessionStorage.getItem("jobSkills"));
+          const fd = new FormData();
+          fd.append("domain", "technology");
+          fd.append("search_string", query);
+          fd.append("pageLimit", pageLimit);
+          fd.append("skills", sessionStorage.getItem("jobSkills"));
 
-            const countResponse = await fetch("/api/azure/pageCount", {
-                method: "POST",
-                body: fd
-            });
+          const countResponse = await fetch("/api/azure/pageCount", {
+            method: "POST",
+            body: fd,
+          });
 
-            const countResults = await countResponse.json();
+          const countResults = await countResponse.json();
 
-            if (countResults[0] === 0) {
-                document.getElementById("searchResultsBody").innerHTML = '<tr><td colspan="4" style="text-align:center;">No results found.</td></tr>';
-                return;
+          if (countResults[0] === 0) {
+            document.getElementById("searchResultsBody").innerHTML =
+              '<tr><td colspan="4" style="text-align:center;">No results found.</td></tr>';
+            return;
+          } else if (page > countResults[1]) page = countResults[1];
+
+          document.getElementById("resultsCount").textContent =
+            `Showing results ${(page - 1) * pageLimit + 1} - ${Math.min(page * pageLimit, countResults[0])} of ${countResults[0]}.`;
+          document.getElementById("pageIndicator").textContent =
+            `Page ${page} of ${countResults[1]}`;
+
+          if (page <= 1) {
+            document.getElementById("prevPage").disabled = true;
+          } else {
+            document.getElementById("prevPage").disabled = false;
+          }
+
+          if (page >= countResults[1]) {
+            document.getElementById("nextPage").disabled = true;
+          } else {
+            document.getElementById("nextPage").disabled = false;
+          }
+
+          fd.append("currentPage", page);
+
+          const pageResponse = await fetch("/api/azure/pageSearch", {
+            method: "POST",
+            body: fd,
+          });
+
+          const pageResults = await pageResponse.json();
+
+          const tbody = document.getElementById("searchResultsBody");
+          tbody.innerHTML = "";
+
+          if (pageResults.length == 0)
+            tbody.innerHTML = "<tr>No Results Found</tr>";
+
+          pageResults.forEach((r, i) => {
+            const tr = document.createElement("tr");
+
+            // TODO: Correlate shown skills to selected JD
+            let topSkills = ["No Skills Listed"];
+            let location = "No Location Listed";
+
+            if (
+              sessionStorage.getItem("candidateId") &&
+              r.id + "" === sessionStorage.getItem("candidateId")
+            ) {
+              tr.classList.add("active-candidate-row");
             }
-            else if (page > countResults[1])
-              page = countResults[1];
 
-            document.getElementById("resultsCount").textContent = `Showing results ${((page - 1) * pageLimit) + 1} - ${Math.min(page * pageLimit, countResults[0])} of ${countResults[0]}.`;
-            document.getElementById("pageIndicator").textContent = `Page ${page} of ${countResults[1]}`;
+            // If job skills are unavailable, just show top skills from profile (up to 5)
+            else if (r.data) {
+              let skillCount = 0;
+              Object.keys(r.data.skills).forEach((category) => {
+                if (skillCount >= 5) return;
 
-            if (page <= 1) {
-                document.getElementById("prevPage").disabled = true;
-            } else {
-                document.getElementById("prevPage").disabled = false;
+                r.data.skills[category].forEach((skill) => {
+                  if (skillCount >= 5) return;
+
+                  topSkills.push(skill);
+                  skillCount++;
+                });
+              });
             }
 
-            if (page >= countResults[1]) {
-                document.getElementById("nextPage").disabled = true;
-            } else {
-                document.getElementById("nextPage").disabled = false;
-            }
+            // Fallback if no skills found
+            if (r.skillMatches.length > 0)
+              topSkills = (r.skillMatches || []).slice(0, 6).join(", ");
 
-            fd.append("currentPage", page);
-
-            const pageResponse = await fetch("/api/azure/pageSearch", {
-                method: "POST",
-                body: fd
-            });
-
-            const pageResults = await pageResponse.json();
-
-            const tbody = document.getElementById("searchResultsBody");
-            tbody.innerHTML = "";
-
-            if (pageResults.length == 0)
-              tbody.innerHTML = "<tr>No Results Found</tr>"
-
-            pageResults.forEach((r, i) => {
-                const tr = document.createElement("tr");
-
-                // TODO: Correlate shown skills to selected JD
-                let topSkills= ["No Skills Listed"];
-                let location = "No Location Listed";
-
-                if (sessionStorage.getItem("candidateId") && r.id + '' === sessionStorage.getItem("candidateId")) {
-                  tr.classList.add("active-candidate-row");
-                }
-                
-                // If job skills are unavailable, just show top skills from profile (up to 5)
-                else if (r.data) {
-                  let skillCount = 0;
-                  Object.keys(r.data.skills).forEach(category => 
-                    {
-                      if(skillCount >= 5)
-                        return;
-                      
-                      r.data.skills[category].forEach(skill => {
-                        if(skillCount >= 5)
-                          return;
-                        
-                        topSkills.push(skill);
-                        skillCount++;
-                      });
-                    }
-                  );
-                }
-
-                // Fallback if no skills found
-                if (r.skillMatches.length > 0)
-                  topSkills = (r.skillMatches || []).slice(0, 6).join(", ");
-
-                tr.classList.add("search-result-row");
-                tr.innerHTML = `
+            tr.classList.add("search-result-row");
+            tr.innerHTML = `
                   <td>${r.full_name}</td>
                   <td>${r.email}</td>
                   <td>${r.location}</td>
                   <td>${topSkills}</td>
                 `;
 
-                tr.style.cursor = "pointer";
-                // Navigate to profile preview on click
-                tr.addEventListener("click", () => {
-                  sessionStorage.setItem("candidateId", r.id);
-                  sessionStorage.setItem("candidateName", r.full_name);
-                  sessionStorage.setItem("candidateTopMatches", topSkills);
-                  sessionStorage.setItem("candidateStatus", r.step);
+            tr.style.cursor = "pointer";
+            // Navigate to profile preview on click
+            tr.addEventListener("click", () => {
+              sessionStorage.setItem("candidateId", r.id);
+              sessionStorage.setItem("candidateName", r.full_name);
+              sessionStorage.setItem("candidateTopMatches", topSkills);
+              sessionStorage.setItem("candidateStatus", r.step);
 
-                  window.location.href = "profile-preview.html";
-                });
-
-                tbody.appendChild(tr);
+              window.location.href = "profile-preview.html";
             });
-        } catch (error) {
-            console.error("Error fetching search results:", error);
-        }
-    }
 
-    fetchSearchResults();
-  </script>
-</body>
+            tbody.appendChild(tr);
+          });
+        } catch (error) {
+          console.error("Error fetching search results:", error);
+        }
+      }
+
+      fetchSearchResults();
+    </script>
+  </body>
 </html>

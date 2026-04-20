@@ -1,25 +1,82 @@
 <aside class="sidebar">
-    <div class="brand">
-    <img src="../assets/logo.svg" alt="DevReady" style="width:42px;height:42px"/>
+  <div class="brand">
+    <img
+      src="../assets/devLogo.svg"
+      alt="DevReady"
+      style="width: 42px; height: 42px"
+    />
     <div class="title">
-        <span>DEV</span>
-        <span>READY</span>
-        <span class="sub">Vetting • UX mock</span>
+      <span id="domainLabelSidebar">DEV</span>
+      <span>READY</span>
+      <span class="sub">Vetting • UX mock</span>
     </div>
-    </div>
+  </div>
 
-    <div id="userBox"></div>
-    <div id="pageNav"></div>
-
-    <div class="footer">
-        DevReady • www.devready.io<br/>
-        Green theme + clean cards (no icons)
+  <div class="userbox">
+    <div style="font-size: 12px; opacity: 0.9">Welcome back,</div>
+    <div class="name">Darrin Joncas</div>
+    <div
+      class="field"
+      style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap"
+    >
+      <select
+        id="domainSelect"
+        class="badge"
+        style="background: rgba(16, 32, 24, 0.1); color: #f5f7f7"
+        onchange="domainSwap()"
+      >
+        <option value="dev" style="color: black">Technology Domain</option>
+        <option value="law" style="color: black">Law Domain</option>
+      </select>
+      <span class="badge">UI/UX only</span>
     </div>
+  </div>
+  <div id="pageNav"></div>
+
+  <div class="footer">
+    DevReady • www.devready.io<br />
+    Green theme + clean cards (no icons)
+  </div>
 </aside>
 
-<script> 
-    $(function(){
-        $("#pageNav").load("components/sideNav.html");
-        $("#userBox").load("components/userbox.html");
-    });
+<script>
+  $(function () {
+    $("#pageNav").load("components/sideNav.html");
+
+    const select = document.getElementById("domainSelect");
+
+    // 1. Read domain from query string
+    const params = new URLSearchParams(window.location.search);
+    const domainFromUrl = params.get("domain");
+
+    if (domainFromUrl) {
+      select.value = domainFromUrl;
+      sessionStorage.setItem("domain", domainFromUrl);
+    } else {
+      // fallback to sessionStorage if no query param
+      const savedDomain = sessionStorage.getItem("domain");
+      if (savedDomain) {
+        select.value = savedDomain;
+      }
+    }
+
+    // Update UI
+    domainUpdate(select.value);
+  });
+
+  function domainSwap() {
+    const currentDomain = document.getElementById("domainSelect").value;
+
+    sessionStorage.setItem("domain", currentDomain);
+    const url = new URL(window.location);
+    url.searchParams.set("domain", currentDomain);
+    window.history.replaceState({}, "", url);
+
+    domainUpdate(currentDomain);
+  }
+
+  function domainUpdate(currentDomain) {
+    document.getElementById("domainLabelSidebar").innerHTML =
+      currentDomain.toUpperCase();
+  }
 </script>
