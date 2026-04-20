@@ -102,7 +102,7 @@
       async function fetchSearchResults() {
         try {
           const fd = new FormData();
-          fd.append("domain", "technology");
+          fd.append("domain", sessionStorage.getItem("domain"));
           fd.append("search_string", query);
           fd.append("pageLimit", pageLimit);
           fd.append("skills", sessionStorage.getItem("jobSkills"));

@@ -131,7 +131,7 @@
 
       async function updateCounts() {
         const responseTotal = await fetch(
-          "/api/azure/countCandidates/all?domain=technology",
+          `/api/azure/countCandidates/all?domain=${sessionStorage.getItem("domain")}`,
         );
         const totalCount = await responseTotal.json();
 
@@ -172,7 +172,7 @@
         let limit = 5;
 
         const fd = new FormData();
-        fd.append("domain", "technology");
+        fd.append("domain", sessionStorage.getItem("domain"));
         fd.append("skills", skills.join(","));
         fd.append("limit", limit);
 
@@ -241,7 +241,7 @@
 
         // Backwards/forwards compatible: send BOTH names so either backend style works
         fd.append("source_type", source_type);
-        fd.append("domain", "technology");
+        fd.append("domain", sessionStorage.getItem("domain"));
 
         try {
           const j = await api("/api/azure/resume/upload", {
