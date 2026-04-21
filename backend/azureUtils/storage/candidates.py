@@ -47,12 +47,16 @@ def searchSkills(searchQuery: str):
     
     return skills
 
-def countCandidates():
+def countCandidates(domain: str = 'all'):
     conn = client.getConnection()
     cur = conn.cursor()
-
+    
+    query = ''
     # Count distinct candidates in the person table
-    query = f"SELECT COUNT(id) as count FROM person;"
+    if domain == 'all':
+        query = f"SELECT COUNT(id) as count FROM person;"
+    else:
+        query = f"SELECT COUNT(id) as count FROM person WHERE domain = '{domain}';"
     
     cur.execute(query)
     results = cur.fetchall()
@@ -61,12 +65,16 @@ def countCandidates():
     
     return results[0][0]
 
-def countCandidatesRecent():
+def countCandidatesRecent(domain: str = 'all'):
     conn = client.getConnection()
     cur = conn.cursor()
 
+    query = ''
     # Count candidates added in the last 7 days
-    query = f"SELECT COUNT(person.id) as count FROM person JOIN professional ON person.id = professional.id WHERE professional.modifieddate >= CURRENT_DATE - INTERVAL '7 days';"
+    if domain == 'all':
+        query = f"SELECT COUNT(person.id) as count FROM person JOIN professional ON person.id = professional.id WHERE professional.modifieddate >= CURRENT_DATE - INTERVAL '7 days';"
+    else:
+        query = f"SELECT COUNT(person.id) as count FROM person JOIN professional ON person.id = professional.id WHERE person.domain = '{domain}' AND professional.modifieddate >= CURRENT_DATE - INTERVAL '7 days';"
     
     cur.execute(query)
     results = cur.fetchall()
@@ -75,7 +83,7 @@ def countCandidatesRecent():
     
     return results[0][0]
 
-def countCandidatesStatus():
+def countCandidatesStatus(domain: str = 'all'):
     conn = client.getConnection()
     cur = conn.cursor()
 
@@ -84,7 +92,11 @@ def countCandidatesStatus():
     # 2 = Pending
     # 3 = Published
     # 4 = Updated
-    query = f"SELECT professional.status, COUNT(person.id) as count FROM person JOIN professional ON person.id = professional.id GROUP BY professional.status;"
+    query = ''
+    if domain == 'all':
+        query = f"SELECT professional.status, COUNT(person.id) as count FROM person JOIN professional ON person.id = professional.id GROUP BY professional.status;"
+    else:
+        query = f"SELECT professional.status, COUNT(person.id) as count FROM person JOIN professional ON person.id = professional.id WHERE person.domain = '{domain}' GROUP BY professional.status;"
     
     cur.execute(query)
     results = cur.fetchall()
@@ -110,10 +122,10 @@ def countCandidatesStatus():
     
     return resultsObject
 
-def countCandidatesAll():
-    totalCount = countCandidates()
-    recentCount = countCandidatesRecent()
-    statusCounts = countCandidatesStatus()
+def countCandidatesAll(domain: str = 'all'):
+    totalCount = countCandidates(domain)
+    recentCount = countCandidatesRecent(domain)
+    statusCounts = countCandidatesStatus(domain)
 
     return {
         "total": totalCount,
@@ -151,13 +163,17 @@ def getSurveyId(personId: str):
     
     return result[0]
 
-def searchCandidatesByNameEmail(query: str, limit: int = 5):
+def searchCandidatesByNameEmail(query: str, limit: int = 5, domain: str = 'all'):
     conn = client.getConnection()
     cur = conn.cursor()
 
     # Search for user by firstname, lastname, goesbyname, or email using ILIKE for case-insensitive search
     # Order by id descending to get the most recent matches first, and limit the number of results
-    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE (person.firstname || ' ' || person.lastname) ILIKE '%{query}%' OR (person.goesbyname || ' ' || person.lastname) ILIKE '%{query}%' OR prof.email ILIKE '%{query}%' GROUP BY person.id, prof.email ORDER BY id DESC LIMIT {limit};"
+    query = ''
+    if domain == 'all':
+        query = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE (person.firstname || ' ' || person.lastname) ILIKE '%{query}%' OR (person.goesbyname || ' ' || person.lastname) ILIKE '%{query}%' OR prof.email ILIKE '%{query}%' GROUP BY person.id, prof.email ORDER BY id DESC LIMIT {limit};"
+    else:
+        query = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.domain = '{domain}' AND ((person.firstname || ' ' || person.lastname) ILIKE '%{query}%' OR (person.goesbyname || ' ' || person.lastname) ILIKE '%{query}%' OR prof.email ILIKE '%{query}%') GROUP BY person.id, prof.email ORDER BY id DESC LIMIT {limit};"
     
     cur.execute(query)
     results = cur.fetchall()
@@ -177,7 +193,7 @@ def searchCandidatesByNameEmail(query: str, limit: int = 5):
     
     return resultsProcessed
 
-def searchCandidatesBySkills(query: str, limit: int = 5):
+def searchCandidatesBySkills(query: str, limit: int = 5, domain: str = 'all'):
     conn = client.getConnection()
     cur = conn.cursor()
 
@@ -185,7 +201,11 @@ def searchCandidatesBySkills(query: str, limit: int = 5):
 
     # Search for user by skills attached to the account
     # Order by id descending to get the most recent matches first, and limit the number of results
-    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN (SELECT profileid, skillid FROM professionalskill UNION SELECT profileid, skillid FROM resumeskill) allskills ON allskills.profileid = profper.id JOIN skill ON allskills.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) GROUP BY person.id, prof.email ORDER BY skillMatches DESC LIMIT {limit};"
+    query = ''
+    if domain == 'all':
+        query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN (SELECT profileid, skillid FROM professionalskill UNION SELECT profileid, skillid FROM resumeskill) allskills ON allskills.profileid = profper.id JOIN skill ON allskills.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) GROUP BY person.id, prof.email ORDER BY skillMatches DESC LIMIT {limit};"
+    else:
+        query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN (SELECT profileid, skillid FROM professionalskill UNION SELECT profileid, skillid FROM resumeskill) allskills ON allskills.profileid = profper.id JOIN skill ON allskills.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.domain = '{domain}' AND skill.title ILIKE ANY(%s) GROUP BY person.id, prof.email ORDER BY skillMatches DESC LIMIT {limit};"
     
     cur.execute(query, (queryArray,))
     results = cur.fetchall()
@@ -246,7 +266,7 @@ def searchCandidatesBySkillId(queryList: list[int], limit: int = 5):
     
     return resultsProcessed
 
-def searchCandidatesBySkillsNamesPaginated(nameQuery: str, skillQuery: str, pageLimit: int = 5, currentPage: int = 0):
+def searchCandidatesBySkillsNamesPaginated(nameQuery: str, skillQuery: str, pageLimit: int = 5, currentPage: int = 0, domain: str = 'all'):
     conn = client.getConnection()
     cur = conn.cursor()
 
@@ -255,7 +275,12 @@ def searchCandidatesBySkillsNamesPaginated(nameQuery: str, skillQuery: str, page
     # Search for user by skills attached to the account
     # Order by id descending to get the most recent matches first, and limit the number of results
     wildcard = f'%{nameQuery}%'
-    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step), address.city, address.state, address.country FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) AND ((person.firstname || ' ' || person.lastname) ILIKE %s OR (person.goesbyname || ' ' || person.lastname) ILIKE %s OR prof.email ILIKE %s) GROUP BY person.id, prof.email, address.city, address.state, address.country ORDER BY skillMatches DESC LIMIT {pageLimit} OFFSET {pageLimit * currentPage};"
+
+    query = ''
+    if domain == 'all':
+        query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step), address.city, address.state, address.country FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) AND ((person.firstname || ' ' || person.lastname) ILIKE %s OR (person.goesbyname || ' ' || person.lastname) ILIKE %s OR prof.email ILIKE %s) GROUP BY person.id, prof.email, address.city, address.state, address.country ORDER BY skillMatches DESC LIMIT {pageLimit} OFFSET {pageLimit * currentPage};"
+    else:
+        query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step), address.city, address.state, address.country FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.domain = '{domain}' AND skill.title ILIKE ANY(%s) AND ((person.firstname || ' ' || person.lastname) ILIKE %s OR (person.goesbyname || ' ' || person.lastname) ILIKE %s OR prof.email ILIKE %s) GROUP BY person.id, prof.email, address.city, address.state, address.country ORDER BY skillMatches DESC LIMIT {pageLimit} OFFSET {pageLimit * currentPage};"
 
     cur.execute(query, (queryArray, wildcard, wildcard, wildcard, wildcard))
     results = cur.fetchall()
@@ -276,13 +301,17 @@ def searchCandidatesBySkillsNamesPaginated(nameQuery: str, skillQuery: str, page
     
     return resultsProcessed
 
-def searchCandidatesByNameEmailPaginated(query: str, pageLimit: int = 5, currentPage: int = 0):
+def searchCandidatesByNameEmailPaginated(queryName: str, pageLimit: int = 5, currentPage: int = 0, domain: str = 'all'):
     conn = client.getConnection()
     cur = conn.cursor()
 
     # Search for user by firstname, lastname, goesbyname, or email using ILIKE for case-insensitive search
     # Order by id descending to get the most recent matches first, and limit the number of results
-    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step), ARRAY_AGG(DISTINCT skill.title), address.city, address.state, address.country FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.firstname ILIKE '%{query}%' OR person.lastname ILIKE '%{query}%' OR person.goesbyname ILIKE '%{query}%' OR prof.email ILIKE '%{query}%' GROUP BY person.id, prof.email, address.city, address.state, address.country ORDER BY id DESC LIMIT {pageLimit} OFFSET {pageLimit * currentPage};"
+    query = ''
+    if domain == 'all':
+        query = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step), ARRAY_AGG(DISTINCT skill.title), address.city, address.state, address.country FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE (person.firstname || ' ' || person.lastname) ILIKE '%{queryName}%' OR (person.goesbyname || ' ' || person.lastname) ILIKE '%{queryName}%' OR prof.email ILIKE '%{queryName}%' GROUP BY person.id, prof.email, address.city, address.state, address.country ORDER BY id DESC LIMIT {pageLimit} OFFSET {pageLimit * currentPage};"
+    else:
+        query = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step), ARRAY_AGG(DISTINCT skill.title), address.city, address.state, address.country FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.domain = '{domain}' AND ((person.firstname || ' ' || person.lastname) ILIKE '%{queryName}%' OR (person.goesbyname || ' ' || person.lastname) ILIKE '%{queryName}%' OR prof.email ILIKE '%{queryName}%') GROUP BY person.id, prof.email, address.city, address.state, address.country ORDER BY id DESC LIMIT {pageLimit} OFFSET {pageLimit * currentPage};"
 
     cur.execute(query)
     results = cur.fetchall()
@@ -303,15 +332,21 @@ def searchCandidatesByNameEmailPaginated(query: str, pageLimit: int = 5, current
     
     return resultsProcessed
 
-def searchPageCount(nameQuery: str, skillQuery: str = None, pageLimit: int = 5):
+def searchPageCount(nameQuery: str, skillQuery: str = None, pageLimit: int = 5, domain = 'all'):
     conn = client.getConnection()
     cur = conn.cursor()
+
+    query = ''
 
     if skillQuery:
         queryArray = [item.strip() for item in skillQuery.split(',')]
         wildcard = f'%{nameQuery}%'
-        query = f"SELECT COUNT(DISTINCT person.id) FROM person JOIN professional prof ON person.id = prof.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) AND (person.firstname ILIKE %s OR person.lastname ILIKE %s OR person.goesbyname ILIKE %s OR prof.email ILIKE %s);"
-        cur.execute(query, (queryArray, wildcard, wildcard, wildcard, wildcard))
+
+        if domain == 'all':
+            query = f"SELECT COUNT(DISTINCT person.id) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.title ILIKE ANY(%s) AND ((person.firstname || ' ' || person.lastname) ILIKE %s OR (person.goesbyname || ' ' || person.lastname) ILIKE %s OR prof.email ILIKE %s);"
+        else:
+            query = f"SELECT COUNT(DISTINCT person.id) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.domain = '{domain}' AND skill.title ILIKE ANY(%s) AND ((person.firstname || ' ' || person.lastname) ILIKE %s OR (person.goesbyname || ' ' || person.lastname) ILIKE %s OR prof.email ILIKE %s);"
+        cur.execute(query, (queryArray, wildcard, wildcard, wildcard))
         results = cur.fetchall()
 
         rowCount = results[0][0] if results else 0
@@ -321,7 +356,10 @@ def searchPageCount(nameQuery: str, skillQuery: str = None, pageLimit: int = 5):
 
         return [rowCount, pages]
     else:
-        query = f"SELECT COUNT(DISTINCT person.id) FROM person JOIN professional prof ON person.id = prof.personid WHERE person.firstname ILIKE '%{nameQuery}%' OR person.lastname ILIKE '%{nameQuery}%' OR person.goesbyname ILIKE '%{nameQuery}%' OR prof.email ILIKE '%{nameQuery}%';"
+        if domain == 'all':
+            query = f"SELECT COUNT(DISTINCT person.id) FROM person JOIN professional prof ON person.id = prof.personid WHERE (person.firstname || ' ' || person.lastname) ILIKE '%{nameQuery}%' OR (person.goesbyname || ' ' || person.lastname) ILIKE '%{nameQuery}%' OR prof.email ILIKE '%{nameQuery}%';"
+        else:
+            query = f"SELECT COUNT(DISTINCT person.id) FROM person JOIN professional prof ON person.id = prof.personid WHERE person.domain = '{domain}' AND ((person.firstname || ' ' || person.lastname) ILIKE '%{nameQuery}%' OR (person.goesbyname || ' ' || person.lastname) ILIKE '%{nameQuery}%' OR prof.email ILIKE '%{nameQuery}%');"
         cur.execute(query)
         results = cur.fetchall()
 
@@ -546,7 +584,7 @@ def getProfileShortScore(jobId: str, profileIds: list[str]):
     # Sort by skill match
     return resultSet
     
-def uploadProfile(skills: list, fullName: str, candidateDescription: str, email: str = None, linkedInUrl: str = None, culturalExperiences: list = [], candidateCity: str = None, candidateState: str = None, candidateCountry: str = None, candidateTitle: str = None):
+def uploadProfile(skills: list, fullName: str, candidateDescription: str, domain: str, email: str = None, linkedInUrl: str = None, culturalExperiences: list = [], candidateCity: str = None, candidateState: str = None, candidateCountry: str = None, candidateTitle: str = None):
     print(f"Uploading profile for {fullName} with email {email} and LinkedIn URL {linkedInUrl}. Skills: {skills}")
     conn = client.getConnection()
     cur = conn.cursor()
@@ -555,8 +593,8 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, email:
     firstName = splitName[0]
     lastName = splitName[-1] if len(splitName) > 1 else ""
 
-    query = "INSERT INTO person (firstname, lastname, leadsource) VALUES (%s, %s, %s) RETURNING id"    
-    cur.execute(query, (firstName, lastName, 1))
+    query = "INSERT INTO person (firstname, lastname, leadsource, domain) VALUES (%s, %s, %s, %s) RETURNING id"    
+    cur.execute(query, (firstName, lastName, 1, domain))
     print(cur.statusmessage)
 
     personId = cur.fetchone()[0]

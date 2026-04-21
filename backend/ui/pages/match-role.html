@@ -306,7 +306,11 @@
           `Ranked Results (Top ${top_k})`;
 
         const fd = new FormData();
-        fd.append("domain", sessionStorage.getItem("domain"));
+
+        let domain = sessionStorage.getItem("domain");
+        if (!domain) domain = "dev";
+
+        fd.append("domain", domain);
         fd.append("jd_id", jd_id);
         fd.append("top_k", String(top_k));
 
@@ -401,7 +405,10 @@
         fd.append("company", company);
         fd.append("title", title);
         fd.append("jd_text", text);
-        fd.append("domain", sessionStorage.getItem("domain"));
+
+        let domain = sessionStorage.getItem("domain");
+        if (!domain) domain = "dev";
+        fd.append("domain", domain);
 
         // keep URL in the UI only (backend may ignore)
         // document.getElementById("jdStatus").textContent = "Saving...";

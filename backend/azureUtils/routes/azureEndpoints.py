@@ -22,14 +22,12 @@ async def search_skills(searchQuery: str):
 @router.get("/countCandidates")
 async def count_candidates(domain: str = "all"):
     print(f"Counting candidates for domain: {domain}")
-    if domain == "dev":
-        return candidates.countCandidates()
+    return candidates.countCandidates(domain)
     
 @router.get("/countCandidates/recent")
 async def count_candidates_recent(domain: str = "all"):
     print(f"Counting recent candidates for domain: {domain}")
-    if domain == "dev":
-        return candidates.countCandidatesRecent()
+    return candidates.countCandidatesRecent(domain)
     
 @router.get("/countCandidates/status")
 async def count_candidates_status(domain: str = "all"):
@@ -40,28 +38,25 @@ async def count_candidates_status(domain: str = "all"):
 @router.get("/countCandidates/all")
 async def count_candidates_all(domain: str = "all"):
     print(f"Counting all candidates for domain: {domain}")
-    if domain == "dev":
-        outcome = candidates.countCandidatesAll()
-        return outcome
+    return candidates.countCandidatesAll(domain)
 
 @router.post("/searchNameEmail")
 async def get_candidates(search_string: str = Form(...), domain: str = Form(...), limit: int = Form(5)):
-    if domain == "dev":
-        return candidates.searchCandidatesByNameEmail(search_string, limit)
+    print('searching for candidates with domain ' + domain)
+    return candidates.searchCandidatesByNameEmail(search_string, limit, domain)
     
 @router.post("/searchSkills")
 async def get_candidates(skills: str = Form(...), domain: str = Form(...), limit: int = Form(5)):
-    if domain == "dev":
-        return candidates.searchCandidatesBySkills(skills, limit)
+    return candidates.searchCandidatesBySkills(skills, limit)
     
 @router.post("/pageCount")
-def profile_page_count(domain: str = Form(default="dev"), search_string: str = Form(default=""), skills: str = Form(default=""), pageLimit: int = Form(default=10)):
+def profile_page_count(domain: str = Form(default="all"), search_string: str = Form(default=""), skills: str = Form(default=""), pageLimit: int = Form(default=10)):
     print(f"Calculating page count for domain='{domain}' with search_string='{search_string}'")
     
     if len(skills) > 0 and skills != 'null':
-        return candidates.searchPageCount(search_string, skills, pageLimit)
+        return candidates.searchPageCount(search_string, skills, pageLimit, domain)
     else:
-        return candidates.searchPageCount(search_string, None, pageLimit)
+        return candidates.searchPageCount(search_string, None, pageLimit, domain)
     
 @router.post("/pageSearch")
 def profile_page_search(domain: str = Form(default="dev"), search_string: str = Form(default=""), currentPage: int = Form(default=1), pageLimit: int = Form(default=10), skills: str = Form(default="")):
@@ -70,9 +65,9 @@ def profile_page_search(domain: str = Form(default="dev"), search_string: str = 
     currentPage = currentPage - 1  # adjust for 0-based indexing in backend
 
     if len(skills) > 0 and skills != 'null':
-        return candidates.searchCandidatesBySkillsNamesPaginated(search_string,skills,pageLimit,currentPage)
+        return candidates.searchCandidatesBySkillsNamesPaginated(search_string,skills,pageLimit,currentPage, domain=domain)
     else:
-        return candidates.searchCandidatesByNameEmailPaginated(search_string,pageLimit,currentPage)
+        return candidates.searchCandidatesByNameEmailPaginated(search_string,pageLimit,currentPage, domain=domain)
     
 @router.get("/getProfile/{profileId}")
 def get_profile(profileId: str = ""):
@@ -167,8 +162,6 @@ async def upload_resume(
     source_type: str = Form(None),
     domain: str = Form(default="dev"),
 ):
-    print(file)
-    
     #try:
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file name received.")
@@ -209,7 +202,7 @@ async def upload_resume(
     candidateCountry = candidateCountry_future.result()
     candidateTitle = candidateTitle_future.result()
 
-    profileResult = candidates.uploadProfile(skills=flatSkills, fullName=profile["contact"]["full_name"], email=profile["contact"]["email"], linkedInUrl=profile["contact"]["linkedin"], candidateDescription=description, culturalExperiences=culturalExperiences, candidateCity=candidateCity, candidateState=candidateState, candidateCountry=candidateCountry, candidateTitle=candidateTitle)
+    profileResult = candidates.uploadProfile(skills=flatSkills, fullName=profile["contact"]["full_name"], domain=domain, email=profile["contact"]["email"], linkedInUrl=profile["contact"]["linkedin"], candidateDescription=description, culturalExperiences=culturalExperiences, candidateCity=candidateCity, candidateState=candidateState, candidateCountry=candidateCountry, candidateTitle=candidateTitle)
 
     await resumes.uploadResume(file, profileResult["personid"])
 

@@ -23,7 +23,8 @@
 
 <script>
   function searchButton() {
-    window.location.href = `profile-search-results.html?query=${encodeURIComponent(document.getElementById("searchInput").value)}&page=1&pageLimit=10`;
+    let domain = sessionStorage.getItem("domain");
+    window.location.href = `profile-search-results.html?domain=${domain ? domain : "dev"}&query=${encodeURIComponent(document.getElementById("searchInput").value)}&page=1&pageLimit=10`;
   }
 
   function searchSelect(profile) {
@@ -48,8 +49,11 @@
         document.getElementById("searchResultsTable").hidden = false;
       }
 
+      let domain = sessionStorage.getItem("domain");
+      if (!domain) domain = "dev";
+
       const fd = new FormData();
-      fd.append("domain", sessionStorage.getItem("domain"));
+      fd.append("domain", domain);
       fd.append("search_string", query);
 
       const responseAzure = await fetch("/api/azure/searchNameEmail", {
