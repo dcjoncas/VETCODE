@@ -1,5 +1,5 @@
 <aside class="sidebar">
-  <div class="brand">
+  <div id="textBlockLogo" class="brand">
     <img
       class="domainLogo"
       src="../assets/devLogo.svg"
@@ -12,6 +12,12 @@
       <span class="sub">Vetting • UX mock</span>
     </div>
   </div>
+
+  <img
+    id="imgLogo"
+    src="../assets/lawLogo.png"
+    style="width: 100%; display: none"
+  />
 
   <div class="userbox">
     <div style="font-size: 12px; opacity: 0.9">Welcome back,</div>
@@ -81,6 +87,14 @@
       currentDomain.toUpperCase();
 
     const logoSet = document.getElementsByClassName("domainLogo");
+
+    if (currentDomain == "law") {
+      document.getElementById("textBlockLogo").style.display = "none";
+      document.getElementById("imgLogo").style.display = "block";
+    } else {
+      document.getElementById("textBlockLogo").style.display = "flex";
+      document.getElementById("imgLogo").style.display = "none";
+    }
 
     for (const logo of logoSet) {
       logo.src = `../assets/${currentDomain}Logo.svg`;
