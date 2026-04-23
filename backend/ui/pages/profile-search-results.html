@@ -15,7 +15,13 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html");
+        $("#siteSidebar").load("components/sidebar.html", function () {
+          document
+            .getElementById("domainSelect")
+            .addEventListener("change", function () {
+              updatePage(1);
+            });
+        });
         $("#processFlow").load("components/processFlow.html");
         $("#searchBar").load("components/searchBar.html");
       });
@@ -82,11 +88,13 @@
       document.getElementById("jobTopSkill").textContent =
         `Top Skills for ${jobTitle}`;
 
-      function updatePage(newPage) {
-        const newUrl = `profile-search-results.html?query=${encodeURIComponent(query)}&page=${newPage}&pageLimit=${pageLimit}`;
+      async function updatePage(newPage) {
+        let domain = sessionStorage.getItem("domain");
+
+        const newUrl = `profile-search-results.html?domain=${domain ? domain : "dev"}&query=${encodeURIComponent(query)}&page=${newPage}&pageLimit=${pageLimit}`;
         window.history.pushState({ path: newUrl }, "", newUrl);
         page = newPage;
-        fetchSearchResults();
+        await fetchSearchResults();
       }
 
       document.getElementById("prevPage").addEventListener("click", () => {
@@ -102,7 +110,14 @@
       async function fetchSearchResults() {
         try {
           const fd = new FormData();
-          fd.append("domain", sessionStorage.getItem("domain"));
+
+          let domain = sessionStorage.getItem("domain");
+          if (!domain) {
+            domain = urlParams.get("domain");
+            if (!domain) domain = "dev";
+          }
+
+          fd.append("domain", domain);
           fd.append("search_string", query);
           fd.append("pageLimit", pageLimit);
           fd.append("skills", sessionStorage.getItem("jobSkills"));
@@ -115,6 +130,8 @@
           const countResults = await countResponse.json();
 
           if (countResults[0] === 0) {
+            document.getElementById("resultsCount").textContent =
+              "Showing results - of -";
             document.getElementById("searchResultsBody").innerHTML =
               '<tr><td colspan="4" style="text-align:center;">No results found.</td></tr>';
             return;

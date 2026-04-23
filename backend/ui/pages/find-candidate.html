@@ -15,7 +15,11 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html");
+        $("#siteSidebar").load("components/sidebar.html", function () {
+          document
+            .getElementById("domainSelect")
+            .addEventListener("change", updateCounts);
+        });
         $("#processFlow").load("components/processFlow.html");
         $("#searchBar").load("components/searchBar.html");
       });
@@ -130,8 +134,11 @@
         .forEach((a) => a.addEventListener("click", () => {}));
 
       async function updateCounts() {
+        let domain = sessionStorage.getItem("domain");
+        if (!domain) domain = "dev";
+
         const responseTotal = await fetch(
-          `/api/azure/countCandidates/all?domain=${sessionStorage.getItem("domain")}`,
+          `/api/azure/countCandidates/all?domain=${domain}`,
         );
         const totalCount = await responseTotal.json();
 
@@ -172,7 +179,10 @@
         let limit = 5;
 
         const fd = new FormData();
-        fd.append("domain", sessionStorage.getItem("domain"));
+
+        let domain = sessionStorage.getItem("domain");
+        if (!domain) domain = "dev";
+        fd.append("domain", domain);
         fd.append("skills", skills.join(","));
         fd.append("limit", limit);
 
@@ -181,7 +191,6 @@
             method: "POST",
             body: fd,
           });
-          console.log(profiles);
 
           // TODO: Add logic to remove rows with no overlap and fill in blanks with second call
           if (profiles.length < limit) {
@@ -205,8 +214,6 @@
             tr.classList.add("search-result-row");
 
             if (candidateId && r.id + "" === candidateId) {
-              console.log("hello");
-
               tr.classList.add("active-candidate-row");
             }
 
@@ -241,7 +248,10 @@
 
         // Backwards/forwards compatible: send BOTH names so either backend style works
         fd.append("source_type", source_type);
-        fd.append("domain", sessionStorage.getItem("domain"));
+
+        let domain = sessionStorage.getItem("domain");
+        if (!domain) domain = "dev";
+        fd.append("domain", domain);
 
         try {
           const j = await api("/api/azure/resume/upload", {
