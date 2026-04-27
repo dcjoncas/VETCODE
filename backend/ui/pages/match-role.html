@@ -224,10 +224,11 @@
       // TODO: Need to add JD Picker
       async function refreshExistingDescriptions() {
         try {
+          let domain = sessionStorage.getItem("domain");
+          if (!domain) domain = "dev";
           // const ps = await api("/api/profile/list");
-          const jds = await api(
-            `/api/azureJobs/list/${sessionStorage.getItem("domain")}/5`,
-          );
+
+          const jds = await api(`/api/azureJobs/list/${domain}/5`);
 
           // TODO: Update this code
           // renderProfilesList(profiles);
@@ -452,14 +453,16 @@
       }
 
       document.addEventListener("DOMContentLoaded", () => {
+        let domain = sessionStorage.getItem("domain");
+        if (!domain) domain = "dev";
+
         $("#jdSelect").select2({
           minimumResultsForSearch: 0,
           minimumInputLength: 0, // wait until user types
           ajax: {
             url: function (params) {
-              if (!params.term)
-                return `/api/azureJobs/list/${sessionStorage.getItem("domain")}/5`;
-              return `/api/azureJobs/list/search/${sessionStorage.getItem("domain")}/${params.term}/5`;
+              if (!params.term) return `/api/azureJobs/list/${domain}/5`;
+              return `/api/azureJobs/list/search/${domain}/${params.term}/5`;
             },
             dataType: "json",
             delay: 250, // debounce
