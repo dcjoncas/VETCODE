@@ -560,7 +560,7 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
     else:'''
     print('No location extracted from JD. Running external search based on skills only.')
     try:
-        returnedExternalPeople = peopleDataLabs.searchSkills(peopleDataSkills, 1)["data"]
+        returnedExternalPeople = peopleDataLabs.searchSkills(peopleDataSkills, top_k)["data"]
     except Exception as e:
         print(f'Error during external people search: {e}')
 
