@@ -205,6 +205,8 @@
         .forEach((a) => a.addEventListener("click", () => {}));
 
       // Normalize match score to 0-100 for correct ranking + display
+      // Holdover from index-old.html
+      // TODO: ideally backend should return a consistent scale to avoid this guesswork
       function normalizeScore(raw) {
         const n = Number(raw);
         if (!isFinite(n)) return 0;
