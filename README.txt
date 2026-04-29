@@ -12,4 +12,11 @@ Implemented:
 - Hard delete only (no soft delete)
 
 Run:
-Replace /ui with this folder and restart backend.
+  cd C:\VETCODE\backend
+  python -m venv .venv
+  .venv\Scripts\activate
+  pip install -r ../requirements.txt
+  uvicorn main:app --reload
+
+Open:
+  http://127.0.0.1:8000/ui/index.html
