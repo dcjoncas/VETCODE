@@ -83,11 +83,24 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
 
     profiles = candidates.searchCandidatesBySkillId(jd["skillIds"], top_k)
 
+    jobSkillCount = len(peopleDataSkills) or 1  # avoid division by zero
     ranked = []
     for row in profiles:
         #p = storage.get_profile(DB_PATH, row["profile_id"])
         #score, parts = match((p or {}).get("skills", {}), jd_skills)
-        score, parts = azureJobMatch(row['skillMatches'],peopleDataSkills)
+        #score, parts = azureJobMatch(row['skillMatches'],peopleDataSkills)
+
+        skillMatchCount = 0
+        top_matches = []
+        for skill in peopleDataSkills:
+            if skill.lower() in (s.lower() for s in row['skillMatches']):
+                top_matches.append(skill)
+                skillMatchCount += 1
+
+        print(row['skillMatches'])
+        print(peopleDataSkills)
+        print(f'Match count: {skillMatchCount} out of {jobSkillCount}\n')
+        score = skillMatchCount / jobSkillCount * 100
 
         # Set empty and negative values for easy existance checking
         personalityDifferences = []
@@ -109,8 +122,8 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
             "name": row["firstName"] + ' ' + row["lastName"],
             "email": row["email"],
             "score": score,
-            "top_matches": top_matches_from_parts(parts),
-            "breakdown": parts,
+            "top_matches": top_matches,
+            "breakdown": row['skillMatches'],
             'culture_match': percentageNum
         })
 
@@ -118,16 +131,21 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
 
     rankedExternal = []
     for row in returnedExternalPeople:
-        score, parts = azureJobMatch(row['skills'],peopleDataSkills)
+        #score, parts = azureJobMatch(row['skills'],peopleDataSkills)
+        
+
         inferredSalary = None
         if "inferred_salary" in row:
             inferredSalary = row["inferred_salary"]
 
-        flattenedMatches = []
+        skillMatchCount = 0
+        top_matches = []
+        for skill in peopleDataSkills:
+            if skill.lower() in (s.lower() for s in row['skills']):
+                top_matches.append(skill)
+                skillMatchCount += 1
 
-        for key, value in parts.items():
-            if len(value['matched']) > 0:
-                flattenedMatches = flattenedMatches + value['matched']
+        score = skillMatchCount / jobSkillCount * 100
         
         rankedExternal.append({
             "profile_id": row["id"],
@@ -137,8 +155,8 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
             "linkedin_url": row["linkedin_url"],
             "inferred_salary": inferredSalary,
             "score": score,
-            "top_matches": list(set(flattenedMatches)),
-            "breakdown": parts
+            "top_matches": top_matches,
+            "breakdown": row['skills']
         })
 
     rankedExternal.sort(key=lambda x: x["score"], reverse=True)
