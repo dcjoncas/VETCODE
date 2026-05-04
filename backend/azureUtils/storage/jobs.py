@@ -32,7 +32,7 @@ def uploadJob(company: str, title: str, domain: str, jd_text: str, skills: list[
     except Exception as e:
         print(f'Cannot insert job description: {e}')
         conn.close()
-
+# Test
 def getJob(jobId: int):
     conn = client.getConnection()
     cur = conn.cursor()

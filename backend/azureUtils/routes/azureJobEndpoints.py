@@ -2,7 +2,7 @@ from fastapi import APIRouter, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 import os, shutil, traceback
 from azureUtils.storage import jobs, candidates
-from jd_match import normalize_jd, azureJobMatch
+from jd_match import normalize_jd, azureJobMatch, normalize_all_skills
 from openAI import externalPeopleSearch
 import peopleDataLabs.peopleSearch as peopleDataLabs
 
@@ -34,17 +34,18 @@ router = APIRouter(
 def jdCreate(company: str = Form(...), title: str = Form(...), jd_text: str = Form(...), domain: str = Form(default="dev")):
     print(f"Uploading {title} at {company}")
     try:
-        skills = normalize_jd(jd_text)
-        flatSkills = []
+        # Deprecated
+        # skills = normalize_jd(jd_text)
+        flatSkills = normalize_all_skills(jd_text)
 
         # Get all skills from JD
-        for key, value in skills.items():
-            flatSkills.extend(value)
+        #for key, value in skills.items():
+            #flatSkills.extend(value)
 
         flatSkills = list(set(flatSkills))  # unique skills
 
         jobs.uploadJob(company, title, domain, jd_text, flatSkills)
-        return {"company": company, "title": title, "domain": domain, "jd_skills": skills, "jd_text": jd_text}
+        return {"company": company, "title": title, "domain": domain, "jd_skills": flatSkills, "jd_text": jd_text}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": 'Failed to upload job description.', "trace": traceback.format_exc()})
 

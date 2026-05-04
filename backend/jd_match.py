@@ -1,5 +1,6 @@
 import re
 from skill_lexicon import SKILL_GROUPS
+from azureUtils.storage import client
 
 def _norm(s: str) -> str:
     return re.sub(r"\s+", " ", (s or "").strip()).lower()
@@ -12,6 +13,25 @@ def normalize_jd(text: str):
             if _norm(sk) in t:
                 skills[group].add(sk)
     return {k: sorted(v) for k,v in skills.items()}
+
+def get_all_skills():
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    query = "SELECT title FROM skill"
+    cur.execute(query)
+    results = cur.fetchall()
+    conn.close()
+    return [row[0] for row in results]
+
+def normalize_all_skills(text: str):
+    foundSkills = []
+    t = _norm(text)
+    allSkills = get_all_skills()
+    for sk in allSkills:
+        if _norm(sk) in t:
+            foundSkills.append(sk)
+    return sorted(foundSkills)
 
 def jaccard(a: set, b: set):
     if not a and not b:
