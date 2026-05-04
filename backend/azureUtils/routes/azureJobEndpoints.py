@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
-import os, shutil, traceback
+import traceback
 from azureUtils.storage import jobs, candidates
 from jd_match import normalize_jd, azureJobMatch, normalize_all_skills
 from openAI import externalPeopleSearch
@@ -97,10 +97,7 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
                 top_matches.append(skill)
                 skillMatchCount += 1
 
-        print(row['skillMatches'])
-        print(peopleDataSkills)
-        print(f'Match count: {skillMatchCount} out of {jobSkillCount}\n')
-        score = skillMatchCount / jobSkillCount * 100
+        score = round(skillMatchCount / jobSkillCount * 100)
 
         # Set empty and negative values for easy existance checking
         personalityDifferences = []
@@ -127,7 +124,7 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
             'culture_match': percentageNum
         })
 
-    ranked.sort(key=lambda x: x["score"], reverse=True)
+    ranked.sort(key=lambda x: (x["score"], x["culture_match"]), reverse=True)
 
     rankedExternal = []
     for row in returnedExternalPeople:
@@ -145,7 +142,7 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
                 top_matches.append(skill)
                 skillMatchCount += 1
 
-        score = skillMatchCount / jobSkillCount * 100
+        score = round(skillMatchCount / jobSkillCount * 100)
         
         rankedExternal.append({
             "profile_id": row["id"],
