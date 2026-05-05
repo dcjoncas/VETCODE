@@ -58,7 +58,7 @@ def jd_list(domain: str = "dev", query: str = '', amount: int = 5):
     return jobs.searchJobs(domain, query, amount)
 
 @router.post("/match/run")
-def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k: int = Form(10)):
+def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k: int = Form(10), external_source: str = Form(default="none")):
     # TODO: Set up job descriptions in the database
     jd = jobs.getJob(jd_id)
 
@@ -77,7 +77,12 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
     # TODO: Get location search working
     print('No location extracted from JD. Running external search based on skills only.')
     try:
-        returnedExternalPeople = peopleDataLabs.searchSkills(peopleDataSkills, 1)["data"]
+        if external_source == "pdl":
+            returnedExternalPeople = peopleDataLabs.searchSkills(peopleDataSkills, 1)["data"]
+        elif external_source == "github":
+            pass  # TODO: Implement Github external search
+        else:
+            print('No external source selected or source not recognized. Skipping external search.')
     except Exception as e:
         print(f'Error during external people search: {e}')
 
@@ -90,15 +95,21 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
         #score, parts = match((p or {}).get("skills", {}), jd_skills)
         #score, parts = azureJobMatch(row['skillMatches'],peopleDataSkills)
 
+        print(f"Matching profile {row['id']} - {row['firstName']} {row['lastName']}")
+
         skillMatchCount = 0
         top_matches = []
         for skill in peopleDataSkills:
             if skill.lower() in (s.lower() for s in row['skillMatches']):
                 top_matches.append(skill)
                 skillMatchCount += 1
+                print(f"Matched skill: {skill}")
 
+        print(f"Total matched skills: {skillMatchCount} out of {jobSkillCount}")
+        print(skillMatchCount / jobSkillCount)
         score = round(skillMatchCount / jobSkillCount * 100)
 
+        print("\n")
         # Set empty and negative values for easy existance checking
         personalityDifferences = []
         averageDifference = -1

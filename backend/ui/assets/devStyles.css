@@ -8,6 +8,7 @@
   --primary: #7fbf3f; /* DevReady green */
   --primary-2: #2f7d4b; /* deep green */
   --primary-3: #bfe7a2; /* light green */
+  --btn: #67a52a; /* DevReady green */
   --sidebar: #7fbf3f;
   --shadow: 0 10px 30px rgba(16, 32, 24, 0.08);
   --radius: 18px;
@@ -193,13 +194,17 @@ input[type="checkbox"] {
 }
 .btn {
   border: 1px solid transparent;
-  background: var(--primary);
+  background: var(--btn);
   color: var(--bg);
   border-radius: 999px;
   padding: 11px 14px;
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 12px 22px rgba(127, 191, 63, 0.2);
+}
+.btn:hover {
+  background: var(--primary-2);
+  box-shadow: 0 16px 32px rgba(127, 191, 63, 0.3);
 }
 .btn.secondary {
   background: var(--primary-2);

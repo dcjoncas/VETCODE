@@ -193,6 +193,10 @@ input[type="checkbox"] {
   cursor: pointer;
   box-shadow: 0 12px 22px rgba(191, 161, 63, 0.2);
 }
+.btn:hover {
+  background: var(--primary-2);
+  box-shadow: 0 16px 32px rgba(127, 191, 63, 0.3);
+}
 .btn.secondary {
   background: var(--primary-2);
   border-color: var(--line);
