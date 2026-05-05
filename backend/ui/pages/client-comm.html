@@ -48,11 +48,7 @@
               <label>Client message (draft)</label>
               <textarea id="emailArea"></textarea>
               <div class="row-actions">
-                <button
-                  class="btn"
-                  type="button"
-                  onclick="alert('Mock: send to client')"
-                >
+                <button class="btn" type="button" onclick="sendEmail()">
                   Send to Client
                 </button>
                 <button
@@ -68,7 +64,7 @@
                 <button
                   class="btn secondary"
                   type="button"
-                  onclick="alert('Mock: attach profiles')"
+                  onclick="attachProfileLinks()"
                 >
                   Attach profiles
                 </button>
@@ -89,41 +85,6 @@
                 </thead>
                 <tbody id="shortlistBody"></tbody>
               </table>
-
-              <h2 style="margin-top: 16px">Client decisions</h2>
-              <div class="split">
-                <div class="field">
-                  <label>Selected for interview</label>
-                  <select>
-                    <option>Giovanni S</option>
-                    <option>Maria T</option>
-                    <option>Kevin P</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label>Decision</label>
-                  <select>
-                    <option>Approve</option>
-                    <option>Hold</option>
-                    <option>Decline</option>
-                  </select>
-                </div>
-              </div>
-              <div class="row-actions">
-                <a
-                  class="btn"
-                  href="schedule-interview.html"
-                  style="text-decoration: none; display: inline-block"
-                  >Proceed to Scheduling</a
-                >
-                <button
-                  class="btn secondary"
-                  type="button"
-                  onclick="alert('Mock: log decision')"
-                >
-                  Log decision
-                </button>
-              </div>
             </div>
           </div>
         </section>
@@ -135,6 +96,7 @@
       let shortlistArray = [];
       // Used to store an array of JSON objects containing candidate scores
       let shortlistScores = [];
+
       // tiny UX sugar (mock only)
       document
         .querySelectorAll("a.step")
@@ -165,7 +127,6 @@
 
       async function generateEmail() {
         const jobId = sessionStorage.getItem("jobID");
-        console.log(shortlistScores);
 
         const result = await fetch(`/api/ai/clientEmail/shortlist`, {
           method: "POST",
@@ -184,6 +145,39 @@
 
         document.getElementById("emailArea").innerHTML = emailData.email;
         sessionStorage.setItem("clientEmail", emailData.email);
+      }
+
+      async function attachProfileLinks() {
+        const baseUrl = window.location.origin;
+
+        for (let i = 0; i < shortlistArray.length; i++) {
+          const candidateId = shortlistArray[i];
+
+          const profileUrl = await api(
+            `/api/azure/public/getPublicUrl/${candidateId}`,
+            {
+              method: "GET",
+            },
+          );
+
+          console.log(profileUrl);
+
+          const fullUrl = `${baseUrl}/profile-preview.html?user=${profileUrl}`;
+
+          const profileData = await api(
+            `/api/azure/getProfile/short/${candidateId}`,
+          );
+
+          document.getElementById("emailArea").innerHTML +=
+            `\n\nProfile for candidate ${profileData.firstName} ${profileData.lastName}: ${fullUrl}`;
+        }
+      }
+
+      async function sendEmail() {
+        const emailContent = document.getElementById("emailArea").value;
+        if (emailContent && emailContent.length > 0) {
+          window.location.href = `mailto:INSERT_EMAIL?subject=DevReady Candidates - ${sessionStorage.getItem("jobTitle")}&body=${encodeURIComponent(emailContent)}`;
+        }
       }
 
       document.addEventListener("DOMContentLoaded", async () => {
@@ -254,7 +248,7 @@
               shortlistScores.push({
                 id: candidate.id,
                 name: candidate.firstName + candidate.lastName,
-                score: candidate.score * 10 + "%",
+                score: candidate.score + "%",
               });
 
               shortlistTable.insertAdjacentHTML(

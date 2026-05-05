@@ -161,6 +161,19 @@ def getEmail(personId: str):
     
     return result[0]
 
+def getProfilePublicUrl(profileId: str):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    query = f"SELECT url FROM professional WHERE personid = {profileId};"
+    
+    cur.execute(query)
+    result = cur.fetchone()
+
+    conn.close()
+    
+    return result[0]
+
 def getSurveyId(personId: str):
     conn = client.getConnection()
     cur = conn.cursor()
@@ -554,8 +567,8 @@ def getProfileShortScore(jobId: str, profileIds: list[str]):
     if not jd["skills"]:
         raise "No Job Skills Found"
     else:
-        jobSkills = jd["skills"]
-        jobSkillIds = jd["skillIds"]
+        jobSkills = list(set(jd["skills"])) # Ensure unique skills
+        jobSkillIds = list(set(jd["skillIds"]))
 
     conn = client.getConnection()
     cur = conn.cursor()
@@ -580,7 +593,7 @@ def getProfileShortScore(jobId: str, profileIds: list[str]):
             if row[1] in jobSkillIds:
                 skillArray.append(row[0])
 
-        score, parts = azureJobMatch(skillArray,jobSkills)
+        score = round(len(list(set(skillArray))) / len(jobSkills) * 100)
 
         resultSet.append({
             'id': profile,
