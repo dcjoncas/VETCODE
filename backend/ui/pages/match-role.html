@@ -244,7 +244,7 @@
         }
       }
 
-      // TODO: Select a row
+      // TODO: Overhaul this code
       async function selectRow(r) {
         // selectedRow = r;
         // selectedProfileId = r.profile_id;
@@ -286,6 +286,7 @@
             log(`Selected row: ${r.name} score=${r.score}`);*/
 
         updateCandidate();
+        window.location.href = "profile-preview.html";
       }
 
       // Rank profiles based on job description

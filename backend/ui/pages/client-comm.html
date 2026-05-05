@@ -127,7 +127,6 @@
 
       async function generateEmail() {
         const jobId = sessionStorage.getItem("jobID");
-        console.log(shortlistScores);
 
         const result = await fetch(`/api/ai/clientEmail/shortlist`, {
           method: "POST",
@@ -249,7 +248,7 @@
               shortlistScores.push({
                 id: candidate.id,
                 name: candidate.firstName + candidate.lastName,
-                score: candidate.score * 10 + "%",
+                score: candidate.score + "%",
               });
 
               shortlistTable.insertAdjacentHTML(
