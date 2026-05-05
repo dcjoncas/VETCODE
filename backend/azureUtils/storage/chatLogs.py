@@ -206,9 +206,9 @@ def saveChat(chatUrl: str, userName: str, aiTranscript: list):
 
         for item in aiTranscript:
             if item['role'] == 'user':
-                fixedTranscript.append(f'{userName}:{item['content']}')
+                fixedTranscript.append(f"{userName}:{item['content']}")
             elif item['role'] == 'assistant':
-                fixedTranscript.append(f'DevReady AI:{item['content']}')
+                fixedTranscript.append(f"DevReady AI:{item['content']}")
 
         conn = client.getConnection()
         cur = conn.cursor()
