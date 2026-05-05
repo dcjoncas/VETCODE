@@ -148,6 +148,19 @@ def getProfessionalProfileId(personId: str):
     
     return result[0]
 
+def getEmail(personId: str):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    query = f"SELECT email FROM professional WHERE personid = {personId};"
+    
+    cur.execute(query)
+    result = cur.fetchone()
+
+    conn.close()
+    
+    return result[0]
+
 def getSurveyId(personId: str):
     conn = client.getConnection()
     cur = conn.cursor()

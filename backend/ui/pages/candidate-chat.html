@@ -114,6 +114,14 @@
                 <button class="btn" type="button" id="scheduleButton">
                   Schedule AI Chat
                 </button>
+                <button
+                  class="btn"
+                  type="button"
+                  id="sendButton"
+                  onclick="sendLink()"
+                >
+                  Send Link to Candidate
+                </button>
                 <!--<button
                   class="btn secondary"
                   type="button"
@@ -227,6 +235,7 @@
       const candidateId = sessionStorage.getItem("candidateId");
       const chatWindow = document.getElementById("chatWindow");
       let chatTranscript = [];
+      let chatURL = "";
 
       // tiny UX sugar (mock only)
       document
@@ -271,7 +280,8 @@
         const urlString = `${window.location.host}/ui/pages/external-chat.html?candidate=${chatUrlCode}`;
 
         document.getElementById("chatUrl").innerHTML =
-          `AI Chat Link: <a href='http://${urlString}'>${urlString}</a>`;
+          `User Facing AI Chat Link: ${urlString}`;
+        chatURL = urlString;
 
         const chatHistory = await api(`/api/chat/getChat/${chatUrlCode}`, {
           method: "GET",
@@ -297,6 +307,18 @@
             appendMessage("DevReady AI", row.content);
           else appendMessage(chatHistory.firstName, row.content);
         });
+      }
+
+      async function sendLink() {
+        if (chatURL && chatURL.length > 0) {
+          const candidateEmail = await api(
+            `/api/chat/getEmail/${candidateId}`,
+            {
+              method: "GET",
+            },
+          );
+          window.location.href = `mailto:${candidateEmail}?subject=DevReady Personality Assessment&body=Hey ${candidateName},%0D%0A%0D%0AWelcome to the DevReady Community! As the next step in our process, we'd like you to complete an AI-guided personality assessment. Please use the following link to get started: ${chatURL}%0D%0A%0D%0ABest,%0D%0AThe DevReady Team`;
+        }
       }
 
       document.addEventListener("DOMContentLoaded", function () {

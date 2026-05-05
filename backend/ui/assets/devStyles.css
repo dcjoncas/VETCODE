@@ -194,7 +194,7 @@ input[type="checkbox"] {
 }
 .btn {
   border: 1px solid transparent;
-  background: var(--btn);
+  background: var(--primary-2);
   color: var(--bg);
   border-radius: 999px;
   padding: 11px 14px;
@@ -203,14 +203,16 @@ input[type="checkbox"] {
   box-shadow: 0 12px 22px rgba(127, 191, 63, 0.2);
 }
 .btn:hover {
-  background: var(--primary-2);
-  box-shadow: 0 16px 32px rgba(127, 191, 63, 0.3);
+  background: var(--primary);
 }
 .btn.secondary {
   background: var(--primary-2);
   border-color: var(--line);
   color: var(--bg);
   box-shadow: none;
+}
+.btn.secondary:hover {
+  background: var(--primary);
 }
 .btn.secondary:disabled,
 .btn:disabled {

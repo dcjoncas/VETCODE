@@ -29,14 +29,25 @@ def getChatUrl(personId: str):
         conn = client.getConnection()
         cur = conn.cursor()
 
-        query = f"SELECT ai.urlcode FROM person JOIN aichatlogs ai ON person.id = ai.personid WHERE person.id = '{personId}';"
-        
-        cur.execute(query)
-        result = cur.fetchone()
+        try:
+            query = f"SELECT urlcode FROM aichatlogs WHERE personid = '{personId}' ORDER BY id DESC LIMIT 1;"
+            
+            cur.execute(query)
+            result = cur.fetchone()
 
-        conn.close()
+            conn.close()
+            
+            return result[0]
         
-        return result[0]
+        except Exception as e:
+            query = f"SELECT id FROM professionalsurvey ps JOIN professionalprofile pp ON ps.profileid = pp.id JOIN professional ON pp.professionalid = professional.id WHERE professional.personid = '{personId}' ORDER BY ps.id DESC LIMIT 1;"
+            
+            cur.execute(query)
+            result = cur.fetchone()
+
+            conn.close()
+            
+            return 'Candidate has already completed a legacy survey'
     
     except Exception as e:
         print(f'Failed to grab chat URL for {personId}: {e}')

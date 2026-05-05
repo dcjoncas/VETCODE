@@ -72,6 +72,9 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
     else:
         peopleDataSkills = jd["skills"]
     
+    # TODO: Figure out why some jobs have duplicates on upload
+    peopleDataSkills = list(set(peopleDataSkills))  # ensure unique skills
+
     returnedExternalPeople = []
 
     # TODO: Get location search working

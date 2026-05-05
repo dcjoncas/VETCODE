@@ -1,3 +1,4 @@
+from azureUtils.storage import candidates
 from fastapi import APIRouter, Form
 from azureUtils.storage import chatLogs
 from openAI import candidateChat
@@ -22,6 +23,11 @@ async def getChat(urlcode: str):
 async def getId(personid: str):
     print(f"Retrieving chat for candidate: {personid}")
     return chatLogs.getChatUrl(personid)
+
+@router.get("/getEmail/{personid}")
+async def getEmail(personid: str):
+    print(f"Retrieving email for candidate: {personid}")
+    return candidates.getEmail(personid)
 
 @router.post("/sendChat")
 async def getChat(transcript: str = Form(...), candidateName: str = Form("Not Found"), chatUrl: str = Form("Not Found")):
