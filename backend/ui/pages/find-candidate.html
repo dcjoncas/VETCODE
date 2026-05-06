@@ -87,6 +87,7 @@
                   Upload
                 </button>
               </div>
+              <div id="uploadStatus" style="color: var(--muted)"></div>
             </div>
           </div>
 
@@ -254,11 +255,9 @@
 
           sessionStorage.setItem("candidateId", j.personid);
           sessionStorage.setItem("candidateName", j.name);
-          updateCandidate();
         } catch (e) {
-          document.getElementById("uploadStatus").textContent =
+          document.getElementById("uploadStatus").innerHTML =
             `Upload failed: ${e.message}`;
-          log(`Upload error: ${e.message}`);
         }
 
         document.getElementById("resumeFile").value = null;
