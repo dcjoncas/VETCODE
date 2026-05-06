@@ -86,6 +86,14 @@
         .querySelectorAll("a.step")
         .forEach((a) => a.addEventListener("click", () => {}));
 
+      function openProfile(profileId, firstName, lastName, step) {
+        sessionStorage.setItem("candidateId", profileId);
+        sessionStorage.setItem("candidateName", firstName + " " + lastName);
+        sessionStorage.setItem("candidateStatus", step);
+
+        window.location.href = "profile-preview.html";
+      }
+
       function removeProfile(profileId) {
         shortlistArray = shortlistArray.filter(
           (candidate) => candidate !== profileId,
@@ -102,6 +110,8 @@
 
       function bookCandidate(candidateName, candidateEmail) {
         const url = `https://calendly.com/mitch-blake-devready/discovery-call?name=${encodeURIComponent(candidateName)}&email=${encodeURIComponent(candidateEmail)}`;
+        console.log(url);
+
         Calendly.initPopupWidget({ url });
       }
 
@@ -143,10 +153,10 @@
                       </button>
                     </td>
                     <td>
+                      <a href="https://calendly.com/mitch-blake-devready/discovery-call?name=${encodeURIComponent(profileData.firstName + " " + profileData.lastName)}&email=${encodeURIComponent(profileData.email)}" target="_blank">
                       <button
                         class="btn"
                         style="padding: 8px 12px"
-                        onclick="bookCandidate('${profileData.firstName} ${profileData.lastName}', '${profileData.email}')"
                       >
                         Book Interview
                       </button>
@@ -194,13 +204,14 @@
                       </button>
                     </td>
                     <td>
-                      <button
-                        class="btn"
-                        style="padding: 8px 12px"
-                        onclick="bookCandidate('${candidate.firstName} ${candidate.lastName}', '${candidate.email}')"
-                      >
-                        Book Interview
-                      </button>
+                      <a href="https://calendly.com/mitch-blake-devready/discovery-call?name=${encodeURIComponent(candidate.firstName + " " + candidate.lastName)}&email=${encodeURIComponent(candidate.email)}" target="_blank">
+                        <button
+                          class="btn"
+                          style="padding: 8px 12px"
+                        >
+                          Book Interview
+                        </button>
+                      </a>
                     </td>
                   </tr>`,
               );
