@@ -308,7 +308,7 @@ def searchCandidatesBySkillsNamesPaginated(nameQuery: str, skillQuery: str, page
     else:
         query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step), address.city, address.state, address.country FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalskill profskill ON profper.id = profskill.profileid JOIN skill ON profskill.skillid = skill.id JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.domain = '{domain}' AND skill.title ILIKE ANY(%s) AND ((person.firstname || ' ' || person.lastname) ILIKE %s OR (person.goesbyname || ' ' || person.lastname) ILIKE %s OR prof.email ILIKE %s) GROUP BY person.id, prof.email, address.city, address.state, address.country ORDER BY skillMatches DESC LIMIT {pageLimit} OFFSET {pageLimit * currentPage};"
 
-    cur.execute(query, (queryArray, wildcard, wildcard, wildcard, wildcard))
+    cur.execute(query, (queryArray, wildcard, wildcard, wildcard))
     results = cur.fetchall()
 
     conn.close()
@@ -576,7 +576,7 @@ def getProfileShortScore(jobId: str, profileIds: list[str]):
     resultSet = []
 
     for profile in profileIds:
-        query = f"SELECT person.firstname, person.lastname, ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.id = {profile} GROUP BY person.firstname, person.lastname LIMIT 1;"
+        query = f"SELECT person.firstname, person.lastname, ARRAY_AGG(DISTINCT platact.step), prof.email FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.id = {profile} GROUP BY person.firstname, person.lastname, prof.email LIMIT 1;"
 
         cur.execute(query)
         results = cur.fetchone()
@@ -602,6 +602,7 @@ def getProfileShortScore(jobId: str, profileIds: list[str]):
             'status':processing.stepProcessingOverall(results[2]),
             'skills':skillArray,
             'score': score,
+            'email': results[3]
         })
 
     conn.close()

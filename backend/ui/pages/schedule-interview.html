@@ -12,6 +12,7 @@
       type="image/svg+xml"
     />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script src="https://assets.calendly.com/assets/external/widget.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
       $(function () {
@@ -28,7 +29,7 @@
       <main class="main">
         <div class="topbar">
           <div>
-            <div class="page-title">Screen 6 — Interview Scheduling</div>
+            <div class="page-title">Interview Scheduling</div>
             <div class="breadcrumb">Vetting Process • Scheduling</div>
           </div>
           <div id="searchBar"></div>
@@ -37,166 +38,36 @@
         <div id="processFlow"></div>
 
         <section class="card">
-          <h2>Schedule interviews with AI assistance</h2>
-          <p>
-            Coordinate candidate + client availability, propose time slots, and
-            generate an interview plan (questions, focus areas, rubric).
-          </p>
-
           <div class="split">
             <div>
               <h2 style="margin-top: 0">Availability</h2>
-              <div class="split">
-                <div
-                  class="card"
-                  style="padding: 14px; border-radius: 18px; box-shadow: none"
-                >
-                  <div style="font-weight: 900; margin-bottom: 6px">
-                    Candidate
-                  </div>
-                  <p style="margin: 0 0 10px 0">Giovanni S • Timezone: BRT</p>
-                  <table class="table" style="margin-top: 0">
-                    <thead>
-                      <tr>
-                        <th>Day</th>
-                        <th>Windows</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>Tue</td>
-                        <td>10:00–12:00 • 15:00–17:00</td>
-                      </tr>
-                      <tr>
-                        <td>Wed</td>
-                        <td>09:00–11:00 • 14:00–18:00</td>
-                      </tr>
-                      <tr>
-                        <td>Thu</td>
-                        <td>11:00–13:00</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <div
-                  class="card"
-                  style="padding: 14px; border-radius: 18px; box-shadow: none"
-                >
-                  <div style="font-weight: 900; margin-bottom: 6px">Client</div>
-                  <p style="margin: 0 0 10px 0">
-                    [Client Team] • Timezone: MST
-                  </p>
-                  <table class="table" style="margin-top: 0">
-                    <thead>
-                      <tr>
-                        <th>Day</th>
-                        <th>Windows</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>Tue</td>
-                        <td>12:00–16:00</td>
-                      </tr>
-                      <tr>
-                        <td>Wed</td>
-                        <td>13:00–17:00</td>
-                      </tr>
-                      <tr>
-                        <td>Fri</td>
-                        <td>10:00–12:00</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div class="row-actions" style="margin-top: 12px">
-                <button
-                  class="btn"
-                  type="button"
-                  onclick="alert('Mock: AI proposes slots')"
-                >
-                  AI Propose Slots
-                </button>
-                <button
-                  class="btn secondary"
-                  type="button"
-                  onclick="alert('Mock: send calendar holds')"
-                >
-                  Send calendar holds
-                </button>
-              </div>
-
-              <div class="notice" style="margin-top: 12px">
-                Suggested slots (mock): Wed 3:00pm MST • Thu 11:00am MST • Fri
-                10:30am MST
-              </div>
+              <div
+                class="calendly-inline-widget"
+                data-url="https://calendly.com/mitch-blake-devready/discovery-call"
+                style="min-width: 320px; height: 700px"
+              ></div>
             </div>
 
             <div>
-              <h2 style="margin-top: 0">Interview plan (auto-generated)</h2>
-              <p>
-                AI produces a role-specific plan with focus areas and scoring
-                rubric.
-              </p>
-
               <div
                 class="card"
                 style="padding: 14px; border-radius: 18px; box-shadow: none"
               >
-                <div style="font-weight: 900">60-minute plan</div>
+                <div id="shortlistCount" style="font-weight: 900">
+                  Shortlist
+                </div>
                 <table class="table" style="margin-top: 10px">
                   <thead>
                     <tr>
-                      <th>Time</th>
-                      <th>Focus</th>
-                      <th>Signals</th>
+                      <th>Candidate</th>
+                      <th>Score</th>
+                      <th>Email</th>
+                      <th></th>
+                      <th></th>
                     </tr>
                   </thead>
-                  <tbody>
-                    <tr>
-                      <td>0–10</td>
-                      <td>Intro + project overview</td>
-                      <td>Clarity, ownership</td>
-                    </tr>
-                    <tr>
-                      <td>10–30</td>
-                      <td>API design deep-dive</td>
-                      <td>Auth, versioning, trade-offs</td>
-                    </tr>
-                    <tr>
-                      <td>30–45</td>
-                      <td>System design scenario</td>
-                      <td>Scaling, data, observability</td>
-                    </tr>
-                    <tr>
-                      <td>45–55</td>
-                      <td>Collaboration & leadership</td>
-                      <td>Stakeholders, conflict</td>
-                    </tr>
-                    <tr>
-                      <td>55–60</td>
-                      <td>Candidate questions</td>
-                      <td>Fit, curiosity</td>
-                    </tr>
-                  </tbody>
+                  <tbody id="shortlistBody"></tbody>
                 </table>
-                <div class="row-actions">
-                  <button
-                    class="btn secondary"
-                    type="button"
-                    onclick="alert('Mock: download plan')"
-                  >
-                    Download plan
-                  </button>
-                  <a
-                    class="btn"
-                    href="status-tracker.html"
-                    style="text-decoration: none; display: inline-block"
-                    >Confirm &amp; move to tracking</a
-                  >
-                </div>
               </div>
             </div>
           </div>
@@ -204,11 +75,138 @@
       </main>
     </div>
 
+    <script src="JS/apiScripts.js"></script>
     <script>
+      let shortlistArray = [];
+      // Used to store an array of JSON objects containing candidate scores
+      let shortlistScores = [];
+
       // tiny UX sugar (mock only)
       document
         .querySelectorAll("a.step")
         .forEach((a) => a.addEventListener("click", () => {}));
+
+      function removeProfile(profileId) {
+        shortlistArray = shortlistArray.filter(
+          (candidate) => candidate !== profileId,
+        );
+
+        shortlistScores = shortlistScores.filter(
+          (candidate) => candidate.id !== profileId,
+        );
+
+        sessionStorage.setItem("shortlist", shortlistArray);
+
+        document.getElementById("candidate" + profileId).remove();
+      }
+
+      function bookCandidate(candidateName, candidateEmail) {
+        const url = `https://calendly.com/mitch-blake-devready/discovery-call?name=${encodeURIComponent(candidateName)}&email=${encodeURIComponent(candidateEmail)}`;
+        Calendly.initPopupWidget({ url });
+      }
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        console.log(window.location.href);
+        console.log(window.top !== window.self);
+
+        const shortlist = sessionStorage.getItem("shortlist");
+        const jobId = sessionStorage.getItem("jobID");
+
+        if (shortlist && shortlist.length > 0) {
+          shortlistArray = shortlist.split(",");
+          document.getElementById("shortlistCount").innerText =
+            `Shortlist (Top ${shortlistArray.length})`;
+
+          const shortlistTable = document.getElementById("shortlistBody");
+
+          if (!jobId || jobId.length < 1) {
+            shortlistArray.forEach(async (candidate) => {
+              try {
+                const profileData = await api(
+                  `/api/azure/getProfile/short/${candidate}`,
+                );
+
+                shortlistTable.insertAdjacentHTML(
+                  "beforeend",
+                  `<tr id="candidate${candidate}">
+                    <td><strong>${profileData.firstName} ${profileData.lastName}</strong></td>
+                    <td>Job Missing</td>
+                    <td>${profileData.email}</td>
+                    <td>
+                      <button
+                        class="btn secondary"
+                        style="padding: 8px 12px"
+                        onclick="openProfile('${candidate}','${candidate.firstName}','${candidate.lastName}','${candidate.status}')"
+                      >
+                        Open
+                      </button>
+                    </td>
+                    <td>
+                      <button
+                        class="btn"
+                        style="padding: 8px 12px"
+                        onclick="bookCandidate('${candidate.firstName} ${candidate.lastName}', '${candidate.email}')"
+                      >
+                        Book Interview
+                      </button>
+                    </td>
+                  </tr>`,
+                );
+              } catch (error) {
+                console.log(error);
+
+                console.log("Could not find candidate with ID " + candidate);
+              }
+            });
+          } else {
+            const fd = new FormData();
+            fd.append("profileIds", shortlist);
+
+            const profileData = await api(
+              `/api/azure/getProfile/short/score/${jobId}`,
+              { method: "POST", body: fd },
+            );
+
+            console.log(profileData);
+
+            // TODO: Work out candidate scores
+            profileData.forEach((candidate) => {
+              shortlistScores.push({
+                id: candidate.id,
+                name: candidate.firstName + candidate.lastName,
+                score: candidate.score + "%",
+              });
+
+              shortlistTable.insertAdjacentHTML(
+                "beforeend",
+                `<tr id="candidate${candidate.id}">
+                    <td><strong>${candidate.firstName} ${candidate.lastName}</strong></td>
+                    <td>${candidate.score * 10}</td>
+                    <td>${candidate.email}</td>
+                    <td>
+                      <button
+                        class="btn secondary"
+                        style="padding: 8px 12px"
+                        onclick="openProfile('${candidate.id}','${candidate.firstName}','${candidate.lastName}','${candidate.status}')"
+                      >
+                        Open
+                      </button>
+                    </td>
+                    <td>
+                      <button
+                        class="btn"
+                        style="padding: 8px 12px"
+                        onclick="bookCandidate('${candidate.firstName} ${candidate.lastName}', '${candidate.email}')"
+                      >
+                        Book Interview
+                      </button>
+                    </td>
+                  </tr>`,
+              );
+            });
+          }
+        }
+      });
     </script>
   </body>
 </html>
