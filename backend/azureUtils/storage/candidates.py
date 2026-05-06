@@ -542,7 +542,7 @@ def getProfileShort(profileId: str):
     conn = client.getConnection()
     cur = conn.cursor()
 
-    query = f"SELECT person.firstname, person.lastname, ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.id = {profileId} GROUP BY person.firstname, person.lastname LIMIT 1;"
+    query = f"SELECT person.firstname, person.lastname, ARRAY_AGG(DISTINCT platact.step), prof.email FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.id = {profileId} GROUP BY person.firstname, person.lastname, prof.email LIMIT 1;"
 
     cur.execute(query)
     results = cur.fetchone()
@@ -553,6 +553,7 @@ def getProfileShort(profileId: str):
         'firstName': results[0],
         'lastName': results[1],
         'status':processing.stepProcessingOverall(results[2]),
+        'email': results[3]
     }
 
 def getProfileShortScore(jobId: str, profileIds: list[str]):
