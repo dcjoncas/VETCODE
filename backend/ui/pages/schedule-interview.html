@@ -363,15 +363,18 @@
       }
 
       function connectGoogle() {
+        sessionStorage.setItem("preferredCalendarProvider", "google");
         window.location.href = "/auth/google";
       }
 
       function connectOutlook() {
+        sessionStorage.setItem("preferredCalendarProvider", "outlook");
         window.location.href = "/auth/outlook";
       }
 
       function selectProvider(provider) {
         selectedProvider = provider;
+        sessionStorage.setItem("preferredCalendarProvider", provider);
         byId("calendlyProvider").classList.toggle("selected", provider === "calendly");
         byId("googleProvider").classList.toggle("selected", provider === "google");
         byId("outlookProvider").classList.toggle("selected", provider === "outlook");
@@ -430,6 +433,11 @@
       function bookWithCalendly() {
         const url = calendlyUrl();
         updateCalendlyLink();
+        saveScheduleTracking({
+          provider: "Calendly",
+          status: "Booking link opened",
+          eventLink: url,
+        });
         if (window.Calendly && Calendly.initPopupWidget) {
           Calendly.initPopupWidget({ url });
           showResult("Calendly opened with the selected candidate prefilled.");
@@ -466,6 +474,7 @@
               ? "Connected"
               : "Not connected",
           );
+          autoSelectConnectedProvider();
         } catch (error) {
           setTile("backendTile", false, "Calendar backend unavailable");
           setTile("googleTile", false, "Unknown");
@@ -630,6 +639,44 @@
         }
       }
 
+      function autoSelectConnectedProvider() {
+        const params = new URLSearchParams(window.location.search);
+        const connectedProvider = params.get("connected");
+        const preferredProvider = sessionStorage.getItem("preferredCalendarProvider");
+
+        if (connectedProvider) {
+          selectProvider(connectedProvider);
+          return;
+        }
+
+        if (
+          preferredProvider === "google" &&
+          latestHealth.google &&
+          latestHealth.google.connected
+        ) {
+          selectProvider("google");
+          return;
+        }
+
+        if (
+          preferredProvider === "outlook" &&
+          latestHealth.outlook &&
+          latestHealth.outlook.connected
+        ) {
+          selectProvider("outlook");
+          return;
+        }
+
+        if (latestHealth.google && latestHealth.google.connected) {
+          selectProvider("google");
+          return;
+        }
+
+        if (latestHealth.outlook && latestHealth.outlook.connected) {
+          selectProvider("outlook");
+        }
+      }
+
       function buildPayload() {
         return {
           candidate_name: byId("candidateNameInput").value.trim(),
@@ -643,6 +690,39 @@
           duration_minutes: Number(byId("durationInput").value || 60),
           location: byId("locationInput").value.trim(),
         };
+      }
+
+      function trackingRecordBase() {
+        const attendees = parseEmails(byId("attendeesInput").value)
+          .map((row) => row.email)
+          .filter(Boolean);
+        const candidateName = byId("candidateNameInput").value.trim();
+        const candidateEmail = byId("candidateEmailInput").value.trim();
+        return {
+          id: `${Date.now()}`,
+          candidateName,
+          candidateEmail,
+          role: byId("roleInput").value.trim(),
+          company: byId("companyInput").value.trim(),
+          attendees,
+          subject: byId("subjectInput").value.trim(),
+          message: byId("emailOutput").textContent.trim(),
+          provider: selectedProvider,
+          location: byId("locationInput").value.trim(),
+          windowStart: byId("startInput").value,
+          windowEnd: byId("endInput").value,
+          createdAt: new Date().toISOString(),
+          nextAction: "Follow up after the interview window",
+        };
+      }
+
+      function saveScheduleTracking(extra = {}) {
+        const records = JSON.parse(sessionStorage.getItem("scheduleTracking") || "[]");
+        const record = { ...trackingRecordBase(), ...extra };
+        records.unshift(record);
+        sessionStorage.setItem("scheduleTracking", JSON.stringify(records.slice(0, 25)));
+        sessionStorage.setItem("latestScheduleTracking", JSON.stringify(record));
+        return record;
       }
 
       async function generateDraft() {
@@ -680,6 +760,14 @@
             }),
           });
           const link = result.eventLink || result.meetingLink || "";
+          saveScheduleTracking({
+            provider: result.provider || selectedProvider,
+            status: "Calendar invite sent",
+            eventLink: result.eventLink || "",
+            meetingLink: result.meetingLink || "",
+            scheduledStart: result.start && (result.start.dateTime || result.start),
+            scheduledEnd: result.end && (result.end.dateTime || result.end),
+          });
           showResult(
             link
               ? `Invite sent through ${result.provider}. Event link: ${link}`
@@ -706,7 +794,7 @@
           selectProvider(params.get("connected"));
           showResult(`${params.get("connected")} connected.`);
         } else {
-          selectProvider("calendly");
+          selectProvider(sessionStorage.getItem("preferredCalendarProvider") || "calendly");
         }
         await loadWorkflowContext();
         await loadShortlist();
