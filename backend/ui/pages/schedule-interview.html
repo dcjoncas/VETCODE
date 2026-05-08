@@ -218,20 +218,20 @@
                 </div>
                 <div id="googleProvider" class="provider-card">
                   <h3>Google Calendar</h3>
-                  <button class="btn secondary" type="button" onclick="connectGoogle()">
+                  <button id="googleConnectButton" class="btn secondary" type="button" onclick="connectGoogle()">
                     Connect Google
                   </button>
-                  <button class="btn" type="button" onclick="selectProvider('google')">
-                    Use Google
+                  <button id="googleUseButton" class="btn" type="button" onclick="selectProvider('google')" hidden>
+                    Use connected Google
                   </button>
                 </div>
                 <div id="outlookProvider" class="provider-card">
                   <h3>Outlook Calendar</h3>
-                  <button class="btn secondary" type="button" onclick="connectOutlook()">
+                  <button id="outlookConnectButton" class="btn secondary" type="button" onclick="connectOutlook()">
                     Connect Outlook
                   </button>
-                  <button class="btn" type="button" onclick="selectProvider('outlook')">
-                    Use Outlook
+                  <button id="outlookUseButton" class="btn" type="button" onclick="selectProvider('outlook')" hidden>
+                    Use connected Outlook
                   </button>
                 </div>
               </div>
@@ -362,6 +362,11 @@
         tile.querySelector("span").textContent = message;
       }
 
+      function setProviderConnection(provider, connected) {
+        byId(`${provider}ConnectButton`).hidden = connected;
+        byId(`${provider}UseButton`).hidden = !connected;
+      }
+
       function connectGoogle() {
         sessionStorage.setItem("preferredCalendarProvider", "google");
         window.location.href = "/auth/google";
@@ -467,6 +472,10 @@
               ? "Connected"
               : "Not connected",
           );
+          setProviderConnection(
+            "google",
+            latestHealth.google && latestHealth.google.connected,
+          );
           setTile(
             "outlookTile",
             latestHealth.outlook && latestHealth.outlook.connected,
@@ -474,11 +483,17 @@
               ? "Connected"
               : "Not connected",
           );
+          setProviderConnection(
+            "outlook",
+            latestHealth.outlook && latestHealth.outlook.connected,
+          );
           autoSelectConnectedProvider();
         } catch (error) {
           setTile("backendTile", false, "Calendar backend unavailable");
           setTile("googleTile", false, "Unknown");
           setTile("outlookTile", false, "Unknown");
+          setProviderConnection("google", false);
+          setProviderConnection("outlook", false);
         }
       }
 
