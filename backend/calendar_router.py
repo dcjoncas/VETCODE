@@ -47,6 +47,15 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5")
 SCHEDULER_PAGE = "/ui/pages/schedule-interview.html"
 
 
+def _request_error_detail(prefix: str, exc: Exception) -> str:
+    response = getattr(exc, "response", None)
+    if response is not None:
+        body = (getattr(response, "text", "") or "").strip()
+        if body:
+            return f"{prefix}: {body[:800]}"
+    return f"{prefix}: {exc}"
+
+
 def _base_url(request: Request) -> str:
     configured = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
     if configured:
@@ -356,8 +365,6 @@ async def invite_draft(payload: Dict[str, Any]):
         if email:
             attendee_emails.append(email.lower())
     attendee_emails = sorted(set(attendee_emails))
-    if not attendee_emails:
-        raise HTTPException(status_code=400, detail="Add at least one interviewer or client attendee email.")
 
     duration = max(15, min(180, int(payload.get("duration_minutes") or 60)))
     talking_points = payload.get("talking_points") or []
@@ -369,7 +376,7 @@ async def invite_draft(payload: Dict[str, Any]):
 You are an interview scheduling assistant for DevReady. Return only strict JSON matching the schema.
 
 Candidate: {candidate_name} <{candidate_email}>
-Interviewers/client attendees: {attendee_emails}
+Interviewers/client attendees: {attendee_emails or ["To be confirmed"]}
 Role: {role}
 Company: {payload.get("company") or ""}
 Job description: {payload.get("job_description") or ""}
@@ -379,7 +386,7 @@ Context from candidate chat/profile: {payload.get("ai_context") or ""}
 Rules:
 - title includes the role and "Interview".
 - duration_minutes is {duration}.
-- attendees contains only interviewer/client emails, not the candidate.
+- attendees contains only interviewer/client emails, not the candidate. It can be an empty array when interviewers are not known yet.
 - email_body is a complete plain-text email ready to send.
 - location is exactly "{location}".
 """
@@ -418,8 +425,8 @@ def _parse_time_window(payload: Dict[str, Any]) -> tuple[dt.datetime, dt.datetim
     if not start or not end:
         raise HTTPException(status_code=400, detail="Start and end time are required.")
     try:
-        start_dt = dt.datetime.fromisoformat(start.replace("Z", "+00:00"))
-        end_dt = dt.datetime.fromisoformat(end.replace("Z", "+00:00"))
+        start_dt = dt.datetime.fromisoformat(_normalize_iso_datetime(start))
+        end_dt = dt.datetime.fromisoformat(_normalize_iso_datetime(end))
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid time format.")
     if end_dt <= start_dt:
@@ -427,8 +434,28 @@ def _parse_time_window(payload: Dict[str, Any]) -> tuple[dt.datetime, dt.datetim
     return start_dt, end_dt
 
 
+def _normalize_iso_datetime(value: str) -> str:
+    value = str(value).strip()
+    if value.endswith("Z"):
+        value = f"{value[:-1]}+00:00"
+    if "." not in value:
+        return value
+
+    dot_index = value.find(".")
+    tz_index = len(value)
+    for marker in ("+", "-"):
+        marker_index = value.find(marker, dot_index)
+        if marker_index != -1:
+            tz_index = marker_index
+            break
+    fraction = value[dot_index + 1 : tz_index]
+    if len(fraction) <= 6:
+        return value
+    return f"{value[:dot_index + 1]}{fraction[:6]}{value[tz_index:]}"
+
+
 def _parse_calendar_datetime(value: str, fallback_tzinfo: Optional[dt.tzinfo]) -> dt.datetime:
-    parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    parsed = dt.datetime.fromisoformat(_normalize_iso_datetime(value))
     if parsed.tzinfo is None and fallback_tzinfo is not None:
         parsed = parsed.replace(tzinfo=fallback_tzinfo)
     return parsed
@@ -525,7 +552,7 @@ def _create_outlook(draft: Dict[str, Any], start_dt: dt.datetime, end_dt: dt.dat
         )
         view.raise_for_status()
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Outlook availability error: {exc}")
+        raise HTTPException(status_code=500, detail=_request_error_detail("Outlook availability error", exc))
     busy = []
     for item in view.json().get("value", []):
         if item.get("showAs") in {"free", "workingElsewhere"}:
@@ -552,21 +579,26 @@ def _create_outlook(draft: Dict[str, Any], start_dt: dt.datetime, end_dt: dt.dat
         created = requests.post("https://graph.microsoft.com/v1.0/me/events", headers=headers, json=event, timeout=20)
         created.raise_for_status()
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Outlook create event error: {exc}")
+        raise HTTPException(status_code=500, detail=_request_error_detail("Outlook create event error", exc))
     created_json = created.json()
     return {"ok": True, "provider": "outlook", "eventLink": created_json.get("webLink"), "meetingLink": (created_json.get("onlineMeeting") or {}).get("joinUrl"), "start": event["start"], "end": event["end"]}
 
 
 @router.post("/api/calendar/invite/create")
 async def invite_create(payload: Dict[str, Any]):
-    draft = payload.get("draft")
-    if not isinstance(draft, dict):
-        raise HTTPException(status_code=400, detail="draft is required.")
-    provider = (payload.get("provider") or "google").strip().lower()
-    timezone = payload.get("timezone") or "America/Denver"
-    start_dt, end_dt = _parse_time_window(payload)
-    if provider == "google":
-        return _create_google(payload, draft, start_dt, end_dt, timezone)
-    if provider == "outlook":
-        return _create_outlook(draft, start_dt, end_dt, timezone)
-    raise HTTPException(status_code=400, detail="provider must be google or outlook.")
+    try:
+        draft = payload.get("draft")
+        if not isinstance(draft, dict):
+            raise HTTPException(status_code=400, detail="draft is required.")
+        provider = (payload.get("provider") or "google").strip().lower()
+        timezone = payload.get("timezone") or "America/Denver"
+        start_dt, end_dt = _parse_time_window(payload)
+        if provider == "google":
+            return _create_google(payload, draft, start_dt, end_dt, timezone)
+        if provider == "outlook":
+            return _create_outlook(draft, start_dt, end_dt, timezone)
+        raise HTTPException(status_code=400, detail="provider must be google or outlook.")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Calendar invite failed: {exc}")
