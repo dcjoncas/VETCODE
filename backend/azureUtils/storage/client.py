@@ -5,6 +5,19 @@ import psycopg
 load_dotenv()
 
 def getConnection() -> psycopg.Connection:
+    required_vars = [
+        "AZURE_DATABASE_HOST",
+        "AZURE_DATABASE_PORT",
+        "AZURE_DATABASE_NAME",
+        "AZURE_DATABASE_USER",
+        "AZURE_DATABASE_PASSWORD",
+    ]
+    missing = [name for name in required_vars if not os.getenv(name)]
+    if missing:
+        raise RuntimeError(
+            "Missing Azure database environment variables: " + ", ".join(missing)
+        )
+
     connection = psycopg.connect(
         host=os.getenv("AZURE_DATABASE_HOST"),
         port=os.getenv("AZURE_DATABASE_PORT"),
