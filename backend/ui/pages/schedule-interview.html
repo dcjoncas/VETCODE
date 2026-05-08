@@ -350,6 +350,7 @@
       let latestDraft = null;
       let latestHealth = null;
       let shortlistArray = [];
+      let shortlistDetails = [];
 
       function byId(id) {
         return document.getElementById(id);
@@ -461,6 +462,33 @@
         byId("endInput").value = localDateValue(end);
       }
 
+      function appendContextBlock(title, content) {
+        const cleanContent = String(content || "").trim();
+        if (!cleanContent) return;
+        const existing = byId("aiContextInput").value.trim();
+        const block = `${title}:\n${cleanContent}`;
+        if (existing.includes(block)) return;
+        byId("aiContextInput").value = [existing, block].filter(Boolean).join("\n\n");
+      }
+
+      function syncTalkingPointsFromContext() {
+        const existing = byId("talkingPointsInput").value.trim();
+        if (existing) return;
+
+        const points = [];
+        const jobSkills = sessionStorage.getItem("jobSkills");
+        if (jobSkills) {
+          points.push(...String(jobSkills).split(",").map((row) => row.trim()).filter(Boolean));
+        }
+        if (shortlistDetails.length) {
+          shortlistDetails
+            .flatMap((candidate) => candidate.skills || [])
+            .forEach((skill) => points.push(skill));
+        }
+
+        byId("talkingPointsInput").value = [...new Set(points)].slice(0, 8).join("\n");
+      }
+
       async function refreshHealth() {
         try {
           latestHealth = await api("/api/calendar/health");
@@ -535,6 +563,16 @@
             if (profile.description) {
               contextBits.push(`Profile summary: ${profile.description}`);
             }
+            if (profileData.platformActivity) {
+              contextBits.push(`Vetting stage: ${profileData.platformActivity.step || "N/A"}`);
+              if (profileData.platformActivity.attachedNotes) {
+                contextBits.push(
+                  `Vetting notes: ${(profileData.platformActivity.attachedNotes || [])
+                    .filter(Boolean)
+                    .join("; ")}`,
+                );
+              }
+            }
             if (profileData.skills && profileData.skills.length) {
               contextBits.push(
                 `Candidate skills: ${profileData.skills
@@ -587,6 +625,20 @@
 
         byId("candidateNameInput").value = name;
         byId("candidateEmailInput").value = candidate.email || "";
+        appendContextBlock(
+          "Selected shortlist candidate",
+          [
+            name,
+            candidate.email ? `Email: ${candidate.email}` : "",
+            candidate.score ? `Match score: ${candidate.score}%` : "",
+            candidate.status ? `Vetting status: ${candidate.status}` : "",
+            candidate.skills && candidate.skills.length
+              ? `Matched skills: ${candidate.skills.join(", ")}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        );
         updateCalendlyLink();
         byId("contextNotice").textContent = [
           name || "Selected candidate",
@@ -621,6 +673,50 @@
         tbody.appendChild(row);
       }
 
+      function summarizeShortlistForContext() {
+        if (!shortlistDetails.length) return;
+        const summary = shortlistDetails
+          .slice(0, 10)
+          .map((candidate, index) => {
+            const name = `${candidate.firstName || ""} ${candidate.lastName || ""}`.trim();
+            const pieces = [
+              `${index + 1}. ${name || "Candidate"}`,
+              candidate.email ? `<${candidate.email}>` : "",
+              candidate.score ? `score ${candidate.score}%` : "",
+              candidate.status ? `status ${candidate.status}` : "",
+              candidate.skills && candidate.skills.length
+                ? `skills: ${candidate.skills.slice(0, 8).join(", ")}`
+                : "",
+            ].filter(Boolean);
+            return pieces.join(" - ");
+          })
+          .join("\n");
+        appendContextBlock("Shortlist from previous step", summary);
+      }
+
+      async function loadCandidateChatContext(candidateId) {
+        if (!candidateId) return;
+        try {
+          const chatUrlCode = await api(`/api/chat/getUrlCode/${candidateId}`);
+          if (!chatUrlCode) return;
+          const chatHistory = await api(`/api/chat/getChat/${chatUrlCode}`);
+          const transcript = chatHistory && chatHistory.aiTranscript;
+          if (!Array.isArray(transcript) || transcript.length < 2) return;
+          const chatSummary = transcript
+            .slice(-8)
+            .map((row) => `${row.role === "assistant" ? "DevReady AI" : "Candidate"}: ${row.content}`)
+            .join("\n");
+          appendContextBlock("Recent candidate vetting chat", chatSummary);
+        } catch (error) {
+          appendContextBlock("Candidate chat lookup", `No chat transcript loaded: ${error.message}`);
+        }
+      }
+
+      function loadClientCommunicationContext() {
+        const clientEmail = sessionStorage.getItem("clientEmail");
+        if (clientEmail) appendContextBlock("Client communication draft", clientEmail);
+      }
+
       async function loadShortlist() {
         const shortlist = sessionStorage.getItem("shortlist");
         const jobId = sessionStorage.getItem("jobID");
@@ -638,19 +734,35 @@
             method: "POST",
             body: fd,
           });
+          shortlistDetails = profileData;
           profileData.forEach((candidate) =>
             addShortlistRow(candidate, candidate.score ? `${candidate.score}%` : "N/A"),
           );
+          summarizeShortlistForContext();
+          syncTalkingPointsFromContext();
+          if (!byId("candidateNameInput").value && profileData[0]) {
+            selectShortlistedCandidate(profileData[0]);
+            await loadCandidateChatContext(profileData[0].id);
+          }
           return;
         }
 
+        shortlistDetails = [];
         for (const candidateId of shortlistArray) {
           try {
             const profileData = await api(`/api/azure/getProfile/short/${candidateId}`);
-            addShortlistRow({ id: candidateId, ...profileData }, "Job missing");
+            const candidate = { id: candidateId, ...profileData };
+            shortlistDetails.push(candidate);
+            addShortlistRow(candidate, "Job missing");
           } catch (error) {
             console.log(`Could not load candidate ${candidateId}`, error);
           }
+        }
+        summarizeShortlistForContext();
+        syncTalkingPointsFromContext();
+        if (!byId("candidateNameInput").value && shortlistDetails[0]) {
+          selectShortlistedCandidate(shortlistDetails[0]);
+          await loadCandidateChatContext(shortlistDetails[0].id);
         }
       }
 
@@ -813,6 +925,8 @@
         }
         await loadWorkflowContext();
         await loadShortlist();
+        loadClientCommunicationContext();
+        await loadCandidateChatContext(sessionStorage.getItem("candidateId"));
         updateCalendlyLink();
         await refreshHealth();
       });
