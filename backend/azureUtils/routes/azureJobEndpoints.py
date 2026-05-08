@@ -57,6 +57,13 @@ def jd_list(domain: str = "dev", amount: int = 5):
 def jd_list(domain: str = "dev", query: str = '', amount: int = 5):
     return jobs.searchJobs(domain, query, amount)
 
+@router.get("/getJob/{jobId}")
+def jd_get(jobId: str):
+    jd = jobs.getJob(jobId)
+    if not jd:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    return jd
+
 @router.post("/match/run")
 def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k: int = Form(10), external_source: str = Form(default="none")):
     # TODO: Set up job descriptions in the database

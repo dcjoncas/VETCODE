@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DevReady • Interview Scheduling</title>
+    <title>DevReady - Interview Scheduling</title>
     <link
       class="domainLogo"
       rel="icon"
@@ -21,6 +21,111 @@
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
+    <style>
+      .schedule-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .schedule-panel {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+        background: #fff;
+      }
+
+      .status-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .status-tile {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fbfcfb;
+        min-height: 86px;
+      }
+
+      .status-tile strong {
+        display: block;
+        margin-bottom: 5px;
+      }
+
+      .status-ok {
+        border-color: rgba(47, 125, 75, 0.35);
+        background: rgba(127, 191, 63, 0.1);
+      }
+
+      .status-warn {
+        border-color: rgba(190, 120, 22, 0.35);
+        background: rgba(255, 242, 220, 0.85);
+      }
+
+      .provider-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .provider-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fff;
+      }
+
+      .provider-card.selected {
+        border-color: rgba(47, 125, 75, 0.55);
+        box-shadow: inset 0 0 0 2px rgba(127, 191, 63, 0.18);
+      }
+
+      .provider-card h3 {
+        margin: 0 0 8px 0;
+        font-size: 14px;
+      }
+
+      .compact-fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .draft-output {
+        white-space: pre-wrap;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fbfcfb;
+        min-height: 180px;
+        line-height: 1.45;
+        font-size: 13px;
+      }
+
+      .result-link {
+        word-break: break-word;
+      }
+
+      .calendly-frame {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        min-height: 360px;
+        background: #fff;
+      }
+
+      @media (max-width: 980px) {
+        .schedule-grid,
+        .compact-fields,
+        .provider-row,
+        .status-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
   </head>
   <body>
     <div class="container">
@@ -29,8 +134,10 @@
       <main class="main">
         <div class="topbar">
           <div>
-            <div class="page-title">Interview Scheduling</div>
-            <div class="breadcrumb">Vetting Process • Scheduling</div>
+            <div class="page-title">Screen 6 - Interview Scheduling</div>
+            <div id="scheduleBreadcrumb" class="breadcrumb">
+              Vetting Process - Scheduling
+            </div>
           </div>
           <div id="searchBar"></div>
         </div>
@@ -38,38 +145,198 @@
         <div id="processFlow"></div>
 
         <section class="card">
-          <div class="split">
-            <div>
-              <h2 style="margin-top: 0">Availability</h2>
+          <h2>Schedule an interview</h2>
+          <p>
+            Use the selected candidate and role from the vetting workflow, then
+            generate a clean email draft, book through Calendly, or send a real
+            Google/Outlook calendar invite.
+          </p>
+
+          <div class="schedule-grid">
+            <div class="schedule-panel">
+              <h2>Current context</h2>
+              <div class="notice" id="contextNotice">Loading workflow context...</div>
+
+              <div class="compact-fields" style="margin-top: 12px">
+                <div class="field">
+                  <label>Candidate name</label>
+                  <input id="candidateNameInput" type="text" />
+                </div>
+                <div class="field">
+                  <label>Candidate email</label>
+                  <input id="candidateEmailInput" type="email" />
+                </div>
+                <div class="field">
+                  <label>Role / title</label>
+                  <input id="roleInput" type="text" />
+                </div>
+                <div class="field">
+                  <label>Company</label>
+                  <input id="companyInput" type="text" />
+                </div>
+              </div>
+
+              <div class="field" style="margin-top: 12px">
+                <label>Job description / role context</label>
+                <textarea id="jobDescriptionInput"></textarea>
+              </div>
+
+              <div class="field">
+                <label>Candidate chat / profile context</label>
+                <textarea id="aiContextInput"></textarea>
+              </div>
+
+              <div class="field">
+                <label>Talking points, one per line</label>
+                <textarea id="talkingPointsInput"></textarea>
+              </div>
+            </div>
+
+            <div class="schedule-panel">
+              <h2>Calendar connection</h2>
+              <div class="status-grid">
+                <div id="backendTile" class="status-tile status-warn">
+                  <strong>Backend</strong>
+                  <span>Checking...</span>
+                </div>
+                <div id="googleTile" class="status-tile status-warn">
+                  <strong>Google Calendar</strong>
+                  <span>Checking...</span>
+                </div>
+                <div id="outlookTile" class="status-tile status-warn">
+                  <strong>Outlook Calendar</strong>
+                  <span>Checking...</span>
+                </div>
+              </div>
+
+              <div class="provider-row" style="margin-top: 12px">
+                <div id="calendlyProvider" class="provider-card selected">
+                  <h3>Calendly</h3>
+                  <button class="btn" type="button" onclick="selectProvider('calendly')">
+                    Use Calendly
+                  </button>
+                </div>
+                <div id="googleProvider" class="provider-card">
+                  <h3>Google Calendar</h3>
+                  <button class="btn secondary" type="button" onclick="connectGoogle()">
+                    Connect Google
+                  </button>
+                  <button class="btn" type="button" onclick="selectProvider('google')">
+                    Use Google
+                  </button>
+                </div>
+                <div id="outlookProvider" class="provider-card">
+                  <h3>Outlook Calendar</h3>
+                  <button class="btn secondary" type="button" onclick="connectOutlook()">
+                    Connect Outlook
+                  </button>
+                  <button class="btn" type="button" onclick="selectProvider('outlook')">
+                    Use Outlook
+                  </button>
+                </div>
+              </div>
+
+              <div class="compact-fields" style="margin-top: 12px">
+                <div class="field">
+                  <label>Interviewers / client emails</label>
+                  <textarea id="attendeesInput" placeholder="name@company.com"></textarea>
+                </div>
+                <div class="field">
+                  <label>Timezone</label>
+                  <select id="timezoneInput">
+                    <option value="America/Denver">America/Denver</option>
+                    <option value="America/New_York">America/New_York</option>
+                    <option value="America/Chicago">America/Chicago</option>
+                    <option value="America/Los_Angeles">America/Los_Angeles</option>
+                    <option value="UTC">UTC</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Search window start</label>
+                  <input id="startInput" type="datetime-local" />
+                </div>
+                <div class="field">
+                  <label>Search window end</label>
+                  <input id="endInput" type="datetime-local" />
+                </div>
+                <div class="field">
+                  <label>Duration</label>
+                  <select id="durationInput">
+                    <option value="30">30 minutes</option>
+                    <option value="45">45 minutes</option>
+                    <option value="60" selected>60 minutes</option>
+                    <option value="90">90 minutes</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Meeting location</label>
+                  <input id="locationInput" type="text" value="Calendar video meeting" />
+                </div>
+              </div>
+
+              <div class="row-actions">
+                <button class="btn secondary" type="button" onclick="generateDraft()">
+                  Generate email
+                </button>
+                <button id="scheduleActionButton" class="btn" type="button" onclick="scheduleSelectedProvider()">
+                  Book with Calendly
+                </button>
+                <a class="btn secondary" href="status-tracker.html">Move to tracking</a>
+              </div>
+
+              <div id="resultNotice" class="notice" style="margin-top: 12px" hidden></div>
+            </div>
+          </div>
+
+          <div class="schedule-panel" style="margin-top: 14px">
+            <h2>Email output</h2>
+            <div class="field">
+              <label>Subject</label>
+              <input id="subjectInput" type="text" />
+            </div>
+            <div id="emailOutput" class="draft-output">Generate an email draft to preview it here.</div>
+            <details style="margin-top: 10px">
+              <summary>Raw draft data</summary>
+              <pre id="rawDraftOutput"></pre>
+            </details>
+          </div>
+
+          <div id="calendlyPanel" class="schedule-panel" style="margin-top: 14px">
+            <h2>Calendly booking</h2>
+            <div class="row-actions">
+              <button class="btn" type="button" onclick="bookWithCalendly()">
+                Open Calendly
+              </button>
+              <a id="calendlyDirectLink" class="btn secondary" href="#" target="_blank" rel="noopener">
+                Open in new tab
+              </a>
+            </div>
+            <div class="calendly-frame" style="margin-top: 12px">
               <div
                 class="calendly-inline-widget"
                 data-url="https://calendly.com/mitch-blake-devready/discovery-call"
                 style="min-width: 320px; height: 700px"
               ></div>
             </div>
+          </div>
 
-            <div>
-              <div
-                class="card"
-                style="padding: 14px; border-radius: 18px; box-shadow: none"
-              >
-                <div id="shortlistCount" style="font-weight: 900">
-                  Shortlist
-                </div>
-                <table class="table" style="margin-top: 10px">
-                  <thead>
-                    <tr>
-                      <th>Candidate</th>
-                      <th>Score</th>
-                      <th>Email</th>
-                      <th></th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody id="shortlistBody"></tbody>
-                </table>
-              </div>
-            </div>
+          <div class="schedule-panel" style="margin-top: 14px">
+            <h2 id="shortlistCount">Shortlist</h2>
+            <table class="table" style="margin-top: 10px">
+              <thead>
+                <tr>
+                  <th>Candidate</th>
+                  <th>Score</th>
+                  <th>Email</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="shortlistBody">
+                <tr>
+                  <td colspan="4">No shortlisted candidates found for this browser session.</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </section>
       </main>
@@ -77,147 +344,374 @@
 
     <script src="JS/apiScripts.js"></script>
     <script>
+      const CALENDLY_BASE_URL =
+        "https://calendly.com/mitch-blake-devready/discovery-call";
+      let selectedProvider = "calendly";
+      let latestDraft = null;
+      let latestHealth = null;
       let shortlistArray = [];
-      // Used to store an array of JSON objects containing candidate scores
-      let shortlistScores = [];
 
-      // tiny UX sugar (mock only)
-      document
-        .querySelectorAll("a.step")
-        .forEach((a) => a.addEventListener("click", () => {}));
-
-      function openProfile(profileId, firstName, lastName, step) {
-        sessionStorage.setItem("candidateId", profileId);
-        sessionStorage.setItem("candidateName", firstName + " " + lastName);
-        sessionStorage.setItem("candidateStatus", step);
-
-        window.location.href = "profile-preview.html";
+      function byId(id) {
+        return document.getElementById(id);
       }
 
-      function removeProfile(profileId) {
-        shortlistArray = shortlistArray.filter(
-          (candidate) => candidate !== profileId,
-        );
-
-        shortlistScores = shortlistScores.filter(
-          (candidate) => candidate.id !== profileId,
-        );
-
-        sessionStorage.setItem("shortlist", shortlistArray);
-
-        document.getElementById("candidate" + profileId).remove();
+      function setTile(id, connected, message) {
+        const tile = byId(id);
+        tile.classList.toggle("status-ok", Boolean(connected));
+        tile.classList.toggle("status-warn", !connected);
+        tile.querySelector("span").textContent = message;
       }
 
-      function bookCandidate(candidateName, candidateEmail) {
-        const url = `https://calendly.com/mitch-blake-devready/discovery-call?name=${encodeURIComponent(candidateName)}&email=${encodeURIComponent(candidateEmail)}`;
-        console.log(url);
+      function connectGoogle() {
+        window.location.href = "/auth/google";
+      }
 
-        Calendly.initPopupWidget({ url });
+      function connectOutlook() {
+        window.location.href = "/auth/outlook";
+      }
+
+      function selectProvider(provider) {
+        selectedProvider = provider;
+        byId("calendlyProvider").classList.toggle("selected", provider === "calendly");
+        byId("googleProvider").classList.toggle("selected", provider === "google");
+        byId("outlookProvider").classList.toggle("selected", provider === "outlook");
+        byId("calendlyPanel").hidden = provider !== "calendly";
+        byId("scheduleActionButton").textContent =
+          provider === "calendly" ? "Book with Calendly" : "Send calendar invite";
+        byId("locationInput").value = {
+          calendly: "Calendly booking",
+          google: "Google Meet",
+          outlook: "Microsoft Teams",
+        }[provider];
+        updateCalendlyLink();
+      }
+
+      function showResult(message, isError = false) {
+        const box = byId("resultNotice");
+        box.hidden = false;
+        box.style.borderColor = isError ? "rgba(190, 22, 22, 0.35)" : "";
+        box.style.background = isError ? "rgba(255, 230, 230, 0.85)" : "";
+        box.textContent = message;
+      }
+
+      function parseEmails(raw) {
+        return String(raw || "")
+          .split(/[\n,;]/)
+          .map((row) => row.trim())
+          .filter(Boolean)
+          .map((email) => ({ email }));
+      }
+
+      function localDateValue(date) {
+        const pad = (n) => String(n).padStart(2, "0");
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+      }
+
+      function dateLocalToIso(value) {
+        if (!value) return "";
+        return new Date(value).toISOString();
+      }
+
+      function calendlyUrl() {
+        const candidateName = byId("candidateNameInput").value.trim();
+        const candidateEmail = byId("candidateEmailInput").value.trim();
+        const params = new URLSearchParams();
+        if (candidateName) params.set("name", candidateName);
+        if (candidateEmail) params.set("email", candidateEmail);
+        const query = params.toString();
+        return query ? `${CALENDLY_BASE_URL}?${query}` : CALENDLY_BASE_URL;
+      }
+
+      function updateCalendlyLink() {
+        const link = byId("calendlyDirectLink");
+        if (link) link.href = calendlyUrl();
+      }
+
+      function bookWithCalendly() {
+        const url = calendlyUrl();
+        updateCalendlyLink();
+        if (window.Calendly && Calendly.initPopupWidget) {
+          Calendly.initPopupWidget({ url });
+          showResult("Calendly opened with the selected candidate prefilled.");
+          return;
+        }
+        window.location.href = url;
+      }
+
+      function defaultTimeWindow() {
+        const start = new Date();
+        start.setDate(start.getDate() + 1);
+        start.setHours(9, 0, 0, 0);
+        const end = new Date(start);
+        end.setHours(17, 0, 0, 0);
+        byId("startInput").value = localDateValue(start);
+        byId("endInput").value = localDateValue(end);
+      }
+
+      async function refreshHealth() {
+        try {
+          latestHealth = await api("/api/calendar/health");
+          setTile("backendTile", true, "Ready");
+          setTile(
+            "googleTile",
+            latestHealth.google && latestHealth.google.connected,
+            latestHealth.google && latestHealth.google.connected
+              ? "Connected"
+              : "Not connected",
+          );
+          setTile(
+            "outlookTile",
+            latestHealth.outlook && latestHealth.outlook.connected,
+            latestHealth.outlook && latestHealth.outlook.connected
+              ? "Connected"
+              : "Not connected",
+          );
+        } catch (error) {
+          setTile("backendTile", false, "Calendar backend unavailable");
+          setTile("googleTile", false, "Unknown");
+          setTile("outlookTile", false, "Unknown");
+        }
+      }
+
+      async function loadWorkflowContext() {
+        const candidateId = sessionStorage.getItem("candidateId");
+        const candidateName = sessionStorage.getItem("candidateName") || "";
+        const candidateStatus = sessionStorage.getItem("candidateStatus") || "";
+        const jobId = sessionStorage.getItem("jobID");
+        const jobTitle = sessionStorage.getItem("jobTitle") || "";
+        const jobCompany = sessionStorage.getItem("jobCompany") || "";
+        const jobSkills = sessionStorage.getItem("jobSkills") || "";
+
+        byId("candidateNameInput").value = candidateName;
+        byId("roleInput").value = jobTitle;
+        byId("companyInput").value = jobCompany;
+        byId("talkingPointsInput").value = jobSkills
+          ? String(jobSkills)
+              .split(",")
+              .slice(0, 8)
+              .join("\n")
+          : "";
+
+        const contextBits = [];
+        if (candidateStatus) contextBits.push(`Candidate status: ${candidateStatus}`);
+
+        if (candidateId) {
+          try {
+            const profileData = await api(`/api/azure/getProfile/${candidateId}`);
+            const profile = profileData.profile || {};
+            const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
+            byId("candidateNameInput").value = fullName || candidateName;
+            byId("candidateEmailInput").value = profile.email || "";
+            if (profile.title && !byId("roleInput").value) {
+              byId("roleInput").value = profile.title;
+            }
+            if (profile.timezone) {
+              byId("timezoneInput").value = profile.timezone;
+            }
+            if (profile.description) {
+              contextBits.push(`Profile summary: ${profile.description}`);
+            }
+            if (profileData.skills && profileData.skills.length) {
+              contextBits.push(
+                `Candidate skills: ${profileData.skills
+                  .map((row) => row.skill)
+                  .filter(Boolean)
+                  .slice(0, 12)
+                  .join(", ")}`,
+              );
+            }
+          } catch (error) {
+            contextBits.push(`Candidate lookup failed: ${error.message}`);
+          }
+        }
+
+        if (jobId) {
+          try {
+            const job = await api(`/api/azureJobs/getJob/${jobId}`);
+            byId("roleInput").value = job.title || byId("roleInput").value;
+            byId("companyInput").value = job.company || byId("companyInput").value;
+            byId("jobDescriptionInput").value = job.description || "";
+            if (!byId("talkingPointsInput").value && job.skills) {
+              byId("talkingPointsInput").value = job.skills.slice(0, 8).join("\n");
+            }
+          } catch (error) {
+            contextBits.push(`Job lookup failed: ${error.message}`);
+          }
+        }
+
+        byId("aiContextInput").value = contextBits.join("\n\n");
+        const contextLabel = [
+          byId("candidateNameInput").value || "No candidate selected",
+          byId("roleInput").value || "No role selected",
+          byId("companyInput").value,
+        ]
+          .filter(Boolean)
+          .join(" - ");
+        byId("contextNotice").textContent = contextLabel;
+        byId("scheduleBreadcrumb").textContent = `Vetting Process - ${contextLabel}`;
+      }
+
+      function selectShortlistedCandidate(candidate) {
+        const id = candidate.id || candidate.profile_id;
+        const firstName = candidate.firstName || "";
+        const lastName = candidate.lastName || "";
+        const name = `${firstName} ${lastName}`.trim();
+
+        if (id) sessionStorage.setItem("candidateId", id);
+        if (name) sessionStorage.setItem("candidateName", name);
+        if (candidate.status) sessionStorage.setItem("candidateStatus", candidate.status);
+
+        byId("candidateNameInput").value = name;
+        byId("candidateEmailInput").value = candidate.email || "";
+        updateCalendlyLink();
+        byId("contextNotice").textContent = [
+          name || "Selected candidate",
+          byId("roleInput").value || "No role selected",
+          byId("companyInput").value,
+        ]
+          .filter(Boolean)
+          .join(" - ");
+      }
+
+      function addShortlistRow(candidate, scoreLabel) {
+        const tbody = byId("shortlistBody");
+        const id = candidate.id || candidate.profile_id;
+        const firstName = candidate.firstName || "";
+        const lastName = candidate.lastName || "";
+        const name = `${firstName} ${lastName}`.trim() || "Candidate";
+        const row = document.createElement("tr");
+        row.id = `candidate${id}`;
+        row.innerHTML = `
+          <td><strong>${escapeHtml(name)}</strong></td>
+          <td>${escapeHtml(scoreLabel || "N/A")}</td>
+          <td>${escapeHtml(candidate.email || "")}</td>
+          <td>
+            <button class="btn secondary" type="button" style="padding: 8px 12px">
+              Use for invite
+            </button>
+          </td>
+        `;
+        row.querySelector("button").addEventListener("click", () =>
+          selectShortlistedCandidate(candidate),
+        );
+        tbody.appendChild(row);
+      }
+
+      async function loadShortlist() {
+        const shortlist = sessionStorage.getItem("shortlist");
+        const jobId = sessionStorage.getItem("jobID");
+        const tbody = byId("shortlistBody");
+        if (!shortlist || shortlist.length < 1) return;
+
+        shortlistArray = shortlist.split(",").filter(Boolean);
+        byId("shortlistCount").innerText = `Shortlist (Top ${shortlistArray.length})`;
+        tbody.innerHTML = "";
+
+        if (jobId && jobId.length > 0) {
+          const fd = new FormData();
+          fd.append("profileIds", shortlist);
+          const profileData = await api(`/api/azure/getProfile/short/score/${jobId}`, {
+            method: "POST",
+            body: fd,
+          });
+          profileData.forEach((candidate) =>
+            addShortlistRow(candidate, candidate.score ? `${candidate.score}%` : "N/A"),
+          );
+          return;
+        }
+
+        for (const candidateId of shortlistArray) {
+          try {
+            const profileData = await api(`/api/azure/getProfile/short/${candidateId}`);
+            addShortlistRow({ id: candidateId, ...profileData }, "Job missing");
+          } catch (error) {
+            console.log(`Could not load candidate ${candidateId}`, error);
+          }
+        }
+      }
+
+      function buildPayload() {
+        return {
+          candidate_name: byId("candidateNameInput").value.trim(),
+          candidate_email: byId("candidateEmailInput").value.trim(),
+          role: byId("roleInput").value.trim(),
+          company: byId("companyInput").value.trim(),
+          job_description: byId("jobDescriptionInput").value.trim(),
+          ai_context: byId("aiContextInput").value.trim(),
+          talking_points: byId("talkingPointsInput").value.trim(),
+          interviewers: parseEmails(byId("attendeesInput").value),
+          duration_minutes: Number(byId("durationInput").value || 60),
+          location: byId("locationInput").value.trim(),
+        };
+      }
+
+      async function generateDraft() {
+        try {
+          showResult("Generating email draft...");
+          latestDraft = await api("/api/calendar/invite/draft", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(buildPayload()),
+          });
+          byId("subjectInput").value = latestDraft.email_subject || latestDraft.title || "";
+          byId("emailOutput").textContent = latestDraft.email_body || "";
+          byId("rawDraftOutput").textContent = JSON.stringify(latestDraft, null, 2);
+          showResult("Draft ready.");
+          return latestDraft;
+        } catch (error) {
+          showResult(error.message || String(error), true);
+          throw error;
+        }
+      }
+
+      async function createInvite() {
+        try {
+          const draft = latestDraft || (await generateDraft());
+          showResult("Checking availability and creating the invite...");
+          const result = await api("/api/calendar/invite/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              provider: selectedProvider,
+              draft,
+              timezone: byId("timezoneInput").value,
+              time_window_start_iso: dateLocalToIso(byId("startInput").value),
+              time_window_end_iso: dateLocalToIso(byId("endInput").value),
+            }),
+          });
+          const link = result.eventLink || result.meetingLink || "";
+          showResult(
+            link
+              ? `Invite sent through ${result.provider}. Event link: ${link}`
+              : `Invite sent through ${result.provider}.`,
+          );
+          await refreshHealth();
+        } catch (error) {
+          showResult(error.message || String(error), true);
+        }
+      }
+
+      async function scheduleSelectedProvider() {
+        if (selectedProvider === "calendly") {
+          bookWithCalendly();
+          return;
+        }
+        await createInvite();
       }
 
       document.addEventListener("DOMContentLoaded", async () => {
-        const shortlist = sessionStorage.getItem("shortlist");
-        const jobId = sessionStorage.getItem("jobID");
-
-        if (shortlist && shortlist.length > 0) {
-          shortlistArray = shortlist.split(",");
-          document.getElementById("shortlistCount").innerText =
-            `Shortlist (Top ${shortlistArray.length})`;
-
-          const shortlistTable = document.getElementById("shortlistBody");
-
-          console.log(jobId);
-
-          if (!jobId || jobId.length < 1) {
-            shortlistArray.forEach(async (candidate) => {
-              try {
-                const profileData = await api(
-                  `/api/azure/getProfile/short/${candidate}`,
-                );
-
-                console.log(profileData);
-
-                shortlistTable.insertAdjacentHTML(
-                  "beforeend",
-                  `<tr id="candidate${candidate}">
-                    <td><strong>${profileData.firstName} ${profileData.lastName}</strong></td>
-                    <td>Job Missing</td>
-                    <td>${profileData.email}</td>
-                    <td>
-                      <button
-                        class="btn secondary"
-                        style="padding: 8px 12px"
-                        onclick="openProfile('${candidate}','${profileData.firstName}','${profileData.lastName}','${profileData.status}')"
-                      >
-                        Open
-                      </button>
-                    </td>
-                    <td>
-                      <a href="https://calendly.com/mitch-blake-devready/discovery-call?name=${encodeURIComponent(profileData.firstName + " " + profileData.lastName)}&email=${encodeURIComponent(profileData.email)}" target="_blank">
-                      <button
-                        class="btn"
-                        style="padding: 8px 12px"
-                      >
-                        Book Interview
-                      </button>
-                    </td>
-                  </tr>`,
-                );
-              } catch (error) {
-                console.log(error);
-
-                console.log("Could not find candidate with ID " + candidate);
-              }
-            });
-          } else {
-            const fd = new FormData();
-            fd.append("profileIds", shortlist);
-
-            const profileData = await api(
-              `/api/azure/getProfile/short/score/${jobId}`,
-              { method: "POST", body: fd },
-            );
-
-            console.log(profileData);
-
-            // TODO: Work out candidate scores
-            profileData.forEach((candidate) => {
-              shortlistScores.push({
-                id: candidate.id,
-                name: candidate.firstName + candidate.lastName,
-                score: candidate.score + "%",
-              });
-
-              shortlistTable.insertAdjacentHTML(
-                "beforeend",
-                `<tr id="candidate${candidate.id}">
-                    <td><strong>${candidate.firstName} ${candidate.lastName}</strong></td>
-                    <td>${candidate.score * 10}</td>
-                    <td>${candidate.email}</td>
-                    <td>
-                      <button
-                        class="btn secondary"
-                        style="padding: 8px 12px"
-                        onclick="openProfile('${candidate.id}','${candidate.firstName}','${candidate.lastName}','${candidate.status}')"
-                      >
-                        Open
-                      </button>
-                    </td>
-                    <td>
-                      <a href="https://calendly.com/mitch-blake-devready/discovery-call?name=${encodeURIComponent(candidate.firstName + " " + candidate.lastName)}&email=${encodeURIComponent(candidate.email)}" target="_blank">
-                        <button
-                          class="btn"
-                          style="padding: 8px 12px"
-                        >
-                          Book Interview
-                        </button>
-                      </a>
-                    </td>
-                  </tr>`,
-              );
-            });
-          }
+        defaultTimeWindow();
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("connected")) {
+          selectProvider(params.get("connected"));
+          showResult(`${params.get("connected")} connected.`);
+        } else {
+          selectProvider("calendly");
         }
+        await loadWorkflowContext();
+        await loadShortlist();
+        updateCalendlyLink();
+        await refreshHealth();
       });
     </script>
   </body>

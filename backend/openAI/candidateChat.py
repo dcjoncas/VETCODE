@@ -2,13 +2,21 @@ from openAI.client import getOpenAPIClient
 from azureUtils.storage.chatLogs import getQuestions, saveChat, getQuestion, upsertSurveyAnswer, getPersonId, getSurveyId
 import re
 
-candidateQuestions = getQuestions()
-totalQuestions = len(candidateQuestions)
+candidateQuestions = None
+totalQuestions = 0
+
+def get_candidate_questions():
+    global candidateQuestions, totalQuestions
+    if candidateQuestions is None:
+        candidateQuestions = getQuestions()
+        totalQuestions = len(candidateQuestions)
+    return candidateQuestions
 
 def askQuestions(transcript: list, candidateName: str, chatUrl: str):
+    questions = get_candidate_questions()
     systemInstructions = [{"role": "system",
                           "content":f'''You are an AI recruitment assistant. You will be chating with {candidateName}. MAKE NO HIRING PROMISES.
-    It is your job to talk to them about the following statements in a casual yet professional manner. Focus on one statement at a time. Bring them up organically.\n{candidateQuestions}'''}]
+    It is your job to talk to them about the following statements in a casual yet professional manner. Focus on one statement at a time. Bring them up organically.\n{questions}'''}]
 
     client = getOpenAPIClient()
 
@@ -63,6 +71,7 @@ def getNumber(text: str):
         raise
     
 def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumber: int):
+    get_candidate_questions()
     userResponse = transcript[len(transcript)-1]['content']
     
     try:

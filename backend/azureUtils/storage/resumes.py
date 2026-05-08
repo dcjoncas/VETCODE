@@ -9,21 +9,31 @@ load_dotenv()
 AZURE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 CONTAINER_NAME = os.getenv("AZURE_STORAGE_CONTAINER_NAME")
 
-blob_service_client = BlobServiceClient.from_connection_string(
-    AZURE_CONNECTION_STRING
-)
+blob_service_client = None
+
+def get_blob_service_client():
+    global blob_service_client
+    if blob_service_client:
+        return blob_service_client
+    if not AZURE_CONNECTION_STRING:
+        raise RuntimeError("Missing AZURE_STORAGE_CONNECTION_STRING.")
+    blob_service_client = BlobServiceClient.from_connection_string(
+        AZURE_CONNECTION_STRING
+    )
+    return blob_service_client
 
 def getBlobSasUrl(blob_name: str):
+    client = get_blob_service_client()
     sas_token = generate_blob_sas(
-        account_name=blob_service_client.account_name,
+        account_name=client.account_name,
         container_name=CONTAINER_NAME,
         blob_name=blob_name,
-        account_key=blob_service_client.credential.account_key,
+        account_key=client.credential.account_key,
         permission=BlobSasPermissions(read=True),
         expiry=datetime.utcnow() + timedelta(minutes=10)
     )
 
-    url = f"https://{blob_service_client.account_name}.blob.core.windows.net/{CONTAINER_NAME}/{blob_name}?{sas_token}"
+    url = f"https://{client.account_name}.blob.core.windows.net/{CONTAINER_NAME}/{blob_name}?{sas_token}"
 
     return url
 
@@ -31,10 +41,11 @@ def getBlobSasUrl(blob_name: str):
 async def uploadResume(file: UploadFile, profile_id: int):
     print(f"Uploading resume for profile {profile_id}")
     try:
+        client = get_blob_service_client()
         safe_filename = os.path.basename(file.filename)
         blob_name = f"professionals/{profile_id}/{uuid.uuid4()}_{safe_filename}"
 
-        blob_client = blob_service_client.get_blob_client(
+        blob_client = client.get_blob_client(
             container=CONTAINER_NAME,
             blob=blob_name
         )
@@ -50,7 +61,7 @@ async def uploadResume(file: UploadFile, profile_id: int):
     
 # Retrieve resume
 async def getResume(profile_id: int):
-    container_client = blob_service_client.get_container_client(CONTAINER_NAME)
+    container_client = get_blob_service_client().get_container_client(CONTAINER_NAME)
 
     prefix = f"professionals/{profile_id}/"
 

@@ -21,7 +21,7 @@ def top_matches_from_parts(parts: dict, limit: int = 8):
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import os, shutil, traceback
 from typing import Optional
@@ -828,12 +828,18 @@ def people_labs_search(
 
 from azureUtils.routes import azureEndpoints, aiChatEndpoints, azureJobEndpoints
 from openAI.routes import aiEndpoints
+from calendar_router import router as calendar_router
 
 app.include_router(azureEndpoints.router)
 app.include_router(aiChatEndpoints.router)
 app.include_router(azureJobEndpoints.router)
 app.include_router(aiEndpoints.router)
+app.include_router(calendar_router)
 
 @app.get("/", response_class=HTMLResponse)
 def root():
     return HTMLResponse('<meta http-equiv="refresh" content="0; url=/ui/index.html">')
+
+@app.get("/{page_name}.html")
+def legacy_page_redirect(page_name: str):
+    return RedirectResponse(f"/ui/pages/{page_name}.html")
