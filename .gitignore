@@ -8,3 +8,5 @@ node_modules
 __pycache__
 backend/exports
 devready.db*
+backend/*token.json
+backend/google_client_secret.json
