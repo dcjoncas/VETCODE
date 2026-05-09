@@ -101,13 +101,14 @@ def _searchable_job_skills(job_skills: list[str], limit: int = 10):
     normalized = preferred + fallback
     return normalized[:limit] or _safe_list(job_skills)[:limit]
 
-def _rank_external_skill_match(raw_skills: list[str], job_skills: list[str]):
+def _rank_external_skill_match(raw_skills: list[str], job_skills: list[str], scoring_skills: list[str] | None = None):
     candidate_skills = _safe_list(raw_skills)
-    job_skill_count = len(job_skills) or 1
+    skill_basis = _safe_list(scoring_skills) or _safe_list(job_skills)
+    job_skill_count = len(skill_basis) or 1
     matched = []
     lowered_candidate = [skill.lower() for skill in candidate_skills]
 
-    for skill in job_skills:
+    for skill in skill_basis:
         needle = skill.lower()
         if len(needle) <= 3:
             matched_skill = any(needle == haystack for haystack in lowered_candidate)
@@ -118,25 +119,31 @@ def _rank_external_skill_match(raw_skills: list[str], job_skills: list[str]):
 
     return round(len(set(matched)) / job_skill_count * 100), list(dict.fromkeys(matched))
 
-def _people_data_row(row: dict, job_skills: list[str]):
+def _people_data_row(row: dict, job_skills: list[str], scoring_skills: list[str]):
     skills = _safe_list(row.get("skills"))
-    score, top_matches = _rank_external_skill_match(skills, job_skills)
+    score, top_matches = _rank_external_skill_match(skills, job_skills, scoring_skills)
     first = row.get("first_name") or ""
     last = row.get("last_name") or ""
     name = (first + " " + last).strip() or row.get("full_name") or "Unknown candidate"
     linkedin_url = row.get("linkedin_url") or ""
     if linkedin_url and not linkedin_url.startswith("http"):
         linkedin_url = "https://www." + linkedin_url.lstrip("/")
+    email = row.get("recommended_personal_email") or row.get("work_email") or ""
+    if not isinstance(email, str):
+        email = ""
+    location = row.get("location_name") or ", ".join([v for v in [row.get("location_locality"), row.get("location_region"), row.get("location_country")] if isinstance(v, str) and v])
+    if not isinstance(location, str):
+        location = ""
 
     return {
         "source": "pdl",
         "source_label": "People Data Labs",
         "source_id": row.get("id") or "",
         "name": name,
-        "email": row.get("recommended_personal_email") or row.get("work_email") or "",
+        "email": email,
         "title": row.get("job_title") or row.get("title") or "",
         "company": row.get("job_company_name") or "",
-        "location": row.get("location_name") or ", ".join([v for v in [row.get("location_locality"), row.get("location_region"), row.get("location_country")] if v]),
+        "location": location,
         "profile_url": linkedin_url,
         "avatar_url": "",
         "summary": row.get("summary") or row.get("headline") or "",
@@ -158,15 +165,39 @@ def _github_headers():
         headers["Authorization"] = f"Bearer {token}"
     return headers
 
-def _github_search(job_skills: list[str], size: int = 5):
-    selected_skills = _searchable_job_skills(job_skills, 8)
+def _github_search(job_skills: list[str], scoring_skills: list[str], size: int = 5):
+    selected_skills = _safe_list(scoring_skills)[:8]
     seen_logins = set()
     search_queries = []
-    rows = []
+    candidate_logins = []
+    candidate_pool_size = max(size * 5, 12)
 
     for skill in selected_skills:
-        if len(rows) >= size:
+        if len(candidate_logins) >= candidate_pool_size:
             break
+
+        repo_query = f"{skill} stars:>3"
+        search_queries.append(repo_query)
+        repo_search_response = requests.get(
+            "https://api.github.com/search/repositories",
+            params={"q": repo_query, "sort": "stars", "order": "desc", "per_page": 5},
+            headers=_github_headers(),
+            timeout=12,
+        )
+        if repo_search_response.status_code >= 400:
+            raise Exception(f"GitHub repository search failed with status {repo_search_response.status_code}: {repo_search_response.text[:180]}")
+
+        for repo in repo_search_response.json().get("items", []):
+            owner = (repo.get("owner") or {}).get("login")
+            if owner and owner not in seen_logins:
+                seen_logins.add(owner)
+                candidate_logins.append(owner)
+            if len(candidate_logins) >= candidate_pool_size:
+                break
+
+        if len(candidate_logins) >= candidate_pool_size:
+            break
+
         query = f"{skill} in:bio type:user"
         search_queries.append(query)
         search_response = requests.get(
@@ -184,13 +215,14 @@ def _github_search(job_skills: list[str], size: int = 5):
             if not login or login in seen_logins:
                 continue
             seen_logins.add(login)
-            rows.append(item)
-            if len(rows) >= size:
+            candidate_logins.append(login)
+            if len(candidate_logins) >= candidate_pool_size:
                 break
 
     enriched_rows = []
-    for item in rows[:size]:
-        login = item.get("login")
+    for login in candidate_logins:
+        if len(enriched_rows) >= size:
+            break
         if not login:
             continue
 
@@ -200,6 +232,8 @@ def _github_search(job_skills: list[str], size: int = 5):
             timeout=12,
         )
         user = user_response.json() if user_response.status_code == 200 else item
+        if (user.get("type") or "").lower() != "user":
+            continue
 
         repo_response = requests.get(
             f"https://api.github.com/users/{login}/repos",
@@ -210,6 +244,12 @@ def _github_search(job_skills: list[str], size: int = 5):
         repos = repo_response.json() if repo_response.status_code == 200 else []
         if not isinstance(repos, list):
             repos = []
+
+        repo_skills = []
+        for repo in repos:
+            repo_skills.extend(_safe_list(repo.get("topics")))
+            if repo.get("language"):
+                repo_skills.append(repo.get("language"))
 
         repo_text = " ".join(
             [
@@ -227,9 +267,10 @@ def _github_search(job_skills: list[str], size: int = 5):
         candidate_text = " ".join([str(user.get("bio") or ""), repo_text]).lower()
         inferred_skills = list(dict.fromkeys(
             [skill for skill in job_skills if skill.lower() in candidate_text]
-            + [str(repo.get("language")) for repo in repos if repo.get("language")]
+            + [skill for skill in selected_skills if skill.lower() in candidate_text]
+            + repo_skills
         ))
-        score, top_matches = _rank_external_skill_match(inferred_skills, job_skills)
+        score, top_matches = _rank_external_skill_match(inferred_skills, job_skills, selected_skills)
 
         enriched_rows.append({
             "source": "github",
@@ -240,8 +281,8 @@ def _github_search(job_skills: list[str], size: int = 5):
             "title": "",
             "company": user.get("company") or "",
             "location": user.get("location") or "",
-            "profile_url": user.get("html_url") or item.get("html_url") or "",
-            "avatar_url": user.get("avatar_url") or item.get("avatar_url") or "",
+            "profile_url": user.get("html_url") or f"https://github.com/{login}",
+            "avatar_url": user.get("avatar_url") or "",
             "summary": user.get("bio") or "",
             "skills": inferred_skills,
             "score": score,
@@ -256,6 +297,24 @@ def _github_search(job_skills: list[str], size: int = 5):
                 }
                 for repo in repos[:5]
             ],
+            "profile_data": {
+                "github_login": login,
+                "bio": user.get("bio") or "",
+                "blog": user.get("blog") or "",
+                "followers": user.get("followers") or 0,
+                "public_repos": user.get("public_repos") or len(repos),
+                "repos": [
+                    {
+                        "name": repo.get("name"),
+                        "language": repo.get("language"),
+                        "topics": _safe_list(repo.get("topics")),
+                        "description": repo.get("description"),
+                        "stars": repo.get("stargazers_count") or 0,
+                        "url": repo.get("html_url"),
+                    }
+                    for repo in repos[:8]
+                ],
+            },
             "search_queries": search_queries,
         })
 
@@ -285,8 +344,8 @@ def jdCreate(company: str = Form(...), title: str = Form(...), jd_text: str = Fo
 
         flatSkills = list(set(flatSkills))  # unique skills
 
-        jobs.uploadJob(company, title, domain, jd_text, flatSkills)
-        return {"company": company, "title": title, "domain": domain, "jd_skills": flatSkills, "jd_text": jd_text}
+        created = jobs.uploadJob(company, title, domain, jd_text, flatSkills) or {}
+        return {"jd_id": created.get("jd_id"), "company": company, "title": title, "domain": domain, "jd_skills": flatSkills, "jd_text": jd_text}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": 'Failed to upload job description.', "trace": traceback.format_exc()})
 
@@ -436,9 +495,9 @@ def external_candidate_search(
     try:
         if selected_source == "pdl":
             pdl_response = peopleDataLabs.searchSkills(search_skills, top_k)
-            results = [_people_data_row(row, job_skills) for row in pdl_response.get("data", [])]
+            results = [_people_data_row(row, job_skills, search_skills) for row in pdl_response.get("data", [])]
         elif selected_source == "github":
-            results = _github_search(job_skills, top_k)
+            results = _github_search(job_skills, search_skills, top_k)
         else:
             raise HTTPException(status_code=400, detail="Select People Data Labs or GitHub.")
     except HTTPException:
@@ -484,6 +543,14 @@ def external_candidate_import(payload: dict = Body(...)):
         f"Imported from {candidate.get('source_label') or source}.",
         f"Relevant matches: {', '.join(_safe_list(candidate.get('top_matches')))}",
     ]
+    if source == "github":
+        repos = ((candidate.get("profile_data") or {}).get("repos") or [])[:5]
+        repo_lines = [
+            f"{repo.get('name')}: {repo.get('language') or 'Unknown'} - {repo.get('description') or ''}".strip()
+            for repo in repos
+        ]
+        if repo_lines:
+            summary_parts.append("GitHub evidence:\n" + "\n".join(repo_lines))
     description = "\n".join([part for part in summary_parts if part])
 
     try:

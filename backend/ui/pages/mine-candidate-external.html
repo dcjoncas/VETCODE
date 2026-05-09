@@ -88,9 +88,33 @@
         <section class="card">
           <h2>Find external candidates from the selected role</h2>
           <p>
-            Choose a saved job description, then search People Data Labs or GitHub.
-            Results are ranked using the skills extracted from that job description.
+            Paste or choose a job description, then search People Data Labs or GitHub.
+            Results are ranked using the production match percentage from the role skills.
           </p>
+
+          <div class="split">
+            <div class="field">
+              <label>Company</label>
+              <input id="jdCompany" placeholder="Company Name..." />
+            </div>
+            <div class="field">
+              <label>Job title</label>
+              <input id="jdTitle" placeholder="Job Title..." />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Job description input</label>
+            <textarea
+              id="jdText"
+              placeholder="Paste job description here before mining externally..."
+            ></textarea>
+            <div class="row-actions">
+              <button class="btn" type="button" id="btnSaveJd">
+                Normalize & Save
+              </button>
+            </div>
+          </div>
 
           <div class="split">
             <div class="field">
@@ -182,6 +206,15 @@
               candidate.source === "github"
                 ? `<div class="meta">${candidate.repo_count || 0} public repos scanned for JD skill evidence.</div>`
                 : "";
+            const repoEvidence =
+              candidate.source === "github" && candidate.recent_repos
+                ? `<div class="meta">${candidate.recent_repos
+                    .slice(0, 3)
+                    .map((repo) =>
+                      `${escapeHtml(repo.name || "repo")} ${repo.language ? "(" + escapeHtml(repo.language) + ")" : ""}`,
+                    )
+                    .join(" | ")}</div>`
+                : "";
 
             return `<div class="candidate-card">
               <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
@@ -190,6 +223,7 @@
                   <div class="meta">${escapeHtml(candidate.title || "")}${candidate.company ? " at " + escapeHtml(candidate.company) : ""}</div>
                   <div class="meta">${escapeHtml(candidate.location || "")}</div>
                   ${repoLine}
+                  ${repoEvidence}
                   ${profileLink ? `<div class="meta">${profileLink}</div>` : ""}
                 </div>
                 <div class="pill">${Math.round(candidate.score || 0)}% match</div>
@@ -230,7 +264,7 @@
           rememberJob(jdId, response.jd || {});
           sessionStorage.setItem("jobSkills", (response.jobSkills || []).join(", "));
           document.getElementById("jobSkillPanel").textContent =
-            `JD skills used: ${(response.jobSkills || []).join(", ")}`;
+            `Search skills used: ${(response.searchSkills || response.jobSkills || []).join(", ")}`;
           document.getElementById("mineStatus").textContent =
             `Returned ${latestExternalResults.length} ${response.source === "github" ? "GitHub" : "People Data Labs"} candidates.`;
           renderResults(latestExternalResults);
@@ -273,6 +307,48 @@
         window.location.href = "profile-preview.html";
       }
 
+      async function saveJobDescription() {
+        const company = document.getElementById("jdCompany").value.trim();
+        const title = document.getElementById("jdTitle").value.trim();
+        const text = document.getElementById("jdText").value.trim();
+        if (!company || !title || !text) {
+          return alert("Company, Job title, and Job description are required.");
+        }
+
+        document.getElementById("btnSaveJd").disabled = true;
+        document.getElementById("mineStatus").textContent = "Saving job description...";
+
+        const fd = new FormData();
+        fd.append("company", company);
+        fd.append("title", title);
+        fd.append("jd_text", text);
+        fd.append("domain", currentDomain());
+
+        try {
+          const response = await api("/api/azureJobs/createJob", {
+            method: "POST",
+            body: fd,
+          });
+
+          if (!response.jd_id) {
+            throw new Error("Job saved, but no job id was returned.");
+          }
+
+          const option = new Option(`${company} - ${title}`, response.jd_id, true, true);
+          $("#jdSelect").append(option).trigger("change");
+          rememberJob(response.jd_id, response);
+          sessionStorage.setItem("jobSkills", (response.jd_skills || []).join(", "));
+          document.getElementById("jobSkillPanel").textContent =
+            `Search skills ready: ${(response.jd_skills || []).slice(0, 12).join(", ")}`;
+          document.getElementById("mineStatus").textContent =
+            "Job description saved. Choose People Data Labs or GitHub, then mine candidates.";
+        } catch (e) {
+          document.getElementById("mineStatus").textContent = e.message;
+        } finally {
+          document.getElementById("btnSaveJd").disabled = false;
+        }
+      }
+
       document.addEventListener("DOMContentLoaded", () => {
         const domain = currentDomain();
 
@@ -302,6 +378,7 @@
         document.querySelectorAll(".source-toggle button").forEach((button) => {
           button.addEventListener("click", () => setSource(button.dataset.source));
         });
+        document.getElementById("btnSaveJd").addEventListener("click", saveJobDescription);
         document.getElementById("btnMine").addEventListener("click", mineCandidates);
       });
     </script>
