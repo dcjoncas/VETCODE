@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Form, HTTPException
+from fastapi import APIRouter, Body, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 import traceback
+import os
+import requests
 from azureUtils.storage import jobs, candidates
 from jd_match import normalize_jd, azureJobMatch, normalize_all_skills
 from openAI import externalPeopleSearch
@@ -29,6 +31,245 @@ router = APIRouter(
     prefix="/api/azureJobs",
     tags=["azure", "jobs"]
 )
+
+def _safe_list(value):
+    if not value:
+        return []
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return [str(value).strip()] if str(value).strip() else []
+
+def _searchable_job_skills(job_skills: list[str], limit: int = 10):
+    preferred = []
+    fallback = []
+    noisy = {"clean", "performance", "pm", "flows", "rere"}
+    replacements = {
+        "python3": "Python",
+        "python / django": "Python Django",
+        "javascript (vanilla)": "JavaScript",
+        "java,": "Java",
+        "git/gitlab/github": "GitHub GitLab",
+        "git hub": "GitHub",
+        "github / gitlab": "GitHub GitLab",
+        ".net /.net core": ".NET Core",
+        "microsoft azure": "Azure",
+        "google cloud platform (big query)": "Google Cloud BigQuery",
+        "aws/aurora postgresql": "AWS PostgreSQL",
+        "databases sql and nosql": "SQL NoSQL",
+    }
+    known_terms = [
+        ("python", "Python"),
+        ("django", "Django"),
+        ("javascript", "JavaScript"),
+        ("java", "Java"),
+        ("c++", "C++"),
+        (".net", ".NET"),
+        ("aws", "AWS"),
+        ("azure", "Azure"),
+        ("gcp", "GCP"),
+        ("google cloud", "Google Cloud"),
+        ("github", "GitHub"),
+        ("gitlab", "GitLab"),
+        ("sql", "SQL"),
+        ("postgres", "PostgreSQL"),
+        ("redshift", "Redshift"),
+        ("bigquery", "BigQuery"),
+        ("big query", "BigQuery"),
+        ("chakra", "Chakra UI"),
+        ("code review", "Code Review"),
+        ("full-stack", "Full Stack"),
+        ("web application", "Web Application"),
+    ]
+
+    for raw in _safe_list(job_skills):
+        lower = raw.lower().strip()
+        if lower in noisy:
+            continue
+        if any(ch.isdigit() for ch in lower) and not any(tech in lower for tech in ["c++", ".net", "s3"]):
+            continue
+        if len(lower) < 4 and lower not in {"c++", "sql", "aws", "gcp"}:
+            continue
+        if not any(ch.isalpha() for ch in lower):
+            continue
+        skill = replacements.get(lower)
+        if not skill:
+            skill = next((label for token, label in known_terms if token in lower), raw.strip())
+        target = preferred if any(token in lower for token, _label in known_terms) or lower in replacements else fallback
+        if skill not in preferred and skill not in fallback:
+            target.append(skill)
+
+    normalized = preferred + fallback
+    return normalized[:limit] or _safe_list(job_skills)[:limit]
+
+def _rank_external_skill_match(raw_skills: list[str], job_skills: list[str]):
+    candidate_skills = _safe_list(raw_skills)
+    job_skill_count = len(job_skills) or 1
+    matched = []
+    lowered_candidate = [skill.lower() for skill in candidate_skills]
+
+    for skill in job_skills:
+        needle = skill.lower()
+        if len(needle) <= 3:
+            matched_skill = any(needle == haystack for haystack in lowered_candidate)
+        else:
+            matched_skill = any(needle == haystack or needle in haystack or haystack in needle for haystack in lowered_candidate)
+        if matched_skill:
+            matched.append(skill)
+
+    return round(len(set(matched)) / job_skill_count * 100), list(dict.fromkeys(matched))
+
+def _people_data_row(row: dict, job_skills: list[str]):
+    skills = _safe_list(row.get("skills"))
+    score, top_matches = _rank_external_skill_match(skills, job_skills)
+    first = row.get("first_name") or ""
+    last = row.get("last_name") or ""
+    name = (first + " " + last).strip() or row.get("full_name") or "Unknown candidate"
+    linkedin_url = row.get("linkedin_url") or ""
+    if linkedin_url and not linkedin_url.startswith("http"):
+        linkedin_url = "https://www." + linkedin_url.lstrip("/")
+
+    return {
+        "source": "pdl",
+        "source_label": "People Data Labs",
+        "source_id": row.get("id") or "",
+        "name": name,
+        "email": row.get("recommended_personal_email") or row.get("work_email") or "",
+        "title": row.get("job_title") or row.get("title") or "",
+        "company": row.get("job_company_name") or "",
+        "location": row.get("location_name") or ", ".join([v for v in [row.get("location_locality"), row.get("location_region"), row.get("location_country")] if v]),
+        "profile_url": linkedin_url,
+        "avatar_url": "",
+        "summary": row.get("summary") or row.get("headline") or "",
+        "skills": skills,
+        "score": score,
+        "top_matches": top_matches,
+        "profile_data": {
+            "experience": row.get("experience", [])[:5] if isinstance(row.get("experience"), list) else [],
+            "education": row.get("education", [])[:3] if isinstance(row.get("education"), list) else [],
+            "certifications": row.get("certifications", [])[:5] if isinstance(row.get("certifications"), list) else [],
+            "github_url": row.get("github_url") or "",
+        },
+    }
+
+def _github_headers():
+    headers = {"Accept": "application/vnd.github+json"}
+    token = os.getenv("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+def _github_search(job_skills: list[str], size: int = 5):
+    selected_skills = _searchable_job_skills(job_skills, 8)
+    seen_logins = set()
+    search_queries = []
+    rows = []
+
+    for skill in selected_skills:
+        if len(rows) >= size:
+            break
+        query = f"{skill} in:bio type:user"
+        search_queries.append(query)
+        search_response = requests.get(
+            "https://api.github.com/search/users",
+            params={"q": query, "per_page": min(size * 2, 10)},
+            headers=_github_headers(),
+            timeout=12,
+        )
+        if search_response.status_code >= 400:
+            raise Exception(f"GitHub search failed with status {search_response.status_code}: {search_response.text[:180]}")
+
+        search_items = search_response.json().get("items", [])
+        for item in search_items:
+            login = item.get("login")
+            if not login or login in seen_logins:
+                continue
+            seen_logins.add(login)
+            rows.append(item)
+            if len(rows) >= size:
+                break
+
+    enriched_rows = []
+    for item in rows[:size]:
+        login = item.get("login")
+        if not login:
+            continue
+
+        user_response = requests.get(
+            f"https://api.github.com/users/{login}",
+            headers=_github_headers(),
+            timeout=12,
+        )
+        user = user_response.json() if user_response.status_code == 200 else item
+
+        repo_response = requests.get(
+            f"https://api.github.com/users/{login}/repos",
+            params={"sort": "updated", "per_page": 8},
+            headers=_github_headers(),
+            timeout=12,
+        )
+        repos = repo_response.json() if repo_response.status_code == 200 else []
+        if not isinstance(repos, list):
+            repos = []
+
+        repo_text = " ".join(
+            [
+                " ".join(
+                    [
+                        str(repo.get("name") or ""),
+                        str(repo.get("description") or ""),
+                        str(repo.get("language") or ""),
+                        " ".join(_safe_list(repo.get("topics"))),
+                    ]
+                )
+                for repo in repos
+            ]
+        )
+        candidate_text = " ".join([str(user.get("bio") or ""), repo_text]).lower()
+        inferred_skills = list(dict.fromkeys(
+            [skill for skill in job_skills if skill.lower() in candidate_text]
+            + [str(repo.get("language")) for repo in repos if repo.get("language")]
+        ))
+        score, top_matches = _rank_external_skill_match(inferred_skills, job_skills)
+
+        enriched_rows.append({
+            "source": "github",
+            "source_label": "GitHub",
+            "source_id": login,
+            "name": user.get("name") or login,
+            "email": user.get("email") or "",
+            "title": "",
+            "company": user.get("company") or "",
+            "location": user.get("location") or "",
+            "profile_url": user.get("html_url") or item.get("html_url") or "",
+            "avatar_url": user.get("avatar_url") or item.get("avatar_url") or "",
+            "summary": user.get("bio") or "",
+            "skills": inferred_skills,
+            "score": score,
+            "top_matches": top_matches,
+            "repo_count": user.get("public_repos") or len(repos),
+            "recent_repos": [
+                {
+                    "name": repo.get("name"),
+                    "language": repo.get("language"),
+                    "description": repo.get("description"),
+                    "url": repo.get("html_url"),
+                }
+                for repo in repos[:5]
+            ],
+            "search_queries": search_queries,
+        })
+
+    enriched_rows.sort(key=lambda row: row["score"], reverse=True)
+    return enriched_rows
+
+def _get_job_skills(jd_id: str):
+    jd = jobs.getJob(jd_id)
+    if not jd:
+        raise HTTPException(status_code=400, detail="No job description loaded yet. Normalize a JD first.")
+    job_skills = list(dict.fromkeys(_safe_list(jd.get("skills"))))
+    if not job_skills:
+        job_skills = externalPeopleSearch.getPeopleSkills(jd.get("description") or "")
+    return jd, job_skills
 
 @router.post("/createJob")
 def jdCreate(company: str = Form(...), title: str = Form(...), jd_text: str = Form(...), domain: str = Form(default="dev")):
@@ -179,3 +420,89 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
 
     rankedExternal.sort(key=lambda x: x["score"], reverse=True)
     return {"jd": {"jd_id": jd["jd_id"], "company": jd.get("company",""), "title": jd.get("title",""), "created_at": jd.get("created_at","")}, "results": ranked[:top_k], "externalMatches": rankedExternal, "skillList": peopleDataSkills}
+
+@router.post("/external/search")
+def external_candidate_search(
+    domain: str = Form(default="dev"),
+    jd_id: str = Form(...),
+    source: str = Form(default="pdl"),
+    top_k: int = Form(default=10),
+):
+    jd, job_skills = _get_job_skills(jd_id)
+    search_skills = _searchable_job_skills(job_skills, 12)
+    selected_source = (source or "pdl").strip().lower()
+    results = []
+
+    try:
+        if selected_source == "pdl":
+            pdl_response = peopleDataLabs.searchSkills(search_skills, top_k)
+            results = [_people_data_row(row, job_skills) for row in pdl_response.get("data", [])]
+        elif selected_source == "github":
+            results = _github_search(job_skills, top_k)
+        else:
+            raise HTTPException(status_code=400, detail="Select People Data Labs or GitHub.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={
+                "detail": f"{'GitHub' if selected_source == 'github' else 'People Data Labs'} search failed: {str(e)}",
+                "jobSkills": job_skills,
+            },
+        )
+
+    results.sort(key=lambda row: row.get("score", 0), reverse=True)
+    return {
+        "jd": {
+            "jd_id": jd["jd_id"],
+            "company": jd.get("company", ""),
+            "title": jd.get("title", ""),
+        },
+        "source": selected_source,
+        "jobSkills": job_skills,
+        "searchSkills": search_skills,
+        "results": results[:top_k],
+        "searchUsesJobDescription": True,
+    }
+
+@router.post("/external/import")
+def external_candidate_import(payload: dict = Body(...)):
+    domain = payload.get("domain") or "dev"
+    candidate = payload.get("candidate") or {}
+    source = candidate.get("source") or payload.get("source") or "external"
+
+    skills = [
+        {"title": skill, "years": 0}
+        for skill in _safe_list(candidate.get("skills"))
+    ]
+    full_name = candidate.get("name") or "External Candidate"
+    profile_url = candidate.get("profile_url") or ""
+    summary_parts = [
+        candidate.get("summary") or "",
+        f"Imported from {candidate.get('source_label') or source}.",
+        f"Relevant matches: {', '.join(_safe_list(candidate.get('top_matches')))}",
+    ]
+    description = "\n".join([part for part in summary_parts if part])
+
+    try:
+        created = candidates.uploadProfile(
+            skills=skills,
+            fullName=full_name,
+            candidateDescription=description,
+            domain=domain,
+            email=candidate.get("email") or None,
+            linkedInUrl=profile_url,
+            candidateCity=None,
+            candidateState=None,
+            candidateCountry=candidate.get("location") or None,
+            candidateTitle=candidate.get("title") or "",
+        )
+        created["source"] = source
+        created["importedSkills"] = [skill["title"] for skill in skills]
+        return created
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Unable to create profile from external candidate: {str(e)}"},
+        )

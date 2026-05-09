@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Mine Candidate External</title>
+    <link
+      class="domainLogo"
+      rel="icon"
+      href="../assets/devLogo.svg"
+      sizes="any"
+      type="image/svg+xml"
+    />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .source-toggle {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .source-toggle button {
+        min-width: 150px;
+      }
+
+      .source-toggle button.active {
+        background: var(--accent);
+        color: #fff;
+      }
+
+      .candidate-card {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 14px;
+        margin-top: 12px;
+        background: var(--card);
+      }
+
+      .candidate-card .meta {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 4px;
+      }
+
+      .candidate-card .skills {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      .candidate-card .skill-pill {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+    </style>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html");
+        $("#processFlow").load("components/processFlow.html");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Mine Candidate External</div>
+            <div class="breadcrumb">Vetting Process - External sourcing</div>
+          </div>
+          <div id="searchBar"></div>
+        </div>
+
+        <div id="processFlow"></div>
+
+        <section class="card">
+          <h2>Find external candidates from the selected role</h2>
+          <p>
+            Choose a saved job description, then search People Data Labs or GitHub.
+            Results are ranked using the skills extracted from that job description.
+          </p>
+
+          <div class="split">
+            <div class="field">
+              <label>Select saved JD</label>
+              <select id="jdSelect">
+                <option value="" selected disabled hidden>Select Description</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Return</label>
+              <select id="topK">
+                <option value="5">Top 5</option>
+                <option value="10" selected>Top 10</option>
+                <option value="20">Top 20</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field" style="margin-top: 12px">
+            <label>External source</label>
+            <div class="source-toggle">
+              <button class="btn active" type="button" data-source="pdl">
+                People Data Labs
+              </button>
+              <button class="btn" type="button" data-source="github">
+                GitHub
+              </button>
+            </div>
+          </div>
+
+          <div class="row-actions">
+            <button class="btn primary" type="button" id="btnMine">
+              Mine Candidates
+            </button>
+            <a class="btn secondary" href="match-role.html">Continue to Role & Match</a>
+          </div>
+
+          <div class="notice" style="margin-top: 12px" id="mineStatus">
+            Select a JD and source to begin.
+          </div>
+
+          <div id="jobSkillPanel" class="muted" style="margin-top: 12px"></div>
+          <div id="results"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="JS/apiScripts.js"></script>
+    <script src="JS/updateProcessFlow.js"></script>
+    <script>
+      let selectedSource = "pdl";
+      let latestExternalResults = [];
+
+      function currentDomain() {
+        return sessionStorage.getItem("domain") || "dev";
+      }
+
+      function setSource(source) {
+        selectedSource = source;
+        document.querySelectorAll(".source-toggle button").forEach((button) => {
+          button.classList.toggle("active", button.dataset.source === source);
+        });
+      }
+
+      function rememberJob(jdId, jd) {
+        sessionStorage.setItem("jobID", jdId);
+        if (jd.company) sessionStorage.setItem("jobCompany", jd.company);
+        if (jd.title) sessionStorage.setItem("jobTitle", jd.title);
+        updateJob();
+      }
+
+      function renderResults(results) {
+        const target = document.getElementById("results");
+        if (!results.length) {
+          target.innerHTML = "";
+          return;
+        }
+
+        target.innerHTML = results
+          .map((candidate, index) => {
+            const profileLink = candidate.profile_url
+              ? `<a href="${escapeHtml(candidate.profile_url)}" target="_blank" rel="noopener">Open source profile</a>`
+              : "";
+            const skills = (candidate.top_matches || candidate.skills || [])
+              .slice(0, 10)
+              .map((skill) => `<span class="skill-pill">${escapeHtml(skill)}</span>`)
+              .join("");
+            const repoLine =
+              candidate.source === "github"
+                ? `<div class="meta">${candidate.repo_count || 0} public repos scanned for JD skill evidence.</div>`
+                : "";
+
+            return `<div class="candidate-card">
+              <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+                <div>
+                  <strong>${index + 1}. ${escapeHtml(candidate.name)}</strong>
+                  <div class="meta">${escapeHtml(candidate.title || "")}${candidate.company ? " at " + escapeHtml(candidate.company) : ""}</div>
+                  <div class="meta">${escapeHtml(candidate.location || "")}</div>
+                  ${repoLine}
+                  ${profileLink ? `<div class="meta">${profileLink}</div>` : ""}
+                </div>
+                <div class="pill">${Math.round(candidate.score || 0)}% match</div>
+              </div>
+              <div class="skills">${skills}</div>
+              <div class="row-actions">
+                <button class="btn primary" type="button" onclick="importExternalCandidate(${index})">
+                  Create profile from this candidate
+                </button>
+              </div>
+            </div>`;
+          })
+          .join("");
+      }
+
+      async function mineCandidates() {
+        const jdId = document.getElementById("jdSelect").value;
+        if (!jdId) return alert("Select a job description first.");
+
+        document.getElementById("btnMine").disabled = true;
+        document.getElementById("mineStatus").textContent =
+          `Searching ${selectedSource === "github" ? "GitHub" : "People Data Labs"} from the selected JD skills...`;
+        document.getElementById("results").innerHTML = "";
+
+        const fd = new FormData();
+        fd.append("domain", currentDomain());
+        fd.append("jd_id", jdId);
+        fd.append("source", selectedSource);
+        fd.append("top_k", document.getElementById("topK").value);
+
+        try {
+          const response = await api("/api/azureJobs/external/search", {
+            method: "POST",
+            body: fd,
+          });
+
+          latestExternalResults = response.results || [];
+          rememberJob(jdId, response.jd || {});
+          sessionStorage.setItem("jobSkills", (response.jobSkills || []).join(", "));
+          document.getElementById("jobSkillPanel").textContent =
+            `JD skills used: ${(response.jobSkills || []).join(", ")}`;
+          document.getElementById("mineStatus").textContent =
+            `Returned ${latestExternalResults.length} ${response.source === "github" ? "GitHub" : "People Data Labs"} candidates.`;
+          renderResults(latestExternalResults);
+        } catch (e) {
+          document.getElementById("mineStatus").textContent = e.message;
+        } finally {
+          document.getElementById("btnMine").disabled = false;
+        }
+      }
+
+      async function importExternalCandidate(index) {
+        const candidate = latestExternalResults[index];
+        if (!candidate) return;
+
+        const response = await api("/api/azureJobs/external/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            domain: currentDomain(),
+            source: candidate.source,
+            candidate,
+          }),
+        });
+
+        sessionStorage.setItem("candidateId", response.personid);
+        sessionStorage.setItem("candidateName", response.name);
+        sessionStorage.setItem("candidateStatus", "Draft");
+        sessionStorage.setItem("candidateTopMatches", (candidate.top_matches || []).join(", "));
+        sessionStorage.setItem("externalCandidateSource", candidate.source_label || candidate.source);
+        window.location.href = "profile-preview.html";
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const domain = currentDomain();
+
+        $("#jdSelect").select2({
+          minimumResultsForSearch: 0,
+          minimumInputLength: 0,
+          ajax: {
+            url: function (params) {
+              if (!params.term) return `/api/azureJobs/list/${domain}/8`;
+              return `/api/azureJobs/list/search/${domain}/${params.term}/8`;
+            },
+            dataType: "json",
+            delay: 250,
+            processResults: function (data) {
+              return {
+                results: data.map((item) => ({
+                  id: item.jd_id,
+                  text:
+                    (item.company || "") + " - " + (item.title || item.jd_id),
+                })),
+              };
+            },
+            cache: true,
+          },
+        });
+
+        document.querySelectorAll(".source-toggle button").forEach((button) => {
+          button.addEventListener("click", () => setSource(button.dataset.source));
+        });
+        document.getElementById("btnMine").addEventListener("click", mineCandidates);
+      });
+    </script>
+  </body>
+</html>

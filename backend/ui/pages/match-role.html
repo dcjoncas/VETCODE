@@ -157,38 +157,6 @@
             </tbody>
           </table>
 
-          <div style="display: flex; margin: 10px">
-            <h2 style="margin-top: 18px" id="externalHeader">
-              External Results
-            </h2>
-            <div class="field" style="margin-left: 20px">
-              <label>External Source</label>
-              <select id="externalSourceSelect">
-                <option value="none" selected>None</option>
-                <option value="pdl">People Data Labs</option>
-                <option value="github">GitHub</option>
-              </select>
-            </div>
-          </div>
-          <div class="muted" style="margin-top: 8px" id="matchStatusExternal">
-            No match run yet.
-          </div>
-          <table class="table" id="resultsTableExternal">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Estimated Salary (USD)</th>
-                <th>Score</th>
-                <th>Top Matches</th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- Dynamically filled with ranked results -->
-            </tbody>
-          </table>
-
           <div class="notice" style="margin-top: 12px">
             Next: open a candidate and start the guided AI chat to produce
             private + public profile.
@@ -312,10 +280,7 @@
         fd.append("domain", domain);
         fd.append("jd_id", jd_id);
         fd.append("top_k", String(top_k));
-        fd.append(
-          "external_source",
-          document.getElementById("externalSourceSelect").value,
-        );
+        fd.append("external_source", "none");
 
         try {
           const j = await api("/api/azureJobs/match/run", {
@@ -362,27 +327,8 @@
             tbody.appendChild(tr);
           });
 
-          const tbodyExternal = document.querySelector(
-            "#resultsTableExternal tbody",
-          );
-          tbodyExternal.innerHTML = "";
-
-          j.externalMatches.forEach((r, i) => {
-            const tr = document.createElement("tr");
-
-            console.log(r);
-
-            const commonSkills = (j.skillList || []).filter((skill) =>
-              (r.skills || []).includes(skill),
-            );
-            tr.innerHTML = `<td>${i + 1}</td><td><a href="https://www.${r.linkedin_url || "#"}">${r.first_name.charAt(0).toUpperCase() + r.first_name.slice(1) || ""} ${r.last_name.charAt(0).toUpperCase() + r.last_name.slice(1) || ""}</a></td><td>${r.recommended_personal_email || ""}</td><td>${r.inferred_salary ? "$" + r.inferred_salary : "N/A"}</td><td>${r.score}%</td><td>${r.top_matches.slice(0, 6).join(", ")}</td>`;
-            tbodyExternal.appendChild(tr);
-          });
-
           document.getElementById("matchStatus").textContent =
             `Returned ${latestRank.length} results (Top ${top_k}). Click a row to select.`;
-          document.getElementById("matchStatusExternal").textContent =
-            `Returned ${j.externalMatches.length} external matches.`;
           // setDisabled("btnReadyIT", true);
           // setDisabled("btnReadyIT2", true);
           // setDisabled("btnReportHtml", true);
