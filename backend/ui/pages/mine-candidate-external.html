@@ -257,9 +257,19 @@
 
         sessionStorage.setItem("candidateId", response.personid);
         sessionStorage.setItem("candidateName", response.name);
-        sessionStorage.setItem("candidateStatus", "Draft");
+        sessionStorage.setItem("candidateStatus", "Temporary Profile");
+        sessionStorage.setItem("candidateProfileType", "Temporary Profile");
         sessionStorage.setItem("candidateTopMatches", (candidate.top_matches || []).join(", "));
         sessionStorage.setItem("externalCandidateSource", candidate.source_label || candidate.source);
+        const temporaryProfiles = JSON.parse(
+          sessionStorage.getItem("temporaryProfiles") || "{}",
+        );
+        temporaryProfiles[String(response.personid)] = {
+          source: candidate.source_label || candidate.source,
+          name: response.name,
+          importedAt: new Date().toISOString(),
+        };
+        sessionStorage.setItem("temporaryProfiles", JSON.stringify(temporaryProfiles));
         window.location.href = "profile-preview.html";
       }
 

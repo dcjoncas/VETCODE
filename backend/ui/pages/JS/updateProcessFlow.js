@@ -1,8 +1,10 @@
 function updateCandidate() {
     const candidateName = sessionStorage.getItem("candidateName");
+    const profileType = sessionStorage.getItem("candidateProfileType");
+    const suffix = profileType ? ` (${profileType})` : "";
 
     if (candidateName) {
-        document.getElementById("candidateSelected").innerText = `Selected Candidate: ${candidateName}`;
+        document.getElementById("candidateSelected").innerText = `Selected Candidate: ${candidateName}${suffix}`;
     } else {
         document.getElementById("candidateSelected").innerText = "No Candidate Selected";
     }

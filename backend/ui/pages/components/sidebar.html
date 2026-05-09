@@ -9,7 +9,7 @@
     <div class="title">
       <span id="domainLabelSidebar">DEV</span>
       <span>READY</span>
-      <span class="sub">Vetting • UX mock</span>
+      <span class="sub">Vetting Workspace</span>
     </div>
   </div>
 
@@ -35,14 +35,13 @@
         <option value="dev" style="color: black">Technology Domain</option>
         <option value="law" style="color: black">Law Domain</option>
       </select>
-      <span class="badge">UI/UX only</span>
     </div>
   </div>
   <div id="pageNav"></div>
 
   <div class="footer">
-    DevReady • www.devready.io<br />
-    Green theme + clean cards (no icons)
+    DevReady - www.devready.io<br />
+    Internal and external candidate workflows
   </div>
 </aside>
 
@@ -52,7 +51,6 @@
 
     const select = document.getElementById("domainSelect");
 
-    // 1. Read domain from query string
     const params = new URLSearchParams(window.location.search);
     const domainFromUrl = params.get("domain");
 
@@ -60,14 +58,12 @@
       select.value = domainFromUrl;
       sessionStorage.setItem("domain", domainFromUrl);
     } else {
-      // fallback to sessionStorage if no query param
       const savedDomain = sessionStorage.getItem("domain");
       if (savedDomain) {
         select.value = savedDomain;
       }
     }
 
-    // Update UI
     domainUpdate(select.value);
   });
 

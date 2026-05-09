@@ -104,9 +104,24 @@
 
       // TODO: complete below functions
       function openProfile(profileId, firstName, lastName, step) {
+        const temporaryProfiles = JSON.parse(
+          sessionStorage.getItem("temporaryProfiles") || "{}",
+        );
+        const tempProfile = temporaryProfiles[String(profileId)];
+
         sessionStorage.setItem("candidateId", profileId);
         sessionStorage.setItem("candidateName", firstName + " " + lastName);
-        sessionStorage.setItem("candidateStatus", step);
+        sessionStorage.setItem(
+          "candidateStatus",
+          tempProfile ? "Temporary Profile" : step,
+        );
+        if (tempProfile) {
+          sessionStorage.setItem("candidateProfileType", "Temporary Profile");
+          sessionStorage.setItem("externalCandidateSource", tempProfile.source || "External");
+        } else {
+          sessionStorage.removeItem("candidateProfileType");
+          sessionStorage.removeItem("externalCandidateSource");
+        }
 
         window.location.href = "profile-preview.html";
       }
@@ -202,15 +217,19 @@
 
                 shortlistTable.insertAdjacentHTML(
                   "beforeend",
-                  `<tr id="candidate${candidate}">
+                  (() => {
+                    const temporaryProfiles = JSON.parse(sessionStorage.getItem("temporaryProfiles") || "{}");
+                    const tempProfile = temporaryProfiles[String(candidate)];
+                    const statusLabel = tempProfile ? "Temporary Profile" : (profileData.status || "Status Missing");
+                    return `<tr id="candidate${candidate}">
                     <td><strong>${profileData.firstName} ${profileData.lastName}</strong></td>
                     <td>Job Missing</td>
-                    <td><span class="pill" ${!profileData.status ? 'style="background: red;"' : ""}>${profileData.status || "Status Missing"}</span></td>
+                    <td><span class="pill" ${!statusLabel ? 'style="background: red;"' : ""}>${statusLabel}</span></td>
                     <td>
                       <button
                         class="btn secondary"
                         style="padding: 8px 12px"
-                        onclick="openProfile('${candidate}','${candidate.firstName}','${candidate.lastName}','${candidate.status}')"
+                        onclick="openProfile('${candidate}','${profileData.firstName}','${profileData.lastName}','${statusLabel}')"
                       >
                         Open
                       </button>
@@ -224,7 +243,8 @@
                         Remove
                       </button>
                     </td>
-                  </tr>`,
+                  </tr>`;
+                  })(),
                 );
               } catch (error) {
                 console.log(error);
@@ -253,15 +273,19 @@
 
               shortlistTable.insertAdjacentHTML(
                 "beforeend",
-                `<tr id="candidate${candidate.id}">
+                (() => {
+                  const temporaryProfiles = JSON.parse(sessionStorage.getItem("temporaryProfiles") || "{}");
+                  const tempProfile = temporaryProfiles[String(candidate.id)];
+                  const statusLabel = tempProfile ? "Temporary Profile" : (candidate.status || "Status Missing");
+                  return `<tr id="candidate${candidate.id}">
                     <td><strong>${candidate.firstName} ${candidate.lastName}</strong></td>
                     <td>${candidate.score * 10}</td>
-                    <td><span class="pill" ${!candidate.status ? 'style="background: red;"' : ""}>${candidate.status || "Status Missing"}</span></td>
+                    <td><span class="pill" ${!statusLabel ? 'style="background: red;"' : ""}>${statusLabel}</span></td>
                     <td>
                       <button
                         class="btn secondary"
                         style="padding: 8px 12px"
-                        onclick="openProfile('${candidate.id}','${candidate.firstName}','${candidate.lastName}','${candidate.status}')"
+                        onclick="openProfile('${candidate.id}','${candidate.firstName}','${candidate.lastName}','${statusLabel}')"
                       >
                         Open
                       </button>
@@ -275,7 +299,8 @@
                         Remove
                       </button>
                     </td>
-                  </tr>`,
+                  </tr>`;
+                })(),
               );
             });
           }

@@ -467,6 +467,7 @@
       function shortlistCandidate() {
         const candidateId = sessionStorage.getItem("candidateId");
         const shortlist = sessionStorage.getItem("shortlist");
+        const profileType = sessionStorage.getItem("candidateProfileType");
 
         // If first element, just add
         if (!shortlist || shortlist.length < 1)
@@ -482,12 +483,25 @@
           sessionStorage.setItem("shortlist", shortlistArray);
         }
 
+        if (profileType === "Temporary Profile") {
+          const temporaryProfiles = JSON.parse(
+            sessionStorage.getItem("temporaryProfiles") || "{}",
+          );
+          temporaryProfiles[String(candidateId)] = {
+            source: sessionStorage.getItem("externalCandidateSource") || "External",
+            name: sessionStorage.getItem("candidateName") || "",
+            shortlistedAt: new Date().toISOString(),
+          };
+          sessionStorage.setItem("temporaryProfiles", JSON.stringify(temporaryProfiles));
+        }
+
         alert("Candidate shortlisted!");
       }
 
       document.addEventListener("DOMContentLoaded", async () => {
         // Get session variables
         const candidateId = sessionStorage.getItem("candidateId");
+        const profileType = sessionStorage.getItem("candidateProfileType");
 
         let profileData = {};
 
@@ -498,6 +512,15 @@
           document.getElementById("editBtn").removeAttribute("disabled");
 
           console.log(profileData);
+
+          if (profileType === "Temporary Profile") {
+            document
+              .getElementById("topMatches")
+              .insertAdjacentHTML(
+                "beforebegin",
+                '<div class="notice" style="margin: 12px 0">Temporary external profile - confirm details before publishing, then shortlist through the normal workflow.</div>',
+              );
+          }
 
           if (profileData.profile.publicUrl) {
             document.getElementById("publicBtnLink").href +=

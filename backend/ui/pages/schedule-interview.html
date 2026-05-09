@@ -615,13 +615,25 @@
 
       function selectShortlistedCandidate(candidate) {
         const id = candidate.id || candidate.profile_id;
+        const temporaryProfiles = JSON.parse(
+          sessionStorage.getItem("temporaryProfiles") || "{}",
+        );
+        const tempProfile = temporaryProfiles[String(id)];
         const firstName = candidate.firstName || "";
         const lastName = candidate.lastName || "";
         const name = `${firstName} ${lastName}`.trim();
 
         if (id) sessionStorage.setItem("candidateId", id);
         if (name) sessionStorage.setItem("candidateName", name);
-        if (candidate.status) sessionStorage.setItem("candidateStatus", candidate.status);
+        if (tempProfile) {
+          sessionStorage.setItem("candidateStatus", "Temporary Profile");
+          sessionStorage.setItem("candidateProfileType", "Temporary Profile");
+          sessionStorage.setItem("externalCandidateSource", tempProfile.source || "External");
+        } else if (candidate.status) {
+          sessionStorage.setItem("candidateStatus", candidate.status);
+          sessionStorage.removeItem("candidateProfileType");
+          sessionStorage.removeItem("externalCandidateSource");
+        }
 
         byId("candidateNameInput").value = name;
         byId("candidateEmailInput").value = candidate.email || "";
@@ -631,7 +643,8 @@
             name,
             candidate.email ? `Email: ${candidate.email}` : "",
             candidate.score ? `Match score: ${candidate.score}%` : "",
-            candidate.status ? `Vetting status: ${candidate.status}` : "",
+            tempProfile ? "Vetting status: Temporary Profile" : "",
+            !tempProfile && candidate.status ? `Vetting status: ${candidate.status}` : "",
             candidate.skills && candidate.skills.length
               ? `Matched skills: ${candidate.skills.join(", ")}`
               : "",
@@ -652,14 +665,19 @@
       function addShortlistRow(candidate, scoreLabel) {
         const tbody = byId("shortlistBody");
         const id = candidate.id || candidate.profile_id;
+        const temporaryProfiles = JSON.parse(
+          sessionStorage.getItem("temporaryProfiles") || "{}",
+        );
+        const tempProfile = temporaryProfiles[String(id)];
         const firstName = candidate.firstName || "";
         const lastName = candidate.lastName || "";
         const name = `${firstName} ${lastName}`.trim() || "Candidate";
+        const statusLabel = tempProfile ? "Temporary Profile" : "";
         const row = document.createElement("tr");
         row.id = `candidate${id}`;
         row.innerHTML = `
           <td><strong>${escapeHtml(name)}</strong></td>
-          <td>${escapeHtml(scoreLabel || "N/A")}</td>
+          <td>${escapeHtml(statusLabel || scoreLabel || "N/A")}</td>
           <td>${escapeHtml(candidate.email || "")}</td>
           <td>
             <button class="btn secondary" type="button" style="padding: 8px 12px">

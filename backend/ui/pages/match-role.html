@@ -235,6 +235,8 @@
         sessionStorage.setItem("candidateName", r.name);
         sessionStorage.setItem("candidateTopMatches", r.top_matches);
         sessionStorage.setItem("candidateStatus", r.step);
+        sessionStorage.removeItem("candidateProfileType");
+        sessionStorage.removeItem("externalCandidateSource");
 
         document
           .getElementById(`resultRow-${r.profile_id}`)

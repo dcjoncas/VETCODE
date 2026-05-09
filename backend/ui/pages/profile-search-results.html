@@ -217,6 +217,8 @@
               sessionStorage.setItem("candidateName", r.full_name);
               sessionStorage.setItem("candidateTopMatches", topSkills);
               sessionStorage.setItem("candidateStatus", r.step);
+              sessionStorage.removeItem("candidateProfileType");
+              sessionStorage.removeItem("externalCandidateSource");
 
               window.location.href = "profile-preview.html";
             });

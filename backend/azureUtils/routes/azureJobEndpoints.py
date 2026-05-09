@@ -480,6 +480,7 @@ def external_candidate_import(payload: dict = Body(...)):
     profile_url = candidate.get("profile_url") or ""
     summary_parts = [
         candidate.get("summary") or "",
+        "Temporary external profile. Confirm details before publishing.",
         f"Imported from {candidate.get('source_label') or source}.",
         f"Relevant matches: {', '.join(_safe_list(candidate.get('top_matches')))}",
     ]
@@ -499,6 +500,7 @@ def external_candidate_import(payload: dict = Body(...)):
             candidateTitle=candidate.get("title") or "",
         )
         created["source"] = source
+        created["temporaryProfile"] = True
         created["importedSkills"] = [skill["title"] for skill in skills]
         return created
     except Exception as e:

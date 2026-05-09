@@ -158,6 +158,8 @@
           profile.firstName + " " + profile.lastName,
         );
         sessionStorage.setItem("candidateStatus", profile.step);
+        sessionStorage.removeItem("candidateProfileType");
+        sessionStorage.removeItem("externalCandidateSource");
 
         window.location.href = "profile-preview.html";
       }
