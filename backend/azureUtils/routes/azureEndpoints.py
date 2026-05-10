@@ -40,6 +40,11 @@ async def count_candidates_all(domain: str = "all"):
     print(f"Counting all candidates for domain: {domain}")
     return candidates.countCandidatesAll(domain)
 
+@router.get("/profile/discovery")
+async def profile_discovery(domain: str = "dev", limit: int = 500):
+    print(f"Scanning profile discovery for domain: {domain}")
+    return candidates.profileDiscovery(domain, limit)
+
 @router.post("/searchNameEmail")
 async def get_candidates(search_string: str = Form(...), domain: str = Form(...), limit: int = Form(5)):
     print('searching for candidates with domain ' + domain)

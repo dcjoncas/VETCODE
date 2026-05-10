@@ -133,6 +133,145 @@ def countCandidatesAll(domain: str = 'all'):
         "statusCounts": statusCounts
     }
 
+def _skill_family(skill_title: str):
+    lower = (skill_title or "").lower()
+    families = {
+        "AI / ML": ["artificial intelligence", "machine learning", " ml ", "llm", "openai", "langchain", "tensorflow", "pytorch", "computer vision", "nlp"],
+        "Data": ["data", "sql", "postgres", "mysql", "snowflake", "redshift", "bigquery", "etl", "analytics", "tableau", "power bi", "spark", "warehouse"],
+        "Frontend": ["react", "angular", "vue", "javascript", "typescript", "html", "css", "chakra", "frontend", "front-end", "ui", "ux"],
+        "Backend": ["python", "django", "flask", "fastapi", "java", "spring", "node", "express", "c#", ".net", "api", "backend", "back-end", "microservice"],
+        "Cloud / DevOps": ["aws", "azure", "gcp", "docker", "kubernetes", "terraform", "ci/cd", "devops", "cloud", "jenkins", "github actions"],
+        "Mobile": ["ios", "android", "swift", "kotlin", "react native", "flutter", "mobile"],
+        "QA / Testing": ["qa", "test", "testing", "selenium", "cypress", "playwright", "automation"],
+        "Product / Analysis": ["product", "business analyst", "ba", "scrum", "agile", "requirements", "stakeholder"],
+    }
+    for family, tokens in families.items():
+        if any(token in lower for token in tokens):
+            return family
+    return "Other"
+
+def profileDiscovery(domain: str = 'dev', limit: int = 500):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    domain_filter = "" if domain == "all" else "WHERE person.domain = %s"
+    params = () if domain == "all" else (domain,)
+    query = f"""
+        SELECT
+            person.id,
+            person.firstname,
+            person.lastname,
+            prof.email,
+            prof.title,
+            COALESCE(sk.skills, ARRAY[]::text[]) AS skills,
+            COALESCE(pa.steps, ARRAY[]::integer[]) AS steps,
+            COALESCE(per.personalities, '[]'::json) AS personalities
+        FROM person
+        JOIN professional prof ON person.id = prof.personid
+        LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid
+        LEFT JOIN (
+            SELECT profileid, ARRAY_AGG(DISTINCT skill.title) AS skills
+            FROM (
+                SELECT profileid, skillid FROM professionalskill
+                UNION
+                SELECT profileid, skillid FROM resumeskill
+                UNION
+                SELECT profileid, skillid FROM techskill
+            ) allskills
+            JOIN skill ON allskills.skillid = skill.id
+            GROUP BY profileid
+        ) sk ON sk.profileid = profper.id
+        LEFT JOIN (
+            SELECT profileid, ARRAY_AGG(DISTINCT step) AS steps
+            FROM platformactivity
+            GROUP BY profileid
+        ) pa ON pa.profileid = profper.id
+        LEFT JOIN (
+            SELECT
+                profper_inner.id AS profileid,
+                json_agg(
+                    json_build_object(
+                        'title', p.title,
+                        'id', p.id,
+                        'score', ROUND((personality_scores.avg_answer / 5) * 100)
+                    )
+                    ORDER BY personality_scores.avg_answer DESC
+                ) AS personalities
+            FROM professionalprofile profper_inner
+            JOIN (
+                SELECT
+                    ps.profileid,
+                    p.id AS personality_id,
+                    p.title,
+                    AVG(psq.answer) AS avg_answer
+                FROM professionalsurvey ps
+                JOIN professionalsurveyquestion psq ON psq.professionalsurveyid = ps.id
+                JOIN surveyquestion ON psq.surveyquestionid = surveyquestion.id
+                JOIN question ON surveyquestion.questionid = question.id
+                JOIN personality p ON p.id = question.personalityid
+                GROUP BY ps.profileid, p.id, p.title
+            ) personality_scores ON personality_scores.profileid = profper_inner.id
+            JOIN personality p ON p.id = personality_scores.personality_id
+            GROUP BY profper_inner.id
+        ) per ON per.profileid = profper.id
+        {domain_filter}
+        ORDER BY person.id DESC
+        LIMIT %s
+    """
+    cur.execute(query, params + (limit,))
+    results = cur.fetchall()
+    conn.close()
+
+    profiles = []
+    skill_groups = {}
+    personality_groups = {}
+
+    for row in results:
+        skills = [skill for skill in (row[5] or []) if skill]
+        family_counts = {}
+        for skill in skills:
+            family = _skill_family(skill)
+            family_counts[family] = family_counts.get(family, 0) + 1
+        main_family = "Unclassified"
+        if family_counts:
+            main_family = sorted(family_counts.items(), key=lambda item: item[1], reverse=True)[0][0]
+        if family_counts.get("Frontend", 0) > 0 and family_counts.get("Backend", 0) > 0:
+            main_family = "Full Stack"
+
+        personalities = row[7] or []
+        dominant_personality = "No personality data"
+        if personalities:
+            dominant_personality = personalities[0].get("title") or dominant_personality
+
+        profile = {
+            "id": row[0],
+            "name": f"{row[1] or ''} {row[2] or ''}".strip() or "Unnamed profile",
+            "email": row[3] or "",
+            "title": row[4] or "",
+            "skills": skills[:16],
+            "skillFamily": main_family,
+            "skillFamilyCounts": family_counts,
+            "personality": personalities,
+            "dominantPersonality": dominant_personality,
+            "status": processing.stepProcessingOverall(row[6]),
+        }
+        profiles.append(profile)
+        skill_groups.setdefault(main_family, []).append(profile)
+        personality_groups.setdefault(dominant_personality, []).append(profile)
+
+    return {
+        "total": len(profiles),
+        "profiles": profiles,
+        "skillGroups": [
+            {"name": name, "count": len(rows), "profiles": rows}
+            for name, rows in sorted(skill_groups.items(), key=lambda item: len(item[1]), reverse=True)
+        ],
+        "personalityGroups": [
+            {"name": name, "count": len(rows), "profiles": rows}
+            for name, rows in sorted(personality_groups.items(), key=lambda item: len(item[1]), reverse=True)
+        ],
+    }
+
 def getProfessionalProfileId(personId: str):
     conn = client.getConnection()
     cur = conn.cursor()

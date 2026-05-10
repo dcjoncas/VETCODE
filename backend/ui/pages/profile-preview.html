@@ -20,6 +20,47 @@
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
+    <style>
+      .profile-discovery-toolbar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .profile-discovery-results {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .profile-group-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        padding: 12px;
+      }
+
+      .profile-group-card h3 {
+        margin: 0 0 8px;
+        font-size: 15px;
+      }
+
+      .profile-discovery-row {
+        border-top: 1px solid var(--line);
+        padding: 9px 0;
+      }
+
+      .profile-discovery-row:first-of-type {
+        border-top: 0;
+      }
+
+      .profile-discovery-row button {
+        margin-top: 6px;
+        padding: 7px 10px;
+      }
+    </style>
   </head>
   <body>
     <div class="container">
@@ -35,6 +76,28 @@
         </div>
 
         <div id="processFlow"></div>
+
+        <section class="card">
+          <div class="profile-discovery-toolbar">
+            <div style="flex: 1; min-width: 260px">
+              <h2 style="margin-bottom: 4px">Profile discovery</h2>
+              <p style="margin-top: 0">
+                Scan all profiles and group them by main skill family or dominant developer personality.
+              </p>
+            </div>
+            <select id="profileDiscoveryMode" style="max-width: 240px">
+              <option value="skill">Group by skill family</option>
+              <option value="personality">Group by personality</option>
+            </select>
+            <button class="btn" type="button" id="scanProfilesBtn">
+              Scan Profiles
+            </button>
+          </div>
+          <div id="profileDiscoveryStatus" class="notice" style="margin-top: 12px">
+            Use this when you want to find a frontend, backend, AI, data, full-stack, or personality-fit profile from the database.
+          </div>
+          <div id="profileDiscoveryResults" class="profile-discovery-results"></div>
+        </section>
 
         <!--<div class="grid">-->
         <section class="card">
@@ -555,7 +618,95 @@
         }
       }
 
+      let profileDiscoveryData = null;
+      let profileDiscoveryRows = [];
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function selectDiscoveredProfile(profile) {
+        sessionStorage.setItem("candidateId", profile.id);
+        sessionStorage.setItem("candidateName", profile.name);
+        sessionStorage.setItem("candidateStatus", profile.status || "");
+        sessionStorage.removeItem("candidateProfileType");
+        sessionStorage.removeItem("externalCandidateSource");
+        window.location.href = "profile-preview.html";
+      }
+
+      function renderProfileDiscovery() {
+        const target = document.getElementById("profileDiscoveryResults");
+        const status = document.getElementById("profileDiscoveryStatus");
+        if (!profileDiscoveryData) return;
+        profileDiscoveryRows = [];
+
+        const mode = document.getElementById("profileDiscoveryMode").value;
+        const groups =
+          mode === "personality"
+            ? profileDiscoveryData.personalityGroups || []
+            : profileDiscoveryData.skillGroups || [];
+
+        status.textContent =
+          mode === "personality"
+            ? `Scanned ${profileDiscoveryData.total} profiles and grouped by dominant personality.`
+            : `Scanned ${profileDiscoveryData.total} profiles and grouped by main skill family.`;
+
+        target.innerHTML = groups
+          .map((group) => {
+            const rows = (group.profiles || [])
+              .slice(0, 6)
+              .map((profile) => {
+                const profileIndex = profileDiscoveryRows.push(profile) - 1;
+                const personality = (profile.personality || [])
+                  .slice(0, 3)
+                  .map((row) => `${escapeHtml(row.title)} ${Math.round(row.score || 0)}%`)
+                  .join(", ");
+                const skills = (profile.skills || []).slice(0, 5).map(escapeHtml).join(", ");
+                return `<div class="profile-discovery-row">
+                  <strong>${escapeHtml(profile.name)}</strong>
+                  <div style="color: var(--muted); font-size: 13px">${escapeHtml(profile.title || "No title")} ${profile.email ? "- " + escapeHtml(profile.email) : ""}</div>
+                  <div style="font-size: 13px; margin-top: 4px">${skills || "No skills listed"}</div>
+                  <div style="font-size: 13px; color: var(--muted); margin-top: 4px">${personality || escapeHtml(profile.dominantPersonality || "No personality data")}</div>
+                  <button class="btn secondary" type="button" onclick="selectDiscoveredProfile(profileDiscoveryRows[${profileIndex}])">Open profile</button>
+                </div>`;
+              })
+              .join("");
+
+            return `<div class="profile-group-card">
+              <h3>${escapeHtml(group.name)} <span class="pill">${group.count}</span></h3>
+              ${rows || '<div style="color: var(--muted)">No profiles in this group.</div>'}
+            </div>`;
+          })
+          .join("");
+      }
+
+      async function scanProfiles() {
+        const button = document.getElementById("scanProfilesBtn");
+        const status = document.getElementById("profileDiscoveryStatus");
+        button.disabled = true;
+        status.textContent = "Scanning profiles by skills and personality...";
+        document.getElementById("profileDiscoveryResults").innerHTML = "";
+
+        try {
+          const domain = sessionStorage.getItem("domain") || "dev";
+          profileDiscoveryData = await api(`/api/azure/profile/discovery?domain=${domain}&limit=500`);
+          renderProfileDiscovery();
+        } catch (error) {
+          status.textContent = error.message || String(error);
+        } finally {
+          button.disabled = false;
+        }
+      }
+
       document.addEventListener("DOMContentLoaded", async () => {
+        document.getElementById("scanProfilesBtn").addEventListener("click", scanProfiles);
+        document.getElementById("profileDiscoveryMode").addEventListener("change", renderProfileDiscovery);
+
         // Get session variables
         const candidateId = sessionStorage.getItem("candidateId");
         const profileType = sessionStorage.getItem("candidateProfileType");
