@@ -150,6 +150,30 @@ def _skill_family(skill_title: str):
             return family
     return "Other"
 
+def _primary_stack_from_skills(skills: list[str]):
+    clean_skills = [skill for skill in (skills or []) if skill]
+    if not clean_skills:
+        return "Unclassified"
+    family_counts = {}
+    for skill in clean_skills:
+        family = _skill_family(skill)
+        family_counts[family] = family_counts.get(family, 0) + 1
+    if family_counts.get("Frontend", 0) > 0 and family_counts.get("Backend", 0) > 0:
+        return "Full Stack"
+    return sorted(family_counts.items(), key=lambda item: item[1], reverse=True)[0][0]
+
+def _search_rank(search_terms: list[str], skills: list[str], name: str = "", email: str = ""):
+    terms = [term.lower().strip("% ") for term in (search_terms or []) if term and term.strip("% ")]
+    skill_text = " ".join(skills or []).lower()
+    identity_text = f"{name or ''} {email or ''}".lower()
+    score = 0
+    for term in terms:
+        if term in skill_text:
+            score += 10
+        if term in identity_text:
+            score += 6
+    return score
+
 def profileDiscovery(domain: str = 'dev', limit: int = 500):
     conn = client.getConnection()
     cur = conn.cursor()
@@ -331,16 +355,17 @@ def getSurveyId(personId: str):
 def searchCandidatesByNameEmail(query: str, limit: int = 5, domain: str = 'all'):
     conn = client.getConnection()
     cur = conn.cursor()
+    search_terms = [item.strip() for item in query.replace(";", ",").split(",") if item.strip()]
 
     # Search for user by firstname, lastname, goesbyname, or email using ILIKE for case-insensitive search
     # Order by id descending to get the most recent matches first, and limit the number of results
-    query = ''
+    sql = ''
     if domain == 'all':
-        query = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE (person.firstname || ' ' || person.lastname) ILIKE '%{query}%' OR (person.goesbyname || ' ' || person.lastname) ILIKE '%{query}%' OR prof.email ILIKE '%{query}%' GROUP BY person.id, prof.email ORDER BY id DESC LIMIT {limit};"
+        sql = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step), ARRAY_AGG(DISTINCT skill.title) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE (person.firstname || ' ' || person.lastname) ILIKE '%{query}%' OR (person.goesbyname || ' ' || person.lastname) ILIKE '%{query}%' OR prof.email ILIKE '%{query}%' GROUP BY person.id, prof.email ORDER BY id DESC LIMIT {limit};"
     else:
-        query = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.domain = '{domain}' AND ((person.firstname || ' ' || person.lastname) ILIKE '%{query}%' OR (person.goesbyname || ' ' || person.lastname) ILIKE '%{query}%' OR prof.email ILIKE '%{query}%') GROUP BY person.id, prof.email ORDER BY id DESC LIMIT {limit};"
+        sql = f"SELECT person.id, person.firstname, person.lastname, prof.email, ARRAY_AGG(DISTINCT platact.step), ARRAY_AGG(DISTINCT skill.title) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN professionalskill profskill ON profper.id = profskill.profileid LEFT JOIN skill ON profskill.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.domain = '{domain}' AND ((person.firstname || ' ' || person.lastname) ILIKE '%{query}%' OR (person.goesbyname || ' ' || person.lastname) ILIKE '%{query}%' OR prof.email ILIKE '%{query}%') GROUP BY person.id, prof.email ORDER BY id DESC LIMIT {limit};"
     
-    cur.execute(query)
+    cur.execute(sql)
     results = cur.fetchall()
 
     conn.close()
@@ -348,21 +373,29 @@ def searchCandidatesByNameEmail(query: str, limit: int = 5, domain: str = 'all')
     resultsProcessed = []
 
     for r in results:
+        skills = [skill for skill in (r[5] or []) if skill]
+        name = f"{r[1]} {r[2]}"
         resultsProcessed.append({
             "id":r[0],
             "firstName":r[1],
             "lastName":r[2],
             "email":r[3],
-            "step": processing.stepProcessingOverall(r[4])
+            "step": processing.stepProcessingOverall(r[4]),
+            "skillMatches": skills,
+            "primaryStack": _primary_stack_from_skills(skills),
+            "searchRank": _search_rank(search_terms, skills, name, r[3]),
+            "aiCertification": {"status": "Not started", "level": None}
         })
     
+    resultsProcessed.sort(key=lambda row: (row.get("searchRank", 0), len(row.get("skillMatches", []))), reverse=True)
     return resultsProcessed
 
 def searchCandidatesBySkills(query: str, limit: int = 5, domain: str = 'all'):
     conn = client.getConnection()
     cur = conn.cursor()
 
-    queryArray = [item.strip() for item in query.split(',')]
+    search_terms = [item.strip() for item in query.split(',') if item.strip()]
+    queryArray = [f"%{item}%" for item in search_terms]
 
     # Search for user by skills attached to the account
     # Order by id descending to get the most recent matches first, and limit the number of results
@@ -380,16 +413,22 @@ def searchCandidatesBySkills(query: str, limit: int = 5, domain: str = 'all'):
     resultsProcessed = []
 
     for r in results:
+        skills = [skill for skill in (r[5] or []) if skill]
+        name = f"{r[1]} {r[2]}"
         resultsProcessed.append({
             "id":r[0],
             "firstName":r[1],
             "lastName":r[2],
             "email":r[3],
             "skillCount":r[4],
-            "skillMatches":r[5],
-            "step": processing.stepProcessingOverall(r[6])
+            "skillMatches":skills,
+            "step": processing.stepProcessingOverall(r[6]),
+            "primaryStack": _primary_stack_from_skills(skills),
+            "searchRank": _search_rank(search_terms, skills, name, r[3]),
+            "aiCertification": {"status": "Not started", "level": None}
         })
     
+    resultsProcessed.sort(key=lambda row: (row.get("searchRank", 0), row.get("skillCount", 0)), reverse=True)
     return resultsProcessed
 
 def searchCandidatesBySkillId(queryList: list[int], limit: int = 5):

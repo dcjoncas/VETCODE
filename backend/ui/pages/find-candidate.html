@@ -133,6 +133,7 @@
                 <th>Email</th>
                 <th>Primary stack</th>
                 <th>Status</th>
+                <th>AI Cert</th>
                 <th></th>
               </tr>
             </thead>
@@ -197,6 +198,44 @@
         window.location.href = "profile-preview.html";
       }
 
+      function escapeHtml(value) {
+        return String(value || "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function aiCertUrl(profile) {
+        const params = new URLSearchParams();
+        const name = `${profile.firstName || ""} ${profile.lastName || ""}`.trim();
+        if (name) params.set("candidate", name);
+        if (profile.email) params.set("email", profile.email);
+        if (profile.id) params.set("profileId", profile.id);
+        const query = params.toString();
+        return `https://aicert-production.up.railway.app/${query ? "?" + query : ""}`;
+      }
+
+      function mergeAndRankProfiles(skillProfiles, identityProfiles) {
+        const byId = new Map();
+        [...(skillProfiles || []), ...(identityProfiles || [])].forEach((profile) => {
+          const existing = byId.get(String(profile.id)) || {};
+          byId.set(String(profile.id), {
+            ...existing,
+            ...profile,
+            skillMatches: profile.skillMatches || existing.skillMatches || [],
+            searchRank: Math.max(profile.searchRank || 0, existing.searchRank || 0),
+            skillCount: Math.max(profile.skillCount || 0, existing.skillCount || 0),
+          });
+        });
+        return [...byId.values()].sort(
+          (a, b) =>
+            (b.searchRank || 0) - (a.searchRank || 0) ||
+            (b.skillCount || 0) - (a.skillCount || 0),
+        );
+      }
+
       async function searchSkillList(params) {
         const searchInput = document
           .getElementById("findSearchBar")
@@ -216,22 +255,19 @@
         fd.append("limit", limit);
 
         try {
-          let profiles = await api("/api/azure/searchSkills", {
+          let skillProfiles = await api("/api/azure/searchSkills", {
             method: "POST",
             body: fd,
           });
 
-          // TODO: Add logic to remove rows with no overlap and fill in blanks with second call
-          if (profiles.length < limit) {
-            limit = limit - profiles.length;
+          fd.set("limit", limit);
+          fd.set("search_string", searchInput);
+          const identityProfiles = await api("/api/azure/searchNameEmail", {
+            method: "POST",
+            body: fd,
+          });
 
-            fd.set("limit", limit);
-            fd.append("search_string", searchInput);
-            profiles = await api("/api/azure/searchNameEmail", {
-              method: "POST",
-              body: fd,
-            });
-          }
+          const profiles = mergeAndRankProfiles(skillProfiles, identityProfiles).slice(0, limit);
 
           const tbody = document.getElementById("cadidateSearchResults");
           tbody.innerHTML = "";
@@ -248,8 +284,11 @@
 
             tr.id = `resultRow-${r.id}`;
             //tr.style.cursor = "pointer";
-            tr.innerHTML = `<td>${i + 1}</td><td>${r.firstName || ""} ${r.lastName || ""}</td><td>${r.email || ""}</td><td>Placeholder</td><td><div class="pill">${r.step}</div></td>`;
+            const cert = r.aiCertification || {};
+            const certLabel = cert.level ? `Certified - ${cert.level}` : cert.status || "Not started";
+            tr.innerHTML = `<td>${i + 1}</td><td>${escapeHtml(r.firstName || "")} ${escapeHtml(r.lastName || "")}</td><td>${escapeHtml(r.email || "")}</td><td>${escapeHtml(r.primaryStack || "Unclassified")}</td><td><div class="pill">${escapeHtml(r.step)}</div></td><td><a class="pill" href="${aiCertUrl(r)}" target="_blank" rel="noopener">${escapeHtml(certLabel)}</a></td><td></td>`;
             tr.addEventListener("click", () => findSelect(r));
+            tr.querySelector("a").addEventListener("click", (event) => event.stopPropagation());
             tr.style.cursor = "pointer";
             tbody.appendChild(tr);
           });

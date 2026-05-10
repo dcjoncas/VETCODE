@@ -52,7 +52,7 @@ async def get_candidates(search_string: str = Form(...), domain: str = Form(...)
     
 @router.post("/searchSkills")
 async def get_candidates(skills: str = Form(...), domain: str = Form(...), limit: int = Form(5)):
-    return candidates.searchCandidatesBySkills(skills, limit)
+    return candidates.searchCandidatesBySkills(skills, limit, domain)
     
 @router.post("/pageCount")
 def profile_page_count(domain: str = Form(default="all"), search_string: str = Form(default=""), skills: str = Form(default=""), pageLimit: int = Form(default=10)):
