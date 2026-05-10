@@ -9,7 +9,12 @@
     "
   >
     <div>
-      <div style="font-weight: 900; margin-bottom: 6px">Process Flow</div>
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px">
+        <div style="font-weight: 900">Process Flow</div>
+        <button class="process-map-button" type="button" onclick="openProcessMap()">
+          View process map
+        </button>
+      </div>
       <div class="flow-help">
         Green steps are the normal vetting path. Blue MineEx builds a TEMP external profile, then rejoins at Profile build.
       </div>
@@ -32,6 +37,63 @@
   </div>
 </div>
 
+<div id="processMapOverlay" class="process-map-overlay" hidden>
+  <div class="process-map-dialog" role="dialog" aria-modal="true" aria-labelledby="processMapTitle">
+    <div class="process-map-head">
+      <div>
+        <div id="processMapTitle" class="process-map-title">You are here</div>
+        <div class="process-map-subtitle">Follow the green path. Use the blue MineEx branch only when you need external candidates.</div>
+      </div>
+      <button class="process-map-close" type="button" onclick="closeProcessMap()" aria-label="Close process map">Close</button>
+    </div>
+    <div class="process-map">
+      <a class="map-node" data-map-path="find-candidate.html" href="find-candidate.html">
+        <span>1</span>
+        <strong>Talent</strong>
+        <small>Start with available people and profile data.</small>
+      </a>
+      <div class="map-arrow"></div>
+      <a class="map-node" data-map-path="match-role.html" href="match-role.html">
+        <span>2</span>
+        <strong>Mine Candidates</strong>
+        <small>Rank internal matches against the role.</small>
+      </a>
+      <div class="map-branch">
+        <div class="map-branch-line"></div>
+        <a class="map-node branch" data-map-path="mine-candidate-external.html" href="mine-candidate-external.html">
+          <span>2B</span>
+          <strong>MineEx Candidates</strong>
+          <small>Build a TEMP external profile when internal fit is thin.</small>
+        </a>
+      </div>
+      <div class="map-arrow"></div>
+      <a class="map-node" data-map-path="profile-preview.html" href="profile-preview.html">
+        <span>3</span>
+        <strong>Profiles</strong>
+        <small>Review and shape the candidate profile.</small>
+      </a>
+      <div class="map-arrow"></div>
+      <a class="map-node" data-map-path="candidate-chat.html" href="candidate-chat.html">
+        <span>4</span>
+        <strong>Candidate Chat</strong>
+        <small>Collect screening detail and candidate context.</small>
+      </a>
+      <div class="map-arrow"></div>
+      <a class="map-node" data-map-path="client-comm.html" href="client-comm.html">
+        <span>5</span>
+        <strong>Client Comms</strong>
+        <small>Prepare client-facing notes and outreach.</small>
+      </a>
+      <div class="map-arrow"></div>
+      <a class="map-node" data-map-path="schedule-interview.html" href="schedule-interview.html">
+        <span>6</span>
+        <strong>Schedule Interview</strong>
+        <small>Send the invite and move to tracking.</small>
+      </a>
+    </div>
+  </div>
+</div>
+
 <script src="JS/updateProcessFlow.js"></script>
 
 <script>
@@ -44,6 +106,26 @@
     if (currentProcessPath === linkPath) {
       link.classList.add("on");
     }
+  });
+
+  function openProcessMap() {
+    document.getElementById("processMapOverlay").hidden = false;
+  }
+
+  function closeProcessMap() {
+    document.getElementById("processMapOverlay").hidden = true;
+  }
+
+  document.querySelectorAll("#processMapOverlay .map-node").forEach((node) => {
+    const nodePath = new URL(node.href).pathname.replace(/\/$/, "");
+    if (currentProcessPath === nodePath) {
+      node.classList.add("here");
+      node.setAttribute("aria-current", "page");
+    }
+  });
+
+  document.getElementById("processMapOverlay").addEventListener("click", (event) => {
+    if (event.target.id === "processMapOverlay") closeProcessMap();
   });
 
   updateCandidate();

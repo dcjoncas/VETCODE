@@ -1,5 +1,5 @@
 <aside class="sidebar">
-  <div id="textBlockLogo" class="brand">
+  <a id="textBlockLogo" class="brand" href="find-candidate.html" aria-label="Home - Talent">
     <img
       class="domainLogo"
       src="../assets/devLogo.svg"
@@ -11,13 +11,15 @@
       <span>READY</span>
       <span class="sub">Vetting Workspace</span>
     </div>
-  </div>
+  </a>
 
-  <img
-    id="imgLogo"
-    src="../assets/lawLogo.png"
-    style="width: 100%; display: none"
-  />
+  <a id="imgLogoLink" class="logo-home" href="find-candidate.html" aria-label="Home - Talent" style="display: none">
+    <img
+      id="imgLogo"
+      src="../assets/lawLogo.png"
+      style="width: 100%"
+    />
+  </a>
 
   <div class="userbox">
     <div style="font-size: 12px; opacity: 0.9">Welcome back,</div>
@@ -86,10 +88,10 @@
 
     if (currentDomain == "law") {
       document.getElementById("textBlockLogo").style.display = "none";
-      document.getElementById("imgLogo").style.display = "block";
+      document.getElementById("imgLogoLink").style.display = "block";
     } else {
       document.getElementById("textBlockLogo").style.display = "flex";
-      document.getElementById("imgLogo").style.display = "none";
+      document.getElementById("imgLogoLink").style.display = "none";
     }
 
     for (const logo of logoSet) {
