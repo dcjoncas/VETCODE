@@ -24,6 +24,36 @@
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
+    <style>
+      .talent-intake-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+        gap: 16px;
+        align-items: start;
+      }
+
+      .resume-upload-box {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+        background: #fff;
+      }
+
+      .resume-upload-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        margin-top: 8px;
+      }
+
+      @media (max-width: 980px) {
+        .talent-intake-grid,
+        .resume-upload-actions {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
   </head>
   <body>
     <div class="container">
@@ -47,7 +77,7 @@
             normalization.
           </p>
 
-          <div class="split">
+          <div class="talent-intake-grid">
             <div class="field">
               <label>Search existing profiles</label>
               <input
@@ -75,16 +105,19 @@
               </div>
             </div>
 
-            <div class="field">
-              <label>Upload Resume</label>
-              <div class="row">
-                <input id="resumeFile" type="file" />
+            <div class="field resume-upload-box">
+              <label>Upload resume to generate profile</label>
+              <div style="color: var(--muted); font-size: 13px; line-height: 1.35">
+                Upload a PDF or DOCX resume. DevReady will create a profile, select it, and open Profile Preview.
+              </div>
+              <div class="resume-upload-actions">
+                <input id="resumeFile" type="file" accept=".pdf,.docx" />
                 <button
                   class="btn primary"
-                  style="margin-top: 12px; margin-bottom: 12px"
                   id="btnUpload"
+                  type="button"
                 >
-                  Upload
+                  Upload & Generate Profile
                 </button>
               </div>
               <div id="uploadStatus" style="color: var(--muted)"></div>
@@ -228,17 +261,22 @@
       async function uploadResume() {
         document.getElementById("btnUpload").disabled = true;
         const f = document.getElementById("resumeFile").files[0];
-        if (!f) return alert("Pick a resume file first.");
+        if (!f) {
+          document.getElementById("btnUpload").disabled = false;
+          return alert("Pick a resume file first.");
+        }
 
         // Get file extension
         const splitName = f.name.split(".");
         const source_type = splitName[splitName.length - 1].toLowerCase();
 
         if (!["pdf", "docx"].includes(source_type)) {
+          document.getElementById("btnUpload").disabled = false;
           return alert("Unsupported file type. Please upload a PDF or DOCX.");
         }
 
-        //document.getElementById("uploadStatus").textContent = "Uploading...";
+        document.getElementById("uploadStatus").textContent =
+          "Uploading resume and generating profile...";
         const fd = new FormData();
         fd.append("file", f);
 
@@ -257,6 +295,15 @@
 
           sessionStorage.setItem("candidateId", j.personid);
           sessionStorage.setItem("candidateName", j.name);
+          sessionStorage.setItem("candidateStatus", "Generated from resume");
+          sessionStorage.removeItem("candidateProfileType");
+          sessionStorage.removeItem("externalCandidateSource");
+          sessionStorage.removeItem("candidateTopMatches");
+          sessionStorage.removeItem("totalProfiles");
+          document.getElementById("uploadStatus").textContent =
+            "Profile generated. Opening Profile Preview...";
+          window.location.href = "profile-preview.html";
+          return;
         } catch (e) {
           document.getElementById("uploadStatus").innerHTML =
             `Upload failed: ${e.message}`;
