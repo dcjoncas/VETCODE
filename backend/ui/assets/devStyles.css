@@ -142,6 +142,15 @@ input[type="checkbox"] {
   flex-direction: column;
   gap: 10px;
 }
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+}
 .nav a {
   padding: 12px 12px;
   border-radius: 14px;
@@ -164,6 +173,22 @@ input[type="checkbox"] {
   background: #1769e0;
   border-color: rgba(255, 255, 255, 0.35);
   color: #fff;
+}
+.nav a.recordings-link {
+  background: rgba(190, 38, 51, 0.86);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+.nav a.recordings-link.active {
+  background: #be2633;
+}
+.nav a.test-challenge-link {
+  background: rgba(18, 91, 54, 0.9);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+.nav a.test-challenge-link.active {
+  background: #125b36;
 }
 .nav a .dot {
   width: 10px;
