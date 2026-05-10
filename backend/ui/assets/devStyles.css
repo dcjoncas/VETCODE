@@ -478,7 +478,7 @@ input[type="checkbox"] {
 }
 .process-map {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) 28px minmax(150px, 1fr) minmax(150px, 1fr) 28px minmax(150px, 1fr) 28px minmax(150px, 1fr) 28px minmax(150px, 1fr) 28px minmax(150px, 1fr);
+  grid-template-columns: minmax(150px, 1fr) 28px minmax(150px, 1fr) minmax(150px, 1fr) 28px minmax(150px, 1fr) 28px minmax(150px, 1fr) 28px minmax(150px, 1fr) 28px minmax(150px, 1fr) 28px minmax(150px, 1fr);
   gap: 10px;
   align-items: center;
 }

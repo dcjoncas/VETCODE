@@ -281,9 +281,12 @@
                 <button id="scheduleActionButton" class="btn" type="button" onclick="scheduleSelectedProvider()">
                   Book with Calendly
                 </button>
-                <a class="btn secondary" href="status-tracker.html">Move to tracking</a>
+                <a class="btn secondary" href="status-tracker.html">View Status</a>
               </div>
 
+              <div class="notice" style="margin-top: 12px">
+                Scheduling actions are saved to Status automatically.
+              </div>
               <div id="resultNotice" class="notice" style="margin-top: 12px" hidden></div>
             </div>
           </div>
@@ -451,7 +454,7 @@
         });
         if (window.Calendly && Calendly.initPopupWidget) {
           Calendly.initPopupWidget({ url });
-          showResult("Calendly opened with the selected candidate prefilled.");
+          showResult("Calendly opened with the selected candidate prefilled. This was saved to Status.");
           return;
         }
         window.location.href = url;
@@ -923,8 +926,8 @@
           });
           showResult(
             link
-              ? `Invite sent through ${result.provider}. Event link: ${link}`
-              : `Invite sent through ${result.provider}.`,
+              ? `Invite sent through ${result.provider}. Saved to Status. Event link: ${link}`
+              : `Invite sent through ${result.provider}. Saved to Status.`,
           );
           await refreshHealth();
         } catch (error) {
