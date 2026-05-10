@@ -35,28 +35,39 @@
         flex: 1 1 180px;
         min-width: 150px;
         border: 1px solid transparent;
-        background: transparent;
-        color: var(--text);
+        background: #fff;
+        color: var(--primary-2);
         font-weight: 700;
+        box-shadow: none;
       }
 
       .source-toggle button.active {
-        background: var(--accent);
-        border-color: var(--accent);
+        background: var(--primary-2);
+        border-color: var(--primary-2);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
         color: #fff;
       }
 
+
+      .source-toggle button:not(.active):hover {
+        border-color: var(--primary-2);
+        background: var(--primary-3);
+        color: var(--text);
+      }
+
       .source-toggle button.active::before {
-        content: "✓";
-        display: inline-block;
-        margin-right: 6px;
+        content: "Selected: ";
+        display: inline;
+        margin-right: 0;
         font-weight: 900;
       }
 
-      .source-toggle button:not(.active):hover {
-        border-color: var(--accent);
-        background: #fff;
+      .source-guide {
+        margin: 6px 0 10px;
+        max-width: 680px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.35;
       }
 
       .candidate-card {
@@ -159,7 +170,11 @@
           </div>
 
           <div class="field" style="margin-top: 12px">
-            <label>External source</label>
+            <label>Pick place to mine</label>
+            <div class="source-guide">
+              Select People Data Labs or GitHub, then mine candidates. After results return,
+              choose one candidate to build a TEMP profile for the normal shortlist flow.
+            </div>
             <div class="source-toggle">
               <button class="btn active" type="button" data-source="pdl" aria-pressed="true">
                 People Data Labs
