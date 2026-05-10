@@ -126,7 +126,25 @@
         window.location.href = "profile-preview.html";
       }
 
-      function removeProfile(profileId) {
+      async function removeProfile(profileId) {
+        const temporaryProfiles = JSON.parse(
+          sessionStorage.getItem("temporaryProfiles") || "{}",
+        );
+        const tempProfile = temporaryProfiles[String(profileId)];
+
+        if (tempProfile) {
+          const confirmed = confirm(
+            "Delete this TEMP external profile from the database and remove it from this shortlist?",
+          );
+          if (!confirmed) return;
+
+          await api(`/api/azureJobs/external/temp/${profileId}`, {
+            method: "DELETE",
+          });
+          delete temporaryProfiles[String(profileId)];
+          sessionStorage.setItem("temporaryProfiles", JSON.stringify(temporaryProfiles));
+        }
+
         shortlistArray = shortlistArray.filter(
           (candidate) => candidate !== profileId,
         );

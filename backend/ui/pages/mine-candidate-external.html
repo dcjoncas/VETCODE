@@ -220,6 +220,7 @@
               <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
                 <div>
                   <strong>${index + 1}. ${escapeHtml(candidate.name)}</strong>
+                  <span class="pill" style="margin-left: 8px">TEMP if imported</span>
                   <div class="meta">${escapeHtml(candidate.title || "")}${candidate.company ? " at " + escapeHtml(candidate.company) : ""}</div>
                   <div class="meta">${escapeHtml(candidate.location || "")}</div>
                   ${repoLine}
@@ -231,7 +232,7 @@
               <div class="skills">${skills}</div>
               <div class="row-actions">
                 <button class="btn primary" type="button" onclick="importExternalCandidate(${index})">
-                  Create profile from this candidate
+                  Create TEMP profile from this candidate
                 </button>
               </div>
             </div>`;

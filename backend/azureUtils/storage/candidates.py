@@ -679,6 +679,117 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, domain
     print(f"Profile for {fullName} uploaded successfully with ID {personId}.")
     return {"status": "success", "message": f"Profile for {fullName} uploaded successfully.", "personid": personId, "name": fullName}
 
+def deleteTemporaryExternalProfile(personId: str):
+    try:
+        personIdInt = int(personId)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid profile id.")
+
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute(
+            "SELECT id, maindescription FROM professional WHERE personid = %s",
+            (personIdInt,),
+        )
+        professional_rows = cur.fetchall()
+        if not professional_rows:
+            raise HTTPException(status_code=404, detail="Temporary profile not found.")
+
+        descriptions = " ".join([str(row[1] or "") for row in professional_rows])
+        if "Temporary external profile" not in descriptions:
+            raise HTTPException(
+                status_code=403,
+                detail="Delete is limited to temporary external profiles.",
+            )
+
+        professional_ids = [row[0] for row in professional_rows]
+
+        cur.execute(
+            "SELECT id FROM professionalprofile WHERE professionalid = ANY(%s)",
+            (professional_ids,),
+        )
+        profile_ids = [row[0] for row in cur.fetchall()]
+
+        survey_ids = []
+        experience_ids = []
+        if profile_ids:
+            cur.execute(
+                "SELECT id FROM professionalsurvey WHERE profileid = ANY(%s)",
+                (profile_ids,),
+            )
+            survey_ids = [row[0] for row in cur.fetchall()]
+
+            cur.execute(
+                "SELECT id FROM professionalexperience WHERE profileid = ANY(%s)",
+                (profile_ids,),
+            )
+            experience_ids = [row[0] for row in cur.fetchall()]
+
+        if survey_ids:
+            cur.execute(
+                "DELETE FROM professionalsurveyquestion WHERE professionalsurveyid = ANY(%s)",
+                (survey_ids,),
+            )
+            cur.execute(
+                "DELETE FROM professionalsurvey WHERE id = ANY(%s)",
+                (survey_ids,),
+            )
+
+        cur.execute("DELETE FROM aichatlogs WHERE personid = %s", (personIdInt,))
+
+        if experience_ids:
+            cur.execute(
+                "DELETE FROM portfolioskill WHERE professionalexperienceid = ANY(%s)",
+                (experience_ids,),
+            )
+            cur.execute(
+                "DELETE FROM portfoliofeature WHERE professionalexperienceid = ANY(%s)",
+                (experience_ids,),
+            )
+            cur.execute(
+                "DELETE FROM professionalexperience WHERE id = ANY(%s)",
+                (experience_ids,),
+            )
+
+        if profile_ids:
+            for table in [
+                "professionalculturalexperience",
+                "professionalfeature",
+                "professionalskill",
+                "resumeskill",
+                "techskill",
+                "platformactivity",
+            ]:
+                cur.execute(
+                    f"DELETE FROM {table} WHERE profileid = ANY(%s)",
+                    (profile_ids,),
+                )
+            cur.execute(
+                "DELETE FROM professionalprofile WHERE id = ANY(%s)",
+                (profile_ids,),
+            )
+
+        cur.execute("DELETE FROM address WHERE personid = %s", (personIdInt,))
+        cur.execute("DELETE FROM professional WHERE personid = %s", (personIdInt,))
+        cur.execute("DELETE FROM person WHERE id = %s", (personIdInt,))
+
+        conn.commit()
+        return {"status": "success", "deletedProfileId": personIdInt}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        print(f"Failed to delete temporary external profile {personId}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete temporary external profile: {e}",
+        )
+    finally:
+        conn.close()
+
 def updateCandidateCore(personId: str, firstName: str, lastName: str, city: str = "", state: str = "", country: str = "", description: str = "", jobTitle: str = ""):
     conn = client.getConnection()
     cur = conn.cursor()

@@ -98,6 +98,15 @@
               >
                 Shortlist
               </button>
+              <button
+                id="deleteTempBtn"
+                class="btn remove"
+                type="button"
+                onclick="deleteTemporaryProfile()"
+                style="display: none"
+              >
+                Delete TEMP Profile
+              </button>
               <a href="profile-preview-edit.html"
                 ><button
                   id="editBtn"
@@ -498,6 +507,54 @@
         alert("Candidate shortlisted!");
       }
 
+      function clearTemporaryProfileSession(candidateId) {
+        const shortlist = sessionStorage.getItem("shortlist") || "";
+        const shortlistArray = shortlist
+          .split(",")
+          .map((item) => item.trim())
+          .filter((item) => item && item !== String(candidateId));
+        sessionStorage.setItem("shortlist", shortlistArray.join(","));
+
+        const temporaryProfiles = JSON.parse(
+          sessionStorage.getItem("temporaryProfiles") || "{}",
+        );
+        delete temporaryProfiles[String(candidateId)];
+        sessionStorage.setItem("temporaryProfiles", JSON.stringify(temporaryProfiles));
+
+        sessionStorage.removeItem("candidateId");
+        sessionStorage.removeItem("candidateName");
+        sessionStorage.removeItem("candidateStatus");
+        sessionStorage.removeItem("candidateProfileType");
+        sessionStorage.removeItem("candidateTopMatches");
+        sessionStorage.removeItem("externalCandidateSource");
+      }
+
+      async function deleteTemporaryProfile() {
+        const candidateId = sessionStorage.getItem("candidateId");
+        const profileType = sessionStorage.getItem("candidateProfileType");
+        if (!candidateId || profileType !== "Temporary Profile") return;
+
+        const confirmed = confirm(
+          "Delete this temporary external profile and remove it from shortlist/session data? Use this for PII/GDPR/CCPA cleanup when you do not want to retain the sourced profile.",
+        );
+        if (!confirmed) return;
+
+        const deleteButton = document.getElementById("deleteTempBtn");
+        deleteButton.disabled = true;
+
+        try {
+          await api(`/api/azureJobs/external/temp/${candidateId}`, {
+            method: "DELETE",
+          });
+          clearTemporaryProfileSession(candidateId);
+          alert("Temporary external profile deleted.");
+          window.location.href = "mine-candidate-external.html";
+        } catch (e) {
+          alert(`Delete failed: ${e.message}`);
+          deleteButton.disabled = false;
+        }
+      }
+
       document.addEventListener("DOMContentLoaded", async () => {
         // Get session variables
         const candidateId = sessionStorage.getItem("candidateId");
@@ -514,11 +571,12 @@
           console.log(profileData);
 
           if (profileType === "Temporary Profile") {
+            document.getElementById("deleteTempBtn").style.display = "inline-block";
             document
               .getElementById("topMatches")
               .insertAdjacentHTML(
                 "beforebegin",
-                '<div class="notice" style="margin: 12px 0">Temporary external profile - confirm details before publishing, then shortlist through the normal workflow.</div>',
+                '<div class="notice" style="margin: 12px 0"><strong>TEMP Profile</strong> - sourced from People Data/GitHub. Confirm details before publishing, shortlist through the normal workflow, or delete for PII/GDPR/CCPA cleanup.</div>',
               );
           }
 

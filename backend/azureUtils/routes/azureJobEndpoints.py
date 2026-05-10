@@ -575,3 +575,7 @@ def external_candidate_import(payload: dict = Body(...)):
             status_code=500,
             content={"detail": f"Unable to create profile from external candidate: {str(e)}"},
         )
+
+@router.delete("/external/temp/{person_id}")
+def external_candidate_delete(person_id: str):
+    return candidates.deleteTemporaryExternalProfile(person_id)
