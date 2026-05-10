@@ -210,7 +210,7 @@
               </div>
 
               <div class="provider-row" style="margin-top: 12px">
-                <div id="calendlyProvider" class="provider-card selected">
+                <div id="calendlyProvider" class="provider-card">
                   <h3>Calendly</h3>
                   <button class="btn" type="button" onclick="selectProvider('calendly')">
                     Use Calendly
@@ -225,7 +225,7 @@
                     Use connected Google
                   </button>
                 </div>
-                <div id="outlookProvider" class="provider-card">
+                <div id="outlookProvider" class="provider-card selected">
                   <h3>Outlook Calendar</h3>
                   <button id="outlookConnectButton" class="btn secondary" type="button" onclick="connectOutlook()">
                     Connect Outlook
@@ -346,7 +346,7 @@
     <script>
       const CALENDLY_BASE_URL =
         "https://calendly.com/mitch-blake-devready/discovery-call";
-      let selectedProvider = "calendly";
+      let selectedProvider = "outlook";
       let latestDraft = null;
       let latestHealth = null;
       let shortlistArray = [];
@@ -385,8 +385,13 @@
         byId("googleProvider").classList.toggle("selected", provider === "google");
         byId("outlookProvider").classList.toggle("selected", provider === "outlook");
         byId("calendlyPanel").hidden = provider !== "calendly";
+        const connected = latestHealth && latestHealth[provider] && latestHealth[provider].connected;
         byId("scheduleActionButton").textContent =
-          provider === "calendly" ? "Book with Calendly" : "Send calendar invite";
+          provider === "calendly"
+            ? "Book with Calendly"
+            : connected
+              ? "Send calendar invite"
+              : `Connect ${provider === "outlook" ? "Outlook" : "Google"}`;
         byId("locationInput").value = {
           calendly: "Calendly booking",
           google: "Google Meet",
@@ -795,6 +800,15 @@
         }
 
         if (
+          preferredProvider === "outlook" &&
+          latestHealth.outlook &&
+          latestHealth.outlook.connected
+        ) {
+          selectProvider("outlook");
+          return;
+        }
+
+        if (
           preferredProvider === "google" &&
           latestHealth.google &&
           latestHealth.google.connected
@@ -803,11 +817,7 @@
           return;
         }
 
-        if (
-          preferredProvider === "outlook" &&
-          latestHealth.outlook &&
-          latestHealth.outlook.connected
-        ) {
+        if (latestHealth.outlook && latestHealth.outlook.connected) {
           selectProvider("outlook");
           return;
         }
@@ -817,9 +827,7 @@
           return;
         }
 
-        if (latestHealth.outlook && latestHealth.outlook.connected) {
-          selectProvider("outlook");
-        }
+        selectProvider("outlook");
       }
 
       function buildPayload() {
@@ -929,6 +937,14 @@
           bookWithCalendly();
           return;
         }
+        if (selectedProvider === "outlook" && !(latestHealth && latestHealth.outlook && latestHealth.outlook.connected)) {
+          connectOutlook();
+          return;
+        }
+        if (selectedProvider === "google" && !(latestHealth && latestHealth.google && latestHealth.google.connected)) {
+          connectGoogle();
+          return;
+        }
         await createInvite();
       }
 
@@ -939,7 +955,7 @@
           selectProvider(params.get("connected"));
           showResult(`${params.get("connected")} connected.`);
         } else {
-          selectProvider(sessionStorage.getItem("preferredCalendarProvider") || "calendly");
+          selectProvider(sessionStorage.getItem("preferredCalendarProvider") || "outlook");
         }
         await loadWorkflowContext();
         await loadShortlist();

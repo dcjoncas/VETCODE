@@ -1,6 +1,7 @@
 import datetime as dt
 import json
 import os
+import secrets
 from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import urlencode
@@ -36,6 +37,9 @@ GOOGLE_CLIENT_SECRET_FILE = Path(os.getenv("GOOGLE_CLIENT_SECRET_FILE", str(BASE
 GOOGLE_TOKEN_FILE = Path(os.getenv("GOOGLE_TOKEN_FILE", str(BASE_DIR / "google_token.json")))
 
 OUTLOOK_TOKEN_FILE = Path(os.getenv("OUTLOOK_TOKEN_FILE", str(BASE_DIR / "outlook_token.json")))
+OUTLOOK_TOKEN_DIR = Path(os.getenv("OUTLOOK_TOKEN_DIR", str(BASE_DIR / "calendar_tokens" / "outlook")))
+OUTLOOK_STATE_DIR = Path(os.getenv("OUTLOOK_STATE_DIR", str(BASE_DIR / "calendar_tokens" / "state")))
+CALENDAR_SESSION_COOKIE = os.getenv("CALENDAR_SESSION_COOKIE", "devready_calendar_session")
 OUTLOOK_TENANT_ID = os.getenv("OUTLOOK_TENANT_ID", "common").strip() or "common"
 OUTLOOK_AUTHORITY = f"https://login.microsoftonline.com/{OUTLOOK_TENANT_ID}/oauth2/v2.0"
 OUTLOOK_SCOPES = ["offline_access", "User.Read", "Calendars.ReadWrite"]
@@ -96,6 +100,62 @@ def _looks_like_guid(value: str) -> bool:
     )
 
 
+def _valid_session_id(value: str) -> bool:
+    return bool(value) and len(value) <= 80 and all(ch.isalnum() or ch in {"-", "_"} for ch in value)
+
+
+def _calendar_session_id(request: Request) -> str:
+    session_id = request.cookies.get(CALENDAR_SESSION_COOKIE, "")
+    if _valid_session_id(session_id):
+        return session_id
+    return secrets.token_urlsafe(24)
+
+
+def _set_calendar_session_cookie(response, session_id: str):
+    response.set_cookie(
+        CALENDAR_SESSION_COOKIE,
+        session_id,
+        max_age=60 * 60 * 24 * 30,
+        httponly=True,
+        samesite="lax",
+        secure=False,
+    )
+    return response
+
+
+def _outlook_token_path(session_id: Optional[str] = None) -> Path:
+    if session_id and _valid_session_id(session_id):
+        OUTLOOK_TOKEN_DIR.mkdir(parents=True, exist_ok=True)
+        return OUTLOOK_TOKEN_DIR / f"{session_id}.json"
+    return OUTLOOK_TOKEN_FILE
+
+
+def _save_outlook_state(state: str, session_id: str):
+    OUTLOOK_STATE_DIR.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "session_id": session_id,
+        "expires_at": dt.datetime.now(dt.timezone.utc).timestamp() + 600,
+    }
+    (OUTLOOK_STATE_DIR / f"{state}.json").write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _pop_outlook_state(state: str) -> Optional[str]:
+    if not _valid_session_id(state):
+        return None
+    state_file = OUTLOOK_STATE_DIR / f"{state}.json"
+    if not state_file.exists():
+        return None
+    try:
+        payload = json.loads(state_file.read_text(encoding="utf-8"))
+        state_file.unlink(missing_ok=True)
+        if dt.datetime.now(dt.timezone.utc).timestamp() > float(payload.get("expires_at", 0)):
+            return None
+        session_id = payload.get("session_id", "")
+        return session_id if _valid_session_id(session_id) else None
+    except Exception:
+        return None
+
+
 def _ensure_google_secret_file():
     if GOOGLE_CLIENT_SECRET_FILE.exists():
         return
@@ -153,21 +213,22 @@ def _ensure_outlook_config():
         raise HTTPException(status_code=500, detail="Use the Outlook client secret Value, not the Secret ID.")
 
 
-def _load_outlook_token() -> Optional[Dict[str, Any]]:
-    if not OUTLOOK_TOKEN_FILE.exists():
+def _load_outlook_token(session_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    token_file = _outlook_token_path(session_id)
+    if not token_file.exists():
         return None
     try:
-        return json.loads(OUTLOOK_TOKEN_FILE.read_text(encoding="utf-8"))
+        return json.loads(token_file.read_text(encoding="utf-8"))
     except Exception:
         return None
 
 
-def _save_outlook_token(token: Dict[str, Any]):
-    OUTLOOK_TOKEN_FILE.write_text(json.dumps(token, indent=2), encoding="utf-8")
+def _save_outlook_token(token: Dict[str, Any], session_id: Optional[str] = None):
+    _outlook_token_path(session_id).write_text(json.dumps(token, indent=2), encoding="utf-8")
 
 
-def _outlook_status(refresh: bool = False) -> Dict[str, Any]:
-    token = _load_outlook_token()
+def _outlook_status(refresh: bool = False, session_id: Optional[str] = None) -> Dict[str, Any]:
+    token = _load_outlook_token(session_id)
     if not token:
         return {"connected": False, "token_found": False, "needs_auth": True}
     expires_at = float(token.get("expires_at", 0))
@@ -189,18 +250,19 @@ def _outlook_status(refresh: bool = False) -> Dict[str, Any]:
             resp.raise_for_status()
             token = resp.json()
             token["expires_at"] = dt.datetime.now(dt.timezone.utc).timestamp() + int(token.get("expires_in", 3600))
-            _save_outlook_token(token)
+            _save_outlook_token(token, session_id)
             expired = False
         except Exception as exc:
             return {"connected": False, "token_found": True, "needs_auth": True, "error": f"Outlook refresh failed: {exc}"}
     return {"connected": bool(token.get("access_token")) and not expired, "token_found": True, "expired": expired, "needs_auth": expired}
 
 
-def _outlook_access_token() -> str:
-    status = _outlook_status(refresh=True)
+def _outlook_access_token(request: Request) -> str:
+    session_id = _calendar_session_id(request)
+    status = _outlook_status(refresh=True, session_id=session_id)
     if not status.get("connected"):
         raise HTTPException(status_code=401, detail=status.get("error") or "Outlook Calendar is not connected.")
-    return _load_outlook_token()["access_token"]
+    return _load_outlook_token(session_id)["access_token"]
 
 
 def _openai_client() -> OpenAI:
@@ -262,21 +324,24 @@ def _fallback_email(draft: Dict[str, Any]) -> str:
 
 
 @router.get("/api/calendar/health")
-def calendar_health():
-    return {
+def calendar_health(request: Request):
+    session_id = _calendar_session_id(request)
+    payload = {
         "ok": True,
         "google_secret_found": GOOGLE_CLIENT_SECRET_FILE.exists() or bool(os.getenv("GOOGLE_CLIENT_SECRET_JSON", "").strip()),
         "google": _google_status(refresh=False),
         "outlook": {
-            **_outlook_status(refresh=False),
+            **_outlook_status(refresh=False, session_id=session_id),
             "client_configured": bool(OUTLOOK_CLIENT_ID and OUTLOOK_CLIENT_SECRET),
             "secret_value_needed": _looks_like_guid(OUTLOOK_CLIENT_SECRET) if OUTLOOK_CLIENT_SECRET else False,
             "redirect_uri": _configured_outlook_redirect_uri(),
             "tenant": OUTLOOK_TENANT_ID,
+            "session_scoped": True,
         },
         "openai_key_found": bool(os.getenv("OPENAI_API_KEY", "").strip()),
         "model": OPENAI_MODEL,
     }
+    return _set_calendar_session_cookie(JSONResponse(payload), session_id)
 
 
 @router.get("/auth/google")
@@ -307,6 +372,9 @@ def auth_google_callback(request: Request):
 @router.get("/auth/outlook")
 def auth_outlook(request: Request):
     _ensure_outlook_config()
+    session_id = _calendar_session_id(request)
+    state = secrets.token_urlsafe(24)
+    _save_outlook_state(state, session_id)
     params = {
         "client_id": OUTLOOK_CLIENT_ID,
         "response_type": "code",
@@ -314,19 +382,22 @@ def auth_outlook(request: Request):
         "response_mode": "query",
         "scope": " ".join(OUTLOOK_SCOPES),
         "prompt": "select_account",
+        "state": state,
     }
-    return RedirectResponse(f"{OUTLOOK_AUTHORITY}/authorize?{urlencode(params)}")
+    return _set_calendar_session_cookie(RedirectResponse(f"{OUTLOOK_AUTHORITY}/authorize?{urlencode(params)}"), session_id)
 
 
 @router.get("/auth/outlook/callback", name="auth_outlook_callback")
 def auth_outlook_callback(request: Request):
     _ensure_outlook_config()
     code = request.query_params.get("code")
+    state = request.query_params.get("state", "")
+    session_id = _pop_outlook_state(state) or _calendar_session_id(request)
     if not code:
         error = request.query_params.get("error_description") or request.query_params.get("error")
         if error:
             return HTMLResponse(f"<h2>Outlook connection failed</h2><p>{error}</p><p><a href='{SCHEDULER_PAGE}'>Back to scheduler</a></p>", status_code=400)
-        return RedirectResponse(f"{SCHEDULER_PAGE}?outlook=missing_code")
+        return _set_calendar_session_cookie(RedirectResponse(f"{SCHEDULER_PAGE}?outlook=missing_code"), session_id)
     try:
         resp = requests.post(
             f"{OUTLOOK_AUTHORITY}/token",
@@ -345,8 +416,8 @@ def auth_outlook_callback(request: Request):
         raise HTTPException(status_code=500, detail=f"Outlook token exchange failed: {exc}")
     token = resp.json()
     token["expires_at"] = dt.datetime.now(dt.timezone.utc).timestamp() + int(token.get("expires_in", 3600))
-    _save_outlook_token(token)
-    return RedirectResponse(f"{SCHEDULER_PAGE}?connected=outlook")
+    _save_outlook_token(token, session_id)
+    return _set_calendar_session_cookie(RedirectResponse(f"{SCHEDULER_PAGE}?connected=outlook"), session_id)
 
 
 @router.post("/api/calendar/invite/draft")
@@ -539,8 +610,8 @@ def _create_google(payload: Dict[str, Any], draft: Dict[str, Any], start_dt: dt.
     return {"ok": True, "provider": "google", "eventLink": created.get("htmlLink"), "meetingLink": created.get("hangoutLink"), "start": event["start"], "end": event["end"]}
 
 
-def _create_outlook(draft: Dict[str, Any], start_dt: dt.datetime, end_dt: dt.datetime, tz: str):
-    token = _outlook_access_token()
+def _create_outlook(request: Request, draft: Dict[str, Any], start_dt: dt.datetime, end_dt: dt.datetime, tz: str):
+    token = _outlook_access_token(request)
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json", "Prefer": f'outlook.timezone="{_windows_timezone(tz)}"'}
     duration = dt.timedelta(minutes=int(draft.get("duration_minutes", 60)))
     try:
@@ -585,7 +656,7 @@ def _create_outlook(draft: Dict[str, Any], start_dt: dt.datetime, end_dt: dt.dat
 
 
 @router.post("/api/calendar/invite/create")
-async def invite_create(payload: Dict[str, Any]):
+async def invite_create(request: Request, payload: Dict[str, Any]):
     try:
         draft = payload.get("draft")
         if not isinstance(draft, dict):
@@ -596,7 +667,7 @@ async def invite_create(payload: Dict[str, Any]):
         if provider == "google":
             return _create_google(payload, draft, start_dt, end_dt, timezone)
         if provider == "outlook":
-            return _create_outlook(draft, start_dt, end_dt, timezone)
+            return _create_outlook(request, draft, start_dt, end_dt, timezone)
         raise HTTPException(status_code=400, detail="provider must be google or outlook.")
     except HTTPException:
         raise

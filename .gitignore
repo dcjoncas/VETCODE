@@ -9,4 +9,5 @@ __pycache__
 backend/exports
 devready.db*
 backend/*token.json
+backend/calendar_tokens/
 backend/google_client_secret.json
