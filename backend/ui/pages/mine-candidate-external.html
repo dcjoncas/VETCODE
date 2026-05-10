@@ -215,6 +215,10 @@
                     )
                     .join(" | ")}</div>`
                 : "";
+            const scoreBand = candidate.match_band || candidate.score_details?.band || "Below threshold";
+            const missingSkills = candidate.score_details?.missing?.length
+              ? `<div class="meta">Missing: ${candidate.score_details.missing.slice(0, 4).map(escapeHtml).join(", ")}</div>`
+              : "";
 
             return `<div class="candidate-card">
               <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
@@ -226,8 +230,9 @@
                   ${repoLine}
                   ${repoEvidence}
                   ${profileLink ? `<div class="meta">${profileLink}</div>` : ""}
+                  ${missingSkills}
                 </div>
-                <div class="pill">${Math.round(candidate.score || 0)}% match</div>
+                <div class="pill">${Math.round(candidate.score || 0)}% - ${escapeHtml(scoreBand)}</div>
               </div>
               <div class="skills">${skills}</div>
               <div class="row-actions">

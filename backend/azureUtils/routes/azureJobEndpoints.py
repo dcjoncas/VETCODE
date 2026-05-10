@@ -2,6 +2,7 @@ from fastapi import APIRouter, Body, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 import traceback
 import os
+import re
 import requests
 from azureUtils.storage import jobs, candidates
 from jd_match import normalize_jd, azureJobMatch, normalize_all_skills
@@ -101,27 +102,99 @@ def _searchable_job_skills(job_skills: list[str], limit: int = 10):
     normalized = preferred + fallback
     return normalized[:limit] or _safe_list(job_skills)[:limit]
 
+def _skill_terms(skill: str):
+    lower = str(skill or "").lower().strip()
+    replacements = {
+        "python3": "python",
+        "js": "javascript",
+        "nodejs": "node",
+        "node.js": "node",
+        "postgres": "postgresql",
+        "big query": "bigquery",
+        "google cloud": "gcp",
+        "microsoft azure": "azure",
+        "amazon web services": "aws",
+        "git hub": "github",
+    }
+    terms = {lower, replacements.get(lower, lower)}
+    for token in re.split(r"[\s,/&()+|:-]+", lower):
+        if token in {"aws", "gcp", "sql", "c++", "c#", ".net"} or len(token) >= 4:
+            terms.add(replacements.get(token, token))
+    return {term for term in terms if term}
+
+def _skill_weight(skill: str):
+    lower = str(skill or "").lower()
+    core_tokens = [
+        "python", "django", "java", "javascript", "typescript", "react", "node", "c++", "c#",
+        ".net", "sql", "postgres", "mysql", "mongodb", "aws", "azure", "gcp", "google cloud",
+        "kubernetes", "docker", "redshift", "bigquery", "snowflake", "github", "gitlab",
+    ]
+    generic_tokens = [
+        "clean", "performance", "code review", "web application", "full stack", "pm",
+        "product owner", "collaboration", "problem solving", "flows",
+    ]
+    if any(token in lower for token in core_tokens):
+        return 1.5
+    if any(token in lower for token in generic_tokens):
+        return 0.75
+    return 1.0
+
+def _score_band(score: int):
+    if score >= 75:
+        return "Strong match"
+    if score >= 50:
+        return "Qualified match"
+    if score > 0:
+        return "Below threshold"
+    return "No measurable match"
+
 def _rank_external_skill_match(raw_skills: list[str], job_skills: list[str], scoring_skills: list[str] | None = None):
     candidate_skills = _safe_list(raw_skills)
-    skill_basis = _safe_list(scoring_skills) or _safe_list(job_skills)
-    job_skill_count = len(skill_basis) or 1
+    skill_basis = _safe_list(scoring_skills)[:12] if scoring_skills else _searchable_job_skills(_safe_list(job_skills), 12)
     matched = []
-    lowered_candidate = [skill.lower() for skill in candidate_skills]
+    missing = []
+    candidate_terms = set()
+    for skill in candidate_skills:
+        candidate_terms.update(_skill_terms(skill))
+
+    total_weight = 0.0
+    matched_weight = 0.0
 
     for skill in skill_basis:
-        needle = skill.lower()
-        if len(needle) <= 3:
-            matched_skill = any(needle == haystack for haystack in lowered_candidate)
-        else:
-            matched_skill = any(needle == haystack or needle in haystack or haystack in needle for haystack in lowered_candidate)
+        skill_terms = _skill_terms(skill)
+        weight = _skill_weight(skill)
+        total_weight += weight
+        matched_skill = bool(skill_terms & candidate_terms)
+        if not matched_skill:
+            matched_skill = any(
+                len(term) >= 4 and any(term in candidate_term or candidate_term in term for candidate_term in candidate_terms)
+                for term in skill_terms
+            )
         if matched_skill:
             matched.append(skill)
+            matched_weight += weight
+        else:
+            missing.append(skill)
 
-    return round(len(set(matched)) / job_skill_count * 100), list(dict.fromkeys(matched))
+    unique_matches = list(dict.fromkeys(matched))
+    score = round((matched_weight / max(total_weight, 1.0)) * 100)
+    if len(unique_matches) < 2 and score >= 50:
+        score = 49
+    details = {
+        "formula": "weighted matched JD signals / weighted searchable JD signals",
+        "matched_count": len(unique_matches),
+        "required_count": len(skill_basis),
+        "matched_weight": round(matched_weight, 2),
+        "required_weight": round(total_weight, 2),
+        "band": _score_band(score),
+        "scoring_skills": skill_basis,
+        "missing": missing[:8],
+    }
+    return score, unique_matches, details
 
 def _people_data_row(row: dict, job_skills: list[str], scoring_skills: list[str]):
     skills = _safe_list(row.get("skills"))
-    score, top_matches = _rank_external_skill_match(skills, job_skills, scoring_skills)
+    score, top_matches, score_details = _rank_external_skill_match(skills, job_skills, scoring_skills)
     first = row.get("first_name") or ""
     last = row.get("last_name") or ""
     name = (first + " " + last).strip() or row.get("full_name") or "Unknown candidate"
@@ -149,6 +222,8 @@ def _people_data_row(row: dict, job_skills: list[str], scoring_skills: list[str]
         "summary": row.get("summary") or row.get("headline") or "",
         "skills": skills,
         "score": score,
+        "match_band": score_details["band"],
+        "score_details": score_details,
         "top_matches": top_matches,
         "profile_data": {
             "experience": row.get("experience", [])[:5] if isinstance(row.get("experience"), list) else [],
@@ -270,7 +345,7 @@ def _github_search(job_skills: list[str], scoring_skills: list[str], size: int =
             + [skill for skill in selected_skills if skill.lower() in candidate_text]
             + repo_skills
         ))
-        score, top_matches = _rank_external_skill_match(inferred_skills, job_skills, selected_skills)
+        score, top_matches, score_details = _rank_external_skill_match(inferred_skills, job_skills, selected_skills)
 
         enriched_rows.append({
             "source": "github",
@@ -286,6 +361,8 @@ def _github_search(job_skills: list[str], scoring_skills: list[str], size: int =
             "summary": user.get("bio") or "",
             "skills": inferred_skills,
             "score": score,
+            "match_band": score_details["band"],
+            "score_details": score_details,
             "top_matches": top_matches,
             "repo_count": user.get("public_repos") or len(repos),
             "recent_repos": [
@@ -381,6 +458,7 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
     
     # TODO: Figure out why some jobs have duplicates on upload
     peopleDataSkills = list(set(peopleDataSkills))  # ensure unique skills
+    scoringSkills = _searchable_job_skills(peopleDataSkills, 12)
 
     returnedExternalPeople = []
 
@@ -398,7 +476,6 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
 
     profiles = candidates.searchCandidatesBySkillId(jd["skillIds"], top_k)
 
-    jobSkillCount = len(peopleDataSkills) or 1  # avoid division by zero
     ranked = []
     for row in profiles:
         #p = storage.get_profile(DB_PATH, row["profile_id"])
@@ -407,17 +484,10 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
 
         print(f"Matching profile {row['id']} - {row['firstName']} {row['lastName']}")
 
-        skillMatchCount = 0
-        top_matches = []
-        for skill in peopleDataSkills:
-            if skill.lower() in (s.lower() for s in row['skillMatches']):
-                top_matches.append(skill)
-                skillMatchCount += 1
-                print(f"Matched skill: {skill}")
+        score, top_matches, score_details = _rank_external_skill_match(row['skillMatches'], peopleDataSkills, scoringSkills)
 
-        print(f"Total matched skills: {skillMatchCount} out of {jobSkillCount}")
-        print(skillMatchCount / jobSkillCount)
-        score = round(skillMatchCount / jobSkillCount * 100)
+        print(f"Total matched skills: {score_details['matched_count']} out of {score_details['required_count']}")
+        print(f"Weighted match score: {score}")
 
         print("\n")
         # Set empty and negative values for easy existance checking
@@ -440,6 +510,8 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
             "name": row["firstName"] + ' ' + row["lastName"],
             "email": row["email"],
             "score": score,
+            "match_band": score_details["band"],
+            "score_details": score_details,
             "top_matches": top_matches,
             "breakdown": row['skillMatches'],
             'culture_match': percentageNum
@@ -456,14 +528,7 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
         if "inferred_salary" in row:
             inferredSalary = row["inferred_salary"]
 
-        skillMatchCount = 0
-        top_matches = []
-        for skill in peopleDataSkills:
-            if skill.lower() in (s.lower() for s in row['skills']):
-                top_matches.append(skill)
-                skillMatchCount += 1
-
-        score = round(skillMatchCount / jobSkillCount * 100)
+        score, top_matches, score_details = _rank_external_skill_match(row['skills'], peopleDataSkills, scoringSkills)
         
         rankedExternal.append({
             "profile_id": row["id"],
@@ -473,12 +538,14 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
             "linkedin_url": row["linkedin_url"],
             "inferred_salary": inferredSalary,
             "score": score,
+            "match_band": score_details["band"],
+            "score_details": score_details,
             "top_matches": top_matches,
             "breakdown": row['skills']
         })
 
     rankedExternal.sort(key=lambda x: x["score"], reverse=True)
-    return {"jd": {"jd_id": jd["jd_id"], "company": jd.get("company",""), "title": jd.get("title",""), "created_at": jd.get("created_at","")}, "results": ranked[:top_k], "externalMatches": rankedExternal, "skillList": peopleDataSkills}
+    return {"jd": {"jd_id": jd["jd_id"], "company": jd.get("company",""), "title": jd.get("title",""), "created_at": jd.get("created_at","")}, "results": ranked[:top_k], "externalMatches": rankedExternal, "skillList": peopleDataSkills, "scoringSkills": scoringSkills}
 
 @router.post("/external/search")
 def external_candidate_search(
