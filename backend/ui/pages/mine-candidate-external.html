@@ -21,17 +21,42 @@
     <style>
       .source-toggle {
         display: flex;
-        gap: 10px;
+        gap: 8px;
         flex-wrap: wrap;
+        max-width: 420px;
+        padding: 4px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface, #f7f8fa);
       }
 
       .source-toggle button {
+        position: relative;
+        flex: 1 1 180px;
         min-width: 150px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--text);
+        font-weight: 700;
       }
 
       .source-toggle button.active {
         background: var(--accent);
+        border-color: var(--accent);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
         color: #fff;
+      }
+
+      .source-toggle button.active::before {
+        content: "✓";
+        display: inline-block;
+        margin-right: 6px;
+        font-weight: 900;
+      }
+
+      .source-toggle button:not(.active):hover {
+        border-color: var(--accent);
+        background: #fff;
       }
 
       .candidate-card {
@@ -136,10 +161,10 @@
           <div class="field" style="margin-top: 12px">
             <label>External source</label>
             <div class="source-toggle">
-              <button class="btn active" type="button" data-source="pdl">
+              <button class="btn active" type="button" data-source="pdl" aria-pressed="true">
                 People Data Labs
               </button>
-              <button class="btn" type="button" data-source="github">
+              <button class="btn" type="button" data-source="github" aria-pressed="false">
                 GitHub
               </button>
             </div>
@@ -175,7 +200,9 @@
       function setSource(source) {
         selectedSource = source;
         document.querySelectorAll(".source-toggle button").forEach((button) => {
-          button.classList.toggle("active", button.dataset.source === source);
+          const isActive = button.dataset.source === source;
+          button.classList.toggle("active", isActive);
+          button.setAttribute("aria-pressed", isActive ? "true" : "false");
         });
       }
 
