@@ -122,11 +122,22 @@
         <div id="processFlow"></div>
 
         <section class="card">
-          <h2>Find external candidates from the selected role</h2>
+          <h2>Find external candidates</h2>
           <p>
-            Paste or choose a job description, then search People Data Labs or GitHub.
-            Results are ranked using the production match percentage from the role skills.
+            Search directly by name, email, profile URL, or skills. You can also paste
+            or choose a job description when you want MineEx ranked to a role.
           </p>
+
+          <div class="field">
+            <label>Search external candidates</label>
+            <input
+              id="externalSearchInput"
+              placeholder="Name, email, profile URL, or comma separated skills (e.g. Python, C#, React)"
+            />
+            <div class="source-guide">
+              Use this when you do not have a job description yet. Results still create TEMP profiles only.
+            </div>
+          </div>
 
           <div class="split">
             <div class="field">
@@ -172,7 +183,7 @@
           <div class="field" style="margin-top: 12px">
             <label>Pick place to mine</label>
             <div class="source-guide">
-              Select People Data Labs or GitHub, then mine candidates. After results return,
+              Select People Data Labs or GitHub, then search or mine candidates. After results return,
               choose one candidate to build a TEMP profile for the normal shortlist flow.
             </div>
             <div class="source-toggle">
@@ -258,7 +269,13 @@
                     .join(" | ")}</div>`
                 : "";
             const scoreBand = candidate.match_band || candidate.score_details?.band || "Below threshold";
+            const isDirectResult = candidate.search_mode === "direct";
+            const scoreLabel =
+              isDirectResult && !(candidate.top_matches || []).length
+                ? "Direct result"
+                : `${Math.round(candidate.score || 0)}% - ${escapeHtml(scoreBand)}`;
             const missingSkills = candidate.score_details?.missing?.length
+              && !isDirectResult
               ? `<div class="meta">Missing: ${candidate.score_details.missing.slice(0, 4).map(escapeHtml).join(", ")}</div>`
               : "";
 
@@ -274,7 +291,7 @@
                   ${profileLink ? `<div class="meta">${profileLink}</div>` : ""}
                   ${missingSkills}
                 </div>
-                <div class="pill">${Math.round(candidate.score || 0)}% - ${escapeHtml(scoreBand)}</div>
+                <div class="pill">${scoreLabel}</div>
               </div>
               <div class="skills">${skills}</div>
               <div class="row-actions">
@@ -289,32 +306,45 @@
 
       async function mineCandidates() {
         const jdId = document.getElementById("jdSelect").value;
-        if (!jdId) return alert("Select a job description first.");
+        const directSearch = document.getElementById("externalSearchInput").value.trim();
+        if (!jdId && !directSearch) {
+          return alert("Enter a direct search or select a job description first.");
+        }
 
         document.getElementById("btnMine").disabled = true;
         document.getElementById("mineStatus").textContent =
-          `Searching ${selectedSource === "github" ? "GitHub" : "People Data Labs"} from the selected JD skills...`;
+          directSearch
+            ? `Searching ${selectedSource === "github" ? "GitHub" : "People Data Labs"} for "${directSearch}"...`
+            : `Searching ${selectedSource === "github" ? "GitHub" : "People Data Labs"} from the selected JD skills...`;
         document.getElementById("results").innerHTML = "";
 
         const fd = new FormData();
         fd.append("domain", currentDomain());
-        fd.append("jd_id", jdId);
         fd.append("source", selectedSource);
         fd.append("top_k", document.getElementById("topK").value);
+        if (directSearch) {
+          fd.append("query", directSearch);
+        } else {
+          fd.append("jd_id", jdId);
+        }
 
         try {
-          const response = await api("/api/azureJobs/external/search", {
+          const response = await api(directSearch ? "/api/azureJobs/external/search-direct" : "/api/azureJobs/external/search", {
             method: "POST",
             body: fd,
           });
 
           latestExternalResults = response.results || [];
-          rememberJob(jdId, response.jd || {});
+          if (!directSearch) {
+            rememberJob(jdId, response.jd || {});
+          }
           sessionStorage.setItem("jobSkills", (response.jobSkills || []).join(", "));
           document.getElementById("jobSkillPanel").textContent =
-            `Search skills used: ${(response.searchSkills || response.jobSkills || []).join(", ")}`;
+            directSearch
+              ? `Direct search used: ${(response.searchSkills || response.jobSkills || []).join(", ")}`
+              : `Search skills used: ${(response.searchSkills || response.jobSkills || []).join(", ")}`;
           document.getElementById("mineStatus").textContent =
-            `Returned ${latestExternalResults.length} ${response.source === "github" ? "GitHub" : "People Data Labs"} candidates.`;
+            `Returned ${latestExternalResults.length} ${response.source === "github" ? "GitHub" : "People Data Labs"} candidates${directSearch ? " from direct search" : " from the selected JD"}.`;
           renderResults(latestExternalResults);
         } catch (e) {
           document.getElementById("mineStatus").textContent = e.message;
@@ -428,6 +458,12 @@
         });
         document.getElementById("btnSaveJd").addEventListener("click", saveJobDescription);
         document.getElementById("btnMine").addEventListener("click", mineCandidates);
+        document.getElementById("externalSearchInput").addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            mineCandidates();
+          }
+        });
       });
     </script>
   </body>

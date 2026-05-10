@@ -38,7 +38,48 @@ def searchSkills(skillList: list[str], size: int = 5):
         return response.json()
     else:
         raise Exception(f"Failed to retrieve data, status code: {response.status_code}")
-    
+
+def searchDirect(searchQuery: str, size: int = 5):
+    url = "https://api.peopledatalabs.com/v5/person/search"
+
+    headers = {
+        'Content-Type': 'application/json',
+        'X-Api-Key': PDL_API_KEY,
+    }
+
+    clean_query = (searchQuery or "").strip()
+    terms = [term.strip() for term in clean_query.replace(";", ",").split(",") if term.strip()]
+    if not terms:
+        terms = [clean_query] if clean_query else []
+
+    shouldArray = []
+    for term in terms:
+        shouldArray.extend([
+            {"match": {"full_name": term.lower()}},
+            {"match": {"job_title": term.lower()}},
+            {"match": {"skills": term.lower()}},
+            {"match": {"linkedin_url": term.lower()}},
+            {"match": {"work_email": term.lower()}},
+            {"match": {"recommended_personal_email": term.lower()}},
+        ])
+
+    payload = {
+        "query": {
+            "bool": {
+                "should": shouldArray,
+                "minimum_should_match": 1,
+            }
+        },
+        "size": size
+    }
+
+    response = requests.post(url, headers=headers, json=payload)
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"Failed to retrieve data, status code: {response.status_code}")
+
 def searchSkillsAndLocation(skillList: list[str], locationCity: str = "", locationState: str = "", locationCountry: str = "", size: int = 5):
     url = "https://api.peopledatalabs.com/v5/person/search"
 
@@ -61,7 +102,7 @@ def searchSkillsAndLocation(skillList: list[str], locationCity: str = "", locati
 
     #for skill in skillList:
         #shouldArray.append({"match": {"skills": skill.lower()}})
-    
+
     if len(locationCity) > 0:
         mustArray.append({"match": {"location_locality": locationCity.lower()}})
     if len(locationState) > 0:
@@ -88,4 +129,4 @@ def searchSkillsAndLocation(skillList: list[str], locationCity: str = "", locati
     else:
         print(f"PeopleDataLabs API Error: {response.status_code}, Response: {response.text}")
         raise Exception(f"Failed to retrieve data, status code: {response.status_code}")
-    
+

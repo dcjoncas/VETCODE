@@ -398,6 +398,135 @@ def _github_search(job_skills: list[str], scoring_skills: list[str], size: int =
     enriched_rows.sort(key=lambda row: row["score"], reverse=True)
     return enriched_rows
 
+def _github_direct_search(search_query: str, search_terms: list[str], size: int = 5):
+    query = (search_query or "").strip()
+    selected_skills = _safe_list(search_terms)[:8]
+    seen_logins = set()
+    candidate_logins = []
+    search_queries = []
+
+    if query:
+        direct_query = f"{query} type:user"
+        search_queries.append(direct_query)
+        search_response = requests.get(
+            "https://api.github.com/search/users",
+            params={"q": direct_query, "per_page": min(size * 3, 20)},
+            headers=_github_headers(),
+            timeout=12,
+        )
+        if search_response.status_code >= 400:
+            raise Exception(f"GitHub direct search failed with status {search_response.status_code}: {search_response.text[:180]}")
+        for item in search_response.json().get("items", []):
+            login = item.get("login")
+            if login and login not in seen_logins:
+                seen_logins.add(login)
+                candidate_logins.append(login)
+            if len(candidate_logins) >= max(size * 3, 10):
+                break
+
+    if not candidate_logins and selected_skills:
+        return _github_search(selected_skills, selected_skills, size)
+
+    enriched_rows = []
+    for login in candidate_logins:
+        if len(enriched_rows) >= size:
+            break
+        user_response = requests.get(
+            f"https://api.github.com/users/{login}",
+            headers=_github_headers(),
+            timeout=12,
+        )
+        user = user_response.json() if user_response.status_code == 200 else {}
+        if (user.get("type") or "").lower() != "user":
+            continue
+
+        repo_response = requests.get(
+            f"https://api.github.com/users/{login}/repos",
+            params={"sort": "updated", "per_page": 8},
+            headers=_github_headers(),
+            timeout=12,
+        )
+        repos = repo_response.json() if repo_response.status_code == 200 else []
+        if not isinstance(repos, list):
+            repos = []
+
+        repo_skills = []
+        for repo in repos:
+            repo_skills.extend(_safe_list(repo.get("topics")))
+            if repo.get("language"):
+                repo_skills.append(repo.get("language"))
+
+        repo_text = " ".join(
+            [
+                " ".join(
+                    [
+                        str(repo.get("name") or ""),
+                        str(repo.get("description") or ""),
+                        str(repo.get("language") or ""),
+                        " ".join(_safe_list(repo.get("topics"))),
+                    ]
+                )
+                for repo in repos
+            ]
+        )
+        candidate_text = " ".join([str(user.get("name") or ""), str(user.get("login") or ""), str(user.get("bio") or ""), repo_text]).lower()
+        inferred_skills = list(dict.fromkeys(
+            [skill for skill in selected_skills if skill.lower() in candidate_text]
+            + repo_skills
+        ))
+        score, top_matches, score_details = _rank_external_skill_match(inferred_skills, selected_skills, selected_skills)
+
+        enriched_rows.append({
+            "source": "github",
+            "source_label": "GitHub",
+            "source_id": login,
+            "name": user.get("name") or login,
+            "email": user.get("email") or "",
+            "title": "",
+            "company": user.get("company") or "",
+            "location": user.get("location") or "",
+            "profile_url": user.get("html_url") or f"https://github.com/{login}",
+            "avatar_url": user.get("avatar_url") or "",
+            "summary": user.get("bio") or "",
+            "skills": inferred_skills or selected_skills,
+            "score": score,
+            "match_band": score_details["band"],
+            "score_details": score_details,
+            "top_matches": top_matches,
+            "repo_count": user.get("public_repos") or len(repos),
+            "recent_repos": [
+                {
+                    "name": repo.get("name"),
+                    "language": repo.get("language"),
+                    "description": repo.get("description"),
+                    "url": repo.get("html_url"),
+                }
+                for repo in repos[:5]
+            ],
+            "profile_data": {
+                "github_login": login,
+                "bio": user.get("bio") or "",
+                "blog": user.get("blog") or "",
+                "followers": user.get("followers") or 0,
+                "public_repos": user.get("public_repos") or len(repos),
+                "repos": [
+                    {
+                        "name": repo.get("name"),
+                        "language": repo.get("language"),
+                        "topics": _safe_list(repo.get("topics")),
+                        "description": repo.get("description"),
+                        "stars": repo.get("stargazers_count") or 0,
+                        "url": repo.get("html_url"),
+                    }
+                    for repo in repos[:8]
+                ],
+            },
+            "search_queries": search_queries,
+        })
+
+    enriched_rows.sort(key=lambda row: row["score"], reverse=True)
+    return enriched_rows
+
 def _get_job_skills(jd_id: str):
     jd = jobs.getJob(jd_id)
     if not jd:
@@ -590,6 +719,57 @@ def external_candidate_search(
         "searchSkills": search_skills,
         "results": results[:top_k],
         "searchUsesJobDescription": True,
+    }
+
+@router.post("/external/search-direct")
+def external_candidate_search_direct(
+    domain: str = Form(default="dev"),
+    query: str = Form(...),
+    source: str = Form(default="pdl"),
+    top_k: int = Form(default=10),
+):
+    clean_query = (query or "").strip()
+    if not clean_query:
+        raise HTTPException(status_code=400, detail="Enter a name, email, profile URL, or comma-separated skills.")
+
+    search_terms = [
+        term.strip()
+        for term in re.split(r"[,;\n]+", clean_query)
+        if term.strip()
+    ]
+    if not search_terms:
+        search_terms = [clean_query]
+
+    selected_source = (source or "pdl").strip().lower()
+    try:
+        if selected_source == "pdl":
+            pdl_response = peopleDataLabs.searchDirect(clean_query, top_k)
+            results = [_people_data_row(row, search_terms, search_terms) for row in pdl_response.get("data", [])]
+        elif selected_source == "github":
+            results = _github_direct_search(clean_query, search_terms, top_k)
+        else:
+            raise HTTPException(status_code=400, detail="Select People Data Labs or GitHub.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={
+                "detail": f"{'GitHub' if selected_source == 'github' else 'People Data Labs'} direct search failed: {str(e)}",
+                "searchTerms": search_terms,
+            },
+        )
+
+    for row in results:
+        row["search_mode"] = "direct"
+
+    results.sort(key=lambda row: row.get("score", 0), reverse=True)
+    return {
+        "source": selected_source,
+        "jobSkills": search_terms,
+        "searchSkills": search_terms,
+        "results": results[:top_k],
+        "searchUsesJobDescription": False,
     }
 
 @router.post("/external/import")
