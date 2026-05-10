@@ -43,14 +43,14 @@
 
         <!-- <div class="grid"> -->
         <section class="card" style="width: 100%">
-          <h2>Match candidate(s) to a role & job description</h2>
+          <h2>Match candidate(s) to a saved job description</h2>
           <p>
-            Paste or upload a job description, normalize it, then rank stored
-            profiles and select the top 10 for deeper vetting.
+            Select a job description saved from Talent, then rank stored
+            profiles and choose candidates for deeper vetting.
           </p>
 
-          <div class="split">
-            <div class="field">
+          <div>
+            <div class="field" hidden>
               <label>Job description input</label>
               <textarea
                 id="jdText"
@@ -84,7 +84,7 @@
             </div>
 
             <div>
-              <div class="field">
+              <div class="field" hidden>
                 <label>JD metadata</label>
                 <div class="split">
                   <div class="field">
@@ -108,6 +108,7 @@
                         Select Description
                       </option>
                     </select>
+                    <small>Add or update job descriptions from Talent.</small>
                   </div>
                   <div class="field">
                     <label>Return</label>
@@ -122,6 +123,9 @@
                   <button class="btn" type="button" id="btnRank">
                     Rank Profiles
                   </button>
+                  <a class="btn secondary" href="find-candidate.html" style="text-decoration: none">
+                    Add JD in Talent
+                  </a>
                   <!--<button
                     class="btn secondary"
                     type="button"

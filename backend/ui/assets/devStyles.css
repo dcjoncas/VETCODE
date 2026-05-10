@@ -588,7 +588,7 @@ input[type="checkbox"] {
 }
 .map-branch-line {
   height: 2px;
-  background: #1769e0;
+  background: var(--primary);
 }
 @media (max-width: 1100px) {
   .process-map {

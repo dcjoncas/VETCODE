@@ -139,7 +139,7 @@
             </div>
           </div>
 
-          <div class="split">
+          <div class="split" hidden>
             <div class="field">
               <label>Company</label>
               <input id="jdCompany" placeholder="Company Name..." />
@@ -150,7 +150,7 @@
             </div>
           </div>
 
-          <div class="field">
+          <div class="field" hidden>
             <label>Job description input</label>
             <textarea
               id="jdText"
@@ -169,6 +169,7 @@
               <select id="jdSelect">
                 <option value="" selected disabled hidden>Select Description</option>
               </select>
+              <small>Add or update job descriptions from Talent.</small>
             </div>
             <div class="field">
               <label>Return</label>
@@ -183,7 +184,7 @@
           <div class="field" style="margin-top: 12px">
             <label>Pick place to mine</label>
             <div class="source-guide">
-              Select People Data Labs or GitHub, then search or mine candidates. After results return,
+              Select People Data Labs or GitHub, then search outside sources. After results return,
               choose one candidate to build a TEMP profile for the normal shortlist flow.
             </div>
             <div class="source-toggle">
@@ -198,8 +199,9 @@
 
           <div class="row-actions">
             <button class="btn primary" type="button" id="btnMine">
-              Mine Candidates
+              Find Candidates (Out)
             </button>
+            <a class="btn secondary" href="find-candidate.html">Add JD in Talent</a>
             <a class="btn secondary" href="match-role.html">Continue to Role & Match</a>
           </div>
 
@@ -419,7 +421,7 @@
           document.getElementById("jobSkillPanel").textContent =
             `Search skills ready: ${(response.jd_skills || []).slice(0, 12).join(", ")}`;
           document.getElementById("mineStatus").textContent =
-            "Job description saved. Choose People Data Labs or GitHub, then mine candidates.";
+            "Job description saved. Choose People Data Labs or GitHub, then find external candidates.";
         } catch (e) {
           document.getElementById("mineStatus").textContent = e.message;
         } finally {

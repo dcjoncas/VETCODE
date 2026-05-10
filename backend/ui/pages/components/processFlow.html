@@ -16,7 +16,7 @@
         </button>
       </div>
       <div class="flow-help">
-        Green steps are the normal vetting path. Blue MineEx builds a TEMP external profile, then rejoins at Profile build.
+        Start in Talent for resumes, job descriptions, profile search, and discovery. Use MineEx when you need an outside candidate source.
       </div>
       <div id="candidateSelected" style="color: var(--muted); font-size: 13px">
         No Candidate Selected
@@ -28,7 +28,7 @@
     <div class="flow">
       <a class="step" href="find-candidate.html">1 - Talent</a
       ><a class="step" href="match-role.html">2 - Role & Match</a
-      ><a class="step branch" href="mine-candidate-external.html">2B - MineEx TEMP profile</a
+      ><a class="step" href="mine-candidate-external.html">2B - MineEx</a
       ><a class="step" href="profile-preview.html">3 - Profile build</a
       ><a class="step" href="candidate-chat.html">4 - Candidate chat</a
       ><a class="step" href="client-comm.html">5 - Client comms</a
@@ -43,7 +43,7 @@
     <div class="process-map-head">
       <div>
         <div id="processMapTitle" class="process-map-title">You are here</div>
-        <div class="process-map-subtitle">Follow the green path. Use the blue MineEx branch only when you need external candidates.</div>
+        <div class="process-map-subtitle">Talent holds intake. Internal and external candidate search both return to the same profile and shortlist flow.</div>
       </div>
       <button class="process-map-close" type="button" onclick="closeProcessMap()" aria-label="Close process map">Close</button>
     </div>
@@ -51,19 +51,19 @@
       <a class="map-node" data-map-path="find-candidate.html" href="find-candidate.html">
         <span>1</span>
         <strong>Talent</strong>
-        <small>Start with available people and profile data.</small>
+        <small>Search profiles, upload resumes, add job descriptions, and scan profile groups.</small>
       </a>
       <div class="map-arrow"></div>
       <a class="map-node" data-map-path="match-role.html" href="match-role.html">
         <span>2</span>
-        <strong>Mine Candidates</strong>
-        <small>Rank internal matches against the role.</small>
+        <strong>Find Candidates (In)</strong>
+        <small>Rank internal matches against a saved job description.</small>
       </a>
       <div class="map-branch">
         <div class="map-branch-line"></div>
-        <a class="map-node branch" data-map-path="mine-candidate-external.html" href="mine-candidate-external.html">
+        <a class="map-node" data-map-path="mine-candidate-external.html" href="mine-candidate-external.html">
           <span>2B</span>
-          <strong>MineEx Candidates</strong>
+          <strong>MineEx</strong>
           <small>Build a TEMP external profile when internal fit is thin.</small>
         </a>
       </div>
