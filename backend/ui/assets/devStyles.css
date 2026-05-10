@@ -148,6 +148,16 @@ input[type="checkbox"] {
   background: rgba(255, 255, 255, 0.22);
   border-color: rgba(255, 255, 255, 0.28);
 }
+.nav a.branch-link {
+  background: rgba(23, 105, 224, 0.18);
+  border-color: rgba(23, 105, 224, 0.45);
+  color: #eef5ff;
+}
+.nav a.branch-link.active {
+  background: #1769e0;
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #fff;
+}
 .nav a .dot {
   width: 10px;
   height: 10px;
@@ -393,6 +403,12 @@ input[type="checkbox"] {
   gap: 10px;
   flex-wrap: wrap;
 }
+.flow-help {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 8px;
+  max-width: 620px;
+}
 .step {
   background: #fff;
   border: 1px solid var(--line);
@@ -405,6 +421,15 @@ input[type="checkbox"] {
 .step.on {
   background: var(--primary);
   color: var(--card);
+}
+.step.branch {
+  border-color: rgba(23, 105, 224, 0.35);
+  color: #1769e0;
+}
+.step.branch.on {
+  background: #1769e0;
+  border-color: #1769e0;
+  color: #fff;
 }
 .chat {
   display: grid;
