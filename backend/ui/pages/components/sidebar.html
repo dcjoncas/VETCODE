@@ -37,27 +37,18 @@
       Environment: Local
     </div>
     <div
+      id="environmentNotice"
       style="
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
         margin-top: 8px;
+        padding: 10px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.14);
+        color: #fff;
+        font-size: 12px;
+        line-height: 1.4;
       "
     >
-      <a
-        id="devEnvironmentLink"
-        class="badge"
-        href="https://vetcode-dev.up.railway.app/ui/pages/find-candidate.html"
-        style="justify-content: center; background: rgba(18, 91, 54, 0.9)"
-        >Dev</a
-      >
-      <a
-        id="productionEnvironmentLink"
-        class="badge"
-        href="https://vetcode-production.up.railway.app/ui/pages/find-candidate.html"
-        style="justify-content: center; background: rgba(190, 38, 51, 0.86)"
-        >Production</a
-      >
+      Loading workspace status...
     </div>
     <div
       class="field"
@@ -137,31 +128,47 @@
 
     document.getElementById("domainCss").href =
       `../assets/${currentDomain}Styles.css`;
+    environmentUpdate();
   }
 
   function environmentUpdate() {
     const host = window.location.host;
-    const path = window.location.pathname;
     const badge = document.getElementById("environmentBadge");
-    const devLink = document.getElementById("devEnvironmentLink");
-    const productionLink = document.getElementById("productionEnvironmentLink");
+    const notice = document.getElementById("environmentNotice");
+    const domain = sessionStorage.getItem("domain") || document.getElementById("domainSelect")?.value || "dev";
+    const domainName = domain === "law" ? "Law Domain" : "Technology Domain";
+    const now = new Date().toLocaleString([], {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    });
 
-    const normalizedPath = path.includes("/ui/pages/")
-      ? path
-      : `/ui/pages/${path.split("/").pop() || "find-candidate.html"}`;
-
-    devLink.href = `https://vetcode-dev.up.railway.app${normalizedPath}`;
-    productionLink.href = `https://vetcode-production.up.railway.app${normalizedPath}`;
+    let environmentName = "Local";
+    let sourceName = "Local source";
+    let background = "rgba(255, 255, 255, 0.16)";
 
     if (host.includes("vetcode-production")) {
-      badge.textContent = "Environment: Production";
-      badge.style.background = "rgba(190, 38, 51, 0.86)";
+      environmentName = "Production";
+      sourceName = "Production Railway";
+      background = "rgba(190, 38, 51, 0.86)";
     } else if (host.includes("vetcode-dev")) {
-      badge.textContent = "Environment: Development";
-      badge.style.background = "rgba(18, 91, 54, 0.9)";
-    } else {
-      badge.textContent = "Environment: Local";
-      badge.style.background = "rgba(255, 255, 255, 0.16)";
+      environmentName = "Development";
+      sourceName = "Development Railway";
+      background = "rgba(18, 91, 54, 0.9)";
     }
+
+    badge.textContent = `Environment: ${environmentName}`;
+    badge.style.background = background;
+    notice.innerHTML = `
+      <strong>Workspace status</strong><br />
+      ${now}<br />
+      Database: ${environmentName} ${domainName}<br />
+      Source: ${sourceName}
+    `;
   }
+
+  setInterval(environmentUpdate, 60000);
 </script>
