@@ -222,13 +222,15 @@
             <select id="profileDiscoveryMode" style="max-width: 240px">
               <option value="skill">Group by skill family</option>
               <option value="personality">Group by personality</option>
+              <option value="experience">Group by years experience</option>
+              <option value="location">Group by location model</option>
             </select>
             <button class="btn" type="button" id="scanProfilesBtn">
               Scan Profiles
             </button>
           </div>
           <div id="profileDiscoveryStatus" class="notice" style="margin-top: 12px">
-            Use this when you want to find a frontend, backend, AI, data, full-stack, or personality-fit profile from the database.
+            Use this when you want to find a frontend, backend, AI, data, full-stack, experience, location, or personality-fit profile from the database.
           </div>
           <div id="profileDiscoveryResults" class="profile-discovery-results"></div>
         </section>
@@ -386,15 +388,21 @@
         profileDiscoveryRows = [];
 
         const mode = document.getElementById("profileDiscoveryMode").value;
-        const groups =
-          mode === "personality"
-            ? profileDiscoveryData.personalityGroups || []
-            : profileDiscoveryData.skillGroups || [];
+        const groupMap = {
+          personality: profileDiscoveryData.personalityGroups || [],
+          experience: profileDiscoveryData.experienceGroups || [],
+          location: profileDiscoveryData.locationGroups || [],
+          skill: profileDiscoveryData.skillGroups || [],
+        };
+        const groups = groupMap[mode] || [];
 
-        status.textContent =
-          mode === "personality"
-            ? `Scanned ${profileDiscoveryData.total} profiles and grouped by dominant personality.`
-            : `Scanned ${profileDiscoveryData.total} profiles and grouped by main skill family.`;
+        const statusText = {
+          personality: `Scanned ${profileDiscoveryData.total} profiles and grouped by dominant personality.`,
+          experience: `Scanned ${profileDiscoveryData.total} profiles and grouped by strongest years of experience.`,
+          location: `Scanned ${profileDiscoveryData.total} profiles and grouped as onshore, nearshore, offshore, or unknown.`,
+          skill: `Scanned ${profileDiscoveryData.total} profiles and grouped by main skill family.`,
+        };
+        status.textContent = statusText[mode] || statusText.skill;
 
         target.innerHTML = groups
           .map((group) => {
@@ -407,10 +415,18 @@
                   .map((row) => `${escapeHtml(row.title)} ${Math.round(row.score || 0)}%`)
                   .join(", ");
                 const skills = (profile.skills || []).slice(0, 5).map(escapeHtml).join(", ");
+                const experience =
+                  profile.experienceYears !== null && profile.experienceYears !== undefined
+                    ? `${Number(profile.experienceYears).toFixed(1).replace(/\.0$/, "")} yrs`
+                    : "Experience unknown";
+                const location = profile.location && profile.location.label
+                  ? profile.location.label
+                  : "No location listed";
                 return `<div class="profile-discovery-row">
                   <strong>${escapeHtml(profile.name)}</strong>
                   <div style="color: var(--muted); font-size: 13px">${escapeHtml(profile.title || "No title")} ${profile.email ? "- " + escapeHtml(profile.email) : ""}</div>
                   <div style="font-size: 13px; margin-top: 4px">${skills || "No skills listed"}</div>
+                  <div style="font-size: 13px; margin-top: 4px">${escapeHtml(experience)} - ${escapeHtml(profile.locationGroup || "Location unknown")} - ${escapeHtml(location)}</div>
                   <div style="font-size: 13px; color: var(--muted); margin-top: 4px">${personality || escapeHtml(profile.dominantPersonality || "No personality data")}</div>
                   <button class="btn secondary" type="button" onclick="selectDiscoveredProfile(profileDiscoveryRows[${profileIndex}])">Open profile</button>
                 </div>`;
@@ -429,7 +445,7 @@
         const button = document.getElementById("scanProfilesBtn");
         const status = document.getElementById("profileDiscoveryStatus");
         button.disabled = true;
-        status.textContent = "Scanning profiles by skills and personality...";
+        status.textContent = "Scanning profiles by skills, experience, location, and personality...";
         document.getElementById("profileDiscoveryResults").innerHTML = "";
 
         try {
@@ -560,23 +576,7 @@
       }
 
       document.addEventListener("DOMContentLoaded", function () {
-        // Counts won't change often, so check to see if we've already pulled them this session
-        // TODO: Start caching serverside
-        const totalProfiles = sessionStorage.getItem("totalProfiles");
-
-        if (totalProfiles) {
-          const recentProfiles = sessionStorage.getItem("recentProfiles");
-          const pipelineProfiles = sessionStorage.getItem("pipelineProfiles");
-
-          document.getElementById("totalCandidateCount").textContent =
-            totalProfiles;
-          document.getElementById("newThisWeekCount").textContent =
-            recentProfiles;
-          document.getElementById("inInterviewCount").textContent =
-            pipelineProfiles;
-        } else {
-          updateCounts();
-        }
+        updateCounts();
 
         document
           .getElementById("searchProfilesBtn")

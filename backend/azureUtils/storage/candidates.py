@@ -174,6 +174,55 @@ def _search_rank(search_terms: list[str], skills: list[str], name: str = "", ema
             score += 6
     return score
 
+def _experience_band(years):
+    if years is None:
+        return "Experience unknown"
+    years_float = float(years)
+    if years_float < 2:
+        return "0-2 years"
+    if years_float < 5:
+        return "2-5 years"
+    if years_float < 8:
+        return "5-8 years"
+    if years_float < 12:
+        return "8-12 years"
+    return "12+ years"
+
+def _location_group(country: str):
+    country_text = (country or "").strip().lower()
+    if not country_text:
+        return "Location unknown"
+    onshore = {"us", "usa", "u.s.", "u.s.a.", "united states", "united states of america"}
+    nearshore = {
+        "argentina",
+        "belize",
+        "bolivia",
+        "brazil",
+        "canada",
+        "chile",
+        "colombia",
+        "costa rica",
+        "dominican republic",
+        "ecuador",
+        "el salvador",
+        "guatemala",
+        "honduras",
+        "jamaica",
+        "mexico",
+        "nicaragua",
+        "panama",
+        "paraguay",
+        "peru",
+        "puerto rico",
+        "uruguay",
+        "venezuela",
+    }
+    if country_text in onshore:
+        return "Onshore"
+    if country_text in nearshore:
+        return "Nearshore"
+    return "Offshore"
+
 def profileDiscovery(domain: str = 'dev', limit: int = 500):
     conn = client.getConnection()
     cur = conn.cursor()
@@ -189,9 +238,14 @@ def profileDiscovery(domain: str = 'dev', limit: int = 500):
             prof.title,
             COALESCE(sk.skills, ARRAY[]::text[]) AS skills,
             COALESCE(pa.steps, ARRAY[]::integer[]) AS steps,
-            COALESCE(per.personalities, '[]'::json) AS personalities
+            COALESCE(per.personalities, '[]'::json) AS personalities,
+            exp.max_years,
+            address.city,
+            address.state,
+            address.country
         FROM person
         JOIN professional prof ON person.id = prof.personid
+        LEFT JOIN address ON person.id = address.personid
         LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid
         LEFT JOIN (
             SELECT profileid, ARRAY_AGG(DISTINCT skill.title) AS skills
@@ -210,6 +264,11 @@ def profileDiscovery(domain: str = 'dev', limit: int = 500):
             FROM platformactivity
             GROUP BY profileid
         ) pa ON pa.profileid = profper.id
+        LEFT JOIN (
+            SELECT profileid, MAX(years) AS max_years
+            FROM professionalskill
+            GROUP BY profileid
+        ) exp ON exp.profileid = profper.id
         LEFT JOIN (
             SELECT
                 profper_inner.id AS profileid,
@@ -249,6 +308,8 @@ def profileDiscovery(domain: str = 'dev', limit: int = 500):
     profiles = []
     skill_groups = {}
     personality_groups = {}
+    experience_groups = {}
+    location_groups = {}
 
     for row in results:
         skills = [skill for skill in (row[5] or []) if skill]
@@ -267,6 +328,14 @@ def profileDiscovery(domain: str = 'dev', limit: int = 500):
         if personalities:
             dominant_personality = personalities[0].get("title") or dominant_personality
 
+        experience_years = row[8]
+        experience_band = _experience_band(experience_years)
+        city = row[9] or ""
+        state = row[10] or ""
+        country = row[11] or ""
+        location_group = _location_group(country)
+        location_label = ", ".join([part for part in [city, state, country] if part]) or "No location listed"
+
         profile = {
             "id": row[0],
             "name": f"{row[1] or ''} {row[2] or ''}".strip() or "Unnamed profile",
@@ -277,11 +346,37 @@ def profileDiscovery(domain: str = 'dev', limit: int = 500):
             "skillFamilyCounts": family_counts,
             "personality": personalities,
             "dominantPersonality": dominant_personality,
+            "experienceYears": float(experience_years) if experience_years is not None else None,
+            "experienceBand": experience_band,
+            "locationGroup": location_group,
+            "location": {
+                "city": city,
+                "state": state,
+                "country": country,
+                "label": location_label,
+            },
             "status": processing.stepProcessingOverall(row[6]),
         }
         profiles.append(profile)
         skill_groups.setdefault(main_family, []).append(profile)
         personality_groups.setdefault(dominant_personality, []).append(profile)
+        experience_groups.setdefault(experience_band, []).append(profile)
+        location_groups.setdefault(location_group, []).append(profile)
+
+    experience_order = {
+        "12+ years": 0,
+        "8-12 years": 1,
+        "5-8 years": 2,
+        "2-5 years": 3,
+        "0-2 years": 4,
+        "Experience unknown": 5,
+    }
+    location_order = {
+        "Onshore": 0,
+        "Nearshore": 1,
+        "Offshore": 2,
+        "Location unknown": 3,
+    }
 
     return {
         "total": len(profiles),
@@ -293,6 +388,14 @@ def profileDiscovery(domain: str = 'dev', limit: int = 500):
         "personalityGroups": [
             {"name": name, "count": len(rows), "profiles": rows}
             for name, rows in sorted(personality_groups.items(), key=lambda item: len(item[1]), reverse=True)
+        ],
+        "experienceGroups": [
+            {"name": name, "count": len(rows), "profiles": rows}
+            for name, rows in sorted(experience_groups.items(), key=lambda item: experience_order.get(item[0], 99))
+        ],
+        "locationGroups": [
+            {"name": name, "count": len(rows), "profiles": rows}
+            for name, rows in sorted(location_groups.items(), key=lambda item: location_order.get(item[0], 99))
         ],
     }
 
