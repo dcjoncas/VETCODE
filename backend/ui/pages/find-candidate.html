@@ -92,9 +92,52 @@
         padding: 7px 10px;
       }
 
+      .profile-drill-toolbar,
+      .profile-drill-grid,
+      .profile-family-grid {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+
+      .profile-drill-grid button,
+      .profile-family-grid button {
+        min-width: 54px;
+        box-shadow: none;
+      }
+
+      .profile-drill-grid button.active,
+      .profile-family-grid button.active {
+        background: var(--primary);
+        color: #fff;
+      }
+
+      .profile-drill-list {
+        margin-top: 14px;
+        border-top: 1px solid var(--line);
+      }
+
+      .profile-drill-row {
+        display: grid;
+        grid-template-columns: minmax(180px, 1.1fr) minmax(130px, 0.7fr) minmax(180px, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        padding: 10px 0;
+      }
+
+      .profile-drill-row button {
+        box-shadow: none;
+      }
+
       @media (max-width: 980px) {
         .talent-intake-grid,
         .resume-upload-actions {
+          grid-template-columns: 1fr;
+        }
+
+        .profile-drill-row {
           grid-template-columns: 1fr;
         }
       }
@@ -226,15 +269,15 @@
               Hide List
             </button>
           </div>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="allProfilesBody"></tbody>
-          </table>
+          <div class="profile-drill-toolbar">
+            <button id="allProfilesBackBtn" class="btn secondary" type="button" style="display: none">
+              Back to A-Z
+            </button>
+            <span id="allProfilesPath" class="pill">A-Z</span>
+          </div>
+          <div id="allProfilesLetters" class="profile-drill-grid"></div>
+          <div id="allProfilesFamilies" class="profile-family-grid"></div>
+          <div id="allProfilesBody" class="profile-drill-list"></div>
         </section>
 
         <section class="card" style="margin-top: 18px">
@@ -398,6 +441,21 @@
       let profileDiscoveryData = null;
       let profileDiscoveryRows = [];
       window.allProfiles = [];
+      let selectedProfileLetter = "";
+      let selectedProfileFamily = "";
+      const profileFamilyOrder = [
+        "Full Stack",
+        "Frontend",
+        "Backend",
+        "AI / ML",
+        "Data",
+        "Product / Analysis",
+        "Cloud / DevOps",
+        "Mobile",
+        "QA / Testing",
+        "Other",
+        "Unclassified",
+      ];
 
       function selectDiscoveredProfile(profile) {
         sessionStorage.setItem("candidateId", profile.id);
@@ -549,29 +607,128 @@
 
       async function listAllProfiles() {
         const section = document.getElementById("allProfilesSection");
-        const tbody = document.getElementById("allProfilesBody");
+        const body = document.getElementById("allProfilesBody");
         const status = document.getElementById("allProfilesStatus");
         section.style.display = "block";
-        tbody.innerHTML = "";
+        body.innerHTML = "";
         status.textContent = "Loading all profiles alphabetically...";
 
         try {
           const domain = sessionStorage.getItem("domain") || "dev";
           const profiles = await api(`/api/azure/profiles/alphabetical?domain=${domain}`);
-          status.textContent = `Showing ${profiles.length} profiles. Select a name to open that profile.`;
-          tbody.innerHTML = profiles
-            .map((profile, index) => {
-              const safeName = escapeHtml(profile.name || "Unnamed profile");
-              return `<tr>
-                <td><button class="btn secondary" style="box-shadow: none" type="button" onclick="findSelect(allProfiles[${index}])">${safeName}</button></td>
-                <td><a href="profile-preview.html" onclick="findSelect(allProfiles[${index}]); return false;">Open profile</a></td>
-              </tr>`;
-            })
-            .join("");
           window.allProfiles = profiles;
+          selectedProfileLetter = "";
+          selectedProfileFamily = "";
+          renderAllProfilesDrilldown();
         } catch (error) {
           status.textContent = error.message || String(error);
         }
+      }
+
+      function profileLetter(profile) {
+        const name = (profile.lastName || profile.name || "").trim();
+        const letter = name.charAt(0).toUpperCase();
+        return /^[A-Z]$/.test(letter) ? letter : "#";
+      }
+
+      function profileFamily(profile) {
+        return profile.primaryStack || "Unclassified";
+      }
+
+      function profileFamilyLabel(family) {
+        if (family === "Product / Analysis") return "PM";
+        if (family === "AI / ML") return "AI";
+        return family;
+      }
+
+      function orderedFamilies(rows) {
+        const families = Array.from(new Set(rows.map(profileFamily)));
+        return families.sort((a, b) => {
+          const ai = profileFamilyOrder.indexOf(a);
+          const bi = profileFamilyOrder.indexOf(b);
+          if (ai !== -1 || bi !== -1) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+          return a.localeCompare(b);
+        });
+      }
+
+      function renderAllProfilesDrilldown() {
+        const profiles = window.allProfiles || [];
+        const lettersTarget = document.getElementById("allProfilesLetters");
+        const familiesTarget = document.getElementById("allProfilesFamilies");
+        const body = document.getElementById("allProfilesBody");
+        const status = document.getElementById("allProfilesStatus");
+        const path = document.getElementById("allProfilesPath");
+        const backBtn = document.getElementById("allProfilesBackBtn");
+
+        const letters = Array.from(new Set(profiles.map(profileLetter))).sort((a, b) => {
+          if (a === "#") return 1;
+          if (b === "#") return -1;
+          return a.localeCompare(b);
+        });
+
+        lettersTarget.innerHTML = letters
+          .map((letter) => {
+            const count = profiles.filter((profile) => profileLetter(profile) === letter).length;
+            const active = selectedProfileLetter === letter ? " active" : "";
+            return `<button class="btn secondary${active}" type="button" onclick="selectProfileLetter('${letter}')">${letter} <span class="pill">${count}</span></button>`;
+          })
+          .join("");
+
+        backBtn.style.display = selectedProfileLetter ? "inline-flex" : "none";
+        familiesTarget.innerHTML = "";
+        body.innerHTML = "";
+
+        if (!selectedProfileLetter) {
+          status.textContent = `Showing ${profiles.length} profiles. Pick a letter to drill into skill families.`;
+          path.textContent = "A-Z";
+          return;
+        }
+
+        const letterRows = profiles.filter((profile) => profileLetter(profile) === selectedProfileLetter);
+        const families = orderedFamilies(letterRows);
+        familiesTarget.innerHTML = families
+          .map((family) => {
+            const count = letterRows.filter((profile) => profileFamily(profile) === family).length;
+            const active = selectedProfileFamily === family ? " active" : "";
+            return `<button class="btn secondary${active}" type="button" onclick="selectProfileFamily('${escapeHtml(family)}')">${escapeHtml(profileFamilyLabel(family))} <span class="pill">${count}</span></button>`;
+          })
+          .join("");
+
+        if (!selectedProfileFamily) {
+          status.textContent = `Letter ${selectedProfileLetter}: choose Full Stack, Frontend, Backend, AI, Data, PM, or another family.`;
+          path.textContent = `${selectedProfileLetter} > Skill family`;
+          return;
+        }
+
+        const rows = letterRows.filter((profile) => profileFamily(profile) === selectedProfileFamily);
+        status.textContent = `${rows.length} ${profileFamilyLabel(selectedProfileFamily)} profile${rows.length === 1 ? "" : "s"} under ${selectedProfileLetter}.`;
+        path.textContent = `${selectedProfileLetter} > ${profileFamilyLabel(selectedProfileFamily)}`;
+        body.innerHTML = rows
+          .map((profile) => {
+            const index = profiles.indexOf(profile);
+            const skills = (profile.skills || []).slice(0, 4).map(escapeHtml).join(", ");
+            return `<div class="profile-drill-row">
+              <div>
+                <button class="btn secondary" type="button" onclick="findSelect(allProfiles[${index}])">${escapeHtml(profile.name || "Unnamed profile")}</button>
+                <div style="color: var(--muted); font-size: 13px">${escapeHtml(profile.title || "No title")}</div>
+              </div>
+              <div><span class="pill">${escapeHtml(profileFamilyLabel(profileFamily(profile)))}</span></div>
+              <div style="font-size: 13px">${skills || "No skills listed"}</div>
+              <a href="profile-preview.html" onclick="findSelect(allProfiles[${index}]); return false;">Open profile</a>
+            </div>`;
+          })
+          .join("");
+      }
+
+      function selectProfileLetter(letter) {
+        selectedProfileLetter = letter;
+        selectedProfileFamily = "";
+        renderAllProfilesDrilldown();
+      }
+
+      function selectProfileFamily(family) {
+        selectedProfileFamily = family.replace(/&amp;/g, "&");
+        renderAllProfilesDrilldown();
       }
 
       async function uploadResume() {
@@ -647,6 +804,17 @@
           .getElementById("hideProfilesBtn")
           .addEventListener("click", () => {
             document.getElementById("allProfilesSection").style.display = "none";
+          });
+
+        document
+          .getElementById("allProfilesBackBtn")
+          .addEventListener("click", () => {
+            if (selectedProfileFamily) {
+              selectedProfileFamily = "";
+            } else {
+              selectedProfileLetter = "";
+            }
+            renderAllProfilesDrilldown();
           });
 
         document

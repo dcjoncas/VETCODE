@@ -412,10 +412,23 @@ def listProfilesAlphabetical(domain: str = "dev"):
             person.lastname,
             prof.email,
             prof.title,
+            COALESCE(sk.skills, ARRAY[]::text[]) AS skills,
             COALESCE(pa.steps, ARRAY[]::integer[]) AS steps
         FROM person
         JOIN professional prof ON person.id = prof.personid
         LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid
+        LEFT JOIN (
+            SELECT profileid, ARRAY_AGG(DISTINCT skill.title) AS skills
+            FROM (
+                SELECT profileid, skillid FROM professionalskill
+                UNION
+                SELECT profileid, skillid FROM resumeskill
+                UNION
+                SELECT profileid, skillid FROM techskill
+            ) allskills
+            JOIN skill ON allskills.skillid = skill.id
+            GROUP BY profileid
+        ) sk ON sk.profileid = profper.id
         LEFT JOIN (
             SELECT profileid, ARRAY_AGG(DISTINCT step) AS steps
             FROM platformactivity
@@ -438,7 +451,9 @@ def listProfilesAlphabetical(domain: str = "dev"):
             "name": f"{row[1] or ''} {row[2] or ''}".strip() or "Unnamed profile",
             "email": row[3] or "",
             "title": row[4] or "",
-            "status": processing.stepProcessingOverall(row[5]),
+            "skills": [skill for skill in (row[5] or []) if skill],
+            "primaryStack": _primary_stack_from_skills([skill for skill in (row[5] or []) if skill]),
+            "status": processing.stepProcessingOverall(row[6]),
         }
         for row in results
     ]
