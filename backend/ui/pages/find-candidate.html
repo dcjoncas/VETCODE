@@ -443,6 +443,7 @@
       window.allProfiles = [];
       let selectedProfileLetter = "";
       let selectedProfileFamily = "";
+      const incompleteProfileGroup = "__profile_to_be_completed__";
       const profileFamilyOrder = [
         "Full Stack",
         "Frontend",
@@ -626,6 +627,7 @@
       }
 
       function profileLetter(profile) {
+        if (profile.hasProfile === false) return incompleteProfileGroup;
         const name = (profile.lastName || profile.name || "").trim();
         const letter = name.charAt(0).toUpperCase();
         return /^[A-Z]$/.test(letter) ? letter : "#";
@@ -653,6 +655,8 @@
 
       function renderAllProfilesDrilldown() {
         const profiles = window.allProfiles || [];
+        const completeProfiles = profiles.filter((profile) => profile.hasProfile !== false);
+        const incompleteProfiles = profiles.filter((profile) => profile.hasProfile === false);
         const lettersTarget = document.getElementById("allProfilesLetters");
         const familiesTarget = document.getElementById("allProfilesFamilies");
         const body = document.getElementById("allProfilesBody");
@@ -660,31 +664,55 @@
         const path = document.getElementById("allProfilesPath");
         const backBtn = document.getElementById("allProfilesBackBtn");
 
-        const letters = Array.from(new Set(profiles.map(profileLetter))).sort((a, b) => {
+        const letters = Array.from(new Set(completeProfiles.map(profileLetter))).sort((a, b) => {
           if (a === "#") return 1;
           if (b === "#") return -1;
           return a.localeCompare(b);
         });
 
-        lettersTarget.innerHTML = letters
+        const letterButtons = letters
           .map((letter) => {
-            const count = profiles.filter((profile) => profileLetter(profile) === letter).length;
+            const count = completeProfiles.filter((profile) => profileLetter(profile) === letter).length;
             const active = selectedProfileLetter === letter ? " active" : "";
             return `<button class="btn secondary${active}" type="button" onclick="selectProfileLetter('${letter}')">${letter} <span class="pill">${count}</span></button>`;
           })
           .join("");
+        const incompleteButton = incompleteProfiles.length
+          ? `<button class="btn secondary${selectedProfileLetter === incompleteProfileGroup ? " active" : ""}" type="button" onclick="selectProfileLetter('${incompleteProfileGroup}')">Profile to be completed <span class="pill">${incompleteProfiles.length}</span></button>`
+          : "";
+        lettersTarget.innerHTML = `${letterButtons}${incompleteButton ? `<div style="flex-basis: 100%"></div>${incompleteButton}` : ""}`;
 
         backBtn.style.display = selectedProfileLetter ? "inline-flex" : "none";
         familiesTarget.innerHTML = "";
         body.innerHTML = "";
 
         if (!selectedProfileLetter) {
-          status.textContent = `Showing ${profiles.length} profiles. Pick a letter to drill into skill families.`;
+          status.textContent = `Showing ${completeProfiles.length} completed profiles. Pick a letter to drill into skill families.`;
           path.textContent = "A-Z";
           return;
         }
 
-        const letterRows = profiles.filter((profile) => profileLetter(profile) === selectedProfileLetter);
+        if (selectedProfileLetter === incompleteProfileGroup) {
+          status.textContent = `${incompleteProfiles.length} profile${incompleteProfiles.length === 1 ? "" : "s"} need to be completed.`;
+          path.textContent = "Profile to be completed";
+          body.innerHTML = incompleteProfiles
+            .map((profile) => {
+              const index = profiles.indexOf(profile);
+              return `<div class="profile-drill-row">
+                <div>
+                  <button class="btn secondary" type="button" onclick="findSelect(allProfiles[${index}])">${escapeHtml(profile.name || "Unnamed profile")}</button>
+                  <div style="color: var(--muted); font-size: 13px">${escapeHtml(profile.title || "No title")}</div>
+                </div>
+                <div><span class="pill">Profile to be completed</span></div>
+                <div style="font-size: 13px">${escapeHtml(profile.email || "No email listed")}</div>
+                <a href="profile-preview.html" onclick="findSelect(allProfiles[${index}]); return false;">Open profile</a>
+              </div>`;
+            })
+            .join("");
+          return;
+        }
+
+        const letterRows = completeProfiles.filter((profile) => profileLetter(profile) === selectedProfileLetter);
         const families = orderedFamilies(letterRows);
         familiesTarget.innerHTML = families
           .map((family) => {

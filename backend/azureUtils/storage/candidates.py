@@ -412,6 +412,7 @@ def listProfilesAlphabetical(domain: str = "dev"):
             person.lastname,
             prof.email,
             prof.title,
+            profper.id AS profile_id,
             COALESCE(sk.skills, ARRAY[]::text[]) AS skills,
             COALESCE(pa.steps, ARRAY[]::integer[]) AS steps
         FROM person
@@ -451,9 +452,10 @@ def listProfilesAlphabetical(domain: str = "dev"):
             "name": f"{row[1] or ''} {row[2] or ''}".strip() or "Unnamed profile",
             "email": row[3] or "",
             "title": row[4] or "",
-            "skills": [skill for skill in (row[5] or []) if skill],
-            "primaryStack": _primary_stack_from_skills([skill for skill in (row[5] or []) if skill]),
-            "status": processing.stepProcessingOverall(row[6]),
+            "hasProfile": row[5] is not None,
+            "skills": [skill for skill in (row[6] or []) if skill],
+            "primaryStack": _primary_stack_from_skills([skill for skill in (row[6] or []) if skill]),
+            "status": processing.stepProcessingOverall(row[7]),
         }
         for row in results
     ]
