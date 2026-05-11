@@ -126,11 +126,25 @@ def countCandidatesAll(domain: str = 'all'):
     totalCount = countCandidates(domain)
     recentCount = countCandidatesRecent(domain)
     statusCounts = countCandidatesStatus(domain)
+    profiles = listProfilesAlphabetical(domain)
+    completed_profiles = [profile for profile in profiles if profile.get("hasProfile")]
+    incomplete_profiles = [profile for profile in profiles if not profile.get("hasProfile")]
+    stack_counts = {}
+    title_counts = {}
+    for profile in completed_profiles:
+        stack = profile.get("primaryStack") or "Other"
+        title = profile.get("titleGroup") or "Title to be confirmed"
+        stack_counts[stack] = stack_counts.get(stack, 0) + 1
+        title_counts[title] = title_counts.get(title, 0) + 1
 
     return {
         "total": totalCount,
         "recent": recentCount,
-        "statusCounts": statusCounts
+        "completedProfiles": len(completed_profiles),
+        "incompleteProfiles": len(incomplete_profiles),
+        "statusCounts": statusCounts,
+        "stackCounts": stack_counts,
+        "titleCounts": title_counts,
     }
 
 def _skill_family(skill_title: str):
@@ -143,24 +157,51 @@ def _skill_family(skill_title: str):
         "Cloud / DevOps": ["aws", "azure", "gcp", "docker", "kubernetes", "terraform", "ci/cd", "devops", "cloud", "jenkins", "github actions"],
         "Mobile": ["ios", "android", "swift", "kotlin", "react native", "flutter", "mobile"],
         "QA / Testing": ["qa", "test", "testing", "selenium", "cypress", "playwright", "automation"],
-        "Product / Analysis": ["product", "business analyst", "ba", "scrum", "agile", "requirements", "stakeholder"],
+        "Product / Analysis": ["product", "business analyst", "ba", "scrum", "agile", "requirements", "stakeholder", "project manager", "program manager", "pm"],
     }
     for family, tokens in families.items():
         if any(token in lower for token in tokens):
             return family
     return "Other"
 
-def _primary_stack_from_skills(skills: list[str]):
+def _title_family(title: str):
+    lower = (title or "").lower()
+    if not lower:
+        return "Other"
+    title_families = {
+        "AI / ML": ["ai", "machine learning", "ml", "data scientist", "llm"],
+        "Data": ["data", "analytics", "bi ", "business intelligence", "warehouse", "etl", "database", "dba"],
+        "Frontend": ["front end", "frontend", "ui", "ux", "react", "angular", "vue"],
+        "Backend": ["back end", "backend", "java", "python", ".net", "api", "server"],
+        "Full Stack": ["full stack", "fullstack"],
+        "Cloud / DevOps": ["devops", "cloud", "platform", "site reliability", "sre", "infrastructure"],
+        "Mobile": ["mobile", "ios", "android"],
+        "QA / Testing": ["qa", "quality", "test", "automation"],
+        "Product / Analysis": ["product", "project manager", "program manager", "scrum", "business analyst", "ba", "pm"],
+    }
+    for family, tokens in title_families.items():
+        if any(token in lower for token in tokens):
+            return family
+    return "Other"
+
+def _canonical_title(title: str):
+    clean = " ".join((title or "").replace("\\", "/").split())
+    if not clean or clean.upper() in {"N/A", "NA", "NONE", "NULL"}:
+        return "Title to be confirmed"
+    return clean[:80]
+
+def _primary_stack_from_skills(skills: list[str], title: str = ""):
     clean_skills = [skill for skill in (skills or []) if skill]
     if not clean_skills:
-        return "Unclassified"
+        return _title_family(title)
     family_counts = {}
     for skill in clean_skills:
         family = _skill_family(skill)
         family_counts[family] = family_counts.get(family, 0) + 1
     if family_counts.get("Frontend", 0) > 0 and family_counts.get("Backend", 0) > 0:
         return "Full Stack"
-    return sorted(family_counts.items(), key=lambda item: item[1], reverse=True)[0][0]
+    stack = sorted(family_counts.items(), key=lambda item: item[1], reverse=True)[0][0]
+    return _title_family(title) if stack == "Other" else stack
 
 def _search_rank(search_terms: list[str], skills: list[str], name: str = "", email: str = ""):
     terms = [term.lower().strip("% ") for term in (search_terms or []) if term and term.strip("% ")]
@@ -317,7 +358,7 @@ def profileDiscovery(domain: str = 'dev', limit: int = 500):
         for skill in skills:
             family = _skill_family(skill)
             family_counts[family] = family_counts.get(family, 0) + 1
-        main_family = "Unclassified"
+        main_family = _title_family(row[4] or "")
         if family_counts:
             main_family = sorted(family_counts.items(), key=lambda item: item[1], reverse=True)[0][0]
         if family_counts.get("Frontend", 0) > 0 and family_counts.get("Backend", 0) > 0:
@@ -452,9 +493,10 @@ def listProfilesAlphabetical(domain: str = "dev"):
             "name": f"{row[1] or ''} {row[2] or ''}".strip() or "Unnamed profile",
             "email": row[3] or "",
             "title": row[4] or "",
+            "titleGroup": _canonical_title(row[4] or ""),
             "hasProfile": row[5] is not None,
             "skills": [skill for skill in (row[6] or []) if skill],
-            "primaryStack": _primary_stack_from_skills([skill for skill in (row[6] or []) if skill]),
+            "primaryStack": _primary_stack_from_skills([skill for skill in (row[6] or []) if skill], row[4] or ""),
             "status": processing.stepProcessingOverall(row[7]),
         }
         for row in results

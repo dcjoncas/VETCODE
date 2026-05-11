@@ -179,21 +179,24 @@
                   Search Profiles
                 </button>
                 <button id="listProfilesBtn" class="btn secondary" type="button">
-                  List All Profiles A-Z
+                  List All Profiles
+                </button>
+                <button id="resetProcessBtn" class="btn secondary" type="button">
+                  Start from scratch
                 </button>
               </div>
               <div class="kpi" style="margin-top: 12px">
                 <div class="k">
                   <div id="totalCandidateCount" class="v">N/A</div>
-                  <div class="l">Profiles in system</div>
+                  <div class="l">Total in system</div>
                 </div>
                 <div class="k">
                   <div id="newThisWeekCount" class="v">N/A</div>
-                  <div class="l">New this week</div>
+                  <div class="l">Completed profiles</div>
                 </div>
                 <div class="k">
                   <div id="inInterviewCount" class="v">N/A</div>
-                  <div class="l">In interview pipeline</div>
+                  <div class="l">Top profile group</div>
                 </div>
               </div>
             </div>
@@ -260,9 +263,9 @@
         <section id="allProfilesSection" class="card" style="margin-top: 18px; display: none">
           <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap">
             <div>
-              <h2 style="margin-bottom: 4px">All profiles A-Z</h2>
+              <h2 style="margin-bottom: 4px">All profiles by capability area</h2>
               <p id="allProfilesStatus" style="margin-top: 0">
-                Select a name to open that profile.
+                Select a capability area, then drill into alphabetical names.
               </p>
             </div>
             <button id="hideProfilesBtn" class="btn secondary" type="button">
@@ -271,9 +274,9 @@
           </div>
           <div class="profile-drill-toolbar">
             <button id="allProfilesBackBtn" class="btn secondary" type="button" style="display: none">
-              Back to A-Z
+              Back
             </button>
-            <span id="allProfilesPath" class="pill">A-Z</span>
+            <span id="allProfilesPath" class="pill">Capability areas</span>
           </div>
           <div id="allProfilesLetters" class="profile-drill-grid"></div>
           <div id="allProfilesFamilies" class="profile-family-grid"></div>
@@ -336,16 +339,51 @@
         document.getElementById("totalCandidateCount").textContent =
           totalCount.total;
         document.getElementById("newThisWeekCount").textContent =
-          totalCount.recent;
+          totalCount.completedProfiles ?? totalCount.recent;
+        const stackCounts = totalCount.stackCounts || {};
+        const topStack = Object.entries(stackCounts).sort((a, b) => b[1] - a[1])[0];
         document.getElementById("inInterviewCount").textContent =
-          totalCount.statusCounts.Draft + totalCount.statusCounts.Pending;
+          topStack ? `${topStack[0]} (${topStack[1]})` : "N/A";
 
         sessionStorage.setItem("totalProfiles", totalCount.total);
         sessionStorage.setItem("recentProfiles", totalCount.recent);
         sessionStorage.setItem(
           "pipelineProfiles",
-          totalCount.statusCounts.Draft + totalCount.statusCounts.Pending,
+          topStack ? `${topStack[0]} (${topStack[1]})` : "",
         );
+      }
+
+      function resetVettingProcess() {
+        const keepDomain = sessionStorage.getItem("domain") || "dev";
+        const keys = [
+          "candidateId",
+          "candidateName",
+          "candidateStatus",
+          "candidateProfileType",
+          "candidateTopMatches",
+          "candidateResumeUrl",
+          "externalCandidateSource",
+          "shortlist",
+          "clientEmail",
+          "jobID",
+          "jobCompany",
+          "jobTitle",
+          "jobSkills",
+          "preferredCalendarProvider",
+          "scheduleTracking",
+          "latestScheduleTracking",
+          "temporaryProfiles",
+          "totalProfiles",
+          "recentProfiles",
+          "pipelineProfiles",
+        ];
+        keys.forEach((key) => sessionStorage.removeItem(key));
+        sessionStorage.setItem("domain", keepDomain);
+        document.getElementById("cadidateSearchResults").innerHTML = "";
+        document.getElementById("findSearchBar").value = "";
+        alert("Process cleared. You are back at Talent with a clean workflow state.");
+        if (typeof updateCandidate === "function") updateCandidate();
+        if (typeof updateJob === "function") updateJob();
       }
 
       function findSelect(profile) {
@@ -441,21 +479,20 @@
       let profileDiscoveryData = null;
       let profileDiscoveryRows = [];
       window.allProfiles = [];
+      let selectedProfileArea = "";
       let selectedProfileLetter = "";
-      let selectedProfileFamily = "";
       const incompleteProfileGroup = "__profile_to_be_completed__";
       const profileFamilyOrder = [
         "Full Stack",
         "Frontend",
         "Backend",
+        "Mobile",
         "AI / ML",
         "Data",
-        "Product / Analysis",
         "Cloud / DevOps",
-        "Mobile",
         "QA / Testing",
+        "Product / Analysis",
         "Other",
-        "Unclassified",
       ];
 
       function selectDiscoveredProfile(profile) {
@@ -500,7 +537,7 @@
                   .slice(0, 3)
                   .map((row) => `${escapeHtml(row.title)} ${Math.round(row.score || 0)}%`)
                   .join(", ");
-                const skills = (profile.skills || []).slice(0, 5).map(escapeHtml).join(", ");
+                const skills = (profile.skills || []).slice(0, 5).map(escapeHtml).join(", ") || escapeHtml(profile.skillFamily || profile.title || "Profile detail needed");
                 const experience =
                   profile.experienceYears !== null && profile.experienceYears !== undefined
                     ? `${Number(profile.experienceYears).toFixed(1).replace(/\.0$/, "")} yrs`
@@ -511,7 +548,7 @@
                 return `<div class="profile-discovery-row">
                   <strong>${escapeHtml(profile.name)}</strong>
                   <div style="color: var(--muted); font-size: 13px">${escapeHtml(profile.title || "No title")} ${profile.email ? "- " + escapeHtml(profile.email) : ""}</div>
-                  <div style="font-size: 13px; margin-top: 4px">${skills || "No skills listed"}</div>
+                  <div style="font-size: 13px; margin-top: 4px">${skills}</div>
                   <div style="font-size: 13px; margin-top: 4px">${escapeHtml(experience)} - ${escapeHtml(profile.locationGroup || "Location unknown")} - ${escapeHtml(location)}</div>
                   <div style="font-size: 13px; color: var(--muted); margin-top: 4px">${personality || escapeHtml(profile.dominantPersonality || "No personality data")}</div>
                   <button class="btn secondary" type="button" onclick="selectDiscoveredProfile(profileDiscoveryRows[${profileIndex}])">Open profile</button>
@@ -536,7 +573,7 @@
 
         try {
           const domain = sessionStorage.getItem("domain") || "dev";
-          profileDiscoveryData = await api(`/api/azure/profile/discovery?domain=${domain}&limit=500`);
+          profileDiscoveryData = await api(`/api/azure/profile/discovery?domain=${domain}&limit=5000`);
           renderProfileDiscovery();
         } catch (error) {
           status.textContent = error.message || String(error);
@@ -595,7 +632,7 @@
             //tr.style.cursor = "pointer";
             const cert = r.aiCertification || {};
             const certLabel = cert.level ? `Certified - ${cert.level}` : cert.status || "Not started";
-            tr.innerHTML = `<td>${i + 1}</td><td>${escapeHtml(r.firstName || "")} ${escapeHtml(r.lastName || "")}</td><td>${escapeHtml(r.email || "")}</td><td>${escapeHtml(r.primaryStack || "Unclassified")}</td><td><div class="pill">${escapeHtml(r.step)}</div></td><td><a class="pill" href="${aiCertUrl(r)}" target="_blank" rel="noopener">${escapeHtml(certLabel)}</a></td><td></td>`;
+            tr.innerHTML = `<td>${i + 1}</td><td>${escapeHtml(r.firstName || "")} ${escapeHtml(r.lastName || "")}</td><td>${escapeHtml(r.email || "")}</td><td>${escapeHtml(r.primaryStack || r.title || "Other")}</td><td><div class="pill">${escapeHtml(r.step)}</div></td><td><a class="pill" href="${aiCertUrl(r)}" target="_blank" rel="noopener">${escapeHtml(certLabel)}</a></td><td></td>`;
             tr.addEventListener("click", () => findSelect(r));
             tr.querySelector("a").addEventListener("click", (event) => event.stopPropagation());
             tr.style.cursor = "pointer";
@@ -618,8 +655,8 @@
           const domain = sessionStorage.getItem("domain") || "dev";
           const profiles = await api(`/api/azure/profiles/alphabetical?domain=${domain}`);
           window.allProfiles = profiles;
+          selectedProfileArea = "";
           selectedProfileLetter = "";
-          selectedProfileFamily = "";
           renderAllProfilesDrilldown();
         } catch (error) {
           status.textContent = error.message || String(error);
@@ -627,29 +664,42 @@
       }
 
       function profileLetter(profile) {
-        if (profile.hasProfile === false) return incompleteProfileGroup;
         const name = (profile.lastName || profile.name || "").trim();
         const letter = name.charAt(0).toUpperCase();
         return /^[A-Z]$/.test(letter) ? letter : "#";
       }
 
-      function profileFamily(profile) {
-        return profile.primaryStack || "Unclassified";
+      function profileAreaGroup(profile) {
+        if (profile.hasProfile === false) return incompleteProfileGroup;
+        return profile.primaryStack || "Other";
       }
 
-      function profileFamilyLabel(family) {
-        if (family === "Product / Analysis") return "PM";
-        if (family === "AI / ML") return "AI";
-        return family;
+      function profileGroupLabel(group) {
+        if (group === incompleteProfileGroup) return "Profile to be completed";
+        if (group === "Product / Analysis") return "PM / Product";
+        if (group === "AI / ML") return "AI";
+        return group;
       }
 
-      function orderedFamilies(rows) {
-        const families = Array.from(new Set(rows.map(profileFamily)));
-        return families.sort((a, b) => {
+      function bestProfileSignal(profile) {
+        const skills = (profile.skills || []).filter(Boolean);
+        if (skills.length) return skills[0];
+        if (profile.primaryStack && profile.primaryStack !== "Other") return profile.primaryStack;
+        if (profile.title) return profile.title;
+        return "Profile detail needed";
+      }
+
+      function orderedAreaGroups(rows) {
+        const counts = {};
+        rows.forEach((profile) => {
+          const group = profileAreaGroup(profile);
+          counts[group] = (counts[group] || 0) + 1;
+        });
+        return Object.keys(counts).sort((a, b) => {
           const ai = profileFamilyOrder.indexOf(a);
           const bi = profileFamilyOrder.indexOf(b);
           if (ai !== -1 || bi !== -1) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-          return a.localeCompare(b);
+          return counts[b] - counts[a] || profileGroupLabel(a).localeCompare(profileGroupLabel(b));
         });
       }
 
@@ -657,42 +707,38 @@
         const profiles = window.allProfiles || [];
         const completeProfiles = profiles.filter((profile) => profile.hasProfile !== false);
         const incompleteProfiles = profiles.filter((profile) => profile.hasProfile === false);
-        const lettersTarget = document.getElementById("allProfilesLetters");
-        const familiesTarget = document.getElementById("allProfilesFamilies");
+        const titleTarget = document.getElementById("allProfilesLetters");
+        const lettersTarget = document.getElementById("allProfilesFamilies");
         const body = document.getElementById("allProfilesBody");
         const status = document.getElementById("allProfilesStatus");
         const path = document.getElementById("allProfilesPath");
         const backBtn = document.getElementById("allProfilesBackBtn");
 
-        const letters = Array.from(new Set(completeProfiles.map(profileLetter))).sort((a, b) => {
-          if (a === "#") return 1;
-          if (b === "#") return -1;
-          return a.localeCompare(b);
-        });
-
-        const letterButtons = letters
-          .map((letter) => {
-            const count = completeProfiles.filter((profile) => profileLetter(profile) === letter).length;
-            const active = selectedProfileLetter === letter ? " active" : "";
-            return `<button class="btn secondary${active}" type="button" onclick="selectProfileLetter('${letter}')">${letter} <span class="pill">${count}</span></button>`;
+        const areaGroups = orderedAreaGroups(completeProfiles);
+        window.profileAreaGroups = areaGroups;
+        const areaButtons = areaGroups
+          .map((group, index) => {
+            const count = completeProfiles.filter((profile) => profileAreaGroup(profile) === group).length;
+            const active = selectedProfileArea === group ? " active" : "";
+            return `<button class="btn secondary${active}" type="button" onclick="selectProfileAreaByIndex(${index})">${escapeHtml(profileGroupLabel(group))} <span class="pill">${count}</span></button>`;
           })
           .join("");
         const incompleteButton = incompleteProfiles.length
-          ? `<button class="btn secondary${selectedProfileLetter === incompleteProfileGroup ? " active" : ""}" type="button" onclick="selectProfileLetter('${incompleteProfileGroup}')">Profile to be completed <span class="pill">${incompleteProfiles.length}</span></button>`
+          ? `<button class="btn secondary${selectedProfileArea === incompleteProfileGroup ? " active" : ""}" type="button" onclick="selectProfileArea('${incompleteProfileGroup}')">Profile to be completed <span class="pill">${incompleteProfiles.length}</span></button>`
           : "";
-        lettersTarget.innerHTML = `${letterButtons}${incompleteButton ? `<div style="flex-basis: 100%"></div>${incompleteButton}` : ""}`;
+        titleTarget.innerHTML = `${areaButtons}${incompleteButton ? `<div style="flex-basis: 100%"></div>${incompleteButton}` : ""}`;
 
-        backBtn.style.display = selectedProfileLetter ? "inline-flex" : "none";
-        familiesTarget.innerHTML = "";
+        backBtn.style.display = selectedProfileArea ? "inline-flex" : "none";
+        lettersTarget.innerHTML = "";
         body.innerHTML = "";
 
-        if (!selectedProfileLetter) {
-          status.textContent = `Showing ${completeProfiles.length} completed profiles. Pick a letter to drill into skill families.`;
-          path.textContent = "A-Z";
+        if (!selectedProfileArea) {
+          status.textContent = `Showing ${completeProfiles.length} completed profiles. Pick a capability area, then drill into A-Z names.`;
+          path.textContent = "Capability areas";
           return;
         }
 
-        if (selectedProfileLetter === incompleteProfileGroup) {
+        if (selectedProfileArea === incompleteProfileGroup) {
           status.textContent = `${incompleteProfiles.length} profile${incompleteProfiles.length === 1 ? "" : "s"} need to be completed.`;
           path.textContent = "Profile to be completed";
           body.innerHTML = incompleteProfiles
@@ -704,7 +750,7 @@
                   <div style="color: var(--muted); font-size: 13px">${escapeHtml(profile.title || "No title")}</div>
                 </div>
                 <div><span class="pill">Profile to be completed</span></div>
-                <div style="font-size: 13px">${escapeHtml(profile.email || "No email listed")}</div>
+                <div style="font-size: 13px">${escapeHtml(bestProfileSignal(profile))}</div>
                 <a href="profile-preview.html" onclick="findSelect(allProfiles[${index}]); return false;">Open profile</a>
               </div>`;
             })
@@ -712,36 +758,40 @@
           return;
         }
 
-        const letterRows = completeProfiles.filter((profile) => profileLetter(profile) === selectedProfileLetter);
-        const families = orderedFamilies(letterRows);
-        familiesTarget.innerHTML = families
-          .map((family) => {
-            const count = letterRows.filter((profile) => profileFamily(profile) === family).length;
-            const active = selectedProfileFamily === family ? " active" : "";
-            return `<button class="btn secondary${active}" type="button" onclick="selectProfileFamily('${escapeHtml(family)}')">${escapeHtml(profileFamilyLabel(family))} <span class="pill">${count}</span></button>`;
+        const areaRows = completeProfiles.filter((profile) => profileAreaGroup(profile) === selectedProfileArea);
+        const letters = Array.from(new Set(areaRows.map(profileLetter))).sort((a, b) => {
+          if (a === "#") return 1;
+          if (b === "#") return -1;
+          return a.localeCompare(b);
+        });
+        lettersTarget.innerHTML = letters
+          .map((letter) => {
+            const count = areaRows.filter((profile) => profileLetter(profile) === letter).length;
+            const active = selectedProfileLetter === letter ? " active" : "";
+            return `<button class="btn secondary${active}" type="button" onclick="selectProfileLetter('${letter}')">${letter} <span class="pill">${count}</span></button>`;
           })
           .join("");
 
-        if (!selectedProfileFamily) {
-          status.textContent = `Letter ${selectedProfileLetter}: choose Full Stack, Frontend, Backend, AI, Data, PM, or another family.`;
-          path.textContent = `${selectedProfileLetter} > Skill family`;
+        if (!selectedProfileLetter) {
+          status.textContent = `${areaRows.length} profile${areaRows.length === 1 ? "" : "s"} in ${profileGroupLabel(selectedProfileArea)}. Pick a letter.`;
+          path.textContent = `${profileGroupLabel(selectedProfileArea)} > A-Z`;
           return;
         }
 
-        const rows = letterRows.filter((profile) => profileFamily(profile) === selectedProfileFamily);
-        status.textContent = `${rows.length} ${profileFamilyLabel(selectedProfileFamily)} profile${rows.length === 1 ? "" : "s"} under ${selectedProfileLetter}.`;
-        path.textContent = `${selectedProfileLetter} > ${profileFamilyLabel(selectedProfileFamily)}`;
+        const rows = areaRows.filter((profile) => profileLetter(profile) === selectedProfileLetter);
+        status.textContent = `${rows.length} profile${rows.length === 1 ? "" : "s"} under ${profileGroupLabel(selectedProfileArea)} / ${selectedProfileLetter}.`;
+        path.textContent = `${profileGroupLabel(selectedProfileArea)} > ${selectedProfileLetter}`;
         body.innerHTML = rows
           .map((profile) => {
             const index = profiles.indexOf(profile);
-            const skills = (profile.skills || []).slice(0, 4).map(escapeHtml).join(", ");
+            const skills = (profile.skills || []).slice(0, 4).map(escapeHtml).join(", ") || escapeHtml(bestProfileSignal(profile));
             return `<div class="profile-drill-row">
               <div>
                 <button class="btn secondary" type="button" onclick="findSelect(allProfiles[${index}])">${escapeHtml(profile.name || "Unnamed profile")}</button>
                 <div style="color: var(--muted); font-size: 13px">${escapeHtml(profile.title || "No title")}</div>
               </div>
-              <div><span class="pill">${escapeHtml(profileFamilyLabel(profileFamily(profile)))}</span></div>
-              <div style="font-size: 13px">${skills || "No skills listed"}</div>
+              <div><span class="pill">${escapeHtml(profile.primaryStack || "Other")}</span></div>
+              <div style="font-size: 13px">${skills}</div>
               <a href="profile-preview.html" onclick="findSelect(allProfiles[${index}]); return false;">Open profile</a>
             </div>`;
           })
@@ -750,13 +800,17 @@
 
       function selectProfileLetter(letter) {
         selectedProfileLetter = letter;
-        selectedProfileFamily = "";
         renderAllProfilesDrilldown();
       }
 
-      function selectProfileFamily(family) {
-        selectedProfileFamily = family.replace(/&amp;/g, "&");
+      function selectProfileArea(area) {
+        selectedProfileArea = area;
+        selectedProfileLetter = "";
         renderAllProfilesDrilldown();
+      }
+
+      function selectProfileAreaByIndex(index) {
+        selectProfileArea((window.profileAreaGroups || [])[index] || "");
       }
 
       async function uploadResume() {
@@ -829,6 +883,10 @@
           .addEventListener("click", listAllProfiles);
 
         document
+          .getElementById("resetProcessBtn")
+          .addEventListener("click", resetVettingProcess);
+
+        document
           .getElementById("hideProfilesBtn")
           .addEventListener("click", () => {
             document.getElementById("allProfilesSection").style.display = "none";
@@ -837,10 +895,10 @@
         document
           .getElementById("allProfilesBackBtn")
           .addEventListener("click", () => {
-            if (selectedProfileFamily) {
-              selectedProfileFamily = "";
-            } else {
+            if (selectedProfileLetter) {
               selectedProfileLetter = "";
+            } else {
+              selectedProfileArea = "";
             }
             renderAllProfilesDrilldown();
           });
