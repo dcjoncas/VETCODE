@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - CRM</title>
+    <link
+      class="domainLogo"
+      rel="icon"
+      href="../assets/devLogo.svg"
+      sizes="any"
+      type="image/svg+xml"
+    />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <style>
+      .crm-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+        gap: 16px;
+      }
+
+      .crm-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .crm-form-grid .full {
+        grid-column: 1 / -1;
+      }
+
+      .crm-record {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px;
+        background: #fff;
+        margin-top: 10px;
+      }
+
+      .crm-record h3 {
+        margin: 0 0 6px;
+        font-size: 16px;
+      }
+
+      .crm-meta {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .crm-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      @media (max-width: 980px) {
+        .crm-grid,
+        .crm-form-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html");
+        $("#processFlow").load("components/processFlow.html");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">CRM</div>
+            <div class="breadcrumb">Scoping calls - Customer history</div>
+          </div>
+          <div id="searchBar"></div>
+        </div>
+
+        <div id="processFlow"></div>
+
+        <section class="card">
+          <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap">
+            <div>
+              <h2 style="margin-bottom: 4px">Call intake</h2>
+              <p style="margin-top: 0">
+                Capture who, what, where, when, why, meeting URL, notes, contacts, and next steps after a scoping call.
+              </p>
+            </div>
+            <a
+              class="btn secondary"
+              target="_blank"
+              rel="noopener"
+              href="https://web-production-268c2.up.railway.app/#ask-form"
+            >
+              Open Recordings
+            </a>
+          </div>
+        </section>
+
+        <div class="crm-grid" style="margin-top: 16px">
+          <section class="card">
+            <h2>Meeting detail</h2>
+            <div class="crm-form-grid">
+              <div class="field">
+                <label>Customer / account</label>
+                <input id="crmCustomer" placeholder="Acme Health" />
+              </div>
+              <div class="field">
+                <label>Primary contact</label>
+                <input id="crmContact" placeholder="Name, title, email" />
+              </div>
+              <div class="field">
+                <label>When</label>
+                <input id="crmWhen" type="datetime-local" />
+              </div>
+              <div class="field">
+                <label>Where</label>
+                <input id="crmWhere" placeholder="Zoom, Teams, in person" />
+              </div>
+              <div class="field full">
+                <label>Meeting URL</label>
+                <input id="crmMeetingUrl" placeholder="https://..." />
+              </div>
+              <div class="field full">
+                <label>What was discussed</label>
+                <textarea id="crmWhat" placeholder="Scope, role needs, constraints, timeline, budget, risks..."></textarea>
+              </div>
+              <div class="field full">
+                <label>Why this matters</label>
+                <textarea id="crmWhy" placeholder="Business driver, urgency, expected outcome..."></textarea>
+              </div>
+              <div class="field full">
+                <label>Contacts</label>
+                <textarea id="crmContacts" placeholder="One per line: name, role, email, phone"></textarea>
+              </div>
+              <div class="field full">
+                <label>History / notes</label>
+                <textarea id="crmHistory" placeholder="Transcript summary, decisions, objections, follow-up notes..."></textarea>
+              </div>
+              <div class="field full">
+                <label>Next step</label>
+                <input id="crmNextStep" placeholder="Send shortlist, schedule follow-up, prepare SOW..." />
+              </div>
+            </div>
+            <div class="row-actions" style="margin-top: 14px">
+              <button id="saveCrmBtn" class="btn primary" type="button">Save CRM record</button>
+              <button id="clearCrmFormBtn" class="btn secondary" type="button">Clear form</button>
+            </div>
+            <div id="crmStatus" class="notice" style="margin-top: 12px">
+              CRM records are stored locally until a backend CRM table/API is added.
+            </div>
+          </section>
+
+          <aside class="card">
+            <h2>CRM summary</h2>
+            <div class="kpi">
+              <div class="k">
+                <div id="crmRecordCount" class="v">0</div>
+                <div class="l">Saved records</div>
+              </div>
+              <div class="k">
+                <div id="crmOpenFollowups" class="v">0</div>
+                <div class="l">Open follow-ups</div>
+              </div>
+            </div>
+            <div class="notice" style="margin-top: 12px">
+              Recordings can send data here by opening this page with URL fields such as
+              <code>?customer=&meetingUrl=&summary=</code>.
+            </div>
+          </aside>
+        </div>
+
+        <section class="card" style="margin-top: 16px">
+          <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap">
+            <div>
+              <h2 style="margin-bottom: 4px">History</h2>
+              <p style="margin-top: 0">Saved scoping calls and customer touchpoints.</p>
+            </div>
+            <button id="clearCrmRecordsBtn" class="btn secondary" type="button">Clear local CRM</button>
+          </div>
+          <div id="crmHistoryList"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="JS/apiScripts.js"></script>
+    <script src="JS/updateProcessFlow.js"></script>
+    <script>
+      const crmStorageKey = "devreadyCrmRecords";
+
+      function crmFields() {
+        return {
+          customer: document.getElementById("crmCustomer"),
+          contact: document.getElementById("crmContact"),
+          when: document.getElementById("crmWhen"),
+          where: document.getElementById("crmWhere"),
+          meetingUrl: document.getElementById("crmMeetingUrl"),
+          what: document.getElementById("crmWhat"),
+          why: document.getElementById("crmWhy"),
+          contacts: document.getElementById("crmContacts"),
+          history: document.getElementById("crmHistory"),
+          nextStep: document.getElementById("crmNextStep"),
+        };
+      }
+
+      function crmRecords() {
+        return JSON.parse(localStorage.getItem(crmStorageKey) || "[]");
+      }
+
+      function setCrmRecords(records) {
+        localStorage.setItem(crmStorageKey, JSON.stringify(records.slice(0, 200)));
+      }
+
+      function crmValue(key) {
+        return crmFields()[key].value.trim();
+      }
+
+      function clearCrmForm() {
+        Object.values(crmFields()).forEach((field) => {
+          field.value = "";
+        });
+        document.getElementById("crmWhen").value = new Date().toISOString().slice(0, 16);
+      }
+
+      function recordFromForm() {
+        return {
+          id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+          createdAt: new Date().toISOString(),
+          customer: crmValue("customer"),
+          contact: crmValue("contact"),
+          when: crmValue("when"),
+          where: crmValue("where"),
+          meetingUrl: crmValue("meetingUrl"),
+          what: crmValue("what"),
+          why: crmValue("why"),
+          contacts: crmValue("contacts"),
+          history: crmValue("history"),
+          nextStep: crmValue("nextStep"),
+        };
+      }
+
+      function saveCrmRecord() {
+        const record = recordFromForm();
+        if (!record.customer && !record.contact && !record.meetingUrl && !record.what) {
+          document.getElementById("crmStatus").textContent =
+            "Add at least a customer, contact, meeting URL, or call detail before saving.";
+          return;
+        }
+        const records = crmRecords();
+        records.unshift(record);
+        setCrmRecords(records);
+        document.getElementById("crmStatus").textContent = "CRM record saved.";
+        clearCrmForm();
+        renderCrmHistory();
+      }
+
+      function hydrateFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams((window.location.hash || "").replace(/^#/, ""));
+        const read = (key) => params.get(key) || hashParams.get(key) || "";
+        const fields = crmFields();
+        fields.customer.value = read("customer") || read("account") || "";
+        fields.contact.value = read("contact") || read("who") || "";
+        fields.when.value = read("when") || "";
+        fields.where.value = read("where") || "";
+        fields.meetingUrl.value = read("meetingUrl") || read("meeting_url") || read("url") || "";
+        fields.what.value = read("what") || read("summary") || "";
+        fields.why.value = read("why") || "";
+        fields.contacts.value = read("contacts") || "";
+        fields.history.value = read("history") || read("transcript") || "";
+        fields.nextStep.value = read("nextStep") || read("next_step") || "";
+        if (!fields.when.value) fields.when.value = new Date().toISOString().slice(0, 16);
+      }
+
+      function useCrmRecord(index) {
+        const record = crmRecords()[index];
+        if (!record) return;
+        const fields = crmFields();
+        fields.customer.value = record.customer || "";
+        fields.contact.value = record.contact || "";
+        fields.when.value = record.when || "";
+        fields.where.value = record.where || "";
+        fields.meetingUrl.value = record.meetingUrl || "";
+        fields.what.value = record.what || "";
+        fields.why.value = record.why || "";
+        fields.contacts.value = record.contacts || "";
+        fields.history.value = record.history || "";
+        fields.nextStep.value = record.nextStep || "";
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      function deleteCrmRecord(index) {
+        if (!confirm("Delete this local CRM record?")) return;
+        const records = crmRecords();
+        records.splice(index, 1);
+        setCrmRecords(records);
+        renderCrmHistory();
+      }
+
+      function renderCrmHistory() {
+        const records = crmRecords();
+        document.getElementById("crmRecordCount").textContent = records.length;
+        document.getElementById("crmOpenFollowups").textContent =
+          records.filter((record) => record.nextStep).length;
+
+        const target = document.getElementById("crmHistoryList");
+        if (!records.length) {
+          target.innerHTML = '<div class="notice">No CRM records yet.</div>';
+          return;
+        }
+
+        target.innerHTML = records
+          .map((record, index) => {
+            const link = record.meetingUrl
+              ? `<a href="${escapeHtml(record.meetingUrl)}" target="_blank" rel="noopener">Meeting URL</a>`
+              : "No meeting URL";
+            return `<div class="crm-record">
+              <h3>${escapeHtml(record.customer || "Untitled account")}</h3>
+              <div class="crm-meta">
+                <strong>Who:</strong> ${escapeHtml(record.contact || "Not captured")}<br />
+                <strong>When:</strong> ${escapeHtml(record.when || "Not captured")}<br />
+                <strong>Where:</strong> ${escapeHtml(record.where || "Not captured")} - ${link}<br />
+                <strong>What:</strong> ${escapeHtml(record.what || "Not captured")}<br />
+                <strong>Why:</strong> ${escapeHtml(record.why || "Not captured")}<br />
+                <strong>Next:</strong> ${escapeHtml(record.nextStep || "No next step")}
+              </div>
+              <div class="crm-actions">
+                <button class="btn secondary" type="button" onclick="useCrmRecord(${index})">Open</button>
+                <button class="btn secondary" type="button" onclick="deleteCrmRecord(${index})">Delete</button>
+              </div>
+            </div>`;
+          })
+          .join("");
+      }
+
+      window.addEventListener("message", (event) => {
+        const data = event.data || {};
+        if (!data || data.type !== "devready-crm") return;
+        const fields = crmFields();
+        fields.customer.value = data.customer || fields.customer.value;
+        fields.contact.value = data.contact || fields.contact.value;
+        fields.when.value = data.when || fields.when.value;
+        fields.where.value = data.where || fields.where.value;
+        fields.meetingUrl.value = data.meetingUrl || fields.meetingUrl.value;
+        fields.what.value = data.what || data.summary || fields.what.value;
+        fields.why.value = data.why || fields.why.value;
+        fields.contacts.value = data.contacts || fields.contacts.value;
+        fields.history.value = data.history || data.transcript || fields.history.value;
+        fields.nextStep.value = data.nextStep || fields.nextStep.value;
+        document.getElementById("crmStatus").textContent =
+          "Received CRM details from the recordings app. Review and save.";
+      });
+
+      document.addEventListener("DOMContentLoaded", () => {
+        hydrateFromUrl();
+        renderCrmHistory();
+        document.getElementById("saveCrmBtn").addEventListener("click", saveCrmRecord);
+        document.getElementById("clearCrmFormBtn").addEventListener("click", clearCrmForm);
+        document.getElementById("clearCrmRecordsBtn").addEventListener("click", () => {
+          if (!confirm("Clear all local CRM records?")) return;
+          localStorage.removeItem(crmStorageKey);
+          renderCrmHistory();
+        });
+      });
+    </script>
+  </body>
+</html>

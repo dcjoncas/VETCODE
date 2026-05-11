@@ -6,6 +6,13 @@
   </div>
   <a href="profile-preview.html" class=""><span class="dot"></span>Profiles</a>
   <a
+    href="crm.html"
+    class="crm-link"
+    style="background: #f4c430; color: #1f2933; border-color: rgba(31, 41, 51, 0.22); font-weight: 800"
+    ><span class="dot"></span>CRM</a
+  >
+  <a
+    id="recordingsLink"
     href="https://web-production-268c2.up.railway.app/#ask-form"
     target="_blank"
     rel="noopener"
@@ -39,6 +46,13 @@
 <script>
   const currentNavPath = window.location.pathname.replace(/\/$/, "");
   const navLinks = document.querySelectorAll("#pageNav a");
+  const recordingsLink = document.getElementById("recordingsLink");
+
+  if (recordingsLink) {
+    const crmReturnUrl = new URL("crm.html", window.location.href).href;
+    recordingsLink.href =
+      `https://web-production-268c2.up.railway.app/?returnTo=${encodeURIComponent(crmReturnUrl)}#ask-form`;
+  }
 
   navLinks.forEach((link) => {
     const linkPath = new URL(link.href).pathname.replace(/\/$/, "");
