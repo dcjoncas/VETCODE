@@ -1115,6 +1115,106 @@ def deleteTemporaryExternalProfile(personId: str):
     finally:
         conn.close()
 
+def listTemporaryExternalProfiles(domain: str = "dev", limit: int = 50):
+    try:
+        safe_limit = max(1, min(int(limit), 200))
+    except Exception:
+        safe_limit = 50
+
+    conn = client.getConnection()
+    cur = conn.cursor()
+    try:
+        params = []
+        domain_filter = ""
+        if domain and domain != "all":
+            domain_filter = "AND person.domain = %s"
+            params.append(domain)
+        params.append(safe_limit)
+
+        query = f"""
+            SELECT
+                person.id,
+                person.firstname,
+                person.lastname,
+                prof.email,
+                prof.title,
+                prof.maindescription,
+                address.city,
+                address.state,
+                address.country,
+                prof.modifieddate
+            FROM person
+            JOIN professional prof ON person.id = prof.personid
+            LEFT JOIN address ON person.id = address.personid
+            WHERE prof.maindescription ILIKE '%%Temporary external profile%%'
+            {domain_filter}
+            ORDER BY prof.modifieddate DESC NULLS LAST, person.id DESC
+            LIMIT %s
+        """
+        cur.execute(query, params)
+        rows = cur.fetchall()
+        profiles = []
+        for row in rows:
+            description = row[5] or ""
+            source = "External"
+            marker = "Imported from "
+            if marker in description:
+                source = description.split(marker, 1)[1].split(".", 1)[0].strip() or source
+            location = ", ".join([part for part in [row[6], row[7], row[8]] if part])
+            profiles.append({
+                "personid": row[0],
+                "name": f"{row[1] or ''} {row[2] or ''}".strip() or "Temporary Profile",
+                "email": row[3] or "",
+                "title": row[4] or "",
+                "source": source,
+                "location": location,
+                "updated": row[9].isoformat() if row[9] else "",
+            })
+        return {"status": "success", "profiles": profiles}
+    finally:
+        conn.close()
+
+def makeTemporaryExternalProfilePermanent(personId: str):
+    try:
+        personIdInt = int(personId)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid profile id.")
+
+    conn = client.getConnection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "SELECT id, maindescription FROM professional WHERE personid = %s",
+            (personIdInt,),
+        )
+        rows = cur.fetchall()
+        if not rows:
+            raise HTTPException(status_code=404, detail="Temporary profile not found.")
+
+        descriptions = " ".join([str(row[1] or "") for row in rows])
+        if "Temporary external profile" not in descriptions:
+            raise HTTPException(status_code=400, detail="Profile is already permanent.")
+
+        for professional_id, description in rows:
+            clean_description = (description or "").replace(
+                "Temporary external profile. Confirm details before publishing.",
+                "External profile. Details reviewed for pipeline use.",
+            ).replace("Temporary external profile", "External profile")
+            cur.execute(
+                "UPDATE professional SET maindescription = %s, modifieddate = NOW() WHERE id = %s",
+                (clean_description, professional_id),
+            )
+        conn.commit()
+        return {"status": "success", "personid": personIdInt, "temporaryProfile": False}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to make profile permanent: {e}")
+    finally:
+        conn.close()
+
 def updateCandidateCore(personId: str, firstName: str, lastName: str, city: str = "", state: str = "", country: str = "", description: str = "", jobTitle: str = ""):
     conn = client.getConnection()
     cur = conn.cursor()

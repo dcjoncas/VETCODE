@@ -97,6 +97,44 @@
         padding: 4px 8px;
         font-size: 12px;
       }
+
+      .temp-profile-panel {
+        margin-top: 18px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 14px;
+        background: var(--card);
+      }
+
+      .temp-profile-row {
+        display: grid;
+        grid-template-columns: minmax(180px, 1.4fr) minmax(120px, 0.8fr) minmax(220px, auto);
+        gap: 12px;
+        align-items: center;
+        border-top: 1px solid var(--border);
+        padding: 12px 0;
+      }
+
+      .temp-profile-row:first-child {
+        border-top: 0;
+      }
+
+      .temp-profile-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      @media (max-width: 760px) {
+        .temp-profile-row {
+          grid-template-columns: 1fr;
+        }
+
+        .temp-profile-actions {
+          justify-content: flex-start;
+        }
+      }
     </style>
     <script>
       $(function () {
@@ -211,6 +249,22 @@
 
           <div id="jobSkillPanel" class="muted" style="margin-top: 12px"></div>
           <div id="results"></div>
+
+          <section class="temp-profile-panel" aria-labelledby="tempProfilesTitle">
+            <div class="section-head">
+              <div>
+                <h2 id="tempProfilesTitle">TEMP Profiles</h2>
+                <p class="muted">
+                  Review externally mined profiles, delete records you do not need, or make reviewed profiles permanent.
+                </p>
+              </div>
+              <button class="btn secondary" type="button" onclick="loadTempProfiles()">Refresh TEMP Profiles</button>
+            </div>
+            <div id="tempProfileStatus" class="notice" style="margin-top: 10px">
+              TEMP profiles are kept separate for PII review.
+            </div>
+            <div id="tempProfileList"></div>
+          </section>
         </section>
       </main>
     </div>
@@ -384,7 +438,70 @@
           importedAt: new Date().toISOString(),
         };
         sessionStorage.setItem("temporaryProfiles", JSON.stringify(temporaryProfiles));
+        window.location.href = "match-role.html";
+      }
+
+      function renderTempProfiles(profiles) {
+        const list = document.getElementById("tempProfileList");
+        if (!profiles.length) {
+          list.innerHTML = "";
+          document.getElementById("tempProfileStatus").textContent =
+            "No TEMP profiles found for this environment.";
+          return;
+        }
+        document.getElementById("tempProfileStatus").textContent =
+          `${profiles.length} TEMP profile${profiles.length === 1 ? "" : "s"} ready for review.`;
+        list.innerHTML = profiles
+          .map((profile) => {
+            const safeName = escapeHtml(profile.name || "Temporary Profile");
+            const safeTitle = escapeHtml(profile.title || "External candidate");
+            const safeSource = escapeHtml(profile.source || "External");
+            const safeLocation = escapeHtml(profile.location || "");
+            return `<div class="temp-profile-row">
+              <div>
+                <strong>${safeName}</strong>
+                <div class="muted">${safeTitle}${safeLocation ? " - " + safeLocation : ""}</div>
+              </div>
+              <div class="muted">${safeSource}</div>
+              <div class="temp-profile-actions">
+                <button class="btn secondary" type="button" onclick="openTempProfile('${profile.personid}')">Open</button>
+                <button class="btn primary" type="button" onclick="makeTempPermanent('${profile.personid}')">Make permanent</button>
+                <button class="btn danger" type="button" onclick="deleteTempProfile('${profile.personid}')">Delete</button>
+              </div>
+            </div>`;
+          })
+          .join("");
+      }
+
+      async function loadTempProfiles() {
+        try {
+          const response = await api(`/api/azureJobs/external/temp?domain=${encodeURIComponent(currentDomain())}&limit=100`);
+          renderTempProfiles(response.profiles || []);
+        } catch (e) {
+          document.getElementById("tempProfileStatus").textContent = e.message;
+        }
+      }
+
+      function openTempProfile(personId) {
+        sessionStorage.setItem("candidateId", personId);
+        sessionStorage.setItem("candidateStatus", "Temporary Profile");
+        sessionStorage.setItem("candidateProfileType", "Temporary Profile");
         window.location.href = "profile-preview.html";
+      }
+
+      async function makeTempPermanent(personId) {
+        if (!confirm("Make this TEMP profile permanent?")) return;
+        await api(`/api/azureJobs/external/temp/${personId}/make-permanent`, { method: "POST" });
+        await loadTempProfiles();
+      }
+
+      async function deleteTempProfile(personId) {
+        if (!confirm("Delete this TEMP profile? This removes the temporary external record.")) return;
+        await api(`/api/azureJobs/external/temp/${personId}`, { method: "DELETE" });
+        const temporaryProfiles = JSON.parse(sessionStorage.getItem("temporaryProfiles") || "{}");
+        delete temporaryProfiles[String(personId)];
+        sessionStorage.setItem("temporaryProfiles", JSON.stringify(temporaryProfiles));
+        await loadTempProfiles();
       }
 
       async function saveJobDescription() {
@@ -466,6 +583,7 @@
             mineCandidates();
           }
         });
+        loadTempProfiles();
       });
     </script>
   </body>

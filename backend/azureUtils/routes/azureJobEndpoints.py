@@ -122,6 +122,32 @@ def _skill_terms(skill: str):
             terms.add(replacements.get(token, token))
     return {term for term in terms if term}
 
+def _terms_have_soft_match(skill_terms: set[str], candidate_terms: set[str]):
+    blocked_pairs = {
+        ("java", "javascript"),
+        ("javascript", "java"),
+        ("java", "node"),
+        ("node", "java"),
+    }
+    for term in skill_terms:
+        if len(term) < 4:
+            continue
+        for candidate_term in candidate_terms:
+            if (term, candidate_term) in blocked_pairs:
+                continue
+            if term in candidate_term or candidate_term in term:
+                return True
+    return False
+
+def _text_mentions_skill(skill: str, text: str):
+    lower_skill = str(skill or "").lower().strip()
+    lower_text = str(text or "").lower()
+    if lower_skill == "java":
+        return bool(re.search(r"(?<![a-z0-9])java(?![a-z0-9])", lower_text))
+    if lower_skill == "javascript":
+        return bool(re.search(r"(?<![a-z0-9])(javascript|js)(?![a-z0-9])", lower_text))
+    return lower_skill in lower_text
+
 def _skill_weight(skill: str):
     lower = str(skill or "").lower()
     core_tokens = [
@@ -166,10 +192,7 @@ def _rank_external_skill_match(raw_skills: list[str], job_skills: list[str], sco
         total_weight += weight
         matched_skill = bool(skill_terms & candidate_terms)
         if not matched_skill:
-            matched_skill = any(
-                len(term) >= 4 and any(term in candidate_term or candidate_term in term for candidate_term in candidate_terms)
-                for term in skill_terms
-            )
+            matched_skill = _terms_have_soft_match(skill_terms, candidate_terms)
         if matched_skill:
             matched.append(skill)
             matched_weight += weight
@@ -178,7 +201,7 @@ def _rank_external_skill_match(raw_skills: list[str], job_skills: list[str], sco
 
     unique_matches = list(dict.fromkeys(matched))
     score = round((matched_weight / max(total_weight, 1.0)) * 100)
-    if len(unique_matches) < 2 and score >= 50:
+    if len(skill_basis) > 1 and len(unique_matches) < 2 and score >= 50:
         score = 49
     details = {
         "formula": "weighted matched JD signals / weighted searchable JD signals",
@@ -245,17 +268,23 @@ def _github_search(job_skills: list[str], scoring_skills: list[str], size: int =
     seen_logins = set()
     search_queries = []
     candidate_logins = []
-    candidate_pool_size = max(size * 5, 12)
+    candidate_pool_size = max(size * 8, 30)
 
     for skill in selected_skills:
         if len(candidate_logins) >= candidate_pool_size:
             break
 
-        repo_query = f"{skill} stars:>3"
+        normalized_terms = _skill_terms(skill)
+        language_term = "Java" if "java" in normalized_terms else skill
+        repo_query = (
+            f"language:{language_term} stars:>1"
+            if len(normalized_terms & {"java", "python", "javascript", "typescript", "c#", "c++"}) > 0
+            else f"{skill} stars:>3"
+        )
         search_queries.append(repo_query)
         repo_search_response = requests.get(
             "https://api.github.com/search/repositories",
-            params={"q": repo_query, "sort": "stars", "order": "desc", "per_page": 5},
+            params={"q": repo_query, "sort": "stars", "order": "desc", "per_page": 10},
             headers=_github_headers(),
             timeout=12,
         )
@@ -277,7 +306,7 @@ def _github_search(job_skills: list[str], scoring_skills: list[str], size: int =
         search_queries.append(query)
         search_response = requests.get(
             "https://api.github.com/search/users",
-            params={"q": query, "per_page": min(size * 2, 10)},
+            params={"q": query, "per_page": min(size * 3, 20)},
             headers=_github_headers(),
             timeout=12,
         )
@@ -341,8 +370,8 @@ def _github_search(job_skills: list[str], scoring_skills: list[str], size: int =
         )
         candidate_text = " ".join([str(user.get("bio") or ""), repo_text]).lower()
         inferred_skills = list(dict.fromkeys(
-            [skill for skill in job_skills if skill.lower() in candidate_text]
-            + [skill for skill in selected_skills if skill.lower() in candidate_text]
+            [skill for skill in job_skills if _text_mentions_skill(skill, candidate_text)]
+            + [skill for skill in selected_skills if _text_mentions_skill(skill, candidate_text)]
             + repo_skills
         ))
         score, top_matches, score_details = _rank_external_skill_match(inferred_skills, job_skills, selected_skills)
@@ -405,6 +434,14 @@ def _github_direct_search(search_query: str, search_terms: list[str], size: int 
     candidate_logins = []
     search_queries = []
 
+    if selected_skills:
+        seeded_rows = _github_search(selected_skills, selected_skills, max(size, 10))
+        for row in seeded_rows:
+            login = row.get("source_id")
+            if login and login not in seen_logins:
+                seen_logins.add(login)
+                candidate_logins.append(login)
+
     if query:
         direct_query = f"{query} type:user"
         search_queries.append(direct_query)
@@ -423,9 +460,6 @@ def _github_direct_search(search_query: str, search_terms: list[str], size: int 
                 candidate_logins.append(login)
             if len(candidate_logins) >= max(size * 3, 10):
                 break
-
-    if not candidate_logins and selected_skills:
-        return _github_search(selected_skills, selected_skills, size)
 
     enriched_rows = []
     for login in candidate_logins:
@@ -471,7 +505,7 @@ def _github_direct_search(search_query: str, search_terms: list[str], size: int 
         )
         candidate_text = " ".join([str(user.get("name") or ""), str(user.get("login") or ""), str(user.get("bio") or ""), repo_text]).lower()
         inferred_skills = list(dict.fromkeys(
-            [skill for skill in selected_skills if skill.lower() in candidate_text]
+            [skill for skill in selected_skills if _text_mentions_skill(skill, candidate_text)]
             + repo_skills
         ))
         score, top_matches, score_details = _rank_external_skill_match(inferred_skills, selected_skills, selected_skills)
@@ -822,6 +856,14 @@ def external_candidate_import(payload: dict = Body(...)):
             status_code=500,
             content={"detail": f"Unable to create profile from external candidate: {str(e)}"},
         )
+
+@router.get("/external/temp")
+def external_candidate_temp_profiles(domain: str = "dev", limit: int = 50):
+    return candidates.listTemporaryExternalProfiles(domain, limit)
+
+@router.post("/external/temp/{person_id}/make-permanent")
+def external_candidate_make_permanent(person_id: str):
+    return candidates.makeTemporaryExternalProfilePermanent(person_id)
 
 @router.delete("/external/temp/{person_id}")
 def external_candidate_delete(person_id: str):
