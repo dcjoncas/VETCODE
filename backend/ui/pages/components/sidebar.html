@@ -25,6 +25,41 @@
     <div style="font-size: 12px; opacity: 0.9">Welcome back,</div>
     <div class="name">Darrin Joncas</div>
     <div
+      id="environmentBadge"
+      class="badge"
+      style="
+        margin-top: 10px;
+        width: 100%;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.16);
+      "
+    >
+      Environment: Local
+    </div>
+    <div
+      style="
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 8px;
+      "
+    >
+      <a
+        id="devEnvironmentLink"
+        class="badge"
+        href="https://vetcode-dev.up.railway.app/ui/pages/find-candidate.html"
+        style="justify-content: center; background: rgba(18, 91, 54, 0.9)"
+        >Dev</a
+      >
+      <a
+        id="productionEnvironmentLink"
+        class="badge"
+        href="https://vetcode-production.up.railway.app/ui/pages/find-candidate.html"
+        style="justify-content: center; background: rgba(190, 38, 51, 0.86)"
+        >Production</a
+      >
+    </div>
+    <div
       class="field"
       style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap"
     >
@@ -67,6 +102,7 @@
     }
 
     domainUpdate(select.value);
+    environmentUpdate();
   });
 
   function domainSwap() {
@@ -101,5 +137,31 @@
 
     document.getElementById("domainCss").href =
       `../assets/${currentDomain}Styles.css`;
+  }
+
+  function environmentUpdate() {
+    const host = window.location.host;
+    const path = window.location.pathname;
+    const badge = document.getElementById("environmentBadge");
+    const devLink = document.getElementById("devEnvironmentLink");
+    const productionLink = document.getElementById("productionEnvironmentLink");
+
+    const normalizedPath = path.includes("/ui/pages/")
+      ? path
+      : `/ui/pages/${path.split("/").pop() || "find-candidate.html"}`;
+
+    devLink.href = `https://vetcode-dev.up.railway.app${normalizedPath}`;
+    productionLink.href = `https://vetcode-production.up.railway.app${normalizedPath}`;
+
+    if (host.includes("vetcode-production")) {
+      badge.textContent = "Environment: Production";
+      badge.style.background = "rgba(190, 38, 51, 0.86)";
+    } else if (host.includes("vetcode-dev")) {
+      badge.textContent = "Environment: Development";
+      badge.style.background = "rgba(18, 91, 54, 0.9)";
+    } else {
+      badge.textContent = "Environment: Local";
+      badge.style.background = "rgba(255, 255, 255, 0.16)";
+    }
   }
 </script>
