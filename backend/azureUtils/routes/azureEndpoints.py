@@ -45,6 +45,11 @@ async def profile_discovery(domain: str = "dev", limit: int = 500):
     print(f"Scanning profile discovery for domain: {domain}")
     return candidates.profileDiscovery(domain, limit)
 
+@router.get("/profiles/alphabetical")
+async def profiles_alphabetical(domain: str = "dev"):
+    print(f"Listing profiles alphabetically for domain: {domain}")
+    return candidates.listProfilesAlphabetical(domain)
+
 @router.post("/searchNameEmail")
 async def get_candidates(search_string: str = Form(...), domain: str = Form(...), limit: int = Form(5)):
     print('searching for candidates with domain ' + domain)
@@ -215,7 +220,8 @@ async def upload_resume(
 
     profileResult = candidates.uploadProfile(skills=flatSkills, fullName=profile["contact"]["full_name"], domain=domain, email=profile["contact"]["email"], linkedInUrl=profile["contact"]["linkedin"], candidateDescription=description, culturalExperiences=culturalExperiences, candidateCity=candidateCity, candidateState=candidateState, candidateCountry=candidateCountry, candidateTitle=candidateTitle)
 
-    await resumes.uploadResume(file, profileResult["personid"])
+    resumeResult = await resumes.uploadResume(file, profileResult["personid"])
+    profileResult["resume"] = resumeResult
 
     return profileResult
 

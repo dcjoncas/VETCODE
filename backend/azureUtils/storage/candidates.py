@@ -399,6 +399,50 @@ def profileDiscovery(domain: str = 'dev', limit: int = 500):
         ],
     }
 
+def listProfilesAlphabetical(domain: str = "dev"):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    domain_filter = "" if domain == "all" else "WHERE person.domain = %s"
+    params = () if domain == "all" else (domain,)
+    query = f"""
+        SELECT
+            person.id,
+            person.firstname,
+            person.lastname,
+            prof.email,
+            prof.title,
+            COALESCE(pa.steps, ARRAY[]::integer[]) AS steps
+        FROM person
+        JOIN professional prof ON person.id = prof.personid
+        LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid
+        LEFT JOIN (
+            SELECT profileid, ARRAY_AGG(DISTINCT step) AS steps
+            FROM platformactivity
+            GROUP BY profileid
+        ) pa ON pa.profileid = profper.id
+        {domain_filter}
+        ORDER BY LOWER(COALESCE(person.lastname, '')),
+                 LOWER(COALESCE(person.firstname, '')),
+                 person.id
+    """
+    cur.execute(query, params)
+    results = cur.fetchall()
+    conn.close()
+
+    return [
+        {
+            "id": row[0],
+            "firstName": row[1] or "",
+            "lastName": row[2] or "",
+            "name": f"{row[1] or ''} {row[2] or ''}".strip() or "Unnamed profile",
+            "email": row[3] or "",
+            "title": row[4] or "",
+            "status": processing.stepProcessingOverall(row[5]),
+        }
+        for row in results
+    ]
+
 def getProfessionalProfileId(personId: str):
     conn = client.getConnection()
     cur = conn.cursor()

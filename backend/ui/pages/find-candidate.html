@@ -135,6 +135,9 @@
                 <button id="searchProfilesBtn" class="btn" type="button">
                   Search Profiles
                 </button>
+                <button id="listProfilesBtn" class="btn secondary" type="button">
+                  List All Profiles A-Z
+                </button>
               </div>
               <div class="kpi" style="margin-top: 12px">
                 <div class="k">
@@ -211,6 +214,29 @@
           </table>
         </section>
 
+        <section id="allProfilesSection" class="card" style="margin-top: 18px; display: none">
+          <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap">
+            <div>
+              <h2 style="margin-bottom: 4px">All profiles A-Z</h2>
+              <p id="allProfilesStatus" style="margin-top: 0">
+                Select a name to open that profile.
+              </p>
+            </div>
+            <button id="hideProfilesBtn" class="btn secondary" type="button">
+              Hide List
+            </button>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="allProfilesBody"></tbody>
+          </table>
+        </section>
+
         <section class="card" style="margin-top: 18px">
           <div class="profile-discovery-toolbar">
             <div style="flex: 1; min-width: 260px">
@@ -283,9 +309,9 @@
         sessionStorage.setItem("candidateId", profile.id);
         sessionStorage.setItem(
           "candidateName",
-          profile.firstName + " " + profile.lastName,
+          profile.name || `${profile.firstName || ""} ${profile.lastName || ""}`.trim(),
         );
-        sessionStorage.setItem("candidateStatus", profile.step);
+        sessionStorage.setItem("candidateStatus", profile.step || profile.status || "");
         sessionStorage.removeItem("candidateProfileType");
         sessionStorage.removeItem("externalCandidateSource");
 
@@ -371,6 +397,7 @@
 
       let profileDiscoveryData = null;
       let profileDiscoveryRows = [];
+      window.allProfiles = [];
 
       function selectDiscoveredProfile(profile) {
         sessionStorage.setItem("candidateId", profile.id);
@@ -520,6 +547,33 @@
         }
       }
 
+      async function listAllProfiles() {
+        const section = document.getElementById("allProfilesSection");
+        const tbody = document.getElementById("allProfilesBody");
+        const status = document.getElementById("allProfilesStatus");
+        section.style.display = "block";
+        tbody.innerHTML = "";
+        status.textContent = "Loading all profiles alphabetically...";
+
+        try {
+          const domain = sessionStorage.getItem("domain") || "dev";
+          const profiles = await api(`/api/azure/profiles/alphabetical?domain=${domain}`);
+          status.textContent = `Showing ${profiles.length} profiles. Select a name to open that profile.`;
+          tbody.innerHTML = profiles
+            .map((profile, index) => {
+              const safeName = escapeHtml(profile.name || "Unnamed profile");
+              return `<tr>
+                <td><button class="btn secondary" style="box-shadow: none" type="button" onclick="findSelect(allProfiles[${index}])">${safeName}</button></td>
+                <td><a href="profile-preview.html" onclick="findSelect(allProfiles[${index}]); return false;">Open profile</a></td>
+              </tr>`;
+            })
+            .join("");
+          window.allProfiles = profiles;
+        } catch (error) {
+          status.textContent = error.message || String(error);
+        }
+      }
+
       async function uploadResume() {
         document.getElementById("btnUpload").disabled = true;
         const f = document.getElementById("resumeFile").files[0];
@@ -558,6 +612,9 @@
           sessionStorage.setItem("candidateId", j.personid);
           sessionStorage.setItem("candidateName", j.name);
           sessionStorage.setItem("candidateStatus", "Generated from resume");
+          if (j.resume && j.resume.url) {
+            sessionStorage.setItem("candidateResumeUrl", j.resume.url);
+          }
           sessionStorage.removeItem("candidateProfileType");
           sessionStorage.removeItem("externalCandidateSource");
           sessionStorage.removeItem("candidateTopMatches");
@@ -581,6 +638,16 @@
         document
           .getElementById("searchProfilesBtn")
           .addEventListener("click", searchSkillList);
+
+        document
+          .getElementById("listProfilesBtn")
+          .addEventListener("click", listAllProfiles);
+
+        document
+          .getElementById("hideProfilesBtn")
+          .addEventListener("click", () => {
+            document.getElementById("allProfilesSection").style.display = "none";
+          });
 
         document
           .getElementById("btnUpload")

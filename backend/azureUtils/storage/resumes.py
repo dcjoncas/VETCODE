@@ -54,7 +54,10 @@ async def uploadResume(file: UploadFile, profile_id: int):
 
         print(f"Resume uploaded successfully as {blob_name}")
 
-        return True
+        return {
+            "blob_name": blob_name,
+            "url": getBlobSasUrl(blob_name),
+        }
     except Exception as e:
         print(f"Error uploading resume: {e}")
         raise e
