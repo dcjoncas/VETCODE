@@ -367,6 +367,50 @@ def dbinfo():
 def health():
     return {"status": "ok", "version": VERSION}
 
+@app.get("/api/environment")
+def environment():
+    railway_env = (
+        os.getenv("RAILWAY_ENVIRONMENT_NAME")
+        or os.getenv("RAILWAY_ENVIRONMENT")
+        or ""
+    ).strip()
+    public_domain = (
+        os.getenv("RAILWAY_PUBLIC_DOMAIN")
+        or os.getenv("RAILWAY_SERVICE_VETCODE_URL")
+        or os.getenv("RAILWAY_STATIC_URL")
+        or ""
+    ).strip()
+    db_host = (os.getenv("AZURE_DATABASE_HOST") or "").strip()
+    db_name = (os.getenv("AZURE_DATABASE_NAME") or "").strip()
+    storage_container = (os.getenv("AZURE_STORAGE_CONTAINER_NAME") or "").strip()
+
+    env_source = f"{railway_env} {public_domain} {db_host}".lower()
+    if "prod" in env_source and "dev" not in env_source:
+        environment_name = "Production"
+        source_name = "Production Railway"
+        badge_color = "rgba(190, 38, 51, 0.86)"
+    elif "dev" in env_source or "development" in env_source:
+        environment_name = "Development"
+        source_name = "Development Railway"
+        badge_color = "rgba(18, 91, 54, 0.9)"
+    else:
+        environment_name = "Local"
+        source_name = "Local source"
+        badge_color = "rgba(255, 255, 255, 0.16)"
+
+    return {
+        "status": "ok",
+        "version": VERSION,
+        "environment": environment_name,
+        "railway_environment": railway_env or "local",
+        "public_domain": public_domain or "localhost",
+        "database_name": db_name or "local",
+        "database_host": db_host or "local",
+        "storage_container": storage_container or "local",
+        "source": source_name,
+        "badge_color": badge_color,
+    }
+
 
 def extract_text_from_upload(file: UploadFile) -> str:
     name = (file.filename or "").lower()

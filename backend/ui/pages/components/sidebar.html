@@ -164,7 +164,7 @@
     keys.forEach((key) => sessionStorage.removeItem(key));
   }
 
-  function environmentUpdate() {
+  async function environmentUpdate() {
     const host = window.location.host;
     const badge = document.getElementById("environmentBadge");
     const notice = document.getElementById("environmentNotice");
@@ -187,6 +187,10 @@
     let environmentName = "Local";
     let sourceName = "Local source";
     let background = "rgba(255, 255, 255, 0.16)";
+    let databaseName = "local";
+    let databaseHost = "local";
+    let storageContainer = "local";
+    let publicDomain = host || "localhost";
 
     if (host.includes("vetcode-production")) {
       environmentName = "Production";
@@ -198,12 +202,32 @@
       background = "rgba(18, 91, 54, 0.9)";
     }
 
+    try {
+      const response = await fetch("/api/environment", { cache: "no-store" });
+      if (response.ok) {
+        const env = await response.json();
+        environmentName = env.environment || environmentName;
+        sourceName = env.source || sourceName;
+        background = env.badge_color || background;
+        databaseName = env.database_name || databaseName;
+        databaseHost = env.database_host || databaseHost;
+        storageContainer = env.storage_container || storageContainer;
+        publicDomain = env.public_domain || publicDomain;
+      }
+    } catch (error) {
+      sourceName = `${sourceName} - backend environment check unavailable`;
+    }
+
     badge.textContent = `Environment: ${environmentName}`;
     badge.style.background = background;
     notice.innerHTML = `
       <strong>Workspace status</strong><br />
       ${now}<br />
-      Database: ${environmentName} ${domainName}<br />
+      Domain: ${domainName}<br />
+      Database: ${databaseName}<br />
+      DB host: ${databaseHost}<br />
+      Storage: ${storageContainer}<br />
+      App: ${publicDomain}<br />
       Source: ${sourceName}
     `;
   }
