@@ -130,10 +130,10 @@
 
       .badge-card {
         border: 1px solid var(--line);
-        border-radius: 14px;
-        background: linear-gradient(180deg, #fff, #f9fbfa);
+        border-radius: 12px;
+        background: linear-gradient(180deg, #fff, #f7faf8);
         padding: 10px;
-        min-height: 132px;
+        min-height: 162px;
         text-align: left;
         cursor: pointer;
         transition:
@@ -148,16 +148,75 @@
         border-color: rgba(23, 105, 224, 0.42);
       }
 
-      .badge-medal {
-        width: 42px;
-        height: 42px;
-        border-radius: 999px;
+      .badge-symbol {
+        position: relative;
+        width: 58px;
+        height: 58px;
+        margin-bottom: 9px;
+      }
+
+      .badge-shield {
+        position: absolute;
+        inset: 0;
+        clip-path: polygon(50% 0, 88% 14%, 82% 70%, 50% 100%, 18% 70%, 12% 14%);
         display: grid;
         place-items: center;
         color: #fff;
         font-weight: 900;
-        margin-bottom: 9px;
-        box-shadow: inset 0 -8px 16px rgba(0, 0, 0, 0.12);
+        font-size: 16px;
+        box-shadow:
+          inset 0 -10px 18px rgba(0, 0, 0, 0.16),
+          0 10px 18px rgba(24, 37, 58, 0.16);
+      }
+
+      .badge-clock {
+        position: absolute;
+        right: -4px;
+        bottom: -4px;
+        width: 22px;
+        height: 22px;
+        border-radius: 999px;
+        background: #fff;
+        border: 2px solid #d4af37;
+        box-shadow: 0 5px 12px rgba(24, 37, 58, 0.14);
+      }
+
+      .badge-clock::before,
+      .badge-clock::after {
+        content: "";
+        position: absolute;
+        left: 9px;
+        top: 4px;
+        width: 2px;
+        height: 8px;
+        border-radius: 999px;
+        background: #2f5f4a;
+        transform-origin: bottom center;
+      }
+
+      .badge-clock::after {
+        top: 9px;
+        height: 6px;
+        transform: rotate(90deg);
+      }
+
+      .badge-ticks {
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        gap: 3px;
+        margin-top: 9px;
+      }
+
+      .badge-tick {
+        height: 6px;
+        border-radius: 999px;
+        background: #e2b93b;
+        border: 1px solid rgba(98, 78, 21, 0.16);
+      }
+
+      .badge-tick.complete {
+        background: #2f8f4e;
+        border-color: rgba(18, 91, 54, 0.28);
       }
 
       .badge-card strong {
@@ -183,6 +242,13 @@
         color: #124d9f;
         font-size: 11px;
         font-weight: 900;
+      }
+
+      .badge-card .status-note {
+        color: #7a661f;
+        font-size: 11px;
+        line-height: 1.2;
+        margin-top: 6px;
       }
 
       @media (max-width: 1180px) {
@@ -319,10 +385,17 @@
               .map(
                 (level, index) => `
                   <button class="badge-card" type="button" onclick="startBadge('${role.key}', ${index})" data-hint="Open the AI certification test for ${role.name} ${level[0]}.">
-                    <span class="badge-medal" style="background:${role.color}">${level[0]}</span>
+                    <span class="badge-symbol" aria-hidden="true">
+                      <span class="badge-shield" style="background:${role.color}">DR</span>
+                      <span class="badge-clock"></span>
+                    </span>
                     <strong>${role.name}<br />${level[1]}</strong>
                     <small>${level[2]}</small>
+                    <span class="badge-ticks">${badgeLevels
+                      .map((_, tickIndex) => `<span class="badge-tick${tickIndex <= index ? " complete" : ""}"></span>`)
+                      .join("")}</span>
                     <span class="level">Badge ${index + 1} of 10</span>
+                    <div class="status-note">${index + 1} green level tick${index === 0 ? "" : "s"}; yellow ticks remain.</div>
                   </button>
                 `,
               )

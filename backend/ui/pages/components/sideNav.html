@@ -1,3 +1,44 @@
+<style>
+  #pageNavInner .nav-group.cert-nav-group {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.06));
+    border-color: rgba(205, 218, 235, 0.46);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  }
+
+  #pageNavInner a.ai-cert-link {
+    background: linear-gradient(180deg, #256fcb, #174f98);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.34);
+  }
+
+  #pageNavInner a.badge-catalog-link {
+    background: linear-gradient(180deg, #eef6ff, #dbeafe);
+    color: #164b8f;
+    border-color: rgba(93, 142, 205, 0.42);
+  }
+
+  #pageNavInner a.crm-link {
+    background: linear-gradient(180deg, #f7d970, #e4b935);
+    color: #2d2615;
+    border-color: rgba(85, 70, 30, 0.22);
+  }
+
+  #pageNavInner a.meridian-link {
+    background: linear-gradient(135deg, rgba(255, 248, 220, 0.95), rgba(236, 238, 241, 0.95));
+    color: #3f3420;
+    border-color: #d4af37;
+    box-shadow:
+      inset 0 0 0 1px rgba(192, 192, 192, 0.82),
+      inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  }
+
+  #pageNavInner a.legacy-link {
+    background: linear-gradient(180deg, rgba(117, 126, 138, 0.82), rgba(86, 95, 108, 0.82));
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.22);
+  }
+</style>
+
 <nav id="pageNavInner" class="nav">
   <a href="find-candidate.html" class="nav-talent" data-hint="Start here to search profiles, upload resumes, load job descriptions, and scan profile groups."><span class="dot"></span>Talent</a>
   <div class="nav-group" aria-label="Candidate mining">
@@ -10,7 +51,6 @@
     href="crm.html"
     class="crm-link"
     data-hint="Open the client CRM workspace for meetings, contacts, history, and follow-up."
-    style="background: #f4c430; color: #1f2933; border-color: rgba(31, 41, 51, 0.22); font-weight: 800"
     ><span class="dot"></span>CRM</a
   >
   <a
@@ -26,24 +66,26 @@
     data-hint="Open the candidate technical challenge experience and profile badge flow."
     ><span class="dot"></span>Test Challenge</a
   >
-  <a
-    href="ai-cert.html"
-    data-hint="Open AI certification testing and badge capture."
-    style="background: #1769e0; color: #fff; border-color: rgba(255, 255, 255, 0.35)"
-    ><span class="dot"></span>Get AI Certified</a
-  >
-  <a
-    href="badge-catalog.html"
-    data-hint="View role-based certification badge paths and pick the exact badge test."
-    style="background: #e8f1ff; color: #124d9f; border-color: rgba(23, 105, 224, 0.26)"
-    ><span class="dot"></span>View Badges</a
-  >
+  <div class="nav-group cert-nav-group" aria-label="Certification badges">
+    <a
+      href="ai-cert.html"
+      class="ai-cert-link"
+      data-hint="Open AI certification testing and badge capture."
+      ><span class="dot"></span>Get AI Certified</a
+    >
+    <a
+      href="badge-catalog.html"
+      class="badge-catalog-link"
+      data-hint="View role-based certification badge paths and pick the exact badge test."
+      ><span class="dot"></span>View Badges</a
+    >
+  </div>
   <a
     href="https://meridian-mvp-production.up.railway.app/"
     target="_blank"
     rel="noopener"
+    class="meridian-link"
     data-hint="Open Meridian in a separate tab."
-    style="background: linear-gradient(135deg, rgba(212, 175, 55, 0.16), rgba(192, 192, 192, 0.16)); color: #3f3420; border: 1px solid #d4af37; box-shadow: inset 0 0 0 1px rgba(192, 192, 192, 0.8)"
     ><span class="dot"></span>Meridian</a
   >
   <div class="hint">Find (Out) is the external branch. Use it when no internal candidate fits, then build a TEMP profile and return to the same shortlist flow.</div>
@@ -51,8 +93,8 @@
     href="https://dev.readyplatform.io/dashboards/vetter"
     target="_blank"
     rel="noopener"
+    class="legacy-link"
     data-hint="Open the older dashboard in a separate tab when legacy data is needed."
-    style="background: rgba(108, 117, 125, 0.78); color: #fff; border-color: rgba(255, 255, 255, 0.25)"
     ><span class="dot"></span>Legacy Dashboard</a
   >
 </nav>
