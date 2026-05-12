@@ -340,6 +340,32 @@
         return sessionStorage.getItem("domain") || "dev";
       }
 
+      function syncProfileCompletionParams() {
+        const params = new URLSearchParams(window.location.search);
+        const candidateId = params.get("candidateId") || params.get("profileId");
+        const domain = params.get("domain");
+        if (candidateId) sessionStorage.setItem("candidateId", candidateId);
+        if (domain) sessionStorage.setItem("domain", domain);
+      }
+
+      function focusCompletionSection() {
+        const section = new URLSearchParams(window.location.search).get("complete");
+        const targetBySection = {
+          regular: "editCandidateBasics",
+          culture: "culturalSkillDiv",
+        };
+        const target = targetBySection[section]
+          ? document.getElementById(targetBySection[section])
+          : null;
+        if (!target) return;
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        target.style.outline = "3px solid rgba(45, 125, 70, 0.28)";
+        target.style.borderRadius = "12px";
+        setTimeout(() => {
+          target.style.outline = "";
+        }, 3500);
+      }
+
       function candidateDisplayName(profileData) {
         const profile = profileData?.profile || {};
         return [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "Candidate";
@@ -856,6 +882,8 @@
       }
 
       document.addEventListener("DOMContentLoaded", async () => {
+        syncProfileCompletionParams();
+
         document
           .getElementById("saveBtn")
           .addEventListener("click", saveProfileCore);
@@ -932,6 +960,7 @@
           console.log(profileData);
           updateCultureCompletionPanel(profileData);
           if (!isCultureComplete(profileData)) loadExistingCultureChatLink();
+          focusCompletionSection();
 
           let featurePillHtml = "";
           const featureSkillDiv = document.getElementById("featureSkillDiv");

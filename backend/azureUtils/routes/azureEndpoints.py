@@ -92,6 +92,9 @@ def _profile_completion_status(profile: dict):
     personality = profile.get("personality") or []
     cultural_experience = profile.get("culturalExperience") or []
     core_profile = profile.get("profile") or {}
+    skills = profile.get("skills") or []
+    technical_skills = profile.get("technicalSkills") or []
+    portfolio_experience = profile.get("portfolioExperience") or []
 
     def _level_value(item):
         try:
@@ -107,24 +110,35 @@ def _profile_completion_status(profile: dict):
         item and item.get("title") and _level_value(item) > 0
         for item in cultural_experience
     )
+    has_regular_profile = bool(core_profile.get("title")) and bool(
+        core_profile.get("description")
+        or skills
+        or technical_skills
+        or any(item and (item.get("description") or item.get("mainrole")) for item in portfolio_experience)
+    )
     missing = []
+    if not has_regular_profile:
+        missing.append("regular profile")
     if not has_personality:
         missing.append("personality survey")
     if not has_culture:
         missing.append("culture profile")
-    state = "complete"
-    if not has_personality and not has_culture:
-        state = "missing"
-    elif not has_personality or not has_culture:
-        state = "partial"
+    checks = [has_regular_profile, has_personality, has_culture]
+    state = "complete" if all(checks) else "partial" if any(checks) else "missing"
 
     return {
         "profileId": core_profile.get("id") or core_profile.get("personid"),
-        "complete": has_personality and has_culture,
+        "complete": all(checks),
         "state": state,
+        "hasRegularProfile": has_regular_profile,
         "hasPersonality": has_personality,
         "hasCulture": has_culture,
         "missing": missing,
+        "missingPieces": {
+            "regular": not has_regular_profile,
+            "personality": not has_personality,
+            "culture": not has_culture,
+        },
         "email": core_profile.get("email") or profile.get("email") or "",
         "name": " ".join(
             part for part in [core_profile.get("firstName"), core_profile.get("lastName")] if part
