@@ -374,6 +374,8 @@
           level: params.get("badgeLevel") || "",
           title: params.get("badgeTitle") || "",
           certificateId: params.get("certificateId") || "",
+          examId: params.get("examId") || "",
+          examVersion: params.get("examVersion") || "",
         };
       }
 
@@ -395,6 +397,8 @@
           <span class="path-badge">${escapeHtml(badge.level || "Badge")}</span>
           <span class="path-badge">${escapeHtml(badge.role || "Certification path")}</span>
           <span class="path-badge">${escapeHtml(badge.title || "Selected badge")}</span>
+          <span class="path-badge">${escapeHtml(badge.examId || "No exam selected")}</span>
+          <span class="path-badge">${escapeHtml(badge.examVersion ? "Version " + badge.examVersion : "No version")}</span>
         `;
       }
 
@@ -435,6 +439,8 @@
         if (badge.level) params.set("badgeLevel", badge.level);
         if (badge.title) params.set("badgeTitle", badge.title);
         if (badge.certificateId) params.set("certificateId", badge.certificateId);
+        if (badge.examId) params.set("examId", badge.examId);
+        if (badge.examVersion) params.set("examVersion", badge.examVersion);
         params.set("source", outbound ? "devready_invite" : "devready");
         const returnTo = new URL(window.location.href);
         returnTo.searchParams.set("certComplete", "1");
@@ -498,7 +504,11 @@
           form.append("candidate_name", candidateName);
           form.append("email", candidateEmail);
           form.append("title", certTitle);
-          form.append("notes", result.notes || "AI certification completed through embedded AI Cert workspace");
+          form.append(
+            "notes",
+            result.notes ||
+              `AI certification completed through embedded AI Cert workspace. Exam: ${selected.examId || "not specified"}${selected.examVersion ? ` Version ${selected.examVersion}` : ""}`,
+          );
           const endpoint = selectedCertCandidateId
             ? `/api/profile/${selectedCertCandidateId}/badges/ai-certification`
             : "/api/profile/badges/ai-certification";

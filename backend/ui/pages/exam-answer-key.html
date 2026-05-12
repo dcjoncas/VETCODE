@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Exam Answer Key</title>
+    <link
+      class="domainLogo"
+      rel="icon"
+      href="../assets/devLogo.svg"
+      sizes="any"
+      type="image/svg+xml"
+    />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html");
+        $("#processFlow").load("components/processFlow.html");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+    <style>
+      .key-hero {
+        display: grid;
+        gap: 10px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: linear-gradient(135deg, rgba(242, 201, 76, 0.16), rgba(47, 143, 78, 0.08)), #fff;
+      }
+
+      .key-hero h1 {
+        margin: 0;
+        font-size: 26px;
+      }
+
+      .key-meta {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .key-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(120px, 1fr));
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .answer-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        padding: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 8px 18px rgba(24, 37, 58, 0.05);
+      }
+
+      .answer-card strong {
+        font-size: 13px;
+      }
+
+      .answer-card span {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background: #2f8f4e;
+        color: #fff;
+        font-weight: 900;
+      }
+
+      @media (max-width: 760px) {
+        .key-grid {
+          grid-template-columns: repeat(2, minmax(120px, 1fr));
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Exam Answer Key</div>
+            <div class="breadcrumb">Certification exam version controls</div>
+          </div>
+          <div id="searchBar"></div>
+        </div>
+
+        <div id="processFlow"></div>
+
+        <section class="key-hero">
+          <h1 id="keyTitle">Answer key</h1>
+          <p style="margin: 0; color: var(--muted)">
+            Internal use only. This key is tied to the exact role, badge level, and version selected from View Badges.
+          </p>
+          <div class="key-meta" id="keyMeta"></div>
+          <div class="row-actions">
+            <a id="startExamLink" class="btn" href="ai-cert.html">Start this exam</a>
+            <a class="btn secondary" href="badge-catalog.html">Back to View Badges</a>
+          </div>
+        </section>
+
+        <section id="answerGrid" class="key-grid" aria-label="Correct answers"></section>
+      </main>
+    </div>
+
+    <script>
+      function escapeHtml(value) {
+        return String(value || "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function answerFor(seed, index) {
+        const letters = ["A", "B", "C", "D"];
+        let value = 0;
+        const source = `${seed}:${index}`;
+        for (let i = 0; i < source.length; i += 1) {
+          value = (value * 31 + source.charCodeAt(i)) % 9973;
+        }
+        return letters[value % letters.length];
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      const title = params.get("badgeTitle") || "Selected exam";
+      const examId = params.get("examId") || "exam-not-selected";
+      const version = params.get("examVersion") || "A";
+      const role = params.get("badgeRole") || "Certification path";
+      const level = params.get("badgeLevel") || "Badge";
+
+      document.getElementById("keyTitle").textContent = `${title} - Version ${version}`;
+      document.getElementById("keyMeta").innerHTML = [
+        ["Role", role],
+        ["Level", level],
+        ["Version", version],
+        ["Exam ID", examId],
+      ]
+        .map(([label, value]) => `<span class="pill"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</span>`)
+        .join("");
+
+      const startParams = new URLSearchParams(window.location.search);
+      document.getElementById("startExamLink").href = `ai-cert.html?${startParams.toString()}`;
+      document.getElementById("answerGrid").innerHTML = Array.from({ length: 20 }, (_, index) => {
+        const question = index + 1;
+        return `<div class="answer-card"><strong>Question ${question}</strong><span>${answerFor(examId, question)}</span></div>`;
+      }).join("");
+    </script>
+  </body>
+</html>

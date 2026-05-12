@@ -133,9 +133,8 @@
         border-radius: 12px;
         background: linear-gradient(180deg, #fff, #f7faf8);
         padding: 10px;
-        min-height: 162px;
+        min-height: 216px;
         text-align: left;
-        cursor: pointer;
         transition:
           transform 0.16s ease,
           box-shadow 0.16s ease,
@@ -275,6 +274,50 @@
         margin-top: 6px;
       }
 
+      .exam-version-list {
+        display: grid;
+        gap: 5px;
+        margin-top: 9px;
+      }
+
+      .exam-version-row {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 5px;
+        align-items: center;
+        padding: 5px;
+        border: 1px solid rgba(125, 143, 164, 0.22);
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .exam-version-row span {
+        font-size: 11px;
+        font-weight: 900;
+        color: var(--text);
+      }
+
+      .exam-version-row .start-link,
+      .exam-version-row .key-link {
+        border-radius: 999px;
+        padding: 4px 7px;
+        text-decoration: none;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .exam-version-row .start-link {
+        background: linear-gradient(180deg, rgba(47, 143, 78, 0.16), rgba(47, 143, 78, 0.08));
+        border: 1px solid rgba(47, 143, 78, 0.32);
+        color: #125b36;
+      }
+
+      .exam-version-row .key-link {
+        background: linear-gradient(180deg, rgba(242, 201, 76, 0.2), rgba(242, 201, 76, 0.1));
+        border: 1px solid rgba(184, 134, 11, 0.3);
+        color: #5f4700;
+      }
+
       @media (max-width: 1180px) {
         .badge-grid,
         .progress-rail {
@@ -366,15 +409,17 @@
         return { candidate, email, profileId };
       }
 
-      function badgeId(role, level) {
-        return `${role.key}-${level[0].toLowerCase()}`;
+      const examVersions = ["A", "B", "C"];
+
+      function badgeId(role, level, version = "") {
+        return `${role.key}-${level[0].toLowerCase()}${version ? "-v" + version.toLowerCase() : ""}`;
       }
 
-      function startBadge(roleKey, levelIndex) {
-        const role = badgeRoles.find((item) => item.key === roleKey);
-        const level = badgeLevels[levelIndex];
-        if (!role || !level) return;
+      function examId(role, level, version) {
+        return `${role.key}-${level[0].toLowerCase()}-exam-${version.toLowerCase()}`;
+      }
 
+      function examParams(role, level, version) {
         const candidate = selectedCandidateParams();
         const params = new URLSearchParams();
         if (candidate.profileId) params.set("profileId", candidate.profileId);
@@ -384,8 +429,22 @@
         params.set("badgeRoleKey", role.key);
         params.set("badgeLevel", level[0]);
         params.set("badgeTitle", `${role.name} ${level[0]} - ${level[1]}`);
-        params.set("certificateId", badgeId(role, level));
-        window.location.href = `ai-cert.html?${params.toString()}`;
+        params.set("examVersion", version);
+        params.set("examId", examId(role, level, version));
+        params.set("certificateId", badgeId(role, level, version));
+        return params;
+      }
+
+      function startBadge(roleKey, levelIndex, version) {
+        const role = badgeRoles.find((item) => item.key === roleKey);
+        const level = badgeLevels[levelIndex];
+        if (!role || !level) return;
+
+        window.location.href = `ai-cert.html?${examParams(role, level, version).toString()}`;
+      }
+
+      function answerKeyUrl(role, level, version) {
+        return `exam-answer-key.html?${examParams(role, level, version).toString()}`;
       }
 
       function renderFilters() {
@@ -408,7 +467,7 @@
             const cards = badgeLevels
               .map(
                 (level, index) => `
-                  <button class="badge-card" type="button" onclick="startBadge('${role.key}', ${index})" data-hint="Open the AI certification test for ${role.name} ${level[0]}.">
+                  <article class="badge-card" data-hint="Choose Version A, B, or C for ${role.name} ${level[0]}.">
                     <span class="badge-symbol" aria-hidden="true">
                       <span class="badge-shield" style="background:${role.color}">
                         <svg class="cert-icon" viewBox="0 0 48 48" role="img" aria-label="Certificate badge">
@@ -428,7 +487,20 @@
                       .join("")}</span>
                     <span class="level">Badge ${index + 1} of 10</span>
                     <div class="status-note">${index + 1} green level tick${index === 0 ? "" : "s"}; yellow ticks remain.</div>
-                  </button>
+                    <div class="exam-version-list">
+                      ${examVersions
+                        .map(
+                          (version) => `
+                            <div class="exam-version-row">
+                              <span>Version ${version}</span>
+                              <a class="start-link" href="ai-cert.html?${examParams(role, level, version).toString()}">Start</a>
+                              <a class="key-link" href="${answerKeyUrl(role, level, version)}" target="_blank" rel="noopener">Key</a>
+                            </div>
+                          `,
+                        )
+                        .join("")}
+                    </div>
+                  </article>
                 `,
               )
               .join("");
