@@ -114,6 +114,7 @@
 
     domainUpdate(select.value);
     applyGlobalHints();
+    initGlobalHints();
     environmentUpdate();
   });
 
@@ -134,6 +135,136 @@
   function toggleGlobalHints() {
     localStorage.setItem("devreadyHints", hintsEnabled() ? "off" : "on");
     applyGlobalHints();
+    hideGlobalHint();
+  }
+
+  function normalizeHintLabel(value) {
+    return String(value || "").replace(/\s+/g, " ").trim();
+  }
+
+  function defaultHintFor(label, element) {
+    const text = normalizeHintLabel(label).toLowerCase();
+    const exact = {
+      search: "Search the current page or profile list using the text you entered.",
+      upload: "Upload the selected file and start the matching profile action.",
+      refresh: "Reload the latest data for this section.",
+      delete: "Remove this item. Use carefully because this may affect saved workflow data.",
+      remove: "Remove this row from the current editable section.",
+      save: "Save the changes in this section.",
+      "save all": "Save all editable sections on this page.",
+      "start over": "Clear the current candidate, job, shortlist, and process trail.",
+      "load jd": "Load the selected job description into the current workflow.",
+      "create chat link": "Create a secure candidate chat link for profile completion.",
+      "copy link": "Copy this link so you can send it manually.",
+      "email candidate": "Open an email draft addressed to the selected candidate.",
+      "view process map": "Open the full workflow map with the current step highlighted.",
+      map: "Open the full workflow map with the current step highlighted.",
+    };
+    if (exact[text]) return exact[text];
+    if (text.includes("save")) return "Save the current changes.";
+    if (text.includes("upload")) return "Upload the selected file and process it.";
+    if (text.includes("load")) return "Load the selected item into this workflow.";
+    if (text.includes("refresh")) return "Refresh this section with the latest data.";
+    if (text.includes("delete")) return "Delete the selected item after confirmation.";
+    if (text.includes("open")) return "Open this workspace or record.";
+    if (text.includes("continue") || text.includes("next")) return "Continue to the next step in the workflow.";
+    if (text.includes("back") || text.includes("return")) return "Go back to the previous workspace.";
+    if (element?.tagName === "SELECT") return "Choose an option for this section.";
+    return label ? `Use ${label}.` : "";
+  }
+
+  function applyButtonHints(root = document) {
+    root
+      .querySelectorAll("button, a.btn, .nav a, select, input[type='file'], [data-hint]")
+      .forEach((element) => {
+        if (element.dataset.hint) {
+          if (element.getAttribute("title")) {
+            element.dataset.nativeTitle = element.getAttribute("title");
+            element.removeAttribute("title");
+          }
+          return;
+        }
+        const label =
+          element.getAttribute("aria-label") ||
+          element.getAttribute("title") ||
+          element.textContent ||
+          element.getAttribute("placeholder") ||
+          element.id ||
+          "";
+        const hint = defaultHintFor(label, element);
+        if (hint) element.dataset.hint = hint;
+        if (element.getAttribute("title")) {
+          element.dataset.nativeTitle = element.getAttribute("title");
+          element.removeAttribute("title");
+        }
+      });
+  }
+
+  function ensureGlobalHintTooltip() {
+    let tooltip = document.getElementById("globalHintTooltip");
+    if (!tooltip) {
+      tooltip = document.createElement("div");
+      tooltip.id = "globalHintTooltip";
+      tooltip.className = "global-hint-tooltip";
+      tooltip.setAttribute("role", "tooltip");
+      document.body.appendChild(tooltip);
+    }
+    return tooltip;
+  }
+
+  function showGlobalHint(element) {
+    if (!hintsEnabled() || !element?.dataset?.hint) return;
+    const tooltip = ensureGlobalHintTooltip();
+    tooltip.textContent = element.dataset.hint;
+    tooltip.classList.add("visible");
+
+    const rect = element.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const margin = 10;
+    let left = rect.left;
+    let top = rect.bottom + 8;
+
+    if (left + tooltipRect.width + margin > window.innerWidth) {
+      left = window.innerWidth - tooltipRect.width - margin;
+    }
+    if (top + tooltipRect.height + margin > window.innerHeight) {
+      top = rect.top - tooltipRect.height - 8;
+    }
+
+    tooltip.style.left = `${Math.max(margin, left)}px`;
+    tooltip.style.top = `${Math.max(margin, top)}px`;
+  }
+
+  function hideGlobalHint() {
+    document.getElementById("globalHintTooltip")?.classList.remove("visible");
+  }
+
+  function initGlobalHints() {
+    applyButtonHints();
+    ensureGlobalHintTooltip();
+    document.addEventListener("mouseover", (event) => {
+      const target = event.target.closest("[data-hint]");
+      if (target) showGlobalHint(target);
+    });
+    document.addEventListener("focusin", (event) => {
+      const target = event.target.closest("[data-hint]");
+      if (target) showGlobalHint(target);
+    });
+    document.addEventListener("mouseout", (event) => {
+      if (event.target.closest("[data-hint]")) hideGlobalHint();
+    });
+    document.addEventListener("focusout", hideGlobalHint);
+    document.addEventListener("scroll", hideGlobalHint, true);
+    window.addEventListener("resize", hideGlobalHint);
+
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === 1) applyButtonHints(node);
+        });
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 
   function domainSwap() {
