@@ -117,6 +117,7 @@
               </div>
               <div id="topMatches" class="pills">No Skills Found</div>
               <div id="profileBadges" class="profile-badges"></div>
+              <div id="profileCompletionPanel" style="display: none"></div>
             </div>
             <div class="row-actions" style="margin: 0">
               <a id="publicBtnLink" href="profile-public.html" target="_blank"
@@ -501,6 +502,7 @@
     </div>
 
     <script src="JS/apiScripts.js"></script>
+    <script src="JS/profileCompletion.js"></script>
 
     <script>
       // tiny UX sugar (mock only)
@@ -640,6 +642,13 @@
           profileData = await api(`/api/azure/getProfile/${candidateId}?domain=${encodeURIComponent(domain)}`);
           if (profileData && profileData.email) {
             sessionStorage.setItem("candidateEmail", profileData.email);
+          }
+          if (window.profileCompletion) {
+            window.profileCompletion.renderProfileCompletionPanel(
+              "profileCompletionPanel",
+              candidateId,
+              profileData,
+            );
           }
           loadProfileBadges(candidateId);
 

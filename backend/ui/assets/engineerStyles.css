@@ -276,6 +276,27 @@ input[type="checkbox"] {
   cursor: pointer;
   border-radius: 5px;
 }
+.btn.profile-completion-danger {
+  background: #c62832;
+  border-color: rgba(198, 40, 50, 0.45);
+  color: #fff;
+}
+.profile-completion-panel {
+  align-items: center;
+  background: #fff4f5;
+  border: 1px solid rgba(198, 40, 50, 0.24);
+  border-radius: 12px;
+  color: #7f1d2d;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  line-height: 1.35;
+  margin-top: 12px;
+  padding: 12px;
+}
+.profile-completion-panel .btn {
+  flex: 0 0 auto;
+}
 .btn.ghost {
   background: transparent;
   border-color: rgba(255, 255, 255, 0.35);

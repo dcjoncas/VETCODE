@@ -88,12 +88,55 @@ def _assert_candidate_domain(profileId: str, domain: str = None):
     if candidate_domain and candidate_domain != domain:
         raise HTTPException(status_code=403, detail="Candidate does not belong to this domain.")
 
+def _profile_completion_status(profile: dict):
+    personality = profile.get("personality") or []
+    cultural_experience = profile.get("culturalExperience") or []
+    core_profile = profile.get("profile") or {}
+
+    def _level_value(item):
+        try:
+            return float(item.get("level") or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    has_personality = any(
+        item and item.get("title") and item.get("score")
+        for item in personality
+    )
+    has_culture = any(
+        item and item.get("title") and _level_value(item) > 0
+        for item in cultural_experience
+    )
+    missing = []
+    if not has_personality:
+        missing.append("personality survey")
+    if not has_culture:
+        missing.append("culture profile")
+
+    return {
+        "profileId": core_profile.get("id") or core_profile.get("personid"),
+        "complete": has_personality and has_culture,
+        "missing": missing,
+        "email": core_profile.get("email") or profile.get("email") or "",
+        "name": " ".join(
+            part for part in [core_profile.get("firstName"), core_profile.get("lastName")] if part
+        ).strip(),
+        "title": core_profile.get("title") or "",
+    }
+
 @router.get("/getProfile/{profileId}")
 def get_profile(profileId: str = "", domain: str = None):
     print(f"Fetching profile {profileId}")
     _assert_candidate_domain(profileId, domain)
 
     return candidates.getProfile(profileId)
+
+@router.get("/profile/completionStatus/{profileId}")
+def get_profile_completion_status(profileId: str = "", domain: str = None):
+    print(f"Checking profile completion status {profileId}")
+    _assert_candidate_domain(profileId, domain)
+
+    return _profile_completion_status(candidates.getProfile(profileId))
 
 @router.get("/public/{profileUrl}")
 def get_profile_public(profileUrl: str = ""):

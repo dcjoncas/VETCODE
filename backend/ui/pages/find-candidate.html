@@ -322,6 +322,7 @@
 
     <script src="JS/apiScripts.js"></script>
     <script src="JS/updateProcessFlow.js"></script>
+    <script src="JS/profileCompletion.js"></script>
     <script>
       // tiny UX sugar (mock only)
       document
@@ -419,6 +420,35 @@
         if (profile.id) params.set("profileId", profile.id);
         const query = params.toString();
         return `ai-cert.html${query ? "?" + query : ""}`;
+      }
+
+      async function addCompletionActionIfNeeded(profile, targetId) {
+        if (!window.profileCompletion || !profile || !profile.id) return;
+        const target = document.getElementById(targetId);
+        if (!target) return;
+
+        try {
+          const status = await window.profileCompletion.profileNeedsCompletion(profile.id);
+          if (!status) return;
+          const profileData = {
+            ...status,
+            ...profile,
+            profile: {
+              firstName: profile.firstName,
+              lastName: profile.lastName,
+              name: profile.name || status.name,
+              email: profile.email || status.email,
+              title: profile.title || status.title,
+            },
+          };
+          target.innerHTML = window.profileCompletion.completionButton(
+            profile.id,
+            profileData,
+            "Finish profile",
+          );
+        } catch (error) {
+          console.warn("Could not check profile completion.", error);
+        }
       }
 
       function mergeAndRankProfiles(skillProfiles, identityProfiles) {
@@ -662,11 +692,12 @@
             //tr.style.cursor = "pointer";
             const cert = r.aiCertification || {};
             const certLabel = cert.level ? `Certified - ${cert.level}` : cert.status || "Not started";
-            tr.innerHTML = `<td>${i + 1}</td><td>${escapeHtml(r.firstName || "")} ${escapeHtml(r.lastName || "")}</td><td>${escapeHtml(r.email || "")}</td><td>${escapeHtml(r.primaryStack || r.title || "Other")}</td><td><div class="pill">${escapeHtml(r.step)}</div></td><td><a class="pill" href="${aiCertUrl(r)}">${escapeHtml(certLabel)}</a></td><td></td>`;
+            tr.innerHTML = `<td>${i + 1}</td><td>${escapeHtml(r.firstName || "")} ${escapeHtml(r.lastName || "")}</td><td>${escapeHtml(r.email || "")}</td><td>${escapeHtml(r.primaryStack || r.title || "Other")}</td><td><div class="pill">${escapeHtml(r.step)}</div></td><td><a class="pill" href="${aiCertUrl(r)}">${escapeHtml(certLabel)}</a></td><td id="completionAction-${escapeHtml(r.id)}"></td>`;
             tr.addEventListener("click", () => findSelect(r));
             tr.querySelector("a").addEventListener("click", (event) => event.stopPropagation());
             tr.style.cursor = "pointer";
             tbody.appendChild(tr);
+            addCompletionActionIfNeeded(r, `completionAction-${r.id}`);
           });
         } catch (error) {
           console.log(error);
@@ -781,7 +812,10 @@
                 </div>
                 <div><span class="pill">Profile to be completed</span></div>
                 <div style="font-size: 13px">${escapeHtml(bestProfileSignal(profile))}</div>
-                <a href="profile-preview.html" onclick="findSelect(allProfiles[${index}]); return false;">Open profile</a>
+                <div class="row-actions" style="margin: 0">
+                  <a href="profile-preview.html" onclick="findSelect(allProfiles[${index}]); return false;">Open profile</a>
+                  ${window.profileCompletion ? window.profileCompletion.completionButton(profile.id, { ...profile, profile: profile }, "Finish profile") : ""}
+                </div>
               </div>`;
             })
             .join("");

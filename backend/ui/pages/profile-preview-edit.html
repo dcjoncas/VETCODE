@@ -352,7 +352,7 @@
         const culturalExperienceComplete =
           Array.isArray(profileData?.culturalExperience) &&
           profileData.culturalExperience.some((item) => item && item.title && Number(item.level) > 0);
-        return personalityComplete || culturalExperienceComplete;
+        return personalityComplete && culturalExperienceComplete;
       }
 
       function updateCultureCompletionPanel(profileData) {
