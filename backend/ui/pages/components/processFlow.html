@@ -1,50 +1,61 @@
-<div class="card" style="margin-bottom: 18px">
-  <div
-    style="
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-      align-items: center;
-    "
-  >
-    <div>
-      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px">
-        <div style="font-weight: 900">Process Flow</div>
-        <button class="process-map-button" type="button" onclick="openProcessMap()">
-          View process map
-        </button>
-        <button class="process-clear-button" type="button" onclick="clearProcessTrail()">
-          Start over
-        </button>
-      </div>
-      <div class="flow-help">
-        Start in Talent for resumes, job descriptions, profile search, and discovery. Use Find (Out) only when no internal candidate fits.
-      </div>
-      <div id="candidateSelected" style="color: var(--muted); font-size: 13px">
-        No Candidate Selected
-      </div>
-      <div id="jobSelected" style="color: var(--muted); font-size: 13px">
-        No Job Selected
-      </div>
+<div class="card process-flow-card">
+  <div class="process-compact">
+    <div class="process-title-line">
+      <button
+        id="processExpandButton"
+        class="process-link-button"
+        type="button"
+        onclick="toggleProcessFlow()"
+        data-hint="Expand this only when you need to see the full workflow rail."
+        title="Show or hide the workflow steps"
+      >
+        Process Flow
+      </button>
+      <span id="candidateSelected" class="process-selection">No Candidate Selected</span>
+      <span id="jobSelected" class="process-selection">No Job Selected</span>
+    </div>
+    <div class="process-actions">
+      <button
+        class="process-map-button"
+        type="button"
+        onclick="openProcessMap()"
+        data-hint="Open a larger you-are-here map of the full workflow."
+        title="Open the process map"
+      >
+        Map
+      </button>
+      <button
+        class="process-clear-button"
+        type="button"
+        onclick="clearProcessTrail()"
+        data-hint="Clear selected candidate, job, shortlist, and scheduling context for a fresh workflow."
+        title="Start the workflow over"
+      >
+        Start over
+      </button>
+    </div>
+  </div>
+  <div id="processExpanded" class="process-expanded" hidden>
+    <div class="flow-help">
+      Start in Talent. Use Find (Out) only when no internal candidate fits.
     </div>
     <div class="flow">
-      <a class="step" href="find-candidate.html">1 - Talent</a>
+      <a class="step" href="find-candidate.html" data-hint="Start here for resume upload, profile search, job descriptions, and discovery.">1 - Talent</a>
       <span class="flow-arrow" aria-hidden="true"></span>
       <div class="split-step" aria-label="Step 2 candidate search">
-        <a class="split-step-link split-step-main" href="match-role.html">2 - Find (In)</a>
-        <a class="split-step-link split-step-branch" href="mine-candidate-external.html" title="Use if no candidate found internally">2* - Find (Out)</a>
+        <a class="split-step-link split-step-main" href="match-role.html" data-hint="Use saved job descriptions to rank internal DevReady candidates.">2 - Find (In)</a>
+        <a class="split-step-link split-step-branch" href="mine-candidate-external.html" data-hint="Fallback branch: search external sources if no internal candidate fits." title="Use if no candidate found internally">2* - Find (Out)</a>
       </div>
       <span class="flow-arrow" aria-hidden="true"></span>
-      <a class="step" href="profile-preview.html">3 - Profile build</a>
+      <a class="step" href="profile-preview.html" data-hint="Review and shape the candidate profile before communication.">3 - Profile build</a>
       <span class="flow-arrow" aria-hidden="true"></span>
-      <a class="step" href="candidate-chat.html">4 - Candidate chat</a>
+      <a class="step" href="candidate-chat.html" data-hint="Send or review the AI chat used to complete candidate context.">4 - Candidate chat</a>
       <span class="flow-arrow" aria-hidden="true"></span>
-      <a class="step" href="client-comm.html">5 - Client comms</a>
+      <a class="step" href="client-comm.html" data-hint="Prepare client-facing notes and candidate messaging.">5 - Client comms</a>
       <span class="flow-arrow" aria-hidden="true"></span>
-      <a class="step" href="schedule-interview.html">6 - Schedule interview</a>
+      <a class="step" href="schedule-interview.html" data-hint="Send the interview invite using Google or Outlook calendar.">6 - Schedule interview</a>
       <span class="flow-arrow" aria-hidden="true"></span>
-      <a class="step" href="status-tracker.html">7 - Status</a>
+      <a class="step" href="status-tracker.html" data-hint="Track sent messages, follow-ups, resends, and current status.">7 - Status</a>
     </div>
   </div>
 </div>
@@ -134,6 +145,15 @@
     document.getElementById("processMapOverlay").hidden = true;
   }
 
+  function toggleProcessFlow() {
+    const expanded = document.getElementById("processExpanded");
+    const button = document.getElementById("processExpandButton");
+    const nextHidden = !expanded.hidden ? true : false;
+    expanded.hidden = nextHidden;
+    button.textContent = nextHidden ? "Process Flow" : "Hide Process Flow";
+    localStorage.setItem("devreadyProcessExpanded", nextHidden ? "0" : "1");
+  }
+
   function clearProcessTrail() {
     const keepDomain = sessionStorage.getItem("domain") || "dev";
     const keys = [
@@ -180,6 +200,11 @@
   document.getElementById("processMapOverlay").addEventListener("click", (event) => {
     if (event.target.id === "processMapOverlay") closeProcessMap();
   });
+
+  if (localStorage.getItem("devreadyProcessExpanded") === "1") {
+    document.getElementById("processExpanded").hidden = false;
+    document.getElementById("processExpandButton").textContent = "Hide Process Flow";
+  }
 
   updateCandidate();
   updateJob();

@@ -73,6 +73,16 @@
         <option value="engineer" style="color: black">Engineer Domain</option>
         <option value="law" style="color: black">Law Domain</option>
       </select>
+      <button
+        id="hintToggle"
+        class="badge hint-toggle"
+        type="button"
+        onclick="toggleGlobalHints()"
+        data-hint="Turn guidance notes and hover tips on or off across the workspace."
+        title="Toggle guidance hints"
+      >
+        Hints On
+      </button>
     </div>
   </div>
   <div id="pageNav"></div>
@@ -103,8 +113,28 @@
     }
 
     domainUpdate(select.value);
+    applyGlobalHints();
     environmentUpdate();
   });
+
+  function hintsEnabled() {
+    return localStorage.getItem("devreadyHints") !== "off";
+  }
+
+  function applyGlobalHints() {
+    const enabled = hintsEnabled();
+    document.body.classList.toggle("hints-off", !enabled);
+    const toggle = document.getElementById("hintToggle");
+    if (toggle) {
+      toggle.textContent = enabled ? "Hints On" : "Hints Off";
+      toggle.setAttribute("aria-pressed", enabled ? "true" : "false");
+    }
+  }
+
+  function toggleGlobalHints() {
+    localStorage.setItem("devreadyHints", hintsEnabled() ? "off" : "on");
+    applyGlobalHints();
+  }
 
   function domainSwap() {
     const currentDomain = document.getElementById("domainSelect").value;
