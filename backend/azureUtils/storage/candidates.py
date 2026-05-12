@@ -6,6 +6,31 @@ from azureUtils.storage.jobs import getJob
 from jd_match import azureJobMatch
 from openAI import engineeringSurvey
 
+def _sync_identity_sequence(cur, table: str, column: str = "id"):
+    allowed_tables = {
+        "person",
+        "address",
+        "professional",
+        "professionalprofile",
+        "platformactivity",
+        "professionalculturalexperience",
+    }
+    if table not in allowed_tables:
+        return
+
+    cur.execute("SELECT pg_get_serial_sequence(%s, %s)", (table, column))
+    row = cur.fetchone()
+    sequence_name = row[0] if row else None
+    if not sequence_name:
+        return
+
+    cur.execute(f"SELECT COALESCE(MAX({column}), 0) FROM {table}")
+    max_id = cur.fetchone()[0] or 0
+    if max_id > 0:
+        cur.execute("SELECT setval(%s, %s, true)", (sequence_name, max_id))
+    else:
+        cur.execute("SELECT setval(%s, 1, false)", (sequence_name,))
+
 def getSkills():
     conn = client.getConnection()
     cur = conn.cursor()
@@ -1015,6 +1040,7 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, domain
     firstName = splitName[0]
     lastName = splitName[-1] if len(splitName) > 1 else ""
 
+    _sync_identity_sequence(cur, "person")
     query = "INSERT INTO person (firstname, lastname, leadsource, domain) VALUES (%s, %s, %s, %s) RETURNING id"    
     cur.execute(query, (firstName, lastName, 1, domain))
     print(cur.statusmessage)
@@ -1024,6 +1050,7 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, domain
 
     print(f"Person ID: {personId}")
 
+    _sync_identity_sequence(cur, "address")
     query = "INSERT INTO address (personid, city, state, country) VALUES (%s, %s, %s, %s)"
     cur.execute(query, (personId, candidateCity, candidateState, candidateCountry))
 
@@ -1032,6 +1059,7 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, domain
 
     professionalId = ""
 
+    _sync_identity_sequence(cur, "professional")
     cur.execute(
         "INSERT INTO professional (personid, email, linkedinurl, maindescription, status, url, title) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
         (personId, email, linkedInUrl, candidateDescription, 1, url, candidateTitle)
@@ -1040,11 +1068,13 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, domain
     professionalId = rawRow[0]
     print(f"Professional ID: {professionalId}")
 
+    _sync_identity_sequence(cur, "professionalprofile")
     query = "INSERT INTO professionalprofile (professionalid) VALUES (%s) RETURNING id"    
     cur.execute(query, (professionalId,))
 
     professionalprofileId = cur.fetchone()[0]
 
+    _sync_identity_sequence(cur, "platformactivity")
     query = "INSERT INTO platformactivity (profileid, step, result, date) VALUES (%s, 1, 1, NOW()) RETURNING id"
     cur.execute(query, (professionalprofileId,))
 
@@ -1065,6 +1095,7 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, domain
         cur.execute(query, (professionalprofileId, skillId, skill['years']))
 
     for experience in culturalExperiences:
+        _sync_identity_sequence(cur, "professionalculturalexperience")
         query = "INSERT INTO professionalculturalexperience (profileid, title, level) VALUES (%s, %s, %s)"
         cur.execute(query, (professionalprofileId, experience["experience"], experience["level"]))
     

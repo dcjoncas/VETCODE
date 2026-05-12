@@ -226,6 +226,27 @@ def _split_city_state_country(location: str) -> tuple[str, str, str]:
     country = parts[2] if len(parts) > 2 else ""
     return city, state, country
 
+def _existing_profile_from_email(email: str):
+    clean_email = (email or "").strip().lower()
+    if not clean_email:
+        return None
+    try:
+        matches = candidates.searchCandidatesByNameEmail(clean_email, limit=5, domain="all")
+        for match in matches:
+            if (match.get("email") or "").strip().lower() == clean_email:
+                name = " ".join([match.get("firstName") or "", match.get("lastName") or ""]).strip()
+                return {
+                    "status": "success",
+                    "message": "Existing profile found for this resume email.",
+                    "personid": match.get("id"),
+                    "name": name or clean_email,
+                    "existing": True,
+                }
+    except Exception as exc:
+        print(f"Existing email lookup skipped: {exc}")
+        traceback.print_exc()
+    return None
+
 @router.post("/resume/upload")
 async def upload_resume(
     file: UploadFile = File(...),
@@ -263,6 +284,20 @@ async def upload_resume(
         candidateState = state
         candidateCountry = country
         candidateTitle = summary.get("headline") or "Resume generated profile"
+
+        existingProfile = _existing_profile_from_email(email)
+        if existingProfile:
+            try:
+                from starlette.datastructures import UploadFile as StarletteUploadFile
+                from io import BytesIO
+                resume_upload = StarletteUploadFile(filename=file.filename, file=BytesIO(file_bytes))
+                existingProfile["resume"] = await resumes.uploadResume(resume_upload, existingProfile["personid"])
+            except Exception as exc:
+                print(f"Resume file storage skipped for existing profile: {exc}")
+                traceback.print_exc()
+                existingProfile["resume"] = None
+                existingProfile["resume_warning"] = f"Existing profile selected, but the original resume file was not stored: {exc}"
+            return existingProfile
 
         if has_openai_key:
             with ThreadPoolExecutor(max_workers=6) as executor:
