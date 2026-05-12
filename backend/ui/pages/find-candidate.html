@@ -16,12 +16,12 @@
     <script>
       $(function () {
         $("#siteSidebar").load("components/sidebar.html", function () {
-          document
-            .getElementById("domainSelect")
-            .addEventListener("change", () => {
+          document.addEventListener("change", (event) => {
+            if (event.target && event.target.id === "domainSelect") {
               updateCounts();
               loadExistingDescriptions();
-            });
+            }
+          });
         });
         $("#processFlow").load("components/processFlow.html");
         $("#searchBar").load("components/searchBar.html");
@@ -396,9 +396,15 @@
           profile.name || `${profile.firstName || ""} ${profile.lastName || ""}`.trim(),
         );
         sessionStorage.setItem("candidateEmail", profile.email || "");
-        sessionStorage.setItem("candidateStatus", profile.step || profile.status || "");
+        sessionStorage.setItem(
+          "candidateStatus",
+          sessionStorage.getItem("knownProfileSelection") === "1"
+            ? "Known profile selected"
+            : profile.step || profile.status || "",
+        );
         sessionStorage.removeItem("candidateProfileType");
         sessionStorage.removeItem("externalCandidateSource");
+        sessionStorage.removeItem("knownProfileSelection");
 
         window.location.href = "profile-preview.html";
       }
@@ -931,6 +937,7 @@
       }
 
       document.addEventListener("DOMContentLoaded", function () {
+        const params = new URLSearchParams(window.location.search);
         updateCounts();
 
         document
@@ -978,6 +985,21 @@
         document
           .getElementById("profileDiscoveryMode")
           .addEventListener("change", renderProfileDiscovery);
+
+        if (params.get("loadKnown") === "1") {
+          sessionStorage.setItem("knownProfileSelection", "1");
+          document.getElementById("allProfilesSection").style.display = "block";
+          document.getElementById("allProfilesStatus").textContent =
+            "Loading known-profile picker. Select a capability area, drill into A-Z, then choose the person to make them the active candidate.";
+          listAllProfiles().then(() => {
+            document.getElementById("allProfilesStatus").textContent =
+              "Known profile picker: select a capability area, drill into A-Z, then choose the person to make them the active candidate for this stage.";
+            document.getElementById("allProfilesSection").scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          });
+        }
       });
     </script>
   </body>
