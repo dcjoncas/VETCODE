@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Job Descriptions</title>
+    <link
+      class="domainLogo"
+      rel="icon"
+      href="../assets/devLogo.svg"
+      sizes="any"
+      type="image/svg+xml"
+    />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html", function () {
+          document
+            .getElementById("domainSelect")
+            .addEventListener("change", loadJobDescriptions);
+        });
+        $("#processFlow").load("components/processFlow.html");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+    <style>
+      .jd-toolbar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+
+      .jd-summary {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .jd-kpi {
+        min-width: 140px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 12px;
+        background: #fff;
+      }
+
+      .jd-kpi strong {
+        display: block;
+        font-size: 20px;
+        color: var(--green);
+      }
+
+      .client-group {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        margin-top: 14px;
+        overflow: hidden;
+      }
+
+      .client-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        background: #fff8ef;
+        border-bottom: 1px solid rgba(242, 140, 40, 0.28);
+      }
+
+      .client-header h3 {
+        margin: 0;
+        font-size: 17px;
+      }
+
+      .client-header .count {
+        color: #8a4b08;
+        font-weight: 800;
+      }
+
+      .jd-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        padding: 14px 16px;
+        border-top: 1px solid var(--line);
+      }
+
+      .jd-row:first-of-type {
+        border-top: 0;
+      }
+
+      .jd-title {
+        margin: 0 0 5px;
+        font-size: 16px;
+      }
+
+      .jd-meta {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .jd-skills {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 9px;
+      }
+
+      .skill-pill {
+        border: 1px solid rgba(18, 91, 54, 0.16);
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: #f6fbf7;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--green);
+      }
+
+      .jd-details {
+        grid-column: 1 / -1;
+        display: none;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px;
+        background: #fbfcfb;
+      }
+
+      .jd-details.open {
+        display: block;
+      }
+
+      .jd-text {
+        white-space: pre-wrap;
+        max-height: 360px;
+        overflow: auto;
+        line-height: 1.45;
+        font-size: 13px;
+      }
+
+      .empty-state {
+        border: 1px dashed rgba(18, 91, 54, 0.28);
+        border-radius: 12px;
+        padding: 18px;
+        background: #f7fbf6;
+        color: var(--green);
+        font-weight: 800;
+      }
+
+      @media (max-width: 760px) {
+        .jd-row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Job Descriptions</div>
+            <div class="breadcrumb">Saved roles by client and domain</div>
+          </div>
+          <div id="searchBar"></div>
+        </div>
+
+        <div id="processFlow"></div>
+
+        <section class="card">
+          <div class="jd-toolbar">
+            <div>
+              <h2>Loaded job descriptions</h2>
+              <p>
+                Review saved job descriptions for the selected domain. Clients
+                can have multiple roles, and each role can be expanded to see
+                its extracted skills and source text.
+              </p>
+            </div>
+            <button class="btn" type="button" onclick="loadJobDescriptions()">
+              Refresh
+            </button>
+          </div>
+
+          <div class="jd-summary" style="margin-top: 12px">
+            <div class="jd-kpi">
+              <strong id="jdCount">0</strong>
+              <span>Total JDs</span>
+            </div>
+            <div class="jd-kpi">
+              <strong id="clientCount">0</strong>
+              <span>Clients</span>
+            </div>
+            <div class="jd-kpi">
+              <strong id="domainName">Domain</strong>
+              <span>Current domain</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div id="jdStatus" class="notice">Loading job descriptions...</div>
+          <div id="jdGroups"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="JS/apiScripts.js"></script>
+    <script src="JS/updateProcessFlow.js"></script>
+    <script>
+      const expandedDetails = new Map();
+      const jdById = new Map();
+
+      function currentDomain() {
+        return (
+          sessionStorage.getItem("domain") ||
+          document.getElementById("domainSelect")?.value ||
+          "dev"
+        );
+      }
+
+      function domainLabel(domain) {
+        if (domain === "engineer") return "Engineer";
+        if (domain === "law") return "Law";
+        if (domain === "technology") return "Technology";
+        return "Technology";
+      }
+
+      function clientName(jd) {
+        const company = (jd.company || "").trim();
+        return company || "Client to be confirmed";
+      }
+
+      function formatDate(value) {
+        if (!value) return "Date not set";
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return value;
+        return parsed.toLocaleDateString([], {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      }
+
+      function flattenSkills(skills) {
+        if (Array.isArray(skills)) {
+          return skills.map((skill) => ({ group: "skills", skill }));
+        }
+        const out = [];
+        Object.entries(skills || {}).forEach(([group, values]) => {
+          (values || []).forEach((skill) => out.push({ group, skill }));
+        });
+        return out;
+      }
+
+      function groupByClient(jds) {
+        const grouped = new Map();
+        jds.forEach((jd) => {
+          const client = clientName(jd);
+          if (!grouped.has(client)) grouped.set(client, []);
+          grouped.get(client).push(jd);
+        });
+        return [...grouped.entries()]
+          .map(([client, items]) => ({
+            client,
+            items: items.sort((a, b) =>
+              clientName(a).localeCompare(clientName(b)) ||
+              (a.title || "").localeCompare(b.title || ""),
+            ),
+          }))
+          .sort((a, b) => a.client.localeCompare(b.client));
+      }
+
+      async function loadJobDescriptions() {
+        const domain = currentDomain();
+        const status = document.getElementById("jdStatus");
+        const groupsEl = document.getElementById("jdGroups");
+        document.getElementById("domainName").textContent = domainLabel(domain);
+        status.style.display = "block";
+        status.textContent = "Loading job descriptions...";
+        groupsEl.innerHTML = "";
+
+        try {
+          const jds = await api(`/api/azureJobs/list/${encodeURIComponent(domain)}/200`);
+          jdById.clear();
+          (jds || []).forEach((jd) => jdById.set(jd.jd_id, jd));
+          const grouped = groupByClient(jds || []);
+          document.getElementById("jdCount").textContent = jds.length;
+          document.getElementById("clientCount").textContent = grouped.length;
+
+          if (!jds.length) {
+            status.className = "empty-state";
+            status.textContent =
+              "No job descriptions are saved for this domain yet. Add one from Talent.";
+            return;
+          }
+
+          status.style.display = "none";
+          groupsEl.innerHTML = grouped.map(renderClientGroup).join("");
+        } catch (error) {
+          status.className = "empty-state";
+          status.textContent = `Could not load job descriptions: ${error.message || error}`;
+        }
+      }
+
+      function renderClientGroup(group) {
+        return `
+          <div class="client-group">
+            <div class="client-header">
+              <h3>${escapeHtml(group.client)}</h3>
+              <span class="count">${group.items.length} job description${group.items.length === 1 ? "" : "s"}</span>
+            </div>
+            ${group.items.map(renderJdRow).join("")}
+          </div>
+        `;
+      }
+
+      function renderJdRow(jd) {
+        const id = jd.jd_id;
+        return `
+          <div class="jd-row" id="jd-row-${escapeHtml(id)}">
+            <div>
+              <h4 class="jd-title">${escapeHtml(jd.title || "Role title to be confirmed")}</h4>
+              <div class="jd-meta">
+                Client: ${escapeHtml(clientName(jd))} | Domain: ${escapeHtml(jd.domain || "")} | Updated: ${escapeHtml(formatDate(jd.updated_at || jd.created_at))}
+              </div>
+              <div class="jd-skills" id="jd-skills-${escapeHtml(id)}"></div>
+            </div>
+            <div class="row-actions">
+              <button class="btn secondary" type="button" onclick="toggleJd('${escapeHtml(id)}')">
+                View
+              </button>
+              <button class="btn secondary" type="button" onclick="selectJd('${escapeHtml(id)}')">
+                Use JD
+              </button>
+            </div>
+            <div class="jd-details" id="jd-details-${escapeHtml(id)}">
+              <div class="jd-meta">Loading details...</div>
+            </div>
+          </div>
+        `;
+      }
+
+      async function toggleJd(jdId) {
+        const details = document.getElementById(`jd-details-${jdId}`);
+        if (!details) return;
+
+        if (details.classList.contains("open")) {
+          details.classList.remove("open");
+          return;
+        }
+
+        details.classList.add("open");
+        if (expandedDetails.has(jdId)) {
+          details.innerHTML = expandedDetails.get(jdId);
+          return;
+        }
+
+        try {
+          const jd = await api(`/api/azureJobs/getJob/${encodeURIComponent(jdId)}`);
+          const skills = flattenSkills(jd.skills || jd.jd_skills);
+          const skillHtml = skills.length
+            ? skills
+                .slice(0, 24)
+                .map((item) => `<span class="skill-pill">${escapeHtml(item.skill)}</span>`)
+                .join("")
+            : `<span class="jd-meta">No extracted skills saved.</span>`;
+          const html = `
+            <div class="jd-skills">${skillHtml}</div>
+            <div class="jd-text" style="margin-top: 12px">${escapeHtml(jd.description || jd.jd_text || "No job description text saved.")}</div>
+          `;
+          expandedDetails.set(jdId, html);
+          details.innerHTML = html;
+        } catch (error) {
+          details.innerHTML = `<div class="empty-state">Could not load this job description: ${escapeHtml(error.message || error)}</div>`;
+        }
+      }
+
+      function selectJd(jdId) {
+        const jd = jdById.get(jdId) || {};
+        const title = jd.title || "";
+        const client = clientName(jd);
+        sessionStorage.setItem("jdId", jdId);
+        sessionStorage.setItem("selectedJdId", jdId);
+        sessionStorage.setItem("jobId", jdId);
+        sessionStorage.setItem("jobID", jdId);
+        sessionStorage.setItem("jobTitle", title);
+        sessionStorage.setItem("jobCompany", client);
+        if (typeof updateJob === "function") updateJob();
+        const status = document.getElementById("jdStatus");
+        status.className = "notice";
+        status.style.display = "block";
+        status.textContent = `Selected ${title || "job description"} for ${client || "client"}.`;
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        setTimeout(loadJobDescriptions, 250);
+      });
+    </script>
+  </body>
+</html>
