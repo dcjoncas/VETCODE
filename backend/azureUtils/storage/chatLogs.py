@@ -74,25 +74,75 @@ def scheduleChat(profileid: str):
     
     cur.execute(query, (profileid, weekFromNow, random_string))
 
-    # TODO: Send email with link to the candidate
+    professional_profile_id = ensureProfessionalProfileId(profileid, cur)
+    if not professional_profile_id:
+        conn.rollback()
+        conn.close()
+        raise ValueError(f"No professional profile could be created for person {profileid}")
 
-    createSurvey(getProfessionalProfileId(profileid), random_string)
+    # TODO: Send email with link to the candidate
+    createSurvey(professional_profile_id, random_string, cur)
     conn.commit()
     conn.close()
     
     return random_string
 
-def createSurvey(profprofileId: int, token: str):
-    conn = client.getConnection()
-    cur = conn.cursor()
+def ensureProfessionalProfileId(personId: str, cur = None):
+    owns_connection = cur is None
+    conn = None
+    if owns_connection:
+        conn = client.getConnection()
+        cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT profper.id
+        FROM professional prof
+        JOIN professionalprofile profper ON prof.id = profper.professionalid
+        WHERE prof.personid = %s
+        ORDER BY profper.id DESC
+        LIMIT 1
+        """,
+        (personId,),
+    )
+    result = cur.fetchone()
+    if result:
+        if owns_connection:
+            conn.close()
+        return result[0]
+
+    cur.execute("SELECT id FROM professional WHERE personid = %s LIMIT 1", (personId,))
+    professional = cur.fetchone()
+    if not professional:
+        if owns_connection:
+            conn.close()
+        return None
+
+    cur.execute(
+        "INSERT INTO professionalprofile (professionalid) VALUES (%s) RETURNING id",
+        (professional[0],),
+    )
+    created = cur.fetchone()
+    if owns_connection:
+        conn.commit()
+        conn.close()
+    return created[0] if created else None
+
+def createSurvey(profprofileId: int, token: str, cur = None):
+    owns_connection = cur is None
+    conn = None
+    if owns_connection:
+        conn = client.getConnection()
+        cur = conn.cursor()
 
     # Count distinct candidates in the person table
     query = "INSERT INTO professionalsurvey (profileid, token) VALUES (%s, gen_random_uuid())"
     
     cur.execute(query, (profprofileId,))
 
-    conn.commit()
-    conn.close()
+    if owns_connection:
+        conn.commit()
+        conn.close()
 
 def countQuestions(domain: str = "dev") -> int:
     if engineeringSurvey.is_engineer_domain(domain):

@@ -15,7 +15,10 @@ async def scheduleChats(profileid: str = Form(default=""), domain: str = Form(de
     candidate_domain = candidates.getCandidateDomain(profileid)
     if candidate_domain and candidate_domain != domain:
         raise HTTPException(status_code=403, detail="Candidate does not belong to this domain.")
-    return chatLogs.scheduleChat(profileid)
+    try:
+        return chatLogs.scheduleChat(profileid)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 @router.get("/getChat/{urlcode}")
 async def getChat(urlcode: str, domain: str = "dev"):

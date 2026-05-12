@@ -67,7 +67,16 @@
       return "";
     }
 
-    const link = await profileCompletionLink(profileId);
+    showProfileCompletionNotice("Creating finish-profile chat link...");
+    let link = "";
+    try {
+      link = await profileCompletionLink(profileId);
+    } catch (error) {
+      const message = `Could not create finish-profile chat link: ${error.message || error}`;
+      showProfileCompletionNotice(message, true);
+      alert(message);
+      return "";
+    }
     const profile = profileData && profileData.profile ? profileData.profile : profileData || {};
     const email = profile.email || profileData?.email || sessionStorage.getItem("candidateEmail") || "";
     const name = candidateNameFromProfile(profileData);
@@ -82,6 +91,10 @@
       console.warn("Could not copy profile completion link.", error);
     }
 
+    showProfileCompletionNotice(
+      `Finish-profile chat link ready${email ? ` for ${email}` : ""}: ${link}`,
+    );
+
     if (email) {
       window.location.href = `mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`;
     } else {
@@ -89,6 +102,29 @@
     }
 
     return link;
+  }
+
+  function showProfileCompletionNotice(message, isError = false) {
+    let notice = document.getElementById("profileCompletionNotice");
+    if (!notice) {
+      notice = document.createElement("div");
+      notice.id = "profileCompletionNotice";
+      notice.className = "notice";
+      notice.style.position = "fixed";
+      notice.style.right = "18px";
+      notice.style.bottom = "18px";
+      notice.style.zIndex = "9999";
+      notice.style.maxWidth = "520px";
+      notice.style.boxShadow = "0 12px 26px rgba(0,0,0,0.16)";
+      document.body.appendChild(notice);
+    }
+    notice.style.borderColor = isError ? "rgba(198, 40, 50, 0.35)" : "";
+    notice.style.background = isError ? "#fff4f5" : "";
+    notice.textContent = message;
+    clearTimeout(notice._hideTimer);
+    notice._hideTimer = setTimeout(() => {
+      notice.remove();
+    }, isError ? 12000 : 9000);
   }
 
   function completionButton(profileId, profileData, label) {
@@ -185,6 +221,7 @@
     renderCompletionActionIfNeeded,
     renderProfileCompletionPanel,
     profileNeedsCompletion,
+    showProfileCompletionNotice,
   };
   window.escapeHtml = window.escapeHtml || escapeHtml;
   window.sendProfileCompletionChat = sendProfileCompletionChat;
