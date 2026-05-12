@@ -51,16 +51,6 @@
       class="field"
       style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap"
     >
-      <select
-        id="domainSelect"
-        class="badge"
-        style="background: rgba(16, 32, 24, 0.1); color: #f5f7f7"
-        onchange="domainSwap()"
-      >
-        <option value="dev" style="color: black">Technology Domain</option>
-        <option value="engineer" style="color: black">Engineer Domain</option>
-        <option value="law" style="color: black">Law Domain</option>
-      </select>
       <button
         id="hintToggle"
         class="badge hint-toggle"
@@ -85,22 +75,16 @@
   $(function () {
     $("#pageNav").load("components/sideNav.html");
 
-    const select = document.getElementById("domainSelect");
-
     const params = new URLSearchParams(window.location.search);
     const domainFromUrl = params.get("domain");
+    let activeDomain = domainFromUrl || sessionStorage.getItem("domain") || "dev";
 
     if (domainFromUrl) {
-      select.value = domainFromUrl;
       sessionStorage.setItem("domain", domainFromUrl);
-    } else {
-      const savedDomain = sessionStorage.getItem("domain");
-      if (savedDomain) {
-        select.value = savedDomain;
-      }
     }
 
-    domainUpdate(select.value);
+    syncDomainSelect(activeDomain);
+    domainUpdate(activeDomain);
     applyGlobalHints();
     initGlobalHints();
     environmentUpdate();
@@ -256,7 +240,7 @@
   }
 
   function domainSwap() {
-    const currentDomain = document.getElementById("domainSelect").value;
+    const currentDomain = document.getElementById("domainSelect")?.value || sessionStorage.getItem("domain") || "dev";
 
     clearDomainProcessTrail();
     sessionStorage.setItem("domain", currentDomain);
@@ -267,7 +251,13 @@
     domainUpdate(currentDomain);
   }
 
+  function syncDomainSelect(currentDomain) {
+    const select = document.getElementById("domainSelect");
+    if (select) select.value = currentDomain || "dev";
+  }
+
   function domainUpdate(currentDomain) {
+    syncDomainSelect(currentDomain);
     const domainLabel = currentDomain === "engineer" ? "BUILD" : currentDomain.toUpperCase();
     document.getElementById("domainLabelSidebar").innerHTML = domainLabel;
     document.getElementById("readyLabelSidebar").innerHTML = "READY";

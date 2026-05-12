@@ -15,6 +15,16 @@
       <span id="jobSelected" class="process-selection">No Job Selected</span>
     </div>
     <div class="process-actions">
+      <select
+        id="domainSelect"
+        class="process-domain-select"
+        onchange="domainSwap()"
+        data-hint="Choose the active workspace domain. This clears the current process trail so data does not cross domains."
+      >
+        <option value="dev">Technology Domain</option>
+        <option value="engineer">Engineer Domain</option>
+        <option value="law">Law Domain</option>
+      </select>
       <button
         class="process-map-button"
         type="button"
@@ -206,6 +216,12 @@
     document.getElementById("processExpandButton").textContent = "Hide Process Flow";
   }
 
+  if (typeof syncDomainSelect === "function") {
+    syncDomainSelect(sessionStorage.getItem("domain") || "dev");
+  }
+  if (typeof applyButtonHints === "function") {
+    applyButtonHints(document.getElementById("processFlow"));
+  }
   updateCandidate();
   updateJob();
 </script>
