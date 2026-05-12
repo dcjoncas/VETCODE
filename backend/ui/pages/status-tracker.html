@@ -69,6 +69,27 @@
         line-height: 1.45;
       }
 
+      .hire-button {
+        background: #111827;
+        color: #fff;
+        border-color: #111827;
+      }
+
+      .handoff-panel {
+        display: none;
+        margin-top: 12px;
+        border: 1px solid #cfe2d5;
+        border-radius: 12px;
+        padding: 12px;
+        background: #f8fff8;
+        color: #125b36;
+        font-size: 13px;
+      }
+
+      .handoff-panel.show {
+        display: block;
+      }
+
       @media (max-width: 980px) {
         .tracking-grid,
         .tracking-kpis,
@@ -165,10 +186,14 @@
                 <button class="btn danger" type="button" onclick="closeArchiveLatest()">
                   Close and archive status
                 </button>
+                <button class="btn hire-button" type="button" onclick="startHireOnboarding()">
+                  Hire / On-boarded
+                </button>
                 <a id="eventLink" class="btn secondary" href="#" target="_blank" rel="noopener" hidden>
                   Open event
                 </a>
               </div>
+              <div id="handoffPanel" class="handoff-panel"></div>
             </aside>
           </div>
         </section>
@@ -260,12 +285,15 @@
         const detailList = document.getElementById("detailList");
         const messagePreview = document.getElementById("messagePreview");
         const eventLink = document.getElementById("eventLink");
+        const handoffPanel = document.getElementById("handoffPanel");
 
         if (!selectedRecord) {
           detailList.innerHTML = "<dt>Status</dt><dd>No scheduling action selected.</dd>";
           messagePreview.textContent =
             "Generate or send a scheduling action to see the message here.";
           eventLink.hidden = true;
+          handoffPanel.classList.remove("show");
+          handoffPanel.innerHTML = "";
           return;
         }
 
@@ -289,6 +317,8 @@
           <dt>Where</dt><dd>${escapeHtml(selectedRecord.location || link || "-")}</dd>
           <dt>To</dt><dd>${escapeHtml(people.join(", ") || "-")}</dd>
           <dt>Next action</dt><dd>${escapeHtml(selectedRecord.nextAction || "Follow up")}</dd>
+          ${selectedRecord.onboardingLink ? `<dt>Onboarding</dt><dd><a href="${escapeHtml(selectedRecord.onboardingLink)}" target="_blank" rel="noopener">${escapeHtml(selectedRecord.onboardingLink)}</a></dd>` : ""}
+          ${selectedRecord.timeEntryLink ? `<dt>Time entry</dt><dd><a href="${escapeHtml(selectedRecord.timeEntryLink)}" target="_blank" rel="noopener">${escapeHtml(selectedRecord.timeEntryLink)}</a></dd>` : ""}
         `;
         messagePreview.textContent =
           selectedRecord.message ||
@@ -299,6 +329,21 @@
           eventLink.hidden = false;
         } else {
           eventLink.hidden = true;
+        }
+
+        if (selectedRecord.onboardingLink) {
+          handoffPanel.classList.add("show");
+          handoffPanel.innerHTML = `
+            <strong>Hire handoff started.</strong>
+            <div>Send the onboarding link to the candidate. Time entries submitted from that link are recorded for Heidi at DevReady.</div>
+            <div class="row-actions" style="margin-top: 10px">
+              <button class="btn secondary" type="button" onclick="copyOnboardingLink()">Copy onboarding link</button>
+              <a class="btn secondary" href="${escapeHtml(selectedRecord.timeEntryLink || "#")}" target="_blank" rel="noopener">Open time entry</a>
+            </div>
+          `;
+        } else {
+          handoffPanel.classList.remove("show");
+          handoffPanel.innerHTML = "";
         }
       }
 
@@ -349,6 +394,61 @@
         }
         renderRows();
         renderDetail();
+      }
+
+      async function startHireOnboarding() {
+        if (!selectedRecord) return;
+        const domain = sessionStorage.getItem("domain") || "dev";
+        const payload = {
+          profile_id: selectedRecord.candidateId || sessionStorage.getItem("candidateId") || "",
+          candidate_name: selectedRecord.candidateName || sessionStorage.getItem("candidateName") || "Candidate",
+          email: selectedRecord.candidateEmail || sessionStorage.getItem("candidateEmail") || "",
+          title: selectedRecord.role || sessionStorage.getItem("jobTitle") || "",
+          domain,
+          start_day: "",
+          source_record_json: JSON.stringify(selectedRecord),
+        };
+        const form = new URLSearchParams(payload);
+        try {
+          const response = await fetch(`${window.location.origin}/api/onboarding/start`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: form.toString(),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || "Onboarding handoff failed.");
+          const absoluteOnboarding = new URL(data.onboarding_link, window.location.origin).href;
+          const absoluteTime = new URL(data.time_entry_link, window.location.origin).href;
+          selectedRecord.status = "Hire / onboarding started";
+          selectedRecord.nextAction = "Send onboarding link and collect start paperwork";
+          selectedRecord.onboardingLink = absoluteOnboarding;
+          selectedRecord.timeEntryLink = absoluteTime;
+          selectedRecord.hiredAt = new Date().toISOString();
+          records = records.map((record) =>
+            record.id === selectedRecord.id ? selectedRecord : record,
+          );
+          if (!records.some((record) => record.id === selectedRecord.id)) {
+            records.unshift(selectedRecord);
+          }
+          sessionStorage.setItem(`scheduleTracking:${domain}`, JSON.stringify(records));
+          sessionStorage.setItem(`latestScheduleTracking:${domain}`, JSON.stringify(selectedRecord));
+          sessionStorage.setItem("scheduleTracking", JSON.stringify(records));
+          sessionStorage.setItem("latestScheduleTracking", JSON.stringify(selectedRecord));
+          try {
+            await navigator.clipboard.writeText(absoluteOnboarding);
+          } catch {}
+          renderRows();
+          renderDetail();
+        } catch (error) {
+          alert(error.message || "Could not start onboarding.");
+        }
+      }
+
+      async function copyOnboardingLink() {
+        if (!selectedRecord?.onboardingLink) return;
+        try {
+          await navigator.clipboard.writeText(selectedRecord.onboardingLink);
+        } catch {}
       }
 
       function clearTracking() {

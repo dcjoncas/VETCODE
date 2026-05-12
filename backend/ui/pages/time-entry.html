@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Time Entry</title>
+    <link rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link rel="stylesheet" href="../assets/devStyles.css" />
+    <style>
+      body {
+        background: #eef3f1;
+      }
+      .public-shell {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      .public-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .brand-lockup {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .brand-lockup img {
+        width: 42px;
+        height: 42px;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .form-grid .wide {
+        grid-column: 1 / -1;
+      }
+      label {
+        display: grid;
+        gap: 6px;
+        font-weight: 800;
+        color: #244239;
+      }
+      textarea {
+        min-height: 100px;
+        resize: vertical;
+      }
+      .entry-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .entry-row {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fff;
+      }
+      .status-strip {
+        border: 1px solid #cfe2d5;
+        border-radius: 14px;
+        padding: 12px;
+        background: #f8fff8;
+        color: #125b36;
+        font-weight: 800;
+      }
+      @media (max-width: 760px) {
+        .form-grid,
+        .public-head {
+          grid-template-columns: 1fr;
+          flex-direction: column;
+          align-items: stretch;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="public-shell">
+      <header class="public-head">
+        <div class="brand-lockup">
+          <img src="../assets/devLogo.svg" alt="DevReady" />
+          <div>
+            <div class="page-title">DevReady time entry</div>
+            <div class="breadcrumb">Submit hours for DevReady processing</div>
+          </div>
+        </div>
+        <a id="onboardingLink" class="btn secondary" href="onboarding.html">Onboarding</a>
+      </header>
+
+      <section class="card">
+        <div id="statusText" class="status-strip">Ready to record time.</div>
+        <form id="timeForm" class="form-grid" style="margin-top: 12px">
+          <label>
+            Work date
+            <input id="workDate" name="work_date" type="date" required />
+          </label>
+          <label>
+            Hours
+            <input id="hours" name="hours" type="number" min="0" step="0.25" required />
+          </label>
+          <label>
+            Client
+            <input id="client" name="client" />
+          </label>
+          <label>
+            Project
+            <input id="project" name="project" />
+          </label>
+          <label class="wide">
+            Work summary
+            <textarea id="summary" name="summary" required></textarea>
+          </label>
+          <label class="wide">
+            Blockers or notes
+            <textarea id="blockers" name="blockers"></textarea>
+          </label>
+          <div class="row-actions wide">
+            <button class="btn" type="submit">Submit time</button>
+            <button class="btn secondary" type="button" onclick="loadEntries()">Refresh entries</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card" style="margin-top: 14px">
+        <h2>Submitted entries</h2>
+        <div id="entryList" class="entry-list">No entries loaded yet.</div>
+      </section>
+    </main>
+
+    <script src="JS/apiScripts.js"></script>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get("token") || "";
+
+      function escapeLocal(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function setDefaults() {
+        document.getElementById("onboardingLink").href = `onboarding.html?token=${encodeURIComponent(token)}`;
+        document.getElementById("workDate").valueAsDate = new Date();
+      }
+
+      async function loadEntries() {
+        if (!token) {
+          document.getElementById("entryList").textContent = "Missing time entry token.";
+          return;
+        }
+        try {
+          const data = await api(`/api/time-entry/${encodeURIComponent(token)}`);
+          const entries = data.entries || [];
+          if (!entries.length) {
+            document.getElementById("entryList").textContent = "No time entries submitted yet.";
+            return;
+          }
+          document.getElementById("entryList").innerHTML = entries.map((entry) => `
+            <div class="entry-row">
+              <strong>${escapeLocal(entry.work_date || "Date pending")} - ${escapeLocal(entry.hours || "0")} hours</strong>
+              <div>${escapeLocal([entry.client, entry.project].filter(Boolean).join(" / "))}</div>
+              <div>${escapeLocal(entry.summary)}</div>
+              <small>${escapeLocal(entry.status)} - ${escapeLocal(entry.recipient)}</small>
+            </div>
+          `).join("");
+        } catch (error) {
+          document.getElementById("entryList").textContent = error.message || "Could not load entries.";
+        }
+      }
+
+      document.getElementById("timeForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = new URLSearchParams(new FormData(event.currentTarget));
+        form.set("token", token);
+        try {
+          const data = await api("/api/time-entry", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: form.toString(),
+          });
+          document.getElementById("statusText").textContent = data.message || "Time entry saved.";
+          event.currentTarget.reset();
+          setDefaults();
+          loadEntries();
+        } catch (error) {
+          document.getElementById("statusText").textContent = error.message || "Time entry failed.";
+        }
+      });
+
+      document.addEventListener("DOMContentLoaded", () => {
+        setDefaults();
+        loadEntries();
+      });
+    </script>
+  </body>
+</html>

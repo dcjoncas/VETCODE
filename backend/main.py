@@ -185,6 +185,36 @@ UPLOAD_DIR = "uploads"
 EXPORT_DIR = "exports"
 DATA_DIR = "data"
 PROFILE_BADGES_PATH = os.path.join(DATA_DIR, "profile_badges.json")
+ONBOARDING_RECORDS_PATH = os.path.join(DATA_DIR, "onboarding_records.json")
+TIME_ENTRIES_PATH = os.path.join(DATA_DIR, "time_entries.json")
+WORKFLOW_EVENTS_PATH = os.path.join(DATA_DIR, "workflow_events.json")
+
+
+def _read_json_store(path: str, fallback):
+    try:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data if isinstance(data, type(fallback)) else fallback
+    except Exception:
+        traceback.print_exc()
+    return fallback
+
+
+def _write_json_store(path: str, data) -> None:
+    os.makedirs(DATA_DIR, exist_ok=True)
+    tmp_path = path + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, sort_keys=True)
+    os.replace(tmp_path, path)
+
+
+def _now_utc() -> str:
+    return datetime.utcnow().isoformat(timespec="seconds") + "Z"
+
+
+def _safe_token(prefix: str = "ONB") -> str:
+    return new_id(prefix).replace(" ", "").replace("/", "-")
 
 
 def _read_profile_badges() -> dict:
@@ -1125,6 +1155,226 @@ def mark_ai_certification_badge_without_profile(
         title=title,
         notes=notes,
     )
+
+
+@app.post("/api/workflow/events")
+def record_workflow_event(
+    profile_id: str = Form(default=""),
+    candidate_name: str = Form(default=""),
+    email: str = Form(default=""),
+    domain: str = Form(default="dev"),
+    event_type: str = Form(default="workflow"),
+    status: str = Form(default="recorded"),
+    notes: str = Form(default=""),
+    payload_json: str = Form(default="{}"),
+):
+    events = _read_json_store(WORKFLOW_EVENTS_PATH, [])
+    now = _now_utc()
+    try:
+        payload = json.loads(payload_json) if payload_json else {}
+    except Exception:
+        payload = {"raw": payload_json}
+    event = {
+        "id": _safe_token("EVT"),
+        "profile_id": profile_id,
+        "candidate_name": candidate_name,
+        "email": email,
+        "domain": domain or "dev",
+        "event_type": event_type,
+        "status": status,
+        "notes": notes,
+        "payload": payload if isinstance(payload, dict) else {"value": payload},
+        "created_at": now,
+        "updated_at": now,
+    }
+    events.insert(0, event)
+    _write_json_store(WORKFLOW_EVENTS_PATH, events[:1000])
+    return {"ok": True, "event": event}
+
+
+@app.get("/api/workflow/events/{profile_id}")
+def get_workflow_events(profile_id: str):
+    events = _read_json_store(WORKFLOW_EVENTS_PATH, [])
+    return {
+        "profile_id": profile_id,
+        "events": [event for event in events if str(event.get("profile_id", "")) == str(profile_id)],
+    }
+
+
+@app.post("/api/onboarding/start")
+def start_onboarding(
+    profile_id: str = Form(default=""),
+    candidate_name: str = Form(default=""),
+    email: str = Form(default=""),
+    title: str = Form(default=""),
+    domain: str = Form(default="dev"),
+    start_day: str = Form(default=""),
+    source_record_json: str = Form(default="{}"),
+):
+    records = _read_json_store(ONBOARDING_RECORDS_PATH, {})
+    now = _now_utc()
+    token = ""
+    for existing_token, record in records.items():
+        if profile_id and record.get("profile_id") == profile_id:
+            token = existing_token
+            break
+        if email and (record.get("email") or "").lower() == email.lower():
+            token = existing_token
+            break
+    token = token or _safe_token("ONB")
+    try:
+        source_record = json.loads(source_record_json) if source_record_json else {}
+    except Exception:
+        source_record = {"raw": source_record_json}
+    record = records.get(token, {})
+    record.update({
+        "token": token,
+        "profile_id": profile_id,
+        "candidate_name": candidate_name or record.get("candidate_name", ""),
+        "email": email or record.get("email", ""),
+        "title": title or record.get("title", ""),
+        "domain": domain or record.get("domain", "dev"),
+        "start_day": start_day or record.get("start_day", ""),
+        "status": "hire_started",
+        "source_record": source_record if isinstance(source_record, dict) else {"value": source_record},
+        "recipient": os.getenv("HEIDI_NAME", "Heidi at DevReady"),
+        "recipient_email": os.getenv("HEIDI_EMAIL", "heidi@devready.io"),
+        "created_at": record.get("created_at") or now,
+        "updated_at": now,
+    })
+    records[token] = record
+    _write_json_store(ONBOARDING_RECORDS_PATH, records)
+
+    events = _read_json_store(WORKFLOW_EVENTS_PATH, [])
+    events.insert(0, {
+        "id": _safe_token("EVT"),
+        "profile_id": profile_id,
+        "candidate_name": candidate_name,
+        "email": email,
+        "domain": domain or "dev",
+        "event_type": "hire_onboarding_started",
+        "status": "hire_started",
+        "notes": "Onboarding link created.",
+        "payload": {"onboarding_token": token},
+        "created_at": now,
+        "updated_at": now,
+    })
+    _write_json_store(WORKFLOW_EVENTS_PATH, events[:1000])
+    return {
+        "ok": True,
+        "record": record,
+        "onboarding_link": f"/ui/pages/onboarding.html?token={token}",
+        "time_entry_link": f"/ui/pages/time-entry.html?token={token}",
+    }
+
+
+@app.get("/api/onboarding/{token}")
+def get_onboarding(token: str):
+    records = _read_json_store(ONBOARDING_RECORDS_PATH, {})
+    record = records.get(token)
+    if not record:
+        raise HTTPException(status_code=404, detail="Onboarding record not found.")
+    return {"ok": True, "record": record}
+
+
+@app.post("/api/onboarding/{token}")
+def submit_onboarding(
+    token: str,
+    legal_name: str = Form(default=""),
+    preferred_name: str = Form(default=""),
+    email: str = Form(default=""),
+    phone: str = Form(default=""),
+    home_address: str = Form(default=""),
+    start_day: str = Form(default=""),
+    bank_name: str = Form(default=""),
+    account_type: str = Form(default=""),
+    routing_number: str = Form(default=""),
+    account_last4: str = Form(default=""),
+    payroll_packet_confirmed: str = Form(default="false"),
+    emergency_contact: str = Form(default=""),
+    notes: str = Form(default=""),
+):
+    records = _read_json_store(ONBOARDING_RECORDS_PATH, {})
+    record = records.get(token)
+    if not record:
+        raise HTTPException(status_code=404, detail="Onboarding record not found.")
+    now = _now_utc()
+    record.update({
+        "legal_name": legal_name,
+        "preferred_name": preferred_name,
+        "email": email or record.get("email", ""),
+        "phone": phone,
+        "home_address": home_address,
+        "start_day": start_day or record.get("start_day", ""),
+        "bank_name": bank_name,
+        "account_type": account_type,
+        "routing_number": routing_number,
+        "account_last4": account_last4[-4:] if account_last4 else "",
+        "payroll_packet_confirmed": str(payroll_packet_confirmed).lower() in {"true", "1", "yes", "on"},
+        "emergency_contact": emergency_contact,
+        "notes": notes,
+        "status": "paperwork_submitted",
+        "submitted_at": now,
+        "updated_at": now,
+    })
+    records[token] = record
+    _write_json_store(ONBOARDING_RECORDS_PATH, records)
+    return {
+        "ok": True,
+        "record": record,
+        "message": f"Onboarding saved and queued for {record.get('recipient', 'Heidi at DevReady')}.",
+    }
+
+
+@app.post("/api/time-entry")
+def submit_time_entry(
+    token: str = Form(default=""),
+    profile_id: str = Form(default=""),
+    candidate_name: str = Form(default=""),
+    email: str = Form(default=""),
+    work_date: str = Form(default=""),
+    hours: str = Form(default=""),
+    client: str = Form(default=""),
+    project: str = Form(default=""),
+    summary: str = Form(default=""),
+    blockers: str = Form(default=""),
+):
+    entries = _read_json_store(TIME_ENTRIES_PATH, [])
+    onboarding = _read_json_store(ONBOARDING_RECORDS_PATH, {}).get(token, {}) if token else {}
+    now = _now_utc()
+    entry = {
+        "id": _safe_token("TIM"),
+        "token": token,
+        "profile_id": profile_id or onboarding.get("profile_id", ""),
+        "candidate_name": candidate_name or onboarding.get("candidate_name", "") or onboarding.get("legal_name", ""),
+        "email": email or onboarding.get("email", ""),
+        "work_date": work_date,
+        "hours": hours,
+        "client": client,
+        "project": project,
+        "summary": summary,
+        "blockers": blockers,
+        "status": "submitted_to_devready",
+        "recipient": os.getenv("HEIDI_NAME", "Heidi at DevReady"),
+        "recipient_email": os.getenv("HEIDI_EMAIL", "heidi@devready.io"),
+        "created_at": now,
+    }
+    entries.insert(0, entry)
+    _write_json_store(TIME_ENTRIES_PATH, entries[:2000])
+    return {
+        "ok": True,
+        "entry": entry,
+        "message": f"Time entry recorded for {entry['recipient']}.",
+    }
+
+
+@app.get("/api/time-entry/{token}")
+def get_time_entries(token: str):
+    entries = _read_json_store(TIME_ENTRIES_PATH, [])
+    return {
+        "token": token,
+        "entries": [entry for entry in entries if entry.get("token") == token],
+    }
 
 
 from azureUtils.routes import azureEndpoints, aiChatEndpoints, azureJobEndpoints

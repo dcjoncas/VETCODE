@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Onboarding</title>
+    <link rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link rel="stylesheet" href="../assets/devStyles.css" />
+    <style>
+      body {
+        background: #eef3f1;
+      }
+      .public-shell {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      .public-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .brand-lockup {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .brand-lockup img {
+        width: 42px;
+        height: 42px;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .form-grid .wide {
+        grid-column: 1 / -1;
+      }
+      label {
+        display: grid;
+        gap: 6px;
+        font-weight: 800;
+        color: #244239;
+      }
+      input,
+      textarea,
+      select {
+        width: 100%;
+      }
+      textarea {
+        min-height: 90px;
+        resize: vertical;
+      }
+      .status-strip {
+        border: 1px solid #cfe2d5;
+        border-radius: 14px;
+        padding: 12px;
+        background: #f8fff8;
+        color: #125b36;
+        font-weight: 800;
+      }
+      .paperwork-note {
+        color: #53655f;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      @media (max-width: 760px) {
+        .form-grid,
+        .public-head {
+          grid-template-columns: 1fr;
+          flex-direction: column;
+          align-items: stretch;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="public-shell">
+      <header class="public-head">
+        <div class="brand-lockup">
+          <img src="../assets/devLogo.svg" alt="DevReady" />
+          <div>
+            <div class="page-title">DevReady onboarding</div>
+            <div class="breadcrumb">Candidate paperwork and start details</div>
+          </div>
+        </div>
+        <a id="timeEntryLink" class="btn secondary" href="time-entry.html">Time entry</a>
+      </header>
+
+      <section class="card">
+        <div id="recordStatus" class="status-strip">Loading onboarding record...</div>
+        <p class="paperwork-note">
+          Complete the start details below. For ACH, DevReady stores the routing number and last four account digits here, then completes the secure payroll setup through the internal payroll process.
+        </p>
+
+        <form id="onboardingForm" class="form-grid">
+          <label>
+            Legal name
+            <input id="legalName" name="legal_name" autocomplete="name" required />
+          </label>
+          <label>
+            Preferred name
+            <input id="preferredName" name="preferred_name" autocomplete="nickname" />
+          </label>
+          <label>
+            Email
+            <input id="email" name="email" type="email" autocomplete="email" required />
+          </label>
+          <label>
+            Phone
+            <input id="phone" name="phone" autocomplete="tel" />
+          </label>
+          <label class="wide">
+            Home address
+            <textarea id="homeAddress" name="home_address" autocomplete="street-address"></textarea>
+          </label>
+          <label>
+            Start day
+            <input id="startDay" name="start_day" type="date" />
+          </label>
+          <label>
+            Bank name
+            <input id="bankName" name="bank_name" autocomplete="off" />
+          </label>
+          <label>
+            Account type
+            <select id="accountType" name="account_type">
+              <option value="">Select account type</option>
+              <option value="checking">Checking</option>
+              <option value="savings">Savings</option>
+            </select>
+          </label>
+          <label>
+            Routing number
+            <input id="routingNumber" name="routing_number" inputmode="numeric" autocomplete="off" />
+          </label>
+          <label>
+            Account last four
+            <input id="accountLast4" name="account_last4" maxlength="4" inputmode="numeric" autocomplete="off" />
+          </label>
+          <label class="wide">
+            Emergency contact
+            <input id="emergencyContact" name="emergency_contact" />
+          </label>
+          <label class="wide">
+            Notes
+            <textarea id="notes" name="notes" placeholder="Availability, equipment needs, paperwork questions, or start constraints."></textarea>
+          </label>
+          <label class="wide" style="display: flex; gap: 10px; align-items: center">
+            <input id="payrollPacketConfirmed" name="payroll_packet_confirmed" type="checkbox" value="true" style="width: auto" />
+            I confirm DevReady can use these details to start secure payroll setup.
+          </label>
+          <div class="row-actions wide">
+            <button class="btn" type="submit">Submit onboarding</button>
+            <a class="btn secondary" href="time-entry.html" id="timeEntryLinkBottom">Open time entry</a>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <script src="JS/apiScripts.js"></script>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get("token") || "";
+      const fields = {
+        legal_name: "legalName",
+        preferred_name: "preferredName",
+        email: "email",
+        phone: "phone",
+        home_address: "homeAddress",
+        start_day: "startDay",
+        bank_name: "bankName",
+        account_type: "accountType",
+        routing_number: "routingNumber",
+        account_last4: "accountLast4",
+        emergency_contact: "emergencyContact",
+        notes: "notes",
+      };
+
+      function setLinks() {
+        const href = `time-entry.html?token=${encodeURIComponent(token)}`;
+        document.getElementById("timeEntryLink").href = href;
+        document.getElementById("timeEntryLinkBottom").href = href;
+      }
+
+      async function loadRecord() {
+        setLinks();
+        if (!token) {
+          document.getElementById("recordStatus").textContent = "Missing onboarding token.";
+          return;
+        }
+        try {
+          const data = await api(`/api/onboarding/${encodeURIComponent(token)}`);
+          const record = data.record || {};
+          document.getElementById("recordStatus").textContent =
+            `${record.candidate_name || record.email || "Candidate"} - ${record.title || "Onboarding"} - ${record.status || "started"}`;
+          Object.entries(fields).forEach(([key, id]) => {
+            if (record[key] !== undefined) document.getElementById(id).value = record[key] || "";
+          });
+          if (record.payroll_packet_confirmed) {
+            document.getElementById("payrollPacketConfirmed").checked = true;
+          }
+        } catch (error) {
+          document.getElementById("recordStatus").textContent = error.message || "Could not load onboarding.";
+        }
+      }
+
+      document.getElementById("onboardingForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = new URLSearchParams(new FormData(event.currentTarget));
+        try {
+          const data = await api(`/api/onboarding/${encodeURIComponent(token)}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: form.toString(),
+          });
+          document.getElementById("recordStatus").textContent = data.message || "Onboarding saved.";
+        } catch (error) {
+          document.getElementById("recordStatus").textContent = error.message || "Onboarding failed.";
+        }
+      });
+
+      document.addEventListener("DOMContentLoaded", loadRecord);
+    </script>
+  </body>
+</html>

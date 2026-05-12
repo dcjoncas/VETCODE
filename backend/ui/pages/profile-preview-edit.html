@@ -489,7 +489,6 @@
         window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
       }
 
-      // tiny UX sugar (mock only)
       document
         .querySelectorAll("a.step")
         .forEach((a) => a.addEventListener("click", () => {}));

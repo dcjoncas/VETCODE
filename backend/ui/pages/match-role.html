@@ -177,10 +177,10 @@
       <aside class="card">
           
         <h2>What happens on this screen</h2>
-        <p>UX-only guidance for this screen.</p>
+        <p>Role matching workflow guidance.</p>
         <ul style="margin:0 0 14px 18px;color:var(--muted);line-height:1.4"><li>Save / normalize a JD (structured requirements).</li><li>Rank stored candidates and pick the Top 10.</li><li>Outcome: open a candidate into the guided chat.</li></ul>
         <div class="row-actions"><a class="btn " href="candidate-chat.html" style="text-decoration:none;display:inline-block">Next: Candidate chat →</a><a class="btn secondary" href="find-candidate.html" style="text-decoration:none;display:inline-block">Back: Find candidate</a></div>
-        <div class="notice" style="margin-top:14px">All actions here are mocked. The goal is to validate layout, flow, and labels.</div>
+        <div class="notice" style="margin-top:14px">Role matching uses saved job descriptions and profile data from the connected backend.</div>
     
       </aside> -->
         <!-- </div> -->
@@ -193,7 +193,6 @@
     <script src="JS/shortlist.js"></script>
     <script>
       let latestRank = [];
-      // tiny UX sugar (mock only)
       document
         .querySelectorAll("a.step")
         .forEach((a) => a.addEventListener("click", () => {}));
