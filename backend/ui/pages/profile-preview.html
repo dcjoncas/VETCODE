@@ -153,6 +153,15 @@
               >
                 Delete TEMP Profile
               </button>
+              <button
+                id="makePermanentTempBtn"
+                class="btn"
+                type="button"
+                onclick="makeTemporaryProfilePermanent()"
+                style="display: none"
+              >
+                Make TEMP Permanent
+              </button>
               <a href="profile-preview-edit.html"
                 ><button
                   id="editBtn"
@@ -602,6 +611,39 @@
         }
       }
 
+      async function makeTemporaryProfilePermanent() {
+        const candidateId = sessionStorage.getItem("candidateId");
+        const profileType = sessionStorage.getItem("candidateProfileType");
+        if (!candidateId || profileType !== "Temporary Profile") return;
+
+        const confirmed = confirm("Make this TEMP external profile permanent?");
+        if (!confirmed) return;
+
+        const button = document.getElementById("makePermanentTempBtn");
+        button.disabled = true;
+
+        try {
+          await api(`/api/azureJobs/external/temp/${candidateId}/make-permanent`, {
+            method: "POST",
+          });
+
+          const temporaryProfiles = JSON.parse(
+            sessionStorage.getItem("temporaryProfiles") || "{}",
+          );
+          delete temporaryProfiles[String(candidateId)];
+          sessionStorage.setItem("temporaryProfiles", JSON.stringify(temporaryProfiles));
+
+          sessionStorage.removeItem("candidateProfileType");
+          sessionStorage.removeItem("externalCandidateSource");
+          sessionStorage.setItem("candidateStatus", "Permanent Profile");
+          alert("TEMP profile is now permanent.");
+          window.location.reload();
+        } catch (e) {
+          alert(`Make permanent failed: ${e.message}`);
+          button.disabled = false;
+        }
+      }
+
       async function loadProfileBadges(candidateId) {
         const target = document.getElementById("profileBadges");
         if (!target || !candidateId) return;
@@ -673,6 +715,7 @@
 
           if (profileType === "Temporary Profile") {
             document.getElementById("deleteTempBtn").style.display = "inline-block";
+            document.getElementById("makePermanentTempBtn").style.display = "inline-block";
             document
               .getElementById("topMatches")
               .insertAdjacentHTML(

@@ -239,6 +239,7 @@
             <div id="tempProfileStatus" class="notice" style="margin-top: 10px">
               TEMP profiles are kept separate for PII review.
             </div>
+            <div id="latestTempProfilePanel" class="notice" style="margin-top: 10px; display: none"></div>
             <div id="tempProfileList"></div>
           </section>
         </section>
@@ -414,7 +415,40 @@
           importedAt: new Date().toISOString(),
         };
         sessionStorage.setItem("temporaryProfiles", JSON.stringify(temporaryProfiles));
-        window.location.href = "match-role.html";
+        renderLatestTempProfile({
+          personid: response.personid,
+          name: response.name,
+          title: candidate.title || "",
+          source: candidate.source_label || candidate.source,
+        });
+        document.getElementById("mineStatus").textContent =
+          "TEMP profile created. Use the link below to open it, make it permanent, or delete it.";
+        await loadTempProfiles();
+      }
+
+      function tempProfileActionHtml(personId, linkLabel = "Link to TEMP profile") {
+        return `
+          <a class="btn secondary" href="profile-preview.html" onclick="openTempProfile('${personId}'); return false;">${linkLabel}</a>
+          <button class="btn primary" type="button" onclick="makeTempPermanent('${personId}')">Make permanent</button>
+          <button class="btn danger" type="button" onclick="deleteTempProfile('${personId}')">Delete</button>
+        `;
+      }
+
+      function renderLatestTempProfile(profile) {
+        const panel = document.getElementById("latestTempProfilePanel");
+        if (!profile || !profile.personid) {
+          panel.style.display = "none";
+          panel.innerHTML = "";
+          return;
+        }
+        panel.style.display = "block";
+        panel.innerHTML = `
+          <strong>TEMP profile created:</strong> ${escapeHtml(profile.name || "Temporary Profile")}
+          ${profile.title ? `<span class="muted"> - ${escapeHtml(profile.title)}</span>` : ""}
+          <div class="temp-profile-actions" style="margin-top: 8px">
+            ${tempProfileActionHtml(profile.personid)}
+          </div>
+        `;
       }
 
       function renderTempProfiles(profiles) {
@@ -439,11 +473,7 @@
                 <div class="muted">${safeTitle}${safeLocation ? " - " + safeLocation : ""}</div>
               </div>
               <div class="muted">${safeSource}</div>
-              <div class="temp-profile-actions">
-                <button class="btn secondary" type="button" onclick="openTempProfile('${profile.personid}')">Open</button>
-                <button class="btn primary" type="button" onclick="makeTempPermanent('${profile.personid}')">Make permanent</button>
-                <button class="btn danger" type="button" onclick="deleteTempProfile('${profile.personid}')">Delete</button>
-              </div>
+              <div class="temp-profile-actions">${tempProfileActionHtml(profile.personid)}</div>
             </div>`;
           })
           .join("");
@@ -468,6 +498,15 @@
       async function makeTempPermanent(personId) {
         if (!confirm("Make this TEMP profile permanent?")) return;
         await api(`/api/azureJobs/external/temp/${personId}/make-permanent`, { method: "POST" });
+        const temporaryProfiles = JSON.parse(sessionStorage.getItem("temporaryProfiles") || "{}");
+        delete temporaryProfiles[String(personId)];
+        sessionStorage.setItem("temporaryProfiles", JSON.stringify(temporaryProfiles));
+        if (String(sessionStorage.getItem("candidateId")) === String(personId)) {
+          sessionStorage.removeItem("candidateProfileType");
+          sessionStorage.removeItem("externalCandidateSource");
+          sessionStorage.setItem("candidateStatus", "Permanent Profile");
+        }
+        renderLatestTempProfile(null);
         await loadTempProfiles();
       }
 

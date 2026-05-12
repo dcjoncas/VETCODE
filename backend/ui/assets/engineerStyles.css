@@ -276,6 +276,11 @@ input[type="checkbox"] {
   cursor: pointer;
   border-radius: 5px;
 }
+.btn.danger {
+  background-color: #dc3545;
+  border-color: rgba(220, 53, 69, 0.45);
+  color: #fff;
+}
 .btn.profile-completion-danger {
   background: #c62832;
   border-color: rgba(198, 40, 50, 0.45);
