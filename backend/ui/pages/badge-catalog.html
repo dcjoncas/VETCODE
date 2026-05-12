@@ -282,7 +282,7 @@
 
       .exam-version-row {
         display: grid;
-        grid-template-columns: auto 1fr auto;
+        grid-template-columns: minmax(0, 1fr) auto auto;
         gap: 5px;
         align-items: center;
         padding: 5px;
@@ -295,6 +295,15 @@
         font-size: 11px;
         font-weight: 900;
         color: var(--text);
+        overflow-wrap: anywhere;
+      }
+
+      .exam-version-row .exam-code {
+        display: block;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 800;
+        margin-top: 2px;
       }
 
       .exam-version-row .start-link,
@@ -489,15 +498,20 @@
                     <div class="status-note">${index + 1} green level tick${index === 0 ? "" : "s"}; yellow ticks remain.</div>
                     <div class="exam-version-list">
                       ${examVersions
-                        .map(
-                          (version) => `
+                        .map((version) => {
+                          const examCode = examId(role, level, version);
+                          const examLabel = `${level[0]}-${version}`;
+                          return `
                             <div class="exam-version-row">
-                              <span>Version ${version}</span>
-                              <a class="start-link" href="ai-cert.html?${examParams(role, level, version).toString()}">Start</a>
-                              <a class="key-link" href="${answerKeyUrl(role, level, version)}" target="_blank" rel="noopener">Key</a>
+                              <span>
+                                Exam ${examLabel}
+                                <small class="exam-code">${examCode}</small>
+                              </span>
+                              <a class="start-link" href="ai-cert.html?${examParams(role, level, version).toString()}">Start ${examLabel}</a>
+                              <a class="key-link" href="${answerKeyUrl(role, level, version)}" target="_blank" rel="noopener">Answer key ${examLabel}</a>
                             </div>
-                          `,
-                        )
+                          `;
+                        })
                         .join("")}
                     </div>
                   </article>
