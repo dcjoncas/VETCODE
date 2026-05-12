@@ -222,6 +222,50 @@
                 <div id="culturalSkillDiv" style="margin-top: 12px">
                   <h2>Cultural Experience</h2>
                 </div>
+                <div
+                  id="cultureCompletionPanel"
+                  class="notice"
+                  style="margin-top: 12px; display: none"
+                >
+                  <div style="font-weight: 900">Culture profile needed</div>
+                  <div id="cultureCompletionReason" style="margin-top: 4px">
+                    This candidate still needs to complete the culture chat.
+                  </div>
+                  <div class="row-actions" style="margin-top: 10px">
+                    <button
+                      id="generateCultureChatBtn"
+                      class="btn"
+                      type="button"
+                    >
+                      Create chat link
+                    </button>
+                    <button
+                      id="copyCultureChatBtn"
+                      class="btn secondary"
+                      type="button"
+                      disabled
+                    >
+                      Copy link
+                    </button>
+                    <button
+                      id="emailCultureChatBtn"
+                      class="btn secondary"
+                      type="button"
+                      disabled
+                    >
+                      Email candidate
+                    </button>
+                  </div>
+                  <div
+                    id="cultureChatUrl"
+                    style="
+                      margin-top: 8px;
+                      color: var(--muted);
+                      font-size: 13px;
+                      overflow-wrap: anywhere;
+                    "
+                  ></div>
+                </div>
                 <button
                   id="newCulturalBtn"
                   class="btn secondary"
@@ -289,6 +333,135 @@
       let portfolioCount = 0;
       let portfolioSkillCounts = [];
       let portfolioFeatureCounts = [];
+      let loadedProfileData = null;
+      let cultureChatUrl = "";
+
+      function currentDomain() {
+        return sessionStorage.getItem("domain") || "dev";
+      }
+
+      function candidateDisplayName(profileData) {
+        const profile = profileData?.profile || {};
+        return [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "Candidate";
+      }
+
+      function isCultureComplete(profileData) {
+        const personalityComplete =
+          Array.isArray(profileData?.personality) &&
+          profileData.personality.some((item) => item && item.title && item.score);
+        const culturalExperienceComplete =
+          Array.isArray(profileData?.culturalExperience) &&
+          profileData.culturalExperience.some((item) => item && item.title && Number(item.level) > 0);
+        return personalityComplete || culturalExperienceComplete;
+      }
+
+      function updateCultureCompletionPanel(profileData) {
+        const panel = document.getElementById("cultureCompletionPanel");
+        const reason = document.getElementById("cultureCompletionReason");
+        if (!panel || !reason) return;
+
+        if (!profileData || isCultureComplete(profileData)) {
+          panel.style.display = "none";
+          return;
+        }
+
+        panel.style.display = "block";
+        reason.textContent =
+          "No completed culture/personality answers are saved yet. Send the candidate this chat link so they can finish the culture profile for this domain.";
+      }
+
+      function setCultureChatUrl(url) {
+        cultureChatUrl = url || "";
+        const urlEl = document.getElementById("cultureChatUrl");
+        const copyBtn = document.getElementById("copyCultureChatBtn");
+        const emailBtn = document.getElementById("emailCultureChatBtn");
+
+        if (urlEl) {
+          urlEl.innerHTML = cultureChatUrl
+            ? `Candidate chat link: <a href="${cultureChatUrl}" target="_blank" rel="noopener">${cultureChatUrl}</a>`
+            : "";
+        }
+        if (copyBtn) copyBtn.disabled = !cultureChatUrl;
+        if (emailBtn) emailBtn.disabled = !cultureChatUrl;
+      }
+
+      async function loadExistingCultureChatLink() {
+        const candidateId = sessionStorage.getItem("candidateId");
+        if (!candidateId) return;
+
+        try {
+          const token = await api(`/api/chat/getUrlCode/${candidateId}`, {
+            method: "GET",
+          });
+          if (token && typeof token === "string" && !token.toLowerCase().includes("legacy survey")) {
+            const link = `${window.location.origin}/ui/pages/external-chat.html?candidate=${encodeURIComponent(token)}&domain=${encodeURIComponent(currentDomain())}`;
+            setCultureChatUrl(link);
+            document.getElementById("generateCultureChatBtn").textContent =
+              "Refresh chat link";
+          }
+        } catch (error) {
+          console.warn("No existing culture chat link found.", error);
+        }
+      }
+
+      async function getOrCreateCultureChatLink() {
+        if (cultureChatUrl) return cultureChatUrl;
+        await generateCultureChatLink();
+        return cultureChatUrl;
+      }
+
+      async function generateCultureChatLink() {
+        const candidateId = sessionStorage.getItem("candidateId");
+        const button = document.getElementById("generateCultureChatBtn");
+        if (!candidateId) {
+          alert("No candidate ID found in session.");
+          return;
+        }
+
+        button.disabled = true;
+        button.textContent = "Creating link...";
+        try {
+          const fd = new FormData();
+          fd.append("profileid", candidateId);
+          fd.append("domain", currentDomain());
+
+          const token = await api("/api/chat/scheduleChat", {
+            method: "POST",
+            body: fd,
+          });
+          const link = `${window.location.origin}/ui/pages/external-chat.html?candidate=${encodeURIComponent(token)}&domain=${encodeURIComponent(currentDomain())}`;
+          setCultureChatUrl(link);
+          button.textContent = "Refresh chat link";
+        } catch (error) {
+          alert(`Could not create culture chat link: ${error.message || error}`);
+          button.textContent = "Create chat link";
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      async function copyCultureChatLink() {
+        await getOrCreateCultureChatLink();
+        if (!cultureChatUrl) return;
+        await navigator.clipboard.writeText(cultureChatUrl);
+        document.getElementById("copyCultureChatBtn").textContent = "Copied";
+        setTimeout(() => {
+          document.getElementById("copyCultureChatBtn").textContent = "Copy link";
+        }, 1500);
+      }
+
+      async function emailCultureChatLink() {
+        await getOrCreateCultureChatLink();
+        if (!cultureChatUrl) return;
+        const profile = loadedProfileData?.profile || {};
+        const email = profile.email || "";
+        const name = candidateDisplayName(loadedProfileData);
+        const subject = encodeURIComponent("DevReady profile completion");
+        const body = encodeURIComponent(
+          `Hi ${name},\n\nPlease complete your DevReady culture profile using this secure chat link:\n\n${cultureChatUrl}\n\nThis helps us complete your profile for the right domain and next steps.\n\nBest,\nDevReady Team`,
+        );
+        window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+      }
 
       // tiny UX sugar (mock only)
       document
@@ -729,6 +902,18 @@
           .addEventListener("click", addExperience);
 
         document
+          .getElementById("generateCultureChatBtn")
+          .addEventListener("click", generateCultureChatLink);
+
+        document
+          .getElementById("copyCultureChatBtn")
+          .addEventListener("click", copyCultureChatLink);
+
+        document
+          .getElementById("emailCultureChatBtn")
+          .addEventListener("click", emailCultureChatLink);
+
+        document
           .getElementById("savePortfolioBtn")
           .addEventListener("click", () => {
             savePortfolio();
@@ -741,9 +926,12 @@
         let profileData = {};
 
         if (candidateId) {
-          profileData = await api(`/api/azure/getProfile/${candidateId}`);
+          profileData = await api(`/api/azure/getProfile/${candidateId}?domain=${encodeURIComponent(currentDomain())}`);
+          loadedProfileData = profileData;
 
           console.log(profileData);
+          updateCultureCompletionPanel(profileData);
+          if (!isCultureComplete(profileData)) loadExistingCultureChatLink();
 
           let featurePillHtml = "";
           const featureSkillDiv = document.getElementById("featureSkillDiv");
