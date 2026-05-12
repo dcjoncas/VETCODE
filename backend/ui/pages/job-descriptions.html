@@ -521,7 +521,9 @@
         }
 
         try {
-          const jd = await api(`/api/azureJobs/getJob/${encodeURIComponent(jdId)}`);
+          const jd = await api(
+            `/api/azureJobs/getJob/${encodeURIComponent(jdId)}?domain=${encodeURIComponent(currentDomain())}`,
+          );
           const skills = flattenSkills(jd.skills || jd.jd_skills);
           const skillHtml = skills.length
             ? skills

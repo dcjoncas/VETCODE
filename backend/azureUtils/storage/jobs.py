@@ -18,10 +18,13 @@ def uploadJob(company: str, title: str, domain: str, jd_text: str, skills: list[
         for skill in skills:
             query = f"SELECT id FROM skill WHERE title ILIKE '%{skill}%' ORDER BY id DESC LIMIT 1"
             cur.execute(query)
+            skill_result = cur.fetchone()
+            if not skill_result:
+                continue
 
             # TODO: Get AI to determine the number of years required by a company for a skill
             query = "INSERT INTO jobskills (jobid, skillid) VALUES (%s, %s)"
-            cur.execute(query, (jobId, cur.fetchone()[0]))
+            cur.execute(query, (jobId, skill_result[0]))
 
         aiProcessing.processPersonalities(jobId, jd_text, cur)
         conn.commit()
@@ -43,7 +46,7 @@ def getJob(jobId: int, domain: str = None):
         domain_filter = " AND job.domain = %s"
         params.append(domain)
 
-    query = f"SELECT job.id, job.domain, job.company, job.jobtitle, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT skill.id), job.description FROM jobdescription job LEFT JOIN jobskills js ON job.id = js.jobid JOIN skill ON js.skillid = skill.id WHERE job.id = %s{domain_filter} GROUP BY job.id, job.domain, job.company, job.jobtitle, job.description LIMIT 1"
+    query = f"SELECT job.id, job.domain, job.company, job.jobtitle, ARRAY_REMOVE(ARRAY_AGG(DISTINCT skill.title), NULL), ARRAY_REMOVE(ARRAY_AGG(DISTINCT skill.id), NULL), job.description FROM jobdescription job LEFT JOIN jobskills js ON job.id = js.jobid LEFT JOIN skill ON js.skillid = skill.id WHERE job.id = %s{domain_filter} GROUP BY job.id, job.domain, job.company, job.jobtitle, job.description LIMIT 1"
     cur.execute(query, tuple(params))
 
     result = cur.fetchone()

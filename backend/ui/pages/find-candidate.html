@@ -444,6 +444,12 @@
         const picker = document.getElementById("jdSelect");
         const status = document.getElementById("jdStatus");
         const domain = sessionStorage.getItem("domain") || "dev";
+        const savedJdId =
+          sessionStorage.getItem("selectedJdId") ||
+          sessionStorage.getItem("jdId") ||
+          sessionStorage.getItem("jobId") ||
+          sessionStorage.getItem("jobID") ||
+          "";
         picker.innerHTML = `<option value="" selected disabled hidden>Loading job descriptions...</option>`;
         try {
           const jds = await api(`/api/azureJobs/list/${encodeURIComponent(domain)}/200`);
@@ -455,6 +461,9 @@
                   `<option value="${escapeHtml(j.jd_id)}" data-company="${escapeHtml(j.company || "")}" data-title="${escapeHtml(j.title || "")}">${escapeHtml((j.company || "Client") + " - " + (j.title || j.jd_id))}</option>`,
               )
               .join("");
+          if (savedJdId && (jds || []).some((j) => String(j.jd_id) === String(savedJdId))) {
+            picker.value = savedJdId;
+          }
           status.textContent = jds.length
             ? "Choose a saved job description to use in matching."
             : "No job descriptions found. Create one from Job Descriptions first.";
@@ -463,19 +472,38 @@
         }
       }
 
-      function loadSelectedJobDescription() {
+      async function loadSelectedJobDescription() {
         const picker = document.getElementById("jdSelect");
         const selected = picker.options[picker.selectedIndex];
+        const status = document.getElementById("jdStatus");
+        const domain = sessionStorage.getItem("domain") || "dev";
         if (!picker.value || !selected) {
           return alert("Select a job description first.");
         }
-        sessionStorage.setItem("jobID", picker.value);
-        sessionStorage.setItem("jobId", picker.value);
-        sessionStorage.setItem("jobCompany", selected.dataset.company || "");
-        sessionStorage.setItem("jobTitle", selected.dataset.title || selected.textContent || "");
-        document.getElementById("jdStatus").textContent =
-          `Loaded ${selected.textContent} for this process.`;
-        if (typeof updateJob === "function") updateJob();
+        status.textContent = "Loading job description...";
+        try {
+          const jd = await api(
+            `/api/azureJobs/getJob/${encodeURIComponent(picker.value)}?domain=${encodeURIComponent(domain)}`,
+          );
+          const jobTitle = jd.title || selected.dataset.title || selected.textContent || "";
+          const jobCompany = jd.company || selected.dataset.company || "";
+          const jobSkills = Array.isArray(jd.skills)
+            ? jd.skills.filter(Boolean).join(", ")
+            : "";
+
+          sessionStorage.setItem("jobID", picker.value);
+          sessionStorage.setItem("jobId", picker.value);
+          sessionStorage.setItem("selectedJdId", picker.value);
+          sessionStorage.setItem("jdId", picker.value);
+          sessionStorage.setItem("jobCompany", jobCompany);
+          sessionStorage.setItem("jobTitle", jobTitle);
+          sessionStorage.setItem("jobSkills", jobSkills);
+          status.textContent = `Loaded ${jobCompany ? jobCompany + " - " : ""}${jobTitle || "job description"} for this process.`;
+          if (typeof updateJob === "function") updateJob();
+        } catch (error) {
+          status.textContent =
+            `Load failed: ${error.message || error}. This JD may be deleted or saved under another domain.`;
+        }
       }
 
       let profileDiscoveryData = null;
