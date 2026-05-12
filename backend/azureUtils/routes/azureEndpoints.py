@@ -6,6 +6,7 @@ import traceback
 from azureUtils.storage import candidates, resumes
 from resumeProcessing.processing import ingest
 from deterministic_profile import build_profile_from_text
+from resume_ai_profile import normalize_ai_resume_profile
 from openAI.candidateProcessing import candidateDescription, processGeneral, candidateCulturalExperience, processSkillYears
 
 router = APIRouter(
@@ -282,6 +283,89 @@ def _flatten_profile_skills(profile: dict) -> list[str]:
             flat.extend([str(skill).strip() for skill in skills if str(skill).strip()])
     return sorted(set(flat))
 
+def _normalize_ai_skills(ai_profile: dict) -> list[dict]:
+    normalized = []
+    seen = set()
+    for skill in ai_profile.get("skills") or []:
+        if not isinstance(skill, dict):
+            continue
+        title = str(skill.get("title") or "").strip()
+        if not title or title.lower() in seen:
+            continue
+        seen.add(title.lower())
+        try:
+            years = int(skill.get("years") or 1)
+        except (TypeError, ValueError):
+            years = 1
+        normalized.append({"title": title, "years": max(1, min(years, 40))})
+    return normalized
+
+def _normalize_culture_items(value) -> list[dict]:
+    if isinstance(value, str):
+        items = [
+            {"experience": part.strip(), "level": 1}
+            for part in value.split(",")
+            if part.strip()
+        ]
+        return items[:6]
+    if not isinstance(value, list):
+        return []
+    items = []
+    for item in value:
+        if isinstance(item, str):
+            title = item.strip()
+            level = 1
+        elif isinstance(item, dict):
+            title = str(item.get("experience") or item.get("title") or "").strip()
+            try:
+                level = int(item.get("level") or 1)
+            except (TypeError, ValueError):
+                level = 1
+        else:
+            continue
+        if title:
+            items.append({"experience": title, "level": max(1, min(level, 3))})
+    return items[:6]
+
+def _normalize_portfolio_items(value) -> list[dict]:
+    if not isinstance(value, list):
+        return []
+
+    def _truthy(raw_value) -> bool:
+        if isinstance(raw_value, bool):
+            return raw_value
+        return str(raw_value or "").strip().lower() in {"true", "yes", "1", "present", "current"}
+
+    normalized = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        start = item.get("startDate")
+        finish = item.get("finishDate")
+        try:
+            start_year = int(start) if start not in (None, "") else None
+        except (TypeError, ValueError):
+            start_year = None
+        try:
+            finish_year = int(finish) if finish not in (None, "") else None
+        except (TypeError, ValueError):
+            finish_year = None
+        if start_year and (start_year < 1950 or start_year > 2100):
+            start_year = None
+        if finish_year and (finish_year < 1950 or finish_year > 2100):
+            finish_year = None
+        normalized.append({
+            "companyName": str(item.get("companyName") or "").strip() or "Company not listed",
+            "mainRole": str(item.get("mainRole") or "").strip() or "Role not listed",
+            "description": str(item.get("description") or "").strip(),
+            "startDate": start_year,
+            "finishDate": finish_year,
+            "isPresent": _truthy(item.get("isPresent")),
+            "skills": [str(skill).strip() for skill in item.get("skills") or [] if str(skill).strip()],
+            "features": [str(feature).strip() for feature in item.get("features") or [] if str(feature).strip()],
+        })
+    return normalized[:12]
+
 def _fallback_description(profile: dict) -> str:
     skills = _flatten_profile_skills(profile)
     name = (profile.get("contact") or {}).get("full_name") or "Candidate"
@@ -350,26 +434,35 @@ async def upload_resume(
             raise HTTPException(status_code=400, detail="Could not extract resume text. Please upload a text-based PDF or DOCX.")
 
         profile = build_profile_from_text(raw)
+        ai_profile = None
+        if os.getenv("OPENAI_API_KEY"):
+            ai_profile = _safe_ai(lambda: normalize_ai_resume_profile(raw, domain), None)
+
         contact = profile.get("contact") or {}
         summary = profile.get("summary") or {}
-        full_name = contact.get("full_name") or "Candidate"
-        email = contact.get("email") or ""
-        linkedin = contact.get("linkedin") or ""
+        ai_contact = (ai_profile or {}).get("contact") or {}
+        full_name = ai_contact.get("full_name") or contact.get("full_name") or "Candidate"
+        email = ai_contact.get("email") or contact.get("email") or ""
+        linkedin = ai_contact.get("linkedin") or contact.get("linkedin") or ""
         city, state, country = _split_city_state_country(contact.get("location") or "")
+        city = ai_contact.get("city") or city
+        state = ai_contact.get("state") or state
+        country = ai_contact.get("country") or country
         flat_skill_names = _flatten_profile_skills(profile)
 
-        flatSkills = []
-        if flat_skill_names:
+        flatSkills = _normalize_ai_skills(ai_profile or {})
+        if not flatSkills and flat_skill_names:
             with ThreadPoolExecutor(max_workers=5) as executor:
                 flatSkills = list(executor.map(process_skill, [raw] * len(flat_skill_names), flat_skill_names))
 
         has_openai_key = bool(os.getenv("OPENAI_API_KEY"))
-        description = _fallback_description(profile)
-        culturalExperiences = _fallback_culture(profile)
+        description = (ai_profile or {}).get("summary") or _fallback_description(profile)
+        culturalExperiences = _normalize_culture_items((ai_profile or {}).get("culture")) or _fallback_culture(profile)
+        portfolioExperiences = _normalize_portfolio_items((ai_profile or {}).get("portfolio"))
         candidateCity = city
         candidateState = state
         candidateCountry = country
-        candidateTitle = summary.get("headline") or "Resume generated profile"
+        candidateTitle = (ai_profile or {}).get("headline") or summary.get("headline") or "Resume generated profile"
 
         existingProfile = _existing_profile_from_email(email, domain)
         if existingProfile:
@@ -385,7 +478,7 @@ async def upload_resume(
                 existingProfile["resume_warning"] = f"Existing profile selected, but the original resume file was not stored: {exc}"
             return existingProfile
 
-        if has_openai_key:
+        if has_openai_key and not ai_profile:
             with ThreadPoolExecutor(max_workers=6) as executor:
                 description_future = executor.submit(candidateDescription, raw)
                 cultural_future = executor.submit(candidateCulturalExperience, raw)
@@ -395,7 +488,7 @@ async def upload_resume(
                 title_future = executor.submit(processGeneral, raw, "current or most recent job title (DO NOT RETURN ANY ASSOCIATED COMPANIES OR JOBS. ONLY RETURN JOB TITLE. RETURN NO ADDITIONAL COMMENTARY)")
 
             description = _safe_ai(description_future.result, description)
-            culturalExperiences = _safe_ai(cultural_future.result, culturalExperiences)
+            culturalExperiences = _normalize_culture_items(_safe_ai(cultural_future.result, culturalExperiences)) or culturalExperiences
             candidateCity = _safe_ai(city_future.result, candidateCity)
             candidateState = _safe_ai(state_future.result, candidateState)
             candidateCountry = _safe_ai(country_future.result, candidateCountry)
@@ -413,6 +506,7 @@ async def upload_resume(
             candidateState=candidateState,
             candidateCountry=candidateCountry,
             candidateTitle=candidateTitle,
+            portfolioExperiences=portfolioExperiences,
         )
 
         from starlette.datastructures import UploadFile as StarletteUploadFile

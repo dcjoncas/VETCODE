@@ -1038,7 +1038,7 @@ def getProfileShortScore(jobId: str, profileIds: list[str], domain: str = "dev")
     # Sort by skill match
     return resultSet
     
-def uploadProfile(skills: list, fullName: str, candidateDescription: str, domain: str, email: str = None, linkedInUrl: str = None, culturalExperiences: list = [], candidateCity: str = None, candidateState: str = None, candidateCountry: str = None, candidateTitle: str = None):
+def uploadProfile(skills: list, fullName: str, candidateDescription: str, domain: str, email: str = None, linkedInUrl: str = None, culturalExperiences: list = [], candidateCity: str = None, candidateState: str = None, candidateCountry: str = None, candidateTitle: str = None, portfolioExperiences: list = None):
     print(f"Uploading profile for {fullName} with email {email} and LinkedIn URL {linkedInUrl}. Skills: {skills}")
     conn = client.getConnection()
     cur = conn.cursor()
@@ -1048,6 +1048,7 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, domain
     email = email or ""
     candidateDescription = candidateDescription or "Resume generated profile."
     culturalExperiences = culturalExperiences or []
+    portfolioExperiences = portfolioExperiences or []
     splitName = fullName.split(" ")
     firstName = splitName[0]
     lastName = splitName[-1] if len(splitName) > 1 else ""
@@ -1090,11 +1091,25 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, domain
     query = "INSERT INTO platformactivity (profileid, step, result, date) VALUES (%s, 1, 1, NOW()) RETURNING id"
     cur.execute(query, (professionalprofileId,))
 
+    def _resolve_skill_id(skill_title: str):
+        clean_title = (skill_title or "").strip()
+        if not clean_title:
+            return None
+        cur.execute(
+            """
+            SELECT id
+            FROM skill
+            WHERE title ILIKE %s
+            ORDER BY CASE WHEN LOWER(title) = LOWER(%s) THEN 0 ELSE 1 END, LENGTH(title)
+            LIMIT 1
+            """,
+            (f"%{clean_title}%", clean_title),
+        )
+        return cur.fetchone()[0] if cur.rowcount > 0 else None
+
     for skill in skills:
         # Check if skill already exists
-        query = f"SELECT id FROM skill WHERE title ILIKE '%{skill['title'].strip()}%' LIMIT 1"
-        cur.execute(query)
-        skillId = cur.fetchone()[0] if cur.rowcount > 0 else None
+        skillId = _resolve_skill_id(skill.get("title"))
 
         if not skillId:
             continue
@@ -1110,6 +1125,56 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, domain
         _sync_identity_sequence(cur, "professionalculturalexperience")
         query = "INSERT INTO professionalculturalexperience (profileid, title, level) VALUES (%s, %s, %s)"
         cur.execute(query, (professionalprofileId, experience["experience"], experience["level"]))
+
+    for experience in portfolioExperiences:
+        startDate = experience.get("startDate")
+        finishDate = experience.get("finishDate")
+        raw_present = experience.get("isPresent")
+        isPresent = raw_present if isinstance(raw_present, bool) else str(raw_present or "").strip().lower() in {"true", "yes", "1", "present", "current"}
+        if not startDate:
+            continue
+
+        _sync_identity_sequence(cur, "professionalexperience")
+        if finishDate:
+            query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, finishdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id"
+            cur.execute(
+                query,
+                (
+                    professionalprofileId,
+                    experience.get("description") or "",
+                    experience.get("mainRole") or "",
+                    experience.get("companyName") or "",
+                    startDate,
+                    finishDate,
+                    isPresent,
+                ),
+            )
+        else:
+            query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id"
+            cur.execute(
+                query,
+                (
+                    professionalprofileId,
+                    experience.get("description") or "",
+                    experience.get("mainRole") or "",
+                    experience.get("companyName") or "",
+                    startDate,
+                    isPresent,
+                ),
+            )
+        experienceId = cur.fetchone()[0]
+
+        for skillTitle in experience.get("skills") or []:
+            skillId = _resolve_skill_id(skillTitle)
+            if skillId:
+                query = "INSERT INTO portfolioskill (professionalexperienceid, skillid) VALUES (%s, %s)"
+                cur.execute(query, (experienceId, skillId))
+
+        for feature in experience.get("features") or []:
+            featureTitle = str(feature or "").strip()
+            if featureTitle:
+                query = "INSERT INTO portfoliofeature (professionalexperienceid, title) VALUES (%s, %s)"
+                cur.execute(query, (experienceId, featureTitle))
     
     conn.commit()
     conn.close()
