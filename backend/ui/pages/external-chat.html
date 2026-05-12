@@ -17,6 +17,7 @@
       <aside class="sidebar">
         <div class="brand">
           <img
+            id="domainLogoImg"
             src="../assets/devLogo.svg"
             alt="DevReady"
             style="width: 42px; height: 42px"
@@ -73,6 +74,10 @@
 
       const query = urlParams.get("query");
       const candidate = urlParams.get("candidate") || null;
+      const currentDomain = urlParams.get("domain") || "dev";
+      document.getElementById("domainCss").href = `../assets/${currentDomain}Styles.css`;
+      const logoImg = document.getElementById("domainLogoImg");
+      if (logoImg) logoImg.src = `../assets/${currentDomain}Logo.svg`;
 
       const chatWindow = document.getElementById("chatWindow");
       let chatTranscript = [];
@@ -96,7 +101,7 @@
       }
 
       async function getChatHistory() {
-        const chatHistory = await api(`/api/chat/getChat/${candidate}`, {
+        const chatHistory = await api(`/api/chat/getChat/${candidate}?domain=${encodeURIComponent(currentDomain)}`, {
           method: "GET",
         });
 
@@ -132,6 +137,7 @@
         fd.append("transcript", JSON.stringify(chatTranscript));
         fd.append("candidateName", userName);
         fd.append("chatUrl", candidate);
+        fd.append("domain", currentDomain);
 
         let aiResponse = {};
 

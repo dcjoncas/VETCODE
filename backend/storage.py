@@ -311,6 +311,26 @@ def get_profile(db_path: str, profile_id: str) -> Optional[dict]:
     except Exception:
         return None
 
+def get_profile_by_email(db_path: str, email: str) -> Optional[dict]:
+    email = (email or "").strip().lower()
+    if not email:
+        return None
+
+    conn = _conn(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT data_json FROM profiles WHERE lower(COALESCE(email,''))=? ORDER BY COALESCE(updated_at, created_at) DESC LIMIT 1",
+        (email,),
+    )
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        return None
+    try:
+        return json.loads(row["data_json"])
+    except Exception:
+        return None
+
 def upsert_jd(
     db_path: str,
     jd_id: str,

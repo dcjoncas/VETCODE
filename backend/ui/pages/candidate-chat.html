@@ -233,6 +233,7 @@
       const candidateName = sessionStorage.getItem("candidateName");
       const candidateStatus = sessionStorage.getItem("candidateStatus");
       const candidateId = sessionStorage.getItem("candidateId");
+      const currentDomain = sessionStorage.getItem("domain") || "dev";
       const chatWindow = document.getElementById("chatWindow");
       let chatTranscript = [];
       let chatURL = "";
@@ -245,12 +246,13 @@
       async function scheduleAiChat() {
         const fd = new FormData();
         fd.append("profileid", candidateId);
+        fd.append("domain", currentDomain);
 
         const result = await api("/api/chat/scheduleChat", {
           method: "POST",
           body: fd,
         });
-        const urlString = `${window.location.host}/ui/pages/external-chat.html?candidate=${result}`;
+        const urlString = `${window.location.host}/ui/pages/external-chat.html?candidate=${result}&domain=${encodeURIComponent(currentDomain)}`;
 
         console.log(urlString);
 
@@ -277,13 +279,13 @@
 
         if (!chatUrlCode) return;
 
-        const urlString = `${window.location.host}/ui/pages/external-chat.html?candidate=${chatUrlCode}`;
+        const urlString = `${window.location.host}/ui/pages/external-chat.html?candidate=${chatUrlCode}&domain=${encodeURIComponent(currentDomain)}`;
 
         document.getElementById("chatUrl").innerHTML =
           `User Facing AI Chat Link: ${urlString}`;
         chatURL = urlString;
 
-        const chatHistory = await api(`/api/chat/getChat/${chatUrlCode}`, {
+        const chatHistory = await api(`/api/chat/getChat/${chatUrlCode}?domain=${encodeURIComponent(currentDomain)}`, {
           method: "GET",
         });
 

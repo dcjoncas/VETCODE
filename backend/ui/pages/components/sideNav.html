@@ -13,23 +13,17 @@
   >
   <a
     id="recordingsLink"
-    href="https://web-production-268c2.up.railway.app/#ask-form"
-    target="_blank"
-    rel="noopener"
+    href="meet.html"
     class="recordings-link"
-    ><span class="dot"></span>Recordings</a
+    ><span class="dot"></span>Meet</a
   >
   <a
-    href="https://devcode-production.up.railway.app/"
-    target="_blank"
-    rel="noopener"
+    href="test-challenge.html"
     class="test-challenge-link"
     ><span class="dot"></span>Test Challenge</a
   >
   <a
-    href="https://aicert-production.up.railway.app/"
-    target="_blank"
-    rel="noopener"
+    href="ai-cert.html"
     style="background: #1769e0; color: #fff; border-color: rgba(255, 255, 255, 0.35)"
     ><span class="dot"></span>Get AI Certified</a
   >
@@ -46,14 +40,6 @@
 <script>
   const currentNavPath = window.location.pathname.replace(/\/$/, "");
   const navLinks = document.querySelectorAll("#pageNav a");
-  const recordingsLink = document.getElementById("recordingsLink");
-
-  if (recordingsLink) {
-    const crmReturnUrl = new URL("crm.html", window.location.href).href;
-    recordingsLink.href =
-      `https://web-production-268c2.up.railway.app/?returnTo=${encodeURIComponent(crmReturnUrl)}#ask-form`;
-  }
-
   navLinks.forEach((link) => {
     const linkPath = new URL(link.href).pathname.replace(/\/$/, "");
 

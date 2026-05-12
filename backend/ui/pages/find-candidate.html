@@ -358,6 +358,7 @@
         const keys = [
           "candidateId",
           "candidateName",
+          "candidateEmail",
           "candidateStatus",
           "candidateProfileType",
           "candidateTopMatches",
@@ -392,6 +393,7 @@
           "candidateName",
           profile.name || `${profile.firstName || ""} ${profile.lastName || ""}`.trim(),
         );
+        sessionStorage.setItem("candidateEmail", profile.email || "");
         sessionStorage.setItem("candidateStatus", profile.step || profile.status || "");
         sessionStorage.removeItem("candidateProfileType");
         sessionStorage.removeItem("externalCandidateSource");
@@ -415,7 +417,7 @@
         if (profile.email) params.set("email", profile.email);
         if (profile.id) params.set("profileId", profile.id);
         const query = params.toString();
-        return `https://aicert-production.up.railway.app/${query ? "?" + query : ""}`;
+        return `ai-cert.html${query ? "?" + query : ""}`;
       }
 
       function mergeAndRankProfiles(skillProfiles, identityProfiles) {
@@ -632,7 +634,7 @@
             //tr.style.cursor = "pointer";
             const cert = r.aiCertification || {};
             const certLabel = cert.level ? `Certified - ${cert.level}` : cert.status || "Not started";
-            tr.innerHTML = `<td>${i + 1}</td><td>${escapeHtml(r.firstName || "")} ${escapeHtml(r.lastName || "")}</td><td>${escapeHtml(r.email || "")}</td><td>${escapeHtml(r.primaryStack || r.title || "Other")}</td><td><div class="pill">${escapeHtml(r.step)}</div></td><td><a class="pill" href="${aiCertUrl(r)}" target="_blank" rel="noopener">${escapeHtml(certLabel)}</a></td><td></td>`;
+            tr.innerHTML = `<td>${i + 1}</td><td>${escapeHtml(r.firstName || "")} ${escapeHtml(r.lastName || "")}</td><td>${escapeHtml(r.email || "")}</td><td>${escapeHtml(r.primaryStack || r.title || "Other")}</td><td><div class="pill">${escapeHtml(r.step)}</div></td><td><a class="pill" href="${aiCertUrl(r)}">${escapeHtml(certLabel)}</a></td><td></td>`;
             tr.addEventListener("click", () => findSelect(r));
             tr.querySelector("a").addEventListener("click", (event) => event.stopPropagation());
             tr.style.cursor = "pointer";

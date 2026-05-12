@@ -22,6 +22,23 @@
   </a>
 
   <div class="userbox">
+    <a
+      href="https://devready.io/contact/"
+      target="_blank"
+      rel="noopener"
+      style="
+        display: block;
+        margin-bottom: 10px;
+        padding: 8px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.92);
+        color: #125b36;
+        font-size: 12px;
+        font-weight: 900;
+        text-align: center;
+      "
+      >Contact DevReady</a
+    >
     <div style="font-size: 12px; opacity: 0.9">Welcome back,</div>
     <div class="name">Darrin Joncas</div>
     <div
@@ -61,6 +78,7 @@
         onchange="domainSwap()"
       >
         <option value="dev" style="color: black">Technology Domain</option>
+        <option value="engineer" style="color: black">Engineer Domain</option>
         <option value="law" style="color: black">Law Domain</option>
       </select>
     </div>
@@ -136,7 +154,12 @@
     const badge = document.getElementById("environmentBadge");
     const notice = document.getElementById("environmentNotice");
     const domain = sessionStorage.getItem("domain") || document.getElementById("domainSelect")?.value || "dev";
-    const domainName = domain === "law" ? "Law Domain" : "Technology Domain";
+    const domainName =
+      domain === "law"
+        ? "Law Domain"
+        : domain === "engineer"
+          ? "Engineer Domain"
+          : "Technology Domain";
     const now = new Date().toLocaleString([], {
       year: "numeric",
       month: "short",

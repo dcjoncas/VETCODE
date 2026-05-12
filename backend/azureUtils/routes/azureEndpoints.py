@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from concurrent.futures import ThreadPoolExecutor
+import os
+import traceback
 from azureUtils.storage import candidates, resumes
 from resumeProcessing.processing import ingest
 from deterministic_profile import build_profile_from_text
@@ -167,10 +169,62 @@ async def update_profile_portfolio(portfolioUpdate: candidates.profilePortfolioU
 
 # For multithreading
 def process_skill(raw: str, key: str):
-    return {
-        "title": key,
-        "years": processSkillYears(raw, key)
-    }
+    if not os.getenv("OPENAI_API_KEY"):
+        return {"title": key, "years": 1}
+    try:
+        years = processSkillYears(raw, key)
+    except Exception:
+        years = 1
+    return {"title": key, "years": years}
+
+def _infer_resume_source_type(filename: str, source_type: str = None) -> str:
+    st = (source_type or "").strip().lower()
+    if st in {"pdf", "docx"}:
+        return st
+
+    ext = os.path.splitext((filename or "").lower())[1].lstrip(".")
+    if ext in {"pdf", "docx"}:
+        return ext
+    if ext == "doc":
+        raise HTTPException(status_code=400, detail="Legacy .doc resumes are not supported. Please upload a PDF or DOCX.")
+    raise HTTPException(status_code=400, detail="Unsupported resume type. Please upload a PDF or DOCX.")
+
+def _safe_ai(callable_obj, fallback):
+    try:
+        value = callable_obj()
+        return value if value not in (None, "") else fallback
+    except Exception as exc:
+        print(f"Resume AI enrichment skipped: {exc}")
+        traceback.print_exc()
+        return fallback
+
+def _flatten_profile_skills(profile: dict) -> list[str]:
+    flat = []
+    for skills in (profile.get("skills") or {}).values():
+        if isinstance(skills, list):
+            flat.extend([str(skill).strip() for skill in skills if str(skill).strip()])
+    return sorted(set(flat))
+
+def _fallback_description(profile: dict) -> str:
+    skills = _flatten_profile_skills(profile)
+    name = (profile.get("contact") or {}).get("full_name") or "Candidate"
+    headline = (profile.get("summary") or {}).get("headline") or "Resume generated profile"
+    skill_text = ", ".join(skills[:10]) if skills else "skills to be confirmed"
+    return f"{name} is a {headline}. Resume parsing found experience related to {skill_text}."
+
+def _fallback_culture(profile: dict) -> list[dict]:
+    skills = _flatten_profile_skills(profile)
+    if not skills:
+        return [{"experience": "Technology Delivery", "level": 1}]
+    families = [key.replace("_", " ").title() for key, vals in (profile.get("skills") or {}).items() if vals]
+    return [{"experience": family, "level": 1} for family in families[:5]] or [{"experience": "Technology Delivery", "level": 1}]
+
+def _split_city_state_country(location: str) -> tuple[str, str, str]:
+    parts = [part.strip() for part in (location or "").split(",") if part.strip()]
+    city = parts[0] if len(parts) > 0 else ""
+    state = parts[1] if len(parts) > 1 else ""
+    country = parts[2] if len(parts) > 2 else ""
+    return city, state, country
 
 @router.post("/resume/upload")
 async def upload_resume(
@@ -178,52 +232,87 @@ async def upload_resume(
     source_type: str = Form(None),
     domain: str = Form(default="dev"),
 ):
-    #try:
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file name received.")
-    #path = os.path.join(UPLOAD_DIR, os.path.basename(file.filename))
-    #with open(path, "wb") as f:
-    #    shutil.copyfileobj(file.file, f)
+    try:
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="No file name received.")
 
-    file_bytes = await file.read()
+        resolved_source_type = _infer_resume_source_type(file.filename, source_type)
+        file_bytes = await file.read()
+        raw = ingest(resolved_source_type, file_bytes)
+        if not (raw or "").strip():
+            raise HTTPException(status_code=400, detail="Could not extract resume text. Please upload a text-based PDF or DOCX.")
 
-    raw = ingest(source_type, file_bytes)
-    profile = build_profile_from_text(raw)
+        profile = build_profile_from_text(raw)
+        contact = profile.get("contact") or {}
+        summary = profile.get("summary") or {}
+        full_name = contact.get("full_name") or "Candidate"
+        email = contact.get("email") or ""
+        linkedin = contact.get("linkedin") or ""
+        city, state, country = _split_city_state_country(contact.get("location") or "")
+        flat_skill_names = _flatten_profile_skills(profile)
 
-    # Reset file pointer before uploading
-    file.file.seek(0)
+        flatSkills = []
+        if flat_skill_names:
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                flatSkills = list(executor.map(process_skill, [raw] * len(flat_skill_names), flat_skill_names))
 
-    flatSkills = []
+        has_openai_key = bool(os.getenv("OPENAI_API_KEY"))
+        description = _fallback_description(profile)
+        culturalExperiences = _fallback_culture(profile)
+        candidateCity = city
+        candidateState = state
+        candidateCountry = country
+        candidateTitle = summary.get("headline") or "Resume generated profile"
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        results = executor.map(process_skill, [raw] * len(profile["skills"]), profile["skills"].keys())
+        if has_openai_key:
+            with ThreadPoolExecutor(max_workers=6) as executor:
+                description_future = executor.submit(candidateDescription, raw)
+                cultural_future = executor.submit(candidateCulturalExperience, raw)
+                city_future = executor.submit(processGeneral, raw, "currently lived in city (DO NOT RETURN PROVINCE OR STATE. DO NOT RETURN ASSOCIATED JOBS OR COMPANIES. ONLY RETURN CITY NAME)")
+                state_future = executor.submit(processGeneral, raw, "currently lived in state or province (DO NOT RETURN CITY. DO NOT RETURN ASSOCIATED JOBS OR COMPANIES. ONLY RETURN STATE OR PROVINCE NAME. RETURN NO ADDITIONAL COMMENTARY)")
+                country_future = executor.submit(processGeneral, raw, "currently lived in country (DO NOT RETURN CITY, STATE OR PROVINCE. ONLY RETURN COUNTRY NAME)")
+                title_future = executor.submit(processGeneral, raw, "current or most recent job title (DO NOT RETURN ANY ASSOCIATED COMPANIES OR JOBS. ONLY RETURN JOB TITLE. RETURN NO ADDITIONAL COMMENTARY)")
 
-        flatSkills = list(results)
+            description = _safe_ai(description_future.result, description)
+            culturalExperiences = _safe_ai(cultural_future.result, culturalExperiences)
+            candidateCity = _safe_ai(city_future.result, candidateCity)
+            candidateState = _safe_ai(state_future.result, candidateState)
+            candidateCountry = _safe_ai(country_future.result, candidateCountry)
+            candidateTitle = _safe_ai(title_future.result, candidateTitle)
 
-    # TODO: Make python call all AI functions in parallel to speed up processing time. Currently doing sequentially which is not efficient.
-    with ThreadPoolExecutor(max_workers=6) as executor:
-        description_future = executor.submit(candidateDescription, raw)
-        culturalExperiences_future = executor.submit(candidateCulturalExperience, raw)
-        candidateCity_future = executor.submit(processGeneral, raw, "currently lived in city (DO NOT RETURN PROVINCE OR STATE. DO NOT RETURN ASSOCIATED JOBS OR COMPANIES. ONLY RETURN CITY NAME)")
-        candidateState_future = executor.submit(processGeneral, raw, "currently lived in state or province (DO NOT RETURN CITY. DO NOT RETURN ASSOCIATED JOBS OR COMPANIES. ONLY RETURN STATE OR PROVINCE NAME. RETURN NO ADDITIONAL COMMENTARY)")
-        candidateCountry_future = executor.submit(processGeneral, raw, "currently lived in country (DO NOT RETURN CITY, STATE OR PROVINCE. ONLY RETURN COUNTRY NAME)")
-        candidateTitle_future = executor.submit(processGeneral, raw, "current or most recent job title (DO NOT RETURN ANY ASSOCIATED COMPANIES OR JOBS. ONLY RETURN JOB TITLE. RETURN NO ADDITIONAL COMMENTARY)")
+        profileResult = candidates.uploadProfile(
+            skills=flatSkills,
+            fullName=full_name,
+            domain=domain,
+            email=email,
+            linkedInUrl=linkedin,
+            candidateDescription=description,
+            culturalExperiences=culturalExperiences,
+            candidateCity=candidateCity,
+            candidateState=candidateState,
+            candidateCountry=candidateCountry,
+            candidateTitle=candidateTitle,
+        )
 
-    print(profile)
+        from starlette.datastructures import UploadFile as StarletteUploadFile
+        from io import BytesIO
+        resume_upload = StarletteUploadFile(filename=file.filename, file=BytesIO(file_bytes))
+        try:
+            resumeResult = await resumes.uploadResume(resume_upload, profileResult["personid"])
+            profileResult["resume"] = resumeResult
+        except Exception as exc:
+            print(f"Resume file storage skipped after profile creation: {exc}")
+            traceback.print_exc()
+            profileResult["resume"] = None
+            profileResult["resume_warning"] = f"Profile was created, but the original resume file was not stored: {exc}"
 
-    description = description_future.result()
-    culturalExperiences = culturalExperiences_future.result()
-    candidateCity = candidateCity_future.result()
-    candidateState = candidateState_future.result()
-    candidateCountry = candidateCountry_future.result()
-    candidateTitle = candidateTitle_future.result()
-
-    profileResult = candidates.uploadProfile(skills=flatSkills, fullName=profile["contact"]["full_name"], domain=domain, email=profile["contact"]["email"], linkedInUrl=profile["contact"]["linkedin"], candidateDescription=description, culturalExperiences=culturalExperiences, candidateCity=candidateCity, candidateState=candidateState, candidateCountry=candidateCountry, candidateTitle=candidateTitle)
-
-    resumeResult = await resumes.uploadResume(file, profileResult["personid"])
-    profileResult["resume"] = resumeResult
-
-    return profileResult
+        return profileResult
+    except HTTPException:
+        raise
+    except Exception as exc:
+        print(f"Resume upload failed: {exc}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Resume upload failed: {exc}")
 
 @router.get("/resume/{profileId}")
 async def get_resume(profileId: str):

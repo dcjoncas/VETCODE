@@ -1,11 +1,23 @@
 import re
 from profile_schema import empty_devready_profile
 from skill_lexicon import SKILL_GROUPS, SENIORITY_HINTS
-from openAI.candidateProcessing import processGeneral
 
 _EMAIL_RE = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.IGNORECASE)
 _PHONE_RE = re.compile(r"(\+?\d[\d\s().-]{7,}\d)")
 _LINKEDIN_RE = re.compile(r"(https?://(www\.)?linkedin\.com/[^\s]+)", re.IGNORECASE)
+_NAME_SKIP_WORDS = {
+    "resume",
+    "curriculum vitae",
+    "cv",
+    "profile",
+    "summary",
+    "professional summary",
+    "experience",
+    "work experience",
+    "education",
+    "skills",
+    "technical skills",
+}
 
 def _norm(s: str) -> str:
     return re.sub(r"\s+", " ", (s or "").strip()).lower()
@@ -19,14 +31,36 @@ def extract_skills(text: str):
                 found[group].add(sk)
     return {k: sorted(v) for k,v in found.items()}
 
+def extract_name(text: str) -> str:
+    lines = [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
+    for line in lines[:25]:
+        lower = _norm(line)
+        if lower in _NAME_SKIP_WORDS:
+            continue
+        if _EMAIL_RE.search(line) or _PHONE_RE.search(line):
+            continue
+        if "linkedin" in lower or "github" in lower or "http" in lower or "@" in line:
+            continue
+
+        cleaned = re.sub(r"[^A-Za-zÀ-ÿ' .-]", " ", line)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip(" .-|")
+        words = cleaned.split()
+        if 2 <= len(words) <= 5 and len(cleaned) <= 80:
+            return cleaned
+
+    email = _EMAIL_RE.search(text or "")
+    if email:
+        local = email.group(0).split("@", 1)[0]
+        return re.sub(r"[._-]+", " ", local).title().strip() or "Candidate"
+    return "Candidate"
+
 def build_profile_from_text(text: str):
     p = empty_devready_profile()
     lines = [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
     p["debug"]["text_lines"] = len(lines)
     p["debug"]["text_chars"] = len(text or "")
 
-    # Use AI to grab name
-    p["contact"]["full_name"] = processGeneral(text, "full name")
+    p["contact"]["full_name"] = extract_name(text)
 
     m = _EMAIL_RE.search(text or "")
     if m:

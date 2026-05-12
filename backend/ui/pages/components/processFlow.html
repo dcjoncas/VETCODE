@@ -14,6 +14,9 @@
         <button class="process-map-button" type="button" onclick="openProcessMap()">
           View process map
         </button>
+        <button class="process-clear-button" type="button" onclick="clearProcessTrail()">
+          Start over
+        </button>
       </div>
       <div class="flow-help">
         Start in Talent for resumes, job descriptions, profile search, and discovery. Use MineEx when you need an outside candidate source.
@@ -121,6 +124,41 @@
 
   function closeProcessMap() {
     document.getElementById("processMapOverlay").hidden = true;
+  }
+
+  function clearProcessTrail() {
+    const keepDomain = sessionStorage.getItem("domain") || "dev";
+    const keys = [
+      "candidateId",
+      "candidateName",
+      "candidateEmail",
+      "candidateStatus",
+      "candidateProfileType",
+      "candidateTopMatches",
+      "candidateResumeUrl",
+      "externalCandidateSource",
+      "shortlist",
+      "clientEmail",
+      "jobID",
+      "jobCompany",
+      "jobTitle",
+      "jobSkills",
+      "preferredCalendarProvider",
+      "scheduleTracking",
+      "latestScheduleTracking",
+      "temporaryProfiles",
+      "totalProfiles",
+      "recentProfiles",
+      "pipelineProfiles",
+    ];
+
+    keys.forEach((key) => sessionStorage.removeItem(key));
+    sessionStorage.setItem("domain", keepDomain);
+
+    if (typeof updateCandidate === "function") updateCandidate();
+    if (typeof updateJob === "function") updateJob();
+
+    window.location.href = "find-candidate.html?fresh=1";
   }
 
   document.querySelectorAll("#processMapOverlay .map-node").forEach((node) => {

@@ -13,6 +13,40 @@
     />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <style>
+      .profile-badges {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      .profile-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border: 1px solid rgba(47, 125, 75, 0.28);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 800;
+        color: #125b36;
+        background: #eef9ea;
+      }
+
+      .profile-badge.tech {
+        color: #0f3f2a;
+        background: #e6f6ef;
+        border-color: rgba(18, 91, 54, 0.32);
+      }
+
+      .profile-badge .badge-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #2f7d4b;
+      }
+    </style>
     <script>
       $(function () {
         $("#siteSidebar").load("components/sidebar.html");
@@ -82,6 +116,7 @@
                 <!-- • <div id="candidateAvailability" style="display: inline;">No Availability Listed</div>-->
               </div>
               <div id="topMatches" class="pills">No Skills Found</div>
+              <div id="profileBadges" class="profile-badges"></div>
             </div>
             <div class="row-actions" style="margin: 0">
               <a id="publicBtnLink" href="profile-public.html" target="_blank"
@@ -555,6 +590,43 @@
         }
       }
 
+      async function loadProfileBadges(candidateId) {
+        const target = document.getElementById("profileBadges");
+        if (!target || !candidateId) return;
+
+        try {
+          const data = await api(`/api/profile/${candidateId}/badges`);
+          const tech = data.badges && data.badges.techChallenge;
+          const badges = [];
+          if (tech && tech.status === "passed") {
+            const score = tech.score ? ` - ${escapeHtml(tech.score)}` : "";
+            const date = tech.updatedAt ? ` title="Passed ${escapeHtml(tech.updatedAt)}"` : "";
+            badges.push(`
+              <span class="profile-badge tech"${date}>
+                <span class="badge-dot"></span>
+                20-question Tech Challenge Passed${score}
+              </span>
+            `);
+          }
+          const aiCert = data.badges && data.badges.aiCertification;
+          if (aiCert && ["certified", "completed"].includes(aiCert.status)) {
+            const level = aiCert.level ? ` - ${escapeHtml(aiCert.level)}` : "";
+            const score = aiCert.score ? ` (${escapeHtml(aiCert.score)})` : "";
+            const date = aiCert.updatedAt ? ` title="Certified ${escapeHtml(aiCert.updatedAt)}"` : "";
+            badges.push(`
+              <span class="profile-badge tech"${date}>
+                <span class="badge-dot"></span>
+                AI Certified${level}${score}
+              </span>
+            `);
+          }
+          target.innerHTML = badges.join("");
+        } catch (e) {
+          console.warn("Unable to load profile badges", e);
+          target.innerHTML = "";
+        }
+      }
+
       document.addEventListener("DOMContentLoaded", async () => {
         // Get session variables
         const candidateId = sessionStorage.getItem("candidateId");
@@ -565,6 +637,10 @@
         if (candidateId) {
           document.getElementById("shortlistBtn").removeAttribute("disabled");
           profileData = await api(`/api/azure/getProfile/${candidateId}`);
+          if (profileData && profileData.email) {
+            sessionStorage.setItem("candidateEmail", profileData.email);
+          }
+          loadProfileBadges(candidateId);
 
           document.getElementById("editBtn").removeAttribute("disabled");
           const cachedResumeUrl = sessionStorage.getItem("candidateResumeUrl");

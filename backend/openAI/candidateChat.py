@@ -1,14 +1,18 @@
 from openAI.client import getOpenAPIClient
 from azureUtils.storage.chatLogs import getQuestions, saveChat, getQuestion, upsertSurveyAnswer, getPersonId, getSurveyId
+from openAI import engineeringSurvey
 import re
 
 candidateQuestions = None
 totalQuestions = 0
 
-def get_candidate_questions():
+def get_candidate_questions(domain: str = "dev"):
     global candidateQuestions, totalQuestions
+    if engineeringSurvey.is_engineer_domain(domain):
+        questions = engineeringSurvey.get_questions()
+        return questions
     if candidateQuestions is None:
-        candidateQuestions = getQuestions()
+        candidateQuestions = getQuestions(domain)
         totalQuestions = len(candidateQuestions)
     return candidateQuestions
 
@@ -70,17 +74,21 @@ def getNumber(text: str):
         client.close()
         raise
     
-def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumber: int):
-    get_candidate_questions()
+def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumber: int, domain: str = "dev"):
+    questions = get_candidate_questions(domain)
+    current_total = len(questions)
     userResponse = transcript[len(transcript)-1]['content']
     
     try:
-        question = getQuestion(questionNumber)
+        if engineeringSurvey.is_engineer_domain(domain):
+            question = engineeringSurvey.get_question(questionNumber)
+        else:
+            question = getQuestion(questionNumber, domain)
         question = f'On a scale from 1 to 5, how much do you agree with the statement "{question[0].lower() + question[1:]}"'
         questionAnswer = 0
 
         systemInstructions = [{"role": "system",
-                            "content":f'''You are an AI recruitment assistant. You will be chating with {candidateName}. MAKE NO HIRING PROMISES. NEVER SAY END THE CONVERSATION OR TELL THE CANDIDATE IT IS THE LAST QUESTION. THERE ARE {totalQuestions} QUESTIONS TO ANSWER.
+                            "content":f'''You are an AI recruitment assistant. You will be chating with {candidateName}. MAKE NO HIRING PROMISES. NEVER SAY END THE CONVERSATION OR TELL THE CANDIDATE IT IS THE LAST QUESTION. THERE ARE {current_total} QUESTIONS TO ANSWER.
         It is your job to ask them about the following statement in a casual yet professional manner. FOCUS ONLY ON THE FOLLOWING STATEMENT:\n{question}'''}]
 
     except Exception as e:
@@ -162,7 +170,10 @@ def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumb
 
         print(f'{candidateName} Corrected Answer: {questionAnswer}')
 
-    upsertSurveyAnswer(questionNumber-1, questionAnswer, getSurveyId(getPersonId(chatUrl)))
+    if engineeringSurvey.is_engineer_domain(domain):
+        engineeringSurvey.save_answer(getPersonId(chatUrl), questionNumber, questionAnswer)
+    else:
+        upsertSurveyAnswer(questionNumber-1, questionAnswer, getSurveyId(getPersonId(chatUrl)))
 
     transcript.append({"role":"assistant", "content":question})
 

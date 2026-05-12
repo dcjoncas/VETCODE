@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Test Challenge</title>
+    <link
+      class="domainLogo"
+      rel="icon"
+      href="../assets/devLogo.svg"
+      sizes="any"
+      type="image/svg+xml"
+    />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <style>
+      .main {
+        padding-top: 10px;
+      }
+
+      .topbar {
+        margin-bottom: 8px;
+        min-height: 42px;
+      }
+
+      #processFlow > .card {
+        margin-bottom: 8px !important;
+        padding: 9px 14px;
+      }
+
+      #processFlow .flow-help,
+      #processFlow #candidateSelected,
+      #processFlow #jobSelected {
+        display: none;
+      }
+
+      #processFlow > .card > div {
+        align-items: center !important;
+      }
+
+      #processFlow .flow {
+        gap: 6px;
+      }
+
+      #processFlow .step {
+        padding: 5px 9px;
+        font-size: 11px;
+      }
+
+      .challenge-summary-card {
+        padding: 10px 14px;
+        margin-bottom: 0;
+      }
+
+      .challenge-intro {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .challenge-intro h2,
+      .challenge-intro p {
+        margin-bottom: 0;
+      }
+
+      .challenge-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .challenge-candidate {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .challenge-candidate strong {
+        color: var(--text);
+      }
+
+      .challenge-frame-shell {
+        margin-top: 8px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+        background: #fff;
+        min-height: 720px;
+      }
+
+      .challenge-frame-toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--line);
+        background: #f8faf9;
+      }
+
+      .challenge-frame-toolbar strong {
+        display: block;
+        font-size: 14px;
+      }
+
+      .challenge-frame-toolbar span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .challenge-frame {
+        display: block;
+        width: 100%;
+        height: min(1020px, calc(100vh - 116px));
+        min-height: 700px;
+        border: 0;
+        background: #fff;
+      }
+
+      @media (max-width: 900px) {
+        .challenge-intro {
+          grid-template-columns: 1fr;
+        }
+
+        .challenge-actions {
+          justify-content: flex-start;
+        }
+      }
+    </style>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html");
+        $("#processFlow").load("components/processFlow.html");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Test Challenge</div>
+            <div class="breadcrumb">Candidate assessment - 20 multiple-choice questions</div>
+          </div>
+          <div id="searchBar"></div>
+        </div>
+
+        <div id="processFlow"></div>
+
+        <section class="card challenge-summary-card">
+          <div class="challenge-intro">
+            <div>
+              <h2>Challenge workspace</h2>
+              <p>
+                Launch the 20-question multiple-choice technical assessment in the DevReady flow.
+              </p>
+              <div class="challenge-candidate">
+                <span>Selected candidate:</span>
+                <strong id="challengeCandidateName">No candidate selected</strong>
+                <span id="challengeBadgeStatus"></span>
+              </div>
+            </div>
+            <div class="challenge-actions">
+              <button id="markPassedBtn" class="btn" type="button" disabled>Mark 20-question Challenge Passed</button>
+              <button id="refreshChallengeBtn" class="btn secondary" type="button">Refresh Challenge</button>
+              <a class="btn secondary" href="status-tracker.html">Open Status</a>
+            </div>
+          </div>
+        </section>
+
+        <section class="challenge-frame-shell" aria-label="DevReady Test Challenge embedded workspace">
+          <div class="challenge-frame-toolbar">
+            <div>
+              <strong>DevReady Test Challenge</strong>
+              <span id="challengeStatus">Loading challenge workspace...</span>
+            </div>
+            <span>Use this for candidate assessment.</span>
+            <span>Assessment format: 20 multiple-choice questions.</span>
+          </div>
+          <iframe
+            id="challengeFrame"
+            class="challenge-frame"
+            title="DevReady Test Challenge"
+            allow="clipboard-read; clipboard-write"
+            referrerpolicy="strict-origin-when-cross-origin"
+          ></iframe>
+        </section>
+      </main>
+    </div>
+
+    <script src="JS/apiScripts.js"></script>
+    <script>
+      const challengeBaseUrl = "https://devcode-production.up.railway.app/";
+      const challengeFrame = document.getElementById("challengeFrame");
+      const challengeStatus = document.getElementById("challengeStatus");
+      const refreshChallengeBtn = document.getElementById("refreshChallengeBtn");
+      const markPassedBtn = document.getElementById("markPassedBtn");
+      const challengeCandidateName = document.getElementById("challengeCandidateName");
+      const challengeBadgeStatus = document.getElementById("challengeBadgeStatus");
+      let selectedChallengeCandidateId = "";
+
+      function loadChallenge() {
+        challengeStatus.textContent = "Loading challenge workspace...";
+        challengeFrame.src = challengeBaseUrl;
+      }
+
+      function loadSelectedCandidate() {
+        selectedChallengeCandidateId = sessionStorage.getItem("candidateId") || "";
+        const candidateName = sessionStorage.getItem("candidateName") || "";
+        if (!selectedChallengeCandidateId) {
+          challengeCandidateName.textContent = "No candidate selected";
+          challengeBadgeStatus.textContent = "Open a profile first, then return here.";
+          markPassedBtn.disabled = true;
+          return;
+        }
+
+        challengeCandidateName.textContent = candidateName || `Profile ${selectedChallengeCandidateId}`;
+        challengeBadgeStatus.textContent = "20-question multiple-choice pass result can be attached to this profile.";
+        markPassedBtn.disabled = false;
+      }
+
+      async function markChallengePassed() {
+        if (!selectedChallengeCandidateId) return;
+        markPassedBtn.disabled = true;
+        challengeBadgeStatus.textContent = "Saving 20-question challenge badge...";
+        try {
+          const form = new URLSearchParams();
+          form.append("status", "passed");
+          form.append("challenge_title", "DevReady 20-question Multiple Choice Challenge");
+          form.append("notes", "20 multiple-choice questions");
+          await api(`/api/profile/${selectedChallengeCandidateId}/badges/tech-challenge`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: form.toString(),
+          });
+          challengeBadgeStatus.textContent = "20-question challenge badge saved to profile.";
+          markPassedBtn.textContent = "20-question Challenge Passed";
+        } catch (error) {
+          challengeBadgeStatus.textContent = `Could not save badge: ${error.message}`;
+          markPassedBtn.disabled = false;
+        }
+      }
+
+      refreshChallengeBtn.addEventListener("click", loadChallenge);
+      markPassedBtn.addEventListener("click", markChallengePassed);
+      challengeFrame.addEventListener("load", () => {
+        challengeStatus.textContent = "Challenge workspace is ready.";
+      });
+
+      loadSelectedCandidate();
+      loadChallenge();
+    </script>
+  </body>
+</html>

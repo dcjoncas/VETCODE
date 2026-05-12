@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Meet</title>
+    <link
+      class="domainLogo"
+      rel="icon"
+      href="../assets/devLogo.svg"
+      sizes="any"
+      type="image/svg+xml"
+    />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <style>
+      .main {
+        padding-top: 10px;
+      }
+
+      .topbar {
+        margin-bottom: 8px;
+        min-height: 42px;
+      }
+
+      .page-title {
+        line-height: 1.1;
+      }
+
+      #processFlow > .card {
+        margin-bottom: 8px !important;
+        padding: 9px 14px;
+      }
+
+      #processFlow .flow-help,
+      #processFlow #candidateSelected,
+      #processFlow #jobSelected {
+        display: none;
+      }
+
+      #processFlow > .card > div {
+        align-items: center !important;
+      }
+
+      #processFlow .flow {
+        gap: 6px;
+      }
+
+      #processFlow .step {
+        padding: 5px 9px;
+        font-size: 11px;
+      }
+
+      .meet-intro {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .meet-summary-card {
+        padding: 10px 14px;
+        margin-bottom: 0;
+      }
+
+      .meet-summary-card h2,
+      .meet-summary-card p {
+        margin-bottom: 0;
+      }
+
+      .meet-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .meet-frame-shell {
+        margin-top: 8px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+        background: #fff;
+        min-height: 720px;
+      }
+
+      .meet-frame-toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--line);
+        background: #f8faf9;
+      }
+
+      .meet-frame-toolbar strong {
+        display: block;
+        font-size: 14px;
+      }
+
+      .meet-frame-toolbar span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .meet-frame {
+        display: block;
+        width: 100%;
+        height: min(1020px, calc(100vh - 116px));
+        min-height: 700px;
+        border: 0;
+        background: #fff;
+      }
+
+      @media (max-width: 900px) {
+        .meet-intro {
+          grid-template-columns: 1fr;
+        }
+
+        .meet-actions {
+          justify-content: flex-start;
+        }
+      }
+    </style>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html");
+        $("#processFlow").load("components/processFlow.html");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Meet</div>
+            <div class="breadcrumb">Recordings - Meeting intelligence - CRM handoff</div>
+          </div>
+          <div id="searchBar"></div>
+        </div>
+
+        <div id="processFlow"></div>
+
+        <section class="card meet-summary-card">
+          <div class="meet-intro">
+            <div>
+              <h2 style="margin-bottom: 4px">Meeting workspace</h2>
+              <p style="margin-top: 0">
+                Record a scoping call, generate the readout, and move the meeting details into CRM without leaving the DevReady workflow.
+              </p>
+            </div>
+            <div class="meet-actions">
+              <button id="refreshMeetBtn" class="btn secondary" type="button">Refresh Meet</button>
+              <a class="btn secondary" href="crm.html">Open CRM</a>
+            </div>
+          </div>
+        </section>
+
+        <section class="meet-frame-shell" aria-label="DevReady Meet embedded workspace">
+          <div class="meet-frame-toolbar">
+            <div>
+              <strong>DevReady Meeting Agent</strong>
+              <span id="meetStatus">Loading Meet with CRM handoff enabled...</span>
+            </div>
+            <span>Recordings, saved meetings, and Ask AI stay connected to CRM.</span>
+          </div>
+          <iframe
+            id="meetFrame"
+            class="meet-frame"
+            title="DevReady Meeting Agent"
+            allow="microphone; clipboard-read; clipboard-write"
+            referrerpolicy="strict-origin-when-cross-origin"
+          ></iframe>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const meetBaseUrl = "https://web-production-268c2.up.railway.app/";
+      const meetFrame = document.getElementById("meetFrame");
+      const meetStatus = document.getElementById("meetStatus");
+      const refreshMeetBtn = document.getElementById("refreshMeetBtn");
+
+      function buildMeetUrl() {
+        const crmReturnUrl = new URL("crm.html", window.location.href);
+        const meetUrl = new URL(meetBaseUrl);
+        meetUrl.searchParams.set("returnTo", crmReturnUrl.href);
+        return meetUrl.href;
+      }
+
+      function loadMeet() {
+        meetStatus.textContent = "Loading Meet with CRM handoff enabled...";
+        meetFrame.src = buildMeetUrl();
+      }
+
+      refreshMeetBtn.addEventListener("click", loadMeet);
+
+      meetFrame.addEventListener("load", () => {
+        try {
+          const frameUrl = new URL(meetFrame.contentWindow.location.href);
+          const crmUrl = new URL("crm.html", window.location.href);
+          if (frameUrl.origin === crmUrl.origin && frameUrl.pathname === crmUrl.pathname) {
+            window.location.href = frameUrl.href;
+            return;
+          }
+        } catch {
+          // Cross-origin while DevMeet is loaded; expected.
+        }
+        meetStatus.textContent = "Meet is ready. Use Move Meeting to CRM after selecting a saved output.";
+      });
+
+      loadMeet();
+    </script>
+  </body>
+</html>

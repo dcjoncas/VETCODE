@@ -23,7 +23,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-import os, shutil, traceback
+import os, shutil, traceback, json
 from typing import Optional
 from datetime import datetime
 
@@ -175,7 +175,7 @@ def build_interview_questions(profile: dict, jd: dict, breakdown: dict) -> list[
 from resume_ingest import ingest
 from deterministic_profile import build_profile_from_text
 from jd_match import normalize_jd, match, azureMatch
-from profile_schema import new_id
+from profile_schema import new_id, empty_devready_profile
 import storage
 from renderers import profile_to_html, profile_to_docx, jd_to_html, jd_to_docx, match_report_to_html, match_report_to_docx
 
@@ -183,6 +183,136 @@ VERSION = "v2.8.6"
 DB_PATH = "devready.db"
 UPLOAD_DIR = "uploads"
 EXPORT_DIR = "exports"
+DATA_DIR = "data"
+PROFILE_BADGES_PATH = os.path.join(DATA_DIR, "profile_badges.json")
+
+
+def _read_profile_badges() -> dict:
+    try:
+        if os.path.exists(PROFILE_BADGES_PATH):
+            with open(PROFILE_BADGES_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data if isinstance(data, dict) else {}
+    except Exception:
+        traceback.print_exc()
+    return {}
+
+
+def _write_profile_badges(data: dict) -> None:
+    os.makedirs(DATA_DIR, exist_ok=True)
+    tmp_path = PROFILE_BADGES_PATH + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, sort_keys=True)
+    os.replace(tmp_path, PROFILE_BADGES_PATH)
+
+
+def _normalize_cert_title(level: str, certificate_id: str = "") -> str:
+    cleaned_level = (level or "").strip()
+    if cleaned_level and cleaned_level.lower() not in {"ai certified", "certified"}:
+        return f"{cleaned_level} AI Certification"
+    if certificate_id:
+        return "AI Certification Earned"
+    return "AI Certified"
+
+
+def _ensure_profile_for_certification(
+    profile_id: str = "",
+    candidate_name: str = "",
+    email: str = "",
+    title: str = "",
+    level: str = "",
+    score: str = "",
+    certificate_id: str = "",
+) -> tuple[str, bool]:
+    profile_id = (profile_id or "").strip()
+    candidate_name = (candidate_name or "").strip()
+    email = (email or "").strip()
+    title = (title or "").strip() or _normalize_cert_title(level, certificate_id)
+
+    if not profile_id:
+        try:
+            existing_candidates = candidates.searchCandidatesByNameEmail(email, limit=1, domain="all") if email else []
+            for row in existing_candidates:
+                if (row.get("email") or "").strip().lower() == email.lower():
+                    return str(row.get("id")), False
+        except Exception:
+            traceback.print_exc()
+
+        try:
+            description = (
+                f"AI certification profile. Certificate earned: {level or title}. "
+                f"Score: {score or 'Not provided'}. Certificate ID: {certificate_id or 'Not provided'}."
+            )
+            created_candidate = candidates.uploadProfile(
+                skills=[],
+                fullName=candidate_name or email or "AI Certified Candidate",
+                candidateDescription=description,
+                domain=os.getenv("DEVREADY_CANDIDATE_DOMAIN", "dev"),
+                email=email,
+                linkedInUrl="",
+                culturalExperiences=[],
+                candidateTitle=title,
+            )
+            created_id = str(created_candidate.get("personid") or "")
+            if created_id:
+                return created_id, True
+        except Exception:
+            traceback.print_exc()
+
+    profile = storage.get_profile(DB_PATH, profile_id) if profile_id else None
+    if not profile and email:
+        profile = storage.get_profile_by_email(DB_PATH, email)
+        profile_id = (profile.get("meta", {}) or {}).get("profile_id", "") if profile else profile_id
+
+    created = False
+    now = datetime.utcnow().isoformat() + "Z"
+    if not profile:
+        profile = empty_devready_profile()
+        profile.setdefault("meta", {})["profile_id"] = profile_id or new_id("DRP")
+        profile["meta"]["domain"] = "technology"
+        profile["meta"]["source"] = "ai_certification"
+        profile.setdefault("contact", {})["full_name"] = candidate_name or email or "AI Certified Candidate"
+        profile["contact"]["email"] = email
+        profile.setdefault("summary", {})["headline"] = title
+        profile["summary"]["overview"] = (
+            f"Profile auto-created from AI certification handoff. Certificate earned: {level or title}."
+        )
+        created = True
+    else:
+        profile.setdefault("meta", {})["domain"] = profile.get("meta", {}).get("domain") or "technology"
+        profile.setdefault("contact", {})
+        if candidate_name and not profile["contact"].get("full_name"):
+            profile["contact"]["full_name"] = candidate_name
+        if email and not profile["contact"].get("email"):
+            profile["contact"]["email"] = email
+        profile.setdefault("summary", {})
+        if title and not profile["summary"].get("headline"):
+            profile["summary"]["headline"] = title
+
+    profile_id = profile.setdefault("meta", {}).get("profile_id") or new_id("DRP")
+    profile["meta"]["profile_id"] = profile_id
+    profile["meta"]["updated_from_certification_at"] = now
+    profile["meta"]["has_ai_certification"] = True
+
+    certification = {
+        "title": title,
+        "level": level or "AI Certified",
+        "score": score,
+        "certificate_id": certificate_id,
+        "earned_at": now,
+        "source": "AICERT by DevReady",
+    }
+    existing_certs = profile.get("certifications")
+    if not isinstance(existing_certs, list):
+        existing_certs = []
+    existing_certs = [
+        cert for cert in existing_certs
+        if not (isinstance(cert, dict) and cert.get("certificate_id") and cert.get("certificate_id") == certificate_id)
+    ]
+    existing_certs.append(certification)
+    profile["certifications"] = existing_certs
+    storage.upsert_profile(DB_PATH, profile)
+    return profile_id, created
 
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -207,6 +337,7 @@ app.add_middleware(
 app.add_middleware(NoCacheMiddleware)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(EXPORT_DIR, exist_ok=True)
+os.makedirs(DATA_DIR, exist_ok=True)
 storage.init_db(DB_PATH)
 
 app.mount("/ui", StaticFiles(directory="ui", html=True), name="ui")
@@ -287,9 +418,24 @@ async def upload_resume(
         st = (source_type or "").strip().lower()
         if not st:
             ft = (file_type or "").strip().lower()
-            st = "pdf" if "pdf" in ft else ("docx" if "docx" in ft else "pdf")
+            if "pdf" in ft:
+                st = "pdf"
+            elif "docx" in ft:
+                st = "docx"
+            else:
+                ext = os.path.splitext(file.filename.lower())[1]
+                if ext == ".pdf":
+                    st = "pdf"
+                elif ext == ".docx":
+                    st = "docx"
+                elif ext == ".doc":
+                    raise HTTPException(status_code=400, detail="Legacy .doc resumes are not supported. Please upload a PDF or DOCX.")
+                else:
+                    raise HTTPException(status_code=400, detail="Unsupported resume type. Please upload a PDF or DOCX.")
 
         raw = ingest(st, path)
+        if not (raw or "").strip():
+            raise HTTPException(status_code=400, detail="Could not extract resume text. Please upload a text-based PDF or DOCX.")
         profile = build_profile_from_text(raw)
         profile.setdefault("meta", {})["domain"] = domain
 
@@ -825,6 +971,117 @@ def people_labs_search(
         #print('Results: ' + str(outcome))
 
     return {"status": "success", "returnMessage": "Successfully searched PeopleDataLabs!", "results": outcome['data'] }
+
+
+@app.get("/api/profile/{profile_id}/badges")
+def profile_badges(profile_id: str):
+    badges = _read_profile_badges()
+    return {
+        "profile_id": profile_id,
+        "badges": badges.get(str(profile_id), {}),
+    }
+
+
+@app.post("/api/profile/{profile_id}/badges/tech-challenge")
+def mark_tech_challenge_badge(
+    profile_id: str,
+    status: str = Form(default="passed"),
+    score: str = Form(default=""),
+    challenge_title: str = Form(default="DevReady 20-question Multiple Choice Challenge"),
+    notes: str = Form(default=""),
+):
+    normalized_status = (status or "passed").strip().lower()
+    if normalized_status not in {"passed", "failed", "completed"}:
+        raise HTTPException(status_code=400, detail="status must be passed, failed, or completed.")
+
+    now = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    badges = _read_profile_badges()
+    profile_entry = badges.setdefault(str(profile_id), {})
+    profile_entry["techChallenge"] = {
+        "status": normalized_status,
+        "score": score,
+        "challengeTitle": challenge_title,
+        "notes": notes,
+        "updatedAt": now,
+    }
+    _write_profile_badges(badges)
+    return {
+        "ok": True,
+        "profile_id": profile_id,
+        "badge": profile_entry["techChallenge"],
+    }
+
+
+@app.post("/api/profile/{profile_id}/badges/ai-certification")
+def mark_ai_certification_badge(
+    profile_id: str,
+    status: str = Form(default="certified"),
+    level: str = Form(default="AI Certified"),
+    score: str = Form(default=""),
+    certificate_id: str = Form(default=""),
+    candidate_name: str = Form(default=""),
+    email: str = Form(default=""),
+    title: str = Form(default=""),
+    notes: str = Form(default=""),
+):
+    normalized_status = (status or "certified").strip().lower()
+    if normalized_status not in {"started", "completed", "certified", "failed"}:
+        raise HTTPException(status_code=400, detail="status must be started, completed, certified, or failed.")
+
+    now = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    ensured_profile_id, created_profile = _ensure_profile_for_certification(
+        profile_id=profile_id,
+        candidate_name=candidate_name,
+        email=email,
+        title=title,
+        level=level,
+        score=score,
+        certificate_id=certificate_id,
+    )
+    badges = _read_profile_badges()
+    profile_entry = badges.setdefault(str(ensured_profile_id), {})
+    profile_entry["aiCertification"] = {
+        "status": normalized_status,
+        "level": level,
+        "score": score,
+        "certificateId": certificate_id,
+        "title": title or _normalize_cert_title(level, certificate_id),
+        "notes": notes,
+        "updatedAt": now,
+    }
+    _write_profile_badges(badges)
+    return {
+        "ok": True,
+        "profile_id": ensured_profile_id,
+        "created_profile": created_profile,
+        "badge": profile_entry["aiCertification"],
+    }
+
+
+@app.post("/api/profile/badges/ai-certification")
+def mark_ai_certification_badge_without_profile(
+    profile_id: str = Form(default=""),
+    status: str = Form(default="certified"),
+    level: str = Form(default="AI Certified"),
+    score: str = Form(default=""),
+    certificate_id: str = Form(default=""),
+    candidate_name: str = Form(default=""),
+    email: str = Form(default=""),
+    title: str = Form(default=""),
+    notes: str = Form(default=""),
+):
+    return mark_ai_certification_badge(
+        profile_id=profile_id,
+        status=status,
+        level=level,
+        score=score,
+        certificate_id=certificate_id,
+        candidate_name=candidate_name,
+        email=email,
+        title=title,
+        notes=notes,
+    )
+
 
 from azureUtils.routes import azureEndpoints, aiChatEndpoints, azureJobEndpoints
 from openAI.routes import aiEndpoints

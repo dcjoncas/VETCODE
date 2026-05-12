@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import random
 import string
 import json
+from openAI import engineeringSurvey
 
 def getPersonId(chatUrl: str):
     try:
@@ -93,7 +94,10 @@ def createSurvey(profprofileId: int, token: str):
     conn.commit()
     conn.close()
 
-def countQuestions() -> int:
+def countQuestions(domain: str = "dev") -> int:
+    if engineeringSurvey.is_engineer_domain(domain):
+        return len(engineeringSurvey.get_questions())
+
     conn = client.getConnection()
     cur = conn.cursor()
 
@@ -107,7 +111,10 @@ def countQuestions() -> int:
 
     return result[0][0]
 
-def getQuestions():
+def getQuestions(domain: str = "dev"):
+    if engineeringSurvey.is_engineer_domain(domain):
+        return engineeringSurvey.get_questions()
+
     conn = client.getConnection()
     cur = conn.cursor()
 
@@ -125,7 +132,10 @@ def getQuestions():
 
     return processedResults
 
-def getQuestion(questionId: int) -> str:
+def getQuestion(questionId: int, domain: str = "dev") -> str:
+    if engineeringSurvey.is_engineer_domain(domain):
+        return engineeringSurvey.get_question(questionId)
+
     conn = client.getConnection()
     cur = conn.cursor()
 
@@ -156,7 +166,7 @@ def upsertSurveyAnswer(questionId: int, surveyResponse: int, profId: int):
     conn.commit()
     conn.close()
 
-def getChat(urlcode: str):
+def getChat(urlcode: str, domain: str = "dev"):
     try:
         conn = client.getConnection()
         cur = conn.cursor()
@@ -191,7 +201,8 @@ def getChat(urlcode: str):
             "chatClosed": row[5],
             "aiTranscript": openAiTranscript,
             "surveyId": getSurveyId(row[3]),
-            "questionCount": countQuestions()
+            "questionCount": countQuestions(domain),
+            "domain": "engineer" if engineeringSurvey.is_engineer_domain(domain) else "dev"
         }
     
     except Exception as e:

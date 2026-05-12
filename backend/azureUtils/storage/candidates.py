@@ -4,6 +4,7 @@ import azureUtils.storage.client as client
 import azureUtils.storage.processingFunctions as processing
 from azureUtils.storage.jobs import getJob
 from jd_match import azureJobMatch
+from openAI import engineeringSurvey
 
 def getSkills():
     conn = client.getConnection()
@@ -874,6 +875,10 @@ def getProfile(profileId: str):
 
     conn.close()
 
+    engineeringPersonality = engineeringSurvey.profile_personality(profileId)
+    if engineeringPersonality:
+        personalityArray = engineeringPersonality
+
     return {
         'profile':{
             'firstName': results[0],
@@ -1001,6 +1006,11 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, domain
     conn = client.getConnection()
     cur = conn.cursor()
 
+    fullName = " ".join((fullName or "Candidate").split()) or "Candidate"
+    linkedInUrl = linkedInUrl or ""
+    email = email or ""
+    candidateDescription = candidateDescription or "Resume generated profile."
+    culturalExperiences = culturalExperiences or []
     splitName = fullName.split(" ")
     firstName = splitName[0]
     lastName = splitName[-1] if len(splitName) > 1 else ""

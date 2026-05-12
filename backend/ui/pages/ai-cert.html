@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - AI Certification</title>
+    <link
+      class="domainLogo"
+      rel="icon"
+      href="../assets/devLogo.svg"
+      sizes="any"
+      type="image/svg+xml"
+    />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <style>
+      .main {
+        padding-top: 10px;
+      }
+
+      .topbar {
+        margin-bottom: 8px;
+        min-height: 42px;
+      }
+
+      #processFlow > .card {
+        margin-bottom: 8px !important;
+        padding: 9px 14px;
+      }
+
+      #processFlow .flow-help,
+      #processFlow #candidateSelected,
+      #processFlow #jobSelected {
+        display: none;
+      }
+
+      #processFlow > .card > div {
+        align-items: center !important;
+      }
+
+      #processFlow .flow {
+        gap: 6px;
+      }
+
+      #processFlow .step {
+        padding: 5px 9px;
+        font-size: 11px;
+      }
+
+      .cert-summary-card {
+        padding: 10px 14px;
+        margin-bottom: 0;
+      }
+
+      .cert-intro {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .cert-intro h2,
+      .cert-intro p {
+        margin-bottom: 0;
+      }
+
+      .cert-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .cert-candidate {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .cert-candidate strong {
+        color: var(--text);
+      }
+
+      .cert-send-panel {
+        margin-top: 10px;
+        border-top: 1px solid var(--line);
+        padding-top: 10px;
+      }
+
+      .cert-send-grid {
+        display: grid;
+        grid-template-columns: 1.1fr 1.2fr auto;
+        gap: 8px;
+        align-items: end;
+      }
+
+      .cert-send-grid label,
+      .cert-tracker label {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .cert-send-grid input {
+        width: 100%;
+        min-height: 34px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 7px 9px;
+        font-size: 12px;
+      }
+
+      .cert-send-actions {
+        display: flex;
+        gap: 7px;
+        flex-wrap: wrap;
+      }
+
+      .cert-tracker {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .cert-tracker .track-cell {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8faf9;
+        padding: 8px 9px;
+        min-height: 54px;
+      }
+
+      .cert-tracker strong {
+        display: block;
+        color: var(--text);
+        font-size: 13px;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+      }
+
+      .cert-frame-shell {
+        margin-top: 8px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+        background: #fff;
+        min-height: 720px;
+      }
+
+      .cert-frame-toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--line);
+        background: #f8faf9;
+      }
+
+      .cert-frame-toolbar strong {
+        display: block;
+        font-size: 14px;
+      }
+
+      .cert-frame-toolbar span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .cert-frame {
+        display: block;
+        width: 100%;
+        height: min(1020px, calc(100vh - 116px));
+        min-height: 700px;
+        border: 0;
+        background: #fff;
+      }
+
+      @media (max-width: 900px) {
+        .cert-intro {
+          grid-template-columns: 1fr;
+        }
+
+        .cert-actions {
+          justify-content: flex-start;
+        }
+
+        .cert-send-grid,
+        .cert-tracker {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html");
+        $("#processFlow").load("components/processFlow.html");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">AI Certification</div>
+            <div class="breadcrumb">Candidate certification - profile badge handoff</div>
+          </div>
+          <div id="searchBar"></div>
+        </div>
+
+        <div id="processFlow"></div>
+
+        <section class="card cert-summary-card">
+          <div class="cert-intro">
+            <div>
+              <h2>AI Cert workspace</h2>
+              <p>
+                Launch AI certification inside DevReady and attach the completed result to the selected profile.
+              </p>
+              <div class="cert-candidate">
+                <span>Selected candidate:</span>
+                <strong id="certCandidateName">No candidate selected</strong>
+                <span id="certBadgeStatus"></span>
+              </div>
+              <div class="cert-send-panel">
+                <div class="cert-send-grid">
+                  <div>
+                    <label for="certRecipientEmail">Send certification link to</label>
+                    <input id="certRecipientEmail" type="email" placeholder="candidate@email.com" />
+                  </div>
+                  <div>
+                    <label for="certOutboundLink">Candidate link</label>
+                    <input id="certOutboundLink" type="text" readonly />
+                  </div>
+                  <div class="cert-send-actions">
+                    <button id="copyCertLinkBtn" class="btn secondary" type="button">Copy Link</button>
+                    <button id="emailCertLinkBtn" class="btn secondary" type="button">Email Link</button>
+                    <button id="markCertSentBtn" class="btn secondary" type="button">Mark Sent</button>
+                  </div>
+                </div>
+                <div class="cert-tracker" aria-label="Certification tracking">
+                  <div class="track-cell">
+                    <label>Candidate</label>
+                    <strong id="trackCandidate">Not selected</strong>
+                  </div>
+                  <div class="track-cell">
+                    <label>Stage</label>
+                    <strong id="trackStage">Not sent</strong>
+                  </div>
+                  <div class="track-cell">
+                    <label>Attempts / outcome</label>
+                    <strong id="trackAttempts">No attempt recorded</strong>
+                  </div>
+                  <div class="track-cell">
+                    <label>Last activity</label>
+                    <strong id="trackLastActivity">None yet</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="cert-actions">
+              <button id="markCertifiedBtn" class="btn" type="button" disabled>Mark AI Certified</button>
+              <button id="refreshCertBtn" class="btn secondary" type="button">Refresh AI Cert</button>
+              <a class="btn secondary" href="profile-preview.html">Open Profile</a>
+            </div>
+          </div>
+        </section>
+
+        <section class="cert-frame-shell" aria-label="AI Certification embedded workspace">
+          <div class="cert-frame-toolbar">
+            <div>
+              <strong>AI Certification</strong>
+              <span id="certStatus">Loading AI Cert workspace...</span>
+            </div>
+            <span>Candidate name, email, and profile id are passed into the certification app.</span>
+          </div>
+          <iframe
+            id="certFrame"
+            class="cert-frame"
+            title="AI Certification"
+            allow="clipboard-read; clipboard-write"
+            referrerpolicy="strict-origin-when-cross-origin"
+          ></iframe>
+        </section>
+      </main>
+    </div>
+
+    <script src="JS/apiScripts.js"></script>
+    <script>
+      const certBaseUrl = "https://aicert-production.up.railway.app/";
+      const certFrame = document.getElementById("certFrame");
+      const certStatus = document.getElementById("certStatus");
+      const refreshCertBtn = document.getElementById("refreshCertBtn");
+      const markCertifiedBtn = document.getElementById("markCertifiedBtn");
+      const certCandidateName = document.getElementById("certCandidateName");
+      const certBadgeStatus = document.getElementById("certBadgeStatus");
+      const certRecipientEmail = document.getElementById("certRecipientEmail");
+      const certOutboundLink = document.getElementById("certOutboundLink");
+      const copyCertLinkBtn = document.getElementById("copyCertLinkBtn");
+      const emailCertLinkBtn = document.getElementById("emailCertLinkBtn");
+      const markCertSentBtn = document.getElementById("markCertSentBtn");
+      const trackCandidate = document.getElementById("trackCandidate");
+      const trackStage = document.getElementById("trackStage");
+      const trackAttempts = document.getElementById("trackAttempts");
+      const trackLastActivity = document.getElementById("trackLastActivity");
+      let selectedCertCandidateId = "";
+
+      function selectedCandidate() {
+        const params = new URLSearchParams(window.location.search);
+        const profileId = params.get("profileId");
+        const candidateName = params.get("candidate");
+        const email = params.get("email");
+
+        if (profileId) sessionStorage.setItem("candidateId", profileId);
+        if (candidateName) sessionStorage.setItem("candidateName", candidateName);
+        if (email) sessionStorage.setItem("candidateEmail", email);
+
+        return {
+          id: sessionStorage.getItem("candidateId") || "",
+          name: sessionStorage.getItem("candidateName") || "",
+          email: sessionStorage.getItem("candidateEmail") || "",
+        };
+      }
+
+      function certTrackingKey(candidate = selectedCandidate()) {
+        return `devready.aiCertTracking.${candidate.id || candidate.email || candidate.name || "unassigned"}`;
+      }
+
+      function readCertTracking(candidate = selectedCandidate()) {
+        try {
+          return JSON.parse(localStorage.getItem(certTrackingKey(candidate)) || "{}");
+        } catch (e) {
+          return {};
+        }
+      }
+
+      function writeCertTracking(updates = {}) {
+        const candidate = selectedCandidate();
+        const current = readCertTracking(candidate);
+        const next = {
+          ...current,
+          ...updates,
+          updatedAt: new Date().toLocaleString(),
+        };
+        localStorage.setItem(certTrackingKey(candidate), JSON.stringify(next));
+        renderCertHandoff();
+      }
+
+      function certUrl(outbound = false) {
+        const candidate = selectedCandidate();
+        const params = new URLSearchParams();
+        if (candidate.id) params.set("profileId", candidate.id);
+        if (candidate.name) params.set("candidate", candidate.name);
+        const email = (certRecipientEmail?.value || candidate.email || "").trim();
+        if (email) params.set("email", email);
+        params.set("source", outbound ? "devready_invite" : "devready");
+        const returnTo = new URL(window.location.href);
+        returnTo.searchParams.set("certComplete", "1");
+        params.set("returnTo", returnTo.toString());
+        return `${certBaseUrl}?${params.toString()}`;
+      }
+
+      function renderCertHandoff() {
+        const candidate = selectedCandidate();
+        if (certRecipientEmail && !certRecipientEmail.value) certRecipientEmail.value = candidate.email || "";
+        if (certOutboundLink) certOutboundLink.value = certUrl(true);
+
+        const tracking = readCertTracking(candidate);
+        trackCandidate.textContent = candidate.name || certRecipientEmail.value || "No candidate selected";
+        trackStage.textContent = tracking.stage || (tracking.certifiedAt ? "Certified" : "Not sent");
+        trackAttempts.textContent = tracking.outcome || tracking.attempts || "No attempt recorded";
+        trackLastActivity.textContent = tracking.updatedAt || "None yet";
+      }
+
+      function loadCert() {
+        certStatus.textContent = "Loading AI Cert workspace...";
+        certFrame.src = certUrl();
+      }
+
+      function loadSelectedCandidate() {
+        const candidate = selectedCandidate();
+        selectedCertCandidateId = candidate.id;
+
+        if (!selectedCertCandidateId) {
+          certCandidateName.textContent = "No profile selected yet";
+          certBadgeStatus.textContent = "When certification is earned, DevReady will create the profile and attach the certificate.";
+          markCertifiedBtn.disabled = false;
+          renderCertHandoff();
+          return;
+        }
+
+        certCandidateName.textContent = candidate.name || `Profile ${selectedCertCandidateId}`;
+        certBadgeStatus.textContent = "AI Cert will be linked to this profile.";
+        markCertifiedBtn.disabled = false;
+        renderCertHandoff();
+      }
+
+      async function saveAiCertification(result = {}) {
+        markCertifiedBtn.disabled = true;
+        certBadgeStatus.textContent = "Saving AI certification badge...";
+
+        try {
+          const candidate = selectedCandidate();
+          const candidateName = result.candidate || candidate.name || "";
+          const candidateEmail = result.email || candidate.email || "";
+          const certLevel = result.level || result.certificationLevel || "AI Certified";
+          const certId = result.certificateId || result.certificate_id || "";
+          const certTitle = result.title || `${certLevel} AI Certification`;
+          const form = new URLSearchParams();
+          if (selectedCertCandidateId) form.append("profile_id", selectedCertCandidateId);
+          form.append("status", result.status || "certified");
+          form.append("level", certLevel);
+          form.append("score", result.score || "");
+          form.append("certificate_id", certId);
+          form.append("candidate_name", candidateName);
+          form.append("email", candidateEmail);
+          form.append("title", certTitle);
+          form.append("notes", result.notes || "AI certification completed through embedded AI Cert workspace");
+          const endpoint = selectedCertCandidateId
+            ? `/api/profile/${selectedCertCandidateId}/badges/ai-certification`
+            : "/api/profile/badges/ai-certification";
+          const response = await api(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: form.toString(),
+          });
+          if (response.profile_id) {
+            selectedCertCandidateId = response.profile_id;
+            sessionStorage.setItem("candidateId", response.profile_id);
+          }
+          if (candidateName) sessionStorage.setItem("candidateName", candidateName);
+          if (candidateEmail) sessionStorage.setItem("candidateEmail", candidateEmail);
+          certCandidateName.textContent = candidateName || `Profile ${selectedCertCandidateId}`;
+          certBadgeStatus.textContent = response.created_profile
+            ? "Profile created and AI certification saved."
+            : "AI Certified badge saved to profile.";
+          writeCertTracking({
+            stage: response.created_profile ? "Profile created + certified" : "Certified",
+            outcome: `${certLevel}${result.score ? ` - ${result.score}` : ""}`,
+            attempts: "1 completed attempt recorded",
+            certifiedAt: new Date().toISOString(),
+          });
+          markCertifiedBtn.textContent = "AI Certified";
+        } catch (error) {
+          certBadgeStatus.textContent = `Could not save AI Cert badge: ${error.message}`;
+          markCertifiedBtn.disabled = false;
+        }
+      }
+
+      function tryCaptureReturnedIframe() {
+        try {
+          const frameUrl = new URL(certFrame.contentWindow.location.href);
+          if (frameUrl.origin === window.location.origin && frameUrl.searchParams.get("certComplete")) {
+            saveAiCertification({
+              status: frameUrl.searchParams.get("status") || "certified",
+              candidate: frameUrl.searchParams.get("candidate") || "",
+              email: frameUrl.searchParams.get("email") || "",
+              level: frameUrl.searchParams.get("level") || "AI Certified",
+              score: frameUrl.searchParams.get("score") || "",
+              certificateId: frameUrl.searchParams.get("certificateId") || "",
+            });
+          }
+        } catch (e) {
+          // Cross-origin iframe URLs cannot be read until the cert app returns to this origin.
+        }
+      }
+
+      window.addEventListener("message", (event) => {
+        if (event.origin !== "https://aicert-production.up.railway.app") return;
+        const data = event.data || {};
+        if (data.type === "ai-cert-complete" || data.type === "certification-complete") {
+          saveAiCertification(data);
+        }
+      });
+
+      copyCertLinkBtn.addEventListener("click", async () => {
+        renderCertHandoff();
+        try {
+          await navigator.clipboard.writeText(certOutboundLink.value);
+          writeCertTracking({ stage: "Link copied" });
+        } catch (e) {
+          certOutboundLink.select();
+          document.execCommand("copy");
+          writeCertTracking({ stage: "Link copied" });
+        }
+      });
+
+      emailCertLinkBtn.addEventListener("click", () => {
+        renderCertHandoff();
+        const candidate = selectedCandidate();
+        const recipient = (certRecipientEmail.value || "").trim();
+        const subject = encodeURIComponent("DevReady AI Certification Link");
+        const body = encodeURIComponent(
+          `Hi ${candidate.name || "there"},\n\nPlease complete your DevReady AI certification here:\n\n${certOutboundLink.value}\n\nThank you,\nDevReady`,
+        );
+        writeCertTracking({ stage: "Email opened", recipient });
+        window.location.href = `mailto:${encodeURIComponent(recipient)}?subject=${subject}&body=${body}`;
+      });
+
+      markCertSentBtn.addEventListener("click", () => {
+        renderCertHandoff();
+        writeCertTracking({
+          stage: "Sent to candidate",
+          recipient: (certRecipientEmail.value || "").trim(),
+          attempts: "Awaiting candidate attempt",
+        });
+      });
+
+      certRecipientEmail.addEventListener("input", renderCertHandoff);
+      refreshCertBtn.addEventListener("click", loadCert);
+      markCertifiedBtn.addEventListener("click", () => saveAiCertification());
+      certFrame.addEventListener("load", () => {
+        certStatus.textContent = "AI Cert workspace is ready.";
+        tryCaptureReturnedIframe();
+      });
+
+      loadSelectedCandidate();
+      loadCert();
+    </script>
+  </body>
+</html>
