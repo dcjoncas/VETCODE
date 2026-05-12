@@ -88,6 +88,42 @@
         font-size: 14px;
       }
 
+      .interview-type-toggle {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin: 14px 0;
+      }
+
+      .interview-type-button {
+        align-items: flex-start;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 12px;
+        text-align: left;
+        box-shadow: none;
+      }
+
+      .interview-type-button.selected {
+        border-color: rgba(47, 125, 75, 0.55);
+        box-shadow: inset 0 0 0 2px rgba(127, 191, 63, 0.18);
+      }
+
+      .interview-type-button strong {
+        font-size: 14px;
+      }
+
+      .interview-type-button span {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
       .compact-fields {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -151,6 +187,26 @@
             generate a clean email draft, book through Calendly, or send a real
             Google/Outlook calendar invite.
           </p>
+          <div class="interview-type-toggle" role="group" aria-label="Interview type">
+            <button
+              id="readyInterviewButton"
+              class="interview-type-button selected"
+              type="button"
+              onclick="selectInterviewType('ready')"
+            >
+              <strong>Ready Interview</strong>
+              <span>DevReady vetting, readiness, or community intake. JD is optional for community adds.</span>
+            </button>
+            <button
+              id="clientInterviewButton"
+              class="interview-type-button"
+              type="button"
+              onclick="selectInterviewType('client')"
+            >
+              <strong>Client Interview</strong>
+              <span>Client-facing interview tied to a role, client attendees, and scheduling status.</span>
+            </button>
+          </div>
 
           <div class="schedule-grid">
             <div class="schedule-panel">
@@ -158,6 +214,13 @@
               <div class="notice" id="contextNotice">Loading workflow context...</div>
 
               <div class="compact-fields" style="margin-top: 12px">
+                <div class="field" id="readyPurposeField">
+                  <label>Ready interview purpose</label>
+                  <select id="readyPurposeInput" onchange="updateInterviewTypeUi()">
+                    <option value="role">Ready interview for a role/JD</option>
+                    <option value="community">Add to community / bench</option>
+                  </select>
+                </div>
                 <div class="field">
                   <label>Candidate name</label>
                   <input id="candidateNameInput" type="text" />
@@ -177,7 +240,7 @@
               </div>
 
               <div class="field" style="margin-top: 12px">
-                <label>Job description / role context</label>
+                <label id="jobDescriptionLabel">Job description / role context</label>
                 <textarea id="jobDescriptionInput"></textarea>
               </div>
 
@@ -238,7 +301,7 @@
 
               <div class="compact-fields" style="margin-top: 12px">
                 <div class="field">
-                  <label>Interviewers / client emails</label>
+                  <label id="attendeesLabel">Interviewers / client emails</label>
                   <textarea id="attendeesInput" placeholder="name@company.com"></textarea>
                 </div>
                 <div class="field">
@@ -351,6 +414,7 @@
       const CALENDLY_BASE_URL =
         "https://calendly.com/mitch-blake-devready/discovery-call";
       let selectedProvider = "outlook";
+      let interviewType = sessionStorage.getItem("scheduleInterviewType") || "ready";
       let latestDraft = null;
       let latestHealth = null;
       let shortlistArray = [];
@@ -370,6 +434,34 @@
       function setProviderConnection(provider, connected) {
         byId(`${provider}ConnectButton`).hidden = connected;
         byId(`${provider}UseButton`).hidden = !connected;
+      }
+
+      function selectInterviewType(type) {
+        interviewType = type === "client" ? "client" : "ready";
+        sessionStorage.setItem("scheduleInterviewType", interviewType);
+        updateInterviewTypeUi();
+      }
+
+      function updateInterviewTypeUi() {
+        const isReady = interviewType === "ready";
+        const readyPurpose = byId("readyPurposeInput") ? byId("readyPurposeInput").value : "role";
+        const communityAdd = isReady && readyPurpose === "community";
+        byId("readyInterviewButton").classList.toggle("selected", isReady);
+        byId("clientInterviewButton").classList.toggle("selected", !isReady);
+        byId("readyPurposeField").hidden = !isReady;
+        byId("jobDescriptionLabel").textContent = communityAdd
+          ? "Community context (optional)"
+          : "Job description / role context";
+        byId("jobDescriptionInput").placeholder = communityAdd
+          ? "Optional notes on the candidate's target community, title, strengths, or readiness."
+          : "Paste or load the role/JD context used for this interview.";
+        byId("attendeesLabel").textContent = isReady
+          ? "DevReady interviewer emails"
+          : "Interviewers / client emails";
+        byId("attendeesInput").placeholder = isReady
+          ? "devready.teammate@company.com"
+          : "client@company.com";
+        byId("scheduleBreadcrumb").textContent = `${isReady ? "Ready Interview" : "Client Interview"} - ${byId("contextNotice").textContent || "Scheduling"}`;
       }
 
       function connectGoogle() {
@@ -394,7 +486,7 @@
           provider === "calendly"
             ? "Book with Calendly"
             : connected
-              ? "Send calendar invite"
+              ? `Send ${interviewType === "ready" ? "Ready" : "Client"} invite`
               : `Connect ${provider === "outlook" ? "Outlook" : "Google"}`;
         byId("locationInput").value = {
           calendly: "Calendly booking",
@@ -853,6 +945,8 @@
           role: byId("roleInput").value.trim(),
           company: byId("companyInput").value.trim(),
           job_description: byId("jobDescriptionInput").value.trim(),
+          interview_type: interviewType,
+          ready_purpose: byId("readyPurposeInput") ? byId("readyPurposeInput").value : "",
           ai_context: byId("aiContextInput").value.trim(),
           talking_points: byId("talkingPointsInput").value.trim(),
           interviewers: parseEmails(byId("attendeesInput").value),
@@ -878,6 +972,8 @@
           subject: byId("subjectInput").value.trim(),
           message: byId("emailOutput").textContent.trim(),
           provider: selectedProvider,
+          interviewType,
+          readyPurpose: byId("readyPurposeInput") ? byId("readyPurposeInput").value : "",
           location: byId("locationInput").value.trim(),
           windowStart: byId("startInput").value,
           windowEnd: byId("endInput").value,
@@ -902,6 +998,10 @@
 
       async function generateDraft() {
         try {
+          if (!byId("roleInput").value.trim()) {
+            showResult("Add a title/role before generating the invite. Community adds do not need a JD, but they do need a title.", true);
+            return null;
+          }
           showResult("Generating email draft...");
           latestDraft = await api("/api/calendar/invite/draft", {
             method: "POST",
@@ -922,6 +1022,7 @@
       async function createInvite() {
         try {
           const draft = latestDraft || (await generateDraft());
+          if (!draft) return;
           showResult("Checking availability and creating the invite...");
           const result = await api("/api/calendar/invite/create", {
             method: "POST",
@@ -973,6 +1074,7 @@
       document.addEventListener("DOMContentLoaded", async () => {
         defaultTimeWindow();
         const params = new URLSearchParams(window.location.search);
+        selectInterviewType(sessionStorage.getItem("scheduleInterviewType") || "ready");
         if (params.get("connected")) {
           selectProvider(params.get("connected"));
           showResult(`${params.get("connected")} connected.`);

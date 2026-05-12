@@ -448,6 +448,8 @@ You are an interview scheduling assistant for DevReady. Return only strict JSON 
 
 Candidate: {candidate_name} <{candidate_email}>
 Interviewers/client attendees: {attendee_emails or ["To be confirmed"]}
+Interview type: {payload.get("interview_type") or "ready"}
+Ready interview purpose: {payload.get("ready_purpose") or ""}
 Role: {role}
 Company: {payload.get("company") or ""}
 Job description: {payload.get("job_description") or ""}
@@ -455,7 +457,8 @@ Talking points: {talking_points}
 Context from candidate chat/profile: {payload.get("ai_context") or ""}
 
 Rules:
-- title includes the role and "Interview".
+- title includes the role and "Ready Interview" for DevReady/community interviews or "Client Interview" for client-facing interviews.
+- if ready_purpose is "community", job description may be empty; use the role/title, candidate context, and talking points.
 - duration_minutes is {duration}.
 - attendees contains only interviewer/client emails, not the candidate. It can be an empty array when interviewers are not known yet.
 - email_body is a complete plain-text email ready to send.
