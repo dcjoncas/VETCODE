@@ -23,7 +23,7 @@
             style="width: 42px; height: 42px"
           />
           <div class="title">
-            <span>DEV</span>
+            <span id="domainBrandLabel">DEV</span>
             <span>READY</span>
             <span id="candidateNameSpan" class="sub"
               >Vetting • No Candidate Selected</span
@@ -78,6 +78,10 @@
       document.getElementById("domainCss").href = `../assets/${currentDomain}Styles.css`;
       const logoImg = document.getElementById("domainLogoImg");
       if (logoImg) logoImg.src = `../assets/${currentDomain}Logo.svg`;
+      const brandLabel = document.getElementById("domainBrandLabel");
+      if (brandLabel) {
+        brandLabel.textContent = currentDomain === "engineer" ? "BUILD" : currentDomain.toUpperCase();
+      }
 
       const chatWindow = document.getElementById("chatWindow");
       let chatTranscript = [];

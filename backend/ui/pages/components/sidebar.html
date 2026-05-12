@@ -8,7 +8,7 @@
     />
     <div class="title">
       <span id="domainLabelSidebar">DEV</span>
-      <span>READY</span>
+      <span id="readyLabelSidebar">READY</span>
       <span class="sub">Vetting Workspace</span>
     </div>
   </a>
@@ -119,8 +119,9 @@
   }
 
   function domainUpdate(currentDomain) {
-    document.getElementById("domainLabelSidebar").innerHTML =
-      currentDomain.toUpperCase();
+    const domainLabel = currentDomain === "engineer" ? "BUILD" : currentDomain.toUpperCase();
+    document.getElementById("domainLabelSidebar").innerHTML = domainLabel;
+    document.getElementById("readyLabelSidebar").innerHTML = "READY";
 
     const logoSet = document.getElementsByClassName("domainLogo");
 
