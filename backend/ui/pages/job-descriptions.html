@@ -151,6 +151,27 @@
         font-weight: 800;
       }
 
+      .file-load-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      .file-load-row input[type="file"] {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .file-name {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
       @media (max-width: 760px) {
         .jd-row {
           grid-template-columns: 1fr;
@@ -200,6 +221,16 @@
               id="jdText"
               placeholder="Paste the full job description here..."
             ></textarea>
+          </div>
+          <div class="file-load-row">
+            <label class="btn secondary" for="jdFile">Load JD file</label>
+            <input id="jdFile" type="file" accept=".pdf,.docx,.txt,.md" />
+            <button class="btn secondary" type="button" id="btnSaveJdFile">
+              Save from file
+            </button>
+            <span id="jdFileName" class="file-name">
+              PDF, DOCX, TXT, or Markdown.
+            </span>
           </div>
           <div class="row-actions">
             <button class="btn" type="button" id="btnSaveJd">
@@ -380,6 +411,52 @@
         }
       }
 
+      function updateJdFileName() {
+        const file = document.getElementById("jdFile").files[0];
+        document.getElementById("jdFileName").textContent = file
+          ? `Ready to save: ${file.name}`
+          : "PDF, DOCX, TXT, or Markdown.";
+      }
+
+      async function saveJobDescriptionFromFile() {
+        const button = document.getElementById("btnSaveJdFile");
+        const status = document.getElementById("jdCreateStatus");
+        const company = document.getElementById("jdCompany").value.trim();
+        const title = document.getElementById("jdTitle").value.trim();
+        const fileInput = document.getElementById("jdFile");
+        const file = fileInput.files[0];
+
+        if (!company || !title || !file) {
+          return alert("Client, job title, and a JD file are required.");
+        }
+
+        const fd = new FormData();
+        fd.append("company", company);
+        fd.append("title", title);
+        fd.append("domain", currentDomain());
+        fd.append("file", file);
+
+        button.disabled = true;
+        status.textContent = "Reading and saving job description file...";
+        try {
+          await api("/api/azureJobs/uploadJob", {
+            method: "POST",
+            body: fd,
+          });
+          status.textContent = `Saved ${company} - ${title} from ${file.name}.`;
+          document.getElementById("jdCompany").value = "";
+          document.getElementById("jdTitle").value = "";
+          document.getElementById("jdText").value = "";
+          fileInput.value = "";
+          updateJdFileName();
+          await loadJobDescriptions();
+        } catch (error) {
+          status.textContent = `JD file upload failed: ${error.message || error}`;
+        } finally {
+          button.disabled = false;
+        }
+      }
+
       function renderClientGroup(group) {
         return `
           <div class="client-group">
@@ -469,6 +546,8 @@
 
       document.addEventListener("DOMContentLoaded", function () {
         document.getElementById("btnSaveJd").addEventListener("click", saveJobDescription);
+        document.getElementById("btnSaveJdFile").addEventListener("click", saveJobDescriptionFromFile);
+        document.getElementById("jdFile").addEventListener("change", updateJdFileName);
         setTimeout(loadJobDescriptions, 250);
       });
     </script>

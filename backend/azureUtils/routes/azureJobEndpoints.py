@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Form, HTTPException
+from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 import traceback
 import os
@@ -8,6 +8,7 @@ from azureUtils.storage import jobs, candidates
 from jd_match import normalize_jd, azureJobMatch, normalize_all_skills
 from openAI import externalPeopleSearch
 import peopleDataLabs.peopleSearch as peopleDataLabs
+from resumeProcessing.processing import ingest
 
 def top_matches_from_parts(parts: dict, limit: int = 8):
     """
@@ -570,6 +571,33 @@ def _get_job_skills(jd_id: str, domain: str = "dev"):
         job_skills = externalPeopleSearch.getPeopleSkills(jd.get("description") or "")
     return jd, job_skills
 
+def _job_file_type(filename: str) -> str:
+    ext = os.path.splitext(filename or "")[1].lower()
+    if ext == ".pdf":
+        return "pdf"
+    if ext == ".docx":
+        return "docx"
+    if ext in {".txt", ".md", ".text"}:
+        return "text"
+    if ext == ".doc":
+        raise HTTPException(status_code=400, detail="Legacy .doc files are not supported. Please upload PDF, DOCX, or TXT.")
+    raise HTTPException(status_code=400, detail="Unsupported job description file. Please upload PDF, DOCX, or TXT.")
+
+async def _extract_job_file_text(file: UploadFile) -> str:
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="The uploaded job description file is empty.")
+
+    file_type = _job_file_type(file.filename)
+    try:
+        if file_type in {"pdf", "docx"}:
+            return ingest(file_type, raw).strip()
+        return raw.decode("utf-8", errors="ignore").strip()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Could not read job description file: {exc}")
+
 @router.post("/createJob")
 def jdCreate(company: str = Form(...), title: str = Form(...), jd_text: str = Form(...), domain: str = Form(default="dev")):
     print(f"Uploading {title} at {company}")
@@ -588,6 +616,35 @@ def jdCreate(company: str = Form(...), title: str = Form(...), jd_text: str = Fo
         return {"jd_id": created.get("jd_id"), "company": company, "title": title, "domain": domain, "jd_skills": flatSkills, "jd_text": jd_text}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": 'Failed to upload job description.', "trace": traceback.format_exc()})
+
+@router.post("/uploadJob")
+async def jdUpload(
+    file: UploadFile = File(...),
+    company: str = Form(...),
+    title: str = Form(...),
+    domain: str = Form(default="dev"),
+):
+    print(f"Uploading job description file {file.filename} for {title} at {company}")
+    try:
+        jd_text = await _extract_job_file_text(file)
+        if not jd_text:
+            raise HTTPException(status_code=400, detail="No readable job description text was found in that file.")
+
+        flatSkills = list(set(normalize_all_skills(jd_text)))
+        created = jobs.uploadJob(company, title, domain, jd_text, flatSkills) or {}
+        return {
+            "jd_id": created.get("jd_id"),
+            "company": company,
+            "title": title,
+            "domain": domain,
+            "jd_skills": flatSkills,
+            "jd_text": jd_text,
+            "source_file": file.filename,
+        }
+    except HTTPException:
+        raise
+    except Exception:
+        return JSONResponse(status_code=500, content={"error": "Failed to upload job description file.", "trace": traceback.format_exc()})
 
 @router.get("/list/{domain}/{amount}")
 def jd_list(domain: str = "dev", amount: int = 5):
