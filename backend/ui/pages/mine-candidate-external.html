@@ -162,8 +162,8 @@
         <section class="card">
           <h2>Find external candidates</h2>
           <p>
-            Search directly by name, email, profile URL, or skills. You can also paste
-            or choose a job description when you want MineEx ranked to a role.
+            Search directly by name, email, profile URL, or skills. You can also choose
+            an existing job description when you want MineEx ranked to a role.
           </p>
 
           <div class="field">
@@ -177,37 +177,13 @@
             </div>
           </div>
 
-          <div class="split" hidden>
-            <div class="field">
-              <label>Company</label>
-              <input id="jdCompany" placeholder="Company Name..." />
-            </div>
-            <div class="field">
-              <label>Job title</label>
-              <input id="jdTitle" placeholder="Job Title..." />
-            </div>
-          </div>
-
-          <div class="field" hidden>
-            <label>Job description input</label>
-            <textarea
-              id="jdText"
-              placeholder="Paste job description here before mining externally..."
-            ></textarea>
-            <div class="row-actions">
-              <button class="btn" type="button" id="btnSaveJd">
-                Normalize & Save
-              </button>
-            </div>
-          </div>
-
           <div class="split">
             <div class="field">
               <label>Select saved JD</label>
               <select id="jdSelect">
                 <option value="" selected disabled hidden>Select Description</option>
               </select>
-              <small>Add or update job descriptions from Talent.</small>
+              <small>Create and review job descriptions from Job Descriptions.</small>
             </div>
             <div class="field">
               <label>Return</label>
@@ -504,48 +480,6 @@
         await loadTempProfiles();
       }
 
-      async function saveJobDescription() {
-        const company = document.getElementById("jdCompany").value.trim();
-        const title = document.getElementById("jdTitle").value.trim();
-        const text = document.getElementById("jdText").value.trim();
-        if (!company || !title || !text) {
-          return alert("Company, Job title, and Job description are required.");
-        }
-
-        document.getElementById("btnSaveJd").disabled = true;
-        document.getElementById("mineStatus").textContent = "Saving job description...";
-
-        const fd = new FormData();
-        fd.append("company", company);
-        fd.append("title", title);
-        fd.append("jd_text", text);
-        fd.append("domain", currentDomain());
-
-        try {
-          const response = await api("/api/azureJobs/createJob", {
-            method: "POST",
-            body: fd,
-          });
-
-          if (!response.jd_id) {
-            throw new Error("Job saved, but no job id was returned.");
-          }
-
-          const option = new Option(`${company} - ${title}`, response.jd_id, true, true);
-          $("#jdSelect").append(option).trigger("change");
-          rememberJob(response.jd_id, response);
-          sessionStorage.setItem("jobSkills", (response.jd_skills || []).join(", "));
-          document.getElementById("jobSkillPanel").textContent =
-            `Search skills ready: ${(response.jd_skills || []).slice(0, 12).join(", ")}`;
-          document.getElementById("mineStatus").textContent =
-            "Job description saved. Choose People Data Labs or GitHub, then find external candidates.";
-        } catch (e) {
-          document.getElementById("mineStatus").textContent = e.message;
-        } finally {
-          document.getElementById("btnSaveJd").disabled = false;
-        }
-      }
-
       document.addEventListener("DOMContentLoaded", () => {
         const domain = currentDomain();
 
@@ -575,7 +509,6 @@
         document.querySelectorAll(".source-toggle button").forEach((button) => {
           button.addEventListener("click", () => setSource(button.dataset.source));
         });
-        document.getElementById("btnSaveJd").addEventListener("click", saveJobDescription);
         document.getElementById("btnMine").addEventListener("click", mineCandidates);
         document.getElementById("externalSearchInput").addEventListener("keydown", (event) => {
           if (event.key === "Enter") {

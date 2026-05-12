@@ -176,6 +176,44 @@
         <section class="card">
           <div class="jd-toolbar">
             <div>
+              <h2>Create job description</h2>
+              <p>
+                Add a new role reference here first. Talent, Find Candidates
+                (In), and Find Candidates (Out) only load saved job descriptions.
+              </p>
+            </div>
+          </div>
+
+          <div class="split">
+            <div class="field">
+              <label>Client</label>
+              <input id="jdCompany" placeholder="Client or company name" />
+            </div>
+            <div class="field">
+              <label>Job title</label>
+              <input id="jdTitle" placeholder="Role title" />
+            </div>
+          </div>
+          <div class="field" style="margin-top: 10px">
+            <label>Job description</label>
+            <textarea
+              id="jdText"
+              placeholder="Paste the full job description here..."
+            ></textarea>
+          </div>
+          <div class="row-actions">
+            <button class="btn" type="button" id="btnSaveJd">
+              Normalize &amp; Save JD
+            </button>
+            <span id="jdCreateStatus" style="color: var(--muted); font-size: 13px">
+              Saved JDs appear below by client.
+            </span>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="jd-toolbar">
+            <div>
               <h2>Loaded job descriptions</h2>
               <p>
                 Review saved job descriptions for the selected domain. Clients
@@ -202,9 +240,6 @@
               <span>Current domain</span>
             </div>
           </div>
-        </section>
-
-        <section class="card">
           <div id="jdStatus" class="notice">Loading job descriptions...</div>
           <div id="jdGroups"></div>
         </section>
@@ -309,6 +344,42 @@
         }
       }
 
+      async function saveJobDescription() {
+        const button = document.getElementById("btnSaveJd");
+        const status = document.getElementById("jdCreateStatus");
+        const company = document.getElementById("jdCompany").value.trim();
+        const title = document.getElementById("jdTitle").value.trim();
+        const text = document.getElementById("jdText").value.trim();
+
+        if (!company || !title || !text) {
+          return alert("Client, job title, and job description are required.");
+        }
+
+        const fd = new FormData();
+        fd.append("company", company);
+        fd.append("title", title);
+        fd.append("jd_text", text);
+        fd.append("domain", currentDomain());
+
+        button.disabled = true;
+        status.textContent = "Saving job description...";
+        try {
+          const created = await api("/api/azureJobs/createJob", {
+            method: "POST",
+            body: fd,
+          });
+          status.textContent = `Saved ${company} - ${title}.`;
+          document.getElementById("jdCompany").value = "";
+          document.getElementById("jdTitle").value = "";
+          document.getElementById("jdText").value = "";
+          await loadJobDescriptions();
+        } catch (error) {
+          status.textContent = `JD save failed: ${error.message || error}`;
+        } finally {
+          button.disabled = false;
+        }
+      }
+
       function renderClientGroup(group) {
         return `
           <div class="client-group">
@@ -335,9 +406,6 @@
             <div class="row-actions">
               <button class="btn secondary" type="button" onclick="toggleJd('${escapeHtml(id)}')">
                 View
-              </button>
-              <button class="btn secondary" type="button" onclick="selectJd('${escapeHtml(id)}')">
-                Use JD
               </button>
             </div>
             <div class="jd-details" id="jd-details-${escapeHtml(id)}">
@@ -400,6 +468,7 @@
       }
 
       document.addEventListener("DOMContentLoaded", function () {
+        document.getElementById("btnSaveJd").addEventListener("click", saveJobDescription);
         setTimeout(loadJobDescriptions, 250);
       });
     </script>

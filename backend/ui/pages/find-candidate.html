@@ -18,7 +18,10 @@
         $("#siteSidebar").load("components/sidebar.html", function () {
           document
             .getElementById("domainSelect")
-            .addEventListener("change", updateCounts);
+            .addEventListener("change", () => {
+              updateCounts();
+              loadExistingDescriptions();
+            });
         });
         $("#processFlow").load("components/processFlow.html");
         $("#searchBar").load("components/searchBar.html");
@@ -163,8 +166,8 @@
           <h2>Find a candidate in DevReady</h2>
           <p>
             Search existing DevReady profiles, upload resumes to generate new
-            profiles, and add job descriptions for matching. Use Find
-            Candidates (Out) when you need People Data, LinkedIn, or GitHub.
+            profiles, and load an existing job description for matching. Create
+            new job descriptions from the Job Descriptions page first.
           </p>
 
           <div class="talent-intake-grid">
@@ -221,23 +224,21 @@
               </div>
 
               <div class="field resume-upload-box">
-                <label>Add job description</label>
-                <div class="split">
-                  <input id="jdCompany" placeholder="Company Name..." />
-                  <input id="jdTitle" placeholder="Job Title..." />
+                <label>Load job description</label>
+                <div style="color: var(--muted); font-size: 13px; line-height: 1.35">
+                  Select a job description already created on the Job Descriptions page.
                 </div>
-                <textarea
-                  id="jdText"
-                  style="margin-top: 10px"
-                  placeholder="Paste job description here..."
-                ></textarea>
+                <select id="jdSelect" style="margin-top: 10px">
+                  <option value="" selected disabled hidden>Select job description</option>
+                </select>
                 <div class="row-actions">
-                  <button class="btn" type="button" id="btnSaveJd">
-                    Normalize &amp; Save JD
+                  <a class="btn secondary" href="job-descriptions.html">Manage JDs</a>
+                  <button class="btn" type="button" id="btnLoadJd">
+                    Load JD
                   </button>
                 </div>
                 <div id="jdStatus" style="color: var(--muted); font-size: 13px">
-                  Saved job descriptions are used later in Role &amp; Match and MineEx.
+                  No job description loaded.
                 </div>
               </div>
             </div>
@@ -439,43 +440,42 @@
         );
       }
 
-      async function saveJD() {
-        const button = document.getElementById("btnSaveJd");
+      async function loadExistingDescriptions() {
+        const picker = document.getElementById("jdSelect");
         const status = document.getElementById("jdStatus");
-        button.disabled = true;
-
-        const company = document.getElementById("jdCompany").value.trim();
-        const title = document.getElementById("jdTitle").value.trim();
-        const text = document.getElementById("jdText").value.trim();
-
-        if (!company || !title || !text) {
-          button.disabled = false;
-          return alert("Company, Title, and JD text are required.");
-        }
-
-        const fd = new FormData();
-        fd.append("company", company);
-        fd.append("title", title);
-        fd.append("jd_text", text);
-        fd.append("domain", sessionStorage.getItem("domain") || "dev");
-
-        status.textContent = "Saving job description...";
+        const domain = sessionStorage.getItem("domain") || "dev";
+        picker.innerHTML = `<option value="" selected disabled hidden>Loading job descriptions...</option>`;
         try {
-          const j = await api("/api/azureJobs/createJob", {
-            method: "POST",
-            body: fd,
-          });
-          sessionStorage.setItem("jobID", j.jd_id);
-          sessionStorage.setItem("jobCompany", company);
-          sessionStorage.setItem("jobTitle", title);
-          status.textContent =
-            "Saved. Role & Match and MineEx can now use this job description.";
-          if (typeof updateJob === "function") updateJob();
+          const jds = await api(`/api/azureJobs/list/${encodeURIComponent(domain)}/200`);
+          picker.innerHTML =
+            `<option value="" selected disabled hidden>Select job description</option>` +
+            (jds || [])
+              .map(
+                (j) =>
+                  `<option value="${escapeHtml(j.jd_id)}" data-company="${escapeHtml(j.company || "")}" data-title="${escapeHtml(j.title || "")}">${escapeHtml((j.company || "Client") + " - " + (j.title || j.jd_id))}</option>`,
+              )
+              .join("");
+          status.textContent = jds.length
+            ? "Choose a saved job description to use in matching."
+            : "No job descriptions found. Create one from Job Descriptions first.";
         } catch (e) {
-          status.textContent = `JD save failed: ${e.message}`;
-        } finally {
-          button.disabled = false;
+          status.textContent = `Could not load job descriptions: ${e.message}`;
         }
+      }
+
+      function loadSelectedJobDescription() {
+        const picker = document.getElementById("jdSelect");
+        const selected = picker.options[picker.selectedIndex];
+        if (!picker.value || !selected) {
+          return alert("Select a job description first.");
+        }
+        sessionStorage.setItem("jobID", picker.value);
+        sessionStorage.setItem("jobId", picker.value);
+        sessionStorage.setItem("jobCompany", selected.dataset.company || "");
+        sessionStorage.setItem("jobTitle", selected.dataset.title || selected.textContent || "");
+        document.getElementById("jdStatus").textContent =
+          `Loaded ${selected.textContent} for this process.`;
+        if (typeof updateJob === "function") updateJob();
       }
 
       let profileDiscoveryData = null;
@@ -910,12 +910,13 @@
           .addEventListener("click", uploadResume);
 
         document
-          .getElementById("btnSaveJd")
-          .addEventListener("click", saveJD);
+          .getElementById("btnLoadJd")
+          .addEventListener("click", loadSelectedJobDescription);
 
         document
           .getElementById("scanProfilesBtn")
           .addEventListener("click", scanProfiles);
+        loadExistingDescriptions();
 
         document
           .getElementById("profileDiscoveryMode")

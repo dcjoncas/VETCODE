@@ -45,7 +45,7 @@
         <section class="card" style="width: 100%">
           <h2>Match candidate(s) to a saved job description</h2>
           <p>
-            Select a job description saved from Talent, then rank stored
+            Select a job description created from Job Descriptions, then rank stored
             profiles and choose candidates for deeper vetting.
           </p>
 
@@ -108,7 +108,7 @@
                         Select Description
                       </option>
                     </select>
-                    <small>Add or update job descriptions from Talent.</small>
+                    <small>Create and review job descriptions from Job Descriptions.</small>
                   </div>
                   <div class="field">
                     <label>Return</label>
@@ -347,49 +347,6 @@
         }
       }
 
-      async function saveJD() {
-        document.getElementById("btnSaveJd").disabled = true;
-        const company = document.getElementById("jdCompany").value.trim();
-        const title = document.getElementById("jdTitle").value.trim();
-        const text = document.getElementById("jdText").value.trim();
-
-        if (!company || !title || !text)
-          return alert("Company, Title, and JD text are required.");
-
-        const fd = new FormData();
-        fd.append("company", company);
-        fd.append("title", title);
-        fd.append("jd_text", text);
-
-        let domain = sessionStorage.getItem("domain");
-        if (!domain) domain = "dev";
-        fd.append("domain", domain);
-
-        // keep URL in the UI only (backend may ignore)
-        // document.getElementById("jdStatus").textContent = "Saving...";
-        try {
-          const j = await api("/api/azureJobs/createJob", {
-            method: "POST",
-            body: fd,
-          });
-          selectedJdId = j.jd_id;
-          sessionStorage.setItem("jobID", j.jd_id);
-          sessionStorage.setItem("jobCompany", company);
-          sessionStorage.setItem("jobTitle", title);
-          // document.getElementById("jdStatus").textContent = `Saved JD: ${j.jd_id}`;
-          // enable the buttons for viewing the saved JD
-          //document.getElementById("btnJdHtml").disabled = false;
-          //document.getElementById("btnJdDocx").disabled = false;
-
-          //await refreshExistingDescriptions();
-        } catch (e) {
-          // document.getElementById("jdStatus").textContent = `JD save failed: ${e.message}`;
-          console.log("Failed to save job description: " + e);
-        }
-
-        document.getElementById("btnSaveJd").disabled = false;
-      }
-
       function enableJDButtons() {
         const value = $("#jdSelect").val();
 
@@ -438,7 +395,6 @@
         });
 
         document.getElementById("btnRank").addEventListener("click", rank);
-        document.getElementById("btnSaveJd").addEventListener("click", saveJD);
         document
           .getElementById("jdSelect")
           .addEventListener("change", enableJDButtons);
