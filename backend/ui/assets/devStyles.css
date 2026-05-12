@@ -545,6 +545,19 @@ input[type="checkbox"] {
 .process-link-button:hover {
   text-decoration: underline;
 }
+.workspace-status-button {
+  background: transparent;
+  border: 0;
+  color: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 0;
+  text-decoration: underline;
+}
+.workspace-status-button:hover {
+  color: #fff;
+}
 .process-selection {
   color: var(--muted);
   font-size: 12px;

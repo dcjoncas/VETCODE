@@ -47,14 +47,14 @@
     </div>
     <div
       id="environmentNotice"
+      class="workspace-status-link"
       style="
         margin-top: 8px;
-        padding: 10px;
-        border-radius: 10px;
-        background: rgba(255, 255, 255, 0.14);
+        padding: 0;
+        background: transparent;
         color: #fff;
         font-size: 12px;
-        line-height: 1.4;
+        line-height: 1.2;
       "
     >
       Loading workspace status...
@@ -382,16 +382,22 @@
 
     badge.textContent = `Environment: ${environmentName}`;
     badge.style.background = background;
-    notice.innerHTML = `
-      <strong>Workspace status</strong><br />
-      ${now}<br />
-      Domain: ${domainName}<br />
-      Database: ${databaseName}<br />
-      DB host: ${databaseHost}<br />
-      Storage: ${storageContainer}<br />
-      App: ${publicDomain}<br />
-      Source: ${sourceName}
-    `;
+    const statusText = [
+      `Workspace status`,
+      now,
+      `Domain: ${domainName}`,
+      `Database: ${databaseName}`,
+      `DB host: ${databaseHost}`,
+      `Storage: ${storageContainer}`,
+      `App: ${publicDomain}`,
+      `Source: ${sourceName}`,
+    ].join("\n");
+    notice.innerHTML = `<button class="workspace-status-button" type="button">Workspace status</button>`;
+    const button = notice.querySelector("button");
+    button.dataset.hint = statusText;
+    button.setAttribute("aria-label", statusText);
+    button.onclick = () => alert(statusText);
+    if (typeof applyButtonHints === "function") applyButtonHints(notice);
   }
 
   setInterval(environmentUpdate, 60000);
