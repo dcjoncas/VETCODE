@@ -198,7 +198,7 @@
           const fullUrl = `${baseUrl}/profile-preview.html?user=${profileUrl}`;
 
           const profileData = await api(
-            `/api/azure/getProfile/short/${candidateId}`,
+            `/api/azure/getProfile/short/${candidateId}?domain=${encodeURIComponent(sessionStorage.getItem("domain") || "dev")}`,
           );
 
           document.getElementById("emailArea").innerHTML +=
@@ -230,7 +230,7 @@
             shortlistArray.forEach(async (candidate) => {
               try {
                 const profileData = await api(
-                  `/api/azure/getProfile/short/${candidate}`,
+                  `/api/azure/getProfile/short/${candidate}?domain=${encodeURIComponent(sessionStorage.getItem("domain") || "dev")}`,
                 );
 
                 shortlistTable.insertAdjacentHTML(
@@ -273,6 +273,7 @@
           } else {
             const fd = new FormData();
             fd.append("profileIds", shortlist);
+            fd.append("domain", sessionStorage.getItem("domain") || "dev");
 
             const profileData = await api(
               `/api/azure/getProfile/short/score/${jobId}`,

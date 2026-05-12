@@ -193,11 +193,16 @@
       }
 
       function loadRecords() {
-        records = JSON.parse(sessionStorage.getItem("scheduleTracking") || "[]");
+        const domain = sessionStorage.getItem("domain") || "dev";
+        const storageKey = `scheduleTracking:${domain}`;
+        const latestKey = `latestScheduleTracking:${domain}`;
+        records = JSON.parse(sessionStorage.getItem(storageKey) || sessionStorage.getItem("scheduleTracking") || "[]")
+          .filter((record) => !record.domain || record.domain === domain);
         selectedRecord =
-          JSON.parse(sessionStorage.getItem("latestScheduleTracking") || "null") ||
+          JSON.parse(sessionStorage.getItem(latestKey) || sessionStorage.getItem("latestScheduleTracking") || "null") ||
           records[0] ||
           null;
+        if (selectedRecord && selectedRecord.domain && selectedRecord.domain !== domain) selectedRecord = records[0] || null;
       }
 
       function candidateLabel(record) {
@@ -232,6 +237,8 @@
           `;
           row.querySelector("button").addEventListener("click", () => {
             selectedRecord = record;
+            const domain = sessionStorage.getItem("domain") || "dev";
+            sessionStorage.setItem(`latestScheduleTracking:${domain}`, JSON.stringify(record));
             sessionStorage.setItem("latestScheduleTracking", JSON.stringify(record));
             renderDetail();
           });
@@ -313,12 +320,17 @@
       function followUpLatest() {
         if (!selectedRecord) return;
         selectedRecord.nextAction = "Follow-up drafted";
+        const domain = sessionStorage.getItem("domain") || "dev";
+        sessionStorage.setItem(`latestScheduleTracking:${domain}`, JSON.stringify(selectedRecord));
         sessionStorage.setItem("latestScheduleTracking", JSON.stringify(selectedRecord));
         window.location.href = mailtoFor(selectedRecord, true);
         renderDetail();
       }
 
       function clearTracking() {
+        const domain = sessionStorage.getItem("domain") || "dev";
+        sessionStorage.removeItem(`scheduleTracking:${domain}`);
+        sessionStorage.removeItem(`latestScheduleTracking:${domain}`);
         sessionStorage.removeItem("scheduleTracking");
         sessionStorage.removeItem("latestScheduleTracking");
         loadRecords();

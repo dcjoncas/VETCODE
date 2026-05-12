@@ -117,6 +117,7 @@
   function domainSwap() {
     const currentDomain = document.getElementById("domainSelect").value;
 
+    clearDomainProcessTrail();
     sessionStorage.setItem("domain", currentDomain);
     const url = new URL(window.location);
     url.searchParams.set("domain", currentDomain);
@@ -147,6 +148,34 @@
     document.getElementById("domainCss").href =
       `../assets/${currentDomain}Styles.css`;
     environmentUpdate();
+  }
+
+  function clearDomainProcessTrail() {
+    const keys = [
+      "candidateId",
+      "candidateName",
+      "candidateEmail",
+      "candidateStatus",
+      "candidateProfileType",
+      "candidateTopMatches",
+      "candidateResumeUrl",
+      "externalCandidateSource",
+      "shortlist",
+      "clientEmail",
+      "jobID",
+      "jobId",
+      "selectedJdId",
+      "jdId",
+      "jobCompany",
+      "jobTitle",
+      "jobSkills",
+      "temporaryProfiles",
+      "totalProfiles",
+      "recentProfiles",
+      "pipelineProfiles",
+      "latestScheduleTracking",
+    ];
+    keys.forEach((key) => sessionStorage.removeItem(key));
   }
 
   function environmentUpdate() {

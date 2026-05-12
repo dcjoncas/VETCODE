@@ -636,7 +636,8 @@
 
         if (candidateId) {
           document.getElementById("shortlistBtn").removeAttribute("disabled");
-          profileData = await api(`/api/azure/getProfile/${candidateId}`);
+          const domain = sessionStorage.getItem("domain") || "dev";
+          profileData = await api(`/api/azure/getProfile/${candidateId}?domain=${encodeURIComponent(domain)}`);
           if (profileData && profileData.email) {
             sessionStorage.setItem("candidateEmail", profileData.email);
           }

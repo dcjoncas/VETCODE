@@ -663,15 +663,17 @@ def searchCandidatesBySkills(query: str, limit: int = 5, domain: str = 'all'):
     resultsProcessed.sort(key=lambda row: (row.get("searchRank", 0), row.get("skillCount", 0)), reverse=True)
     return resultsProcessed
 
-def searchCandidatesBySkillId(queryList: list[int], limit: int = 5):
+def searchCandidatesBySkillId(queryList: list[int], limit: int = 5, domain: str = 'dev'):
     conn = client.getConnection()
     cur = conn.cursor()
 
     # Search for user by skills attached to the account
     # Order by id descending to get the most recent matches first, and limit the number of results
-    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN (SELECT profileid, skillid FROM professionalskill UNION SELECT profileid, skillid FROM resumeskill) allskills ON allskills.profileid = profper.id JOIN skill ON allskills.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.id = ANY(%s::int[]) GROUP BY person.id, prof.email, person.firstname, person.lastname ORDER BY skillMatches DESC LIMIT {limit};"
+    domain_filter = "" if domain == "all" else "AND person.domain = %s"
+    params = [queryList] if domain == "all" else [queryList, domain]
+    query = f"SELECT person.id, person.firstname, person.lastname, prof.email, COUNT(DISTINCT skill.title) AS skillMatches, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT platact.step) FROM person JOIN professional prof ON person.id = prof.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN (SELECT profileid, skillid FROM professionalskill UNION SELECT profileid, skillid FROM resumeskill) allskills ON allskills.profileid = profper.id JOIN skill ON allskills.skillid = skill.id LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE skill.id = ANY(%s::int[]) {domain_filter} GROUP BY person.id, prof.email, person.firstname, person.lastname ORDER BY skillMatches DESC LIMIT {limit};"
     
-    cur.execute(query, (queryList,))
+    cur.execute(query, tuple(params))
     results = cur.fetchall()
 
     resultsProcessed = []
@@ -970,11 +972,21 @@ def getProfileShort(profileId: str):
         'email': results[3]
     }
 
-def getProfileShortScore(jobId: str, profileIds: list[str]):
-    jd = getJob(jobId)
+def getCandidateDomain(personId: str):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    cur.execute("SELECT domain FROM person WHERE id = %s LIMIT 1", (personId,))
+    result = cur.fetchone()
+
+    conn.close()
+    return result[0] if result else None
+
+def getProfileShortScore(jobId: str, profileIds: list[str], domain: str = "dev"):
+    jd = getJob(jobId, domain)
 
     if not jd:
-        raise HTTPException(status_code=400, detail="No job description loaded yet. Normalize a JD first.")
+        raise HTTPException(status_code=400, detail="No job description found for this domain.")
     
     jobSkills = []
     jobSkillIds = []

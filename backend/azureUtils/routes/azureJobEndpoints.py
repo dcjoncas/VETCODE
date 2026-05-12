@@ -561,10 +561,10 @@ def _github_direct_search(search_query: str, search_terms: list[str], size: int 
     enriched_rows.sort(key=lambda row: row["score"], reverse=True)
     return enriched_rows
 
-def _get_job_skills(jd_id: str):
-    jd = jobs.getJob(jd_id)
+def _get_job_skills(jd_id: str, domain: str = "dev"):
+    jd = jobs.getJob(jd_id, domain)
     if not jd:
-        raise HTTPException(status_code=400, detail="No job description loaded yet. Normalize a JD first.")
+        raise HTTPException(status_code=400, detail="No job description found for this domain.")
     job_skills = list(dict.fromkeys(_safe_list(jd.get("skills"))))
     if not job_skills:
         job_skills = externalPeopleSearch.getPeopleSkills(jd.get("description") or "")
@@ -598,19 +598,19 @@ def jd_list(domain: str = "dev", query: str = '', amount: int = 5):
     return jobs.searchJobs(domain, query, amount)
 
 @router.get("/getJob/{jobId}")
-def jd_get(jobId: str):
-    jd = jobs.getJob(jobId)
+def jd_get(jobId: str, domain: str = "dev"):
+    jd = jobs.getJob(jobId, domain)
     if not jd:
-        raise HTTPException(status_code=404, detail="Job not found.")
+        raise HTTPException(status_code=404, detail="Job not found for this domain.")
     return jd
 
 @router.post("/match/run")
 def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k: int = Form(10), external_source: str = Form(default="none")):
     # TODO: Set up job descriptions in the database
-    jd = jobs.getJob(jd_id)
+    jd = jobs.getJob(jd_id, domain)
 
     if not jd:
-        raise HTTPException(status_code=400, detail="No job description loaded yet. Normalize a JD first.")
+        raise HTTPException(status_code=400, detail="No job description found for this domain.")
     
     peopleDataSkills = []
     if not jd["skills"]:
@@ -637,7 +637,7 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
     except Exception as e:
         print(f'Error during external people search: {e}')
 
-    profiles = candidates.searchCandidatesBySkillId(jd["skillIds"], top_k)
+    profiles = candidates.searchCandidatesBySkillId(jd["skillIds"], top_k, domain)
 
     ranked = []
     for row in profiles:
@@ -717,7 +717,7 @@ def external_candidate_search(
     source: str = Form(default="pdl"),
     top_k: int = Form(default=10),
 ):
-    jd, job_skills = _get_job_skills(jd_id)
+    jd, job_skills = _get_job_skills(jd_id, domain)
     search_skills = _searchable_job_skills(job_skills, 12)
     selected_source = (source or "pdl").strip().lower()
     results = []

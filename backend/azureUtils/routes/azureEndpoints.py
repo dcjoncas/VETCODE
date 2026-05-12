@@ -81,9 +81,17 @@ def profile_page_search(domain: str = Form(default="dev"), search_string: str = 
     else:
         return candidates.searchCandidatesByNameEmailPaginated(search_string,pageLimit,currentPage, domain=domain)
     
+def _assert_candidate_domain(profileId: str, domain: str = None):
+    if not domain or domain == "all":
+        return
+    candidate_domain = candidates.getCandidateDomain(profileId)
+    if candidate_domain and candidate_domain != domain:
+        raise HTTPException(status_code=403, detail="Candidate does not belong to this domain.")
+
 @router.get("/getProfile/{profileId}")
-def get_profile(profileId: str = ""):
+def get_profile(profileId: str = "", domain: str = None):
     print(f"Fetching profile {profileId}")
+    _assert_candidate_domain(profileId, domain)
 
     return candidates.getProfile(profileId)
 
@@ -100,16 +108,20 @@ def get_profile_public_url(profileId: str = ""):
     return candidates.getProfilePublicUrl(profileId)
 
 @router.get("/getProfile/short/{profileId}")
-def get_profile_short(profileId: str = ""):
+def get_profile_short(profileId: str = "", domain: str = None):
     print(f"Fetching profile {profileId}")
+    _assert_candidate_domain(profileId, domain)
 
     return candidates.getProfileShort(profileId)
 
 @router.post("/getProfile/short/score/{jobId}")
-def get_profile_short_score(jobId: str = "", profileIds: str = Form(...)):
+def get_profile_short_score(jobId: str = "", profileIds: str = Form(...), domain: str = Form(default="dev")):
     print(f"Fetching profiles {profileIds}")
 
-    return candidates.getProfileShortScore(jobId, profileIds.split(','))
+    for profile_id in profileIds.split(','):
+        if profile_id:
+            _assert_candidate_domain(profile_id, domain)
+    return candidates.getProfileShortScore(jobId, profileIds.split(','), domain)
 
 @router.post("/profile/update")
 async def update_profile_core(personId: str = Form(...), first_name: str = Form(...), last_name: str = Form(...), city: str = Form(default=""), state: str = Form(default=""), country: str = Form(default=""), description: str = Form(default=""), job_title: str = Form(default="")):
@@ -226,12 +238,12 @@ def _split_city_state_country(location: str) -> tuple[str, str, str]:
     country = parts[2] if len(parts) > 2 else ""
     return city, state, country
 
-def _existing_profile_from_email(email: str):
+def _existing_profile_from_email(email: str, domain: str):
     clean_email = (email or "").strip().lower()
     if not clean_email:
         return None
     try:
-        matches = candidates.searchCandidatesByNameEmail(clean_email, limit=5, domain="all")
+        matches = candidates.searchCandidatesByNameEmail(clean_email, limit=5, domain=domain)
         for match in matches:
             if (match.get("email") or "").strip().lower() == clean_email:
                 name = " ".join([match.get("firstName") or "", match.get("lastName") or ""]).strip()
@@ -242,7 +254,16 @@ def _existing_profile_from_email(email: str):
                     "name": name or clean_email,
                     "existing": True,
                 }
+        cross_domain_matches = candidates.searchCandidatesByNameEmail(clean_email, limit=5, domain="all")
+        for match in cross_domain_matches:
+            if (match.get("email") or "").strip().lower() == clean_email:
+                raise HTTPException(
+                    status_code=409,
+                    detail="This resume email already belongs to a profile in another domain. Switch to that domain or use a different email/profile.",
+                )
     except Exception as exc:
+        if isinstance(exc, HTTPException):
+            raise
         print(f"Existing email lookup skipped: {exc}")
         traceback.print_exc()
     return None
@@ -285,7 +306,7 @@ async def upload_resume(
         candidateCountry = country
         candidateTitle = summary.get("headline") or "Resume generated profile"
 
-        existingProfile = _existing_profile_from_email(email)
+        existingProfile = _existing_profile_from_email(email, domain)
         if existingProfile:
             try:
                 from starlette.datastructures import UploadFile as StarletteUploadFile

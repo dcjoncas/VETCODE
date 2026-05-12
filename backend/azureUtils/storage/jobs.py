@@ -33,17 +33,31 @@ def uploadJob(company: str, title: str, domain: str, jd_text: str, skills: list[
         print(f'Cannot insert job description: {e}')
         conn.close()
 # Test
-def getJob(jobId: int):
+def getJob(jobId: int, domain: str = None):
     conn = client.getConnection()
     cur = conn.cursor()
 
-    query = f"SELECT job.id, job.domain, job.company, job.jobtitle, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT skill.id), job.description FROM jobdescription job LEFT JOIN jobskills js ON job.id = js.jobid JOIN skill ON js.skillid = skill.id WHERE job.id = {jobId} GROUP BY job.id, job.domain, job.company, job.jobtitle, job.description LIMIT 1"
-    cur.execute(query)
+    params = [jobId]
+    domain_filter = ""
+    if domain and domain != "all":
+        domain_filter = " AND job.domain = %s"
+        params.append(domain)
+
+    query = f"SELECT job.id, job.domain, job.company, job.jobtitle, ARRAY_AGG(DISTINCT skill.title), ARRAY_AGG(DISTINCT skill.id), job.description FROM jobdescription job LEFT JOIN jobskills js ON job.id = js.jobid JOIN skill ON js.skillid = skill.id WHERE job.id = %s{domain_filter} GROUP BY job.id, job.domain, job.company, job.jobtitle, job.description LIMIT 1"
+    cur.execute(query, tuple(params))
 
     result = cur.fetchone()
+    if not result:
+        conn.close()
+        return None
 
-    query = f"SELECT p.title, jp.personalityid, jp.score FROM jobdescription job LEFT JOIN jobpersonalities jp ON job.id=jp.jobid JOIN personality p ON jp.personalityid = p.id WHERE job.id = {jobId}"
-    cur.execute(query)
+    personality_params = [jobId]
+    personality_domain_filter = ""
+    if domain and domain != "all":
+        personality_domain_filter = " AND job.domain = %s"
+        personality_params.append(domain)
+    query = f"SELECT p.title, jp.personalityid, jp.score FROM jobdescription job LEFT JOIN jobpersonalities jp ON job.id=jp.jobid JOIN personality p ON jp.personalityid = p.id WHERE job.id = %s{personality_domain_filter}"
+    cur.execute(query, tuple(personality_params))
 
     personalityResult = cur.fetchall()
 

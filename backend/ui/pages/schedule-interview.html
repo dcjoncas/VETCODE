@@ -557,7 +557,8 @@
 
         if (candidateId) {
           try {
-            const profileData = await api(`/api/azure/getProfile/${candidateId}`);
+            const domain = sessionStorage.getItem("domain") || "dev";
+            const profileData = await api(`/api/azure/getProfile/${candidateId}?domain=${encodeURIComponent(domain)}`);
             const profile = profileData.profile || {};
             const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
             byId("candidateNameInput").value = fullName || candidateName;
@@ -597,7 +598,8 @@
 
         if (jobId) {
           try {
-            const job = await api(`/api/azureJobs/getJob/${jobId}`);
+            const domain = sessionStorage.getItem("domain") || "dev";
+            const job = await api(`/api/azureJobs/getJob/${jobId}?domain=${encodeURIComponent(domain)}`);
             byId("roleInput").value = job.title || byId("roleInput").value;
             byId("companyInput").value = job.company || byId("companyInput").value;
             byId("jobDescriptionInput").value = job.description || "";
@@ -756,6 +758,7 @@
         if (jobId && jobId.length > 0) {
           const fd = new FormData();
           fd.append("profileIds", shortlist);
+          fd.append("domain", sessionStorage.getItem("domain") || "dev");
           const profileData = await api(`/api/azure/getProfile/short/score/${jobId}`, {
             method: "POST",
             body: fd,
@@ -776,7 +779,8 @@
         shortlistDetails = [];
         for (const candidateId of shortlistArray) {
           try {
-            const profileData = await api(`/api/azure/getProfile/short/${candidateId}`);
+            const domain = sessionStorage.getItem("domain") || "dev";
+            const profileData = await api(`/api/azure/getProfile/short/${candidateId}?domain=${encodeURIComponent(domain)}`);
             const candidate = { id: candidateId, ...profileData };
             shortlistDetails.push(candidate);
             addShortlistRow(candidate, "Job missing");
@@ -856,6 +860,7 @@
         const candidateEmail = byId("candidateEmailInput").value.trim();
         return {
           id: `${Date.now()}`,
+          domain: sessionStorage.getItem("domain") || "dev",
           candidateName,
           candidateEmail,
           role: byId("roleInput").value.trim(),
@@ -873,9 +878,14 @@
       }
 
       function saveScheduleTracking(extra = {}) {
-        const records = JSON.parse(sessionStorage.getItem("scheduleTracking") || "[]");
+        const domain = sessionStorage.getItem("domain") || "dev";
+        const storageKey = `scheduleTracking:${domain}`;
+        const latestKey = `latestScheduleTracking:${domain}`;
+        const records = JSON.parse(sessionStorage.getItem(storageKey) || "[]");
         const record = { ...trackingRecordBase(), ...extra };
         records.unshift(record);
+        sessionStorage.setItem(storageKey, JSON.stringify(records.slice(0, 25)));
+        sessionStorage.setItem(latestKey, JSON.stringify(record));
         sessionStorage.setItem("scheduleTracking", JSON.stringify(records.slice(0, 25)));
         sessionStorage.setItem("latestScheduleTracking", JSON.stringify(record));
         return record;

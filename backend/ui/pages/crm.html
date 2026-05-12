@@ -192,7 +192,13 @@
     <script src="JS/apiScripts.js"></script>
     <script src="JS/updateProcessFlow.js"></script>
     <script>
-      const crmStorageKey = "devreadyCrmRecords";
+      function currentDomain() {
+        return sessionStorage.getItem("domain") || "dev";
+      }
+
+      function crmStorageKey() {
+        return `devreadyCrmRecords:${currentDomain()}`;
+      }
 
       function crmFields() {
         return {
@@ -210,11 +216,11 @@
       }
 
       function crmRecords() {
-        return JSON.parse(localStorage.getItem(crmStorageKey) || "[]");
+        return JSON.parse(localStorage.getItem(crmStorageKey()) || "[]");
       }
 
       function setCrmRecords(records) {
-        localStorage.setItem(crmStorageKey, JSON.stringify(records.slice(0, 200)));
+        localStorage.setItem(crmStorageKey(), JSON.stringify(records.slice(0, 200)));
       }
 
       function crmValue(key) {
@@ -231,6 +237,7 @@
       function recordFromForm() {
         return {
           id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+          domain: currentDomain(),
           createdAt: new Date().toISOString(),
           customer: crmValue("customer"),
           contact: crmValue("contact"),
@@ -364,7 +371,7 @@
         document.getElementById("clearCrmFormBtn").addEventListener("click", clearCrmForm);
         document.getElementById("clearCrmRecordsBtn").addEventListener("click", () => {
           if (!confirm("Clear all local CRM records?")) return;
-          localStorage.removeItem(crmStorageKey);
+          localStorage.removeItem(crmStorageKey());
           renderCrmHistory();
         });
       });

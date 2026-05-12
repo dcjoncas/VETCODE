@@ -1,5 +1,5 @@
 from azureUtils.storage import candidates
-from fastapi import APIRouter, Form
+from fastapi import APIRouter, Form, HTTPException
 from azureUtils.storage import chatLogs
 from openAI import candidateChat
 import json
@@ -12,6 +12,9 @@ router = APIRouter(
 @router.post("/scheduleChat")
 async def scheduleChats(profileid: str = Form(default=""), domain: str = Form(default="dev")):
     print(f"Scheduling for candidate: {profileid}")
+    candidate_domain = candidates.getCandidateDomain(profileid)
+    if candidate_domain and candidate_domain != domain:
+        raise HTTPException(status_code=403, detail="Candidate does not belong to this domain.")
     return chatLogs.scheduleChat(profileid)
 
 @router.get("/getChat/{urlcode}")
