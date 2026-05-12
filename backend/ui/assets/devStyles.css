@@ -9,6 +9,8 @@
   --primary-2: #2f7d4b; /* deep green */
   --primary-3: #bfe7a2; /* light green */
   --btn: #67a52a; /* DevReady green */
+  --button-accent-soft: rgba(47, 125, 75, 0.1);
+  --button-accent-strong: rgba(47, 125, 75, 0.24);
   --sidebar: #7fbf3f;
   --shadow: 0 10px 30px rgba(16, 32, 24, 0.08);
   --radius: 18px;
@@ -284,26 +286,54 @@ input[type="checkbox"] {
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
 }
 .btn {
-  border: 1px solid transparent;
-  background: var(--primary-2);
-  color: var(--bg);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid rgba(47, 125, 75, 0.22);
+  background: #fff;
+  color: var(--primary-2);
   border-radius: 999px;
   padding: 9px 12px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 12px 22px rgba(127, 191, 63, 0.2);
+  box-shadow:
+    0 1px 2px rgba(16, 32, 24, 0.06),
+    0 8px 18px rgba(16, 32, 24, 0.04);
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 24%;
+  background: linear-gradient(90deg, transparent 10%, var(--button-accent-soft));
+  pointer-events: none;
+  z-index: -1;
+  transition: width 140ms ease, background 140ms ease;
 }
 .btn:hover {
-  background: var(--primary);
+  border-color: var(--button-accent-strong);
+  box-shadow:
+    0 2px 4px rgba(16, 32, 24, 0.08),
+    0 12px 22px rgba(16, 32, 24, 0.08);
+  transform: translateY(-1px);
+}
+.btn:hover::after {
+  width: 34%;
+  background: linear-gradient(90deg, transparent 6%, var(--button-accent-strong));
 }
 .btn.secondary {
-  background: var(--primary-2);
+  background: #fff;
   border-color: var(--line);
-  color: var(--bg);
-  box-shadow: none;
+  color: var(--text);
+  --button-accent-soft: rgba(16, 32, 24, 0.06);
+  --button-accent-strong: rgba(47, 125, 75, 0.18);
 }
 .btn.secondary:hover {
-  background: var(--primary);
+  border-color: var(--button-accent-strong);
 }
 .btn.secondary:disabled,
 .btn:disabled {
@@ -313,29 +343,40 @@ input[type="checkbox"] {
   box-shadow: none;
   cursor: not-allowed;
 }
+.btn:disabled::after {
+  display: none;
+}
 .btn.remove {
   margin-left: 10px;
-  background-color: #dc3545;
-  color: white;
-  border: none;
+  background: #fff;
+  color: #b4232f;
+  border: 1px solid rgba(220, 53, 69, 0.28);
   padding: 5px 10px;
   cursor: pointer;
-  border-radius: 5px;
+  border-radius: 999px;
+  --button-accent-soft: rgba(220, 53, 69, 0.12);
+  --button-accent-strong: rgba(220, 53, 69, 0.22);
 }
 .btn.danger {
-  background-color: #dc3545;
+  background: #fff;
   border-color: rgba(220, 53, 69, 0.45);
-  color: #fff;
+  color: #b4232f;
+  --button-accent-soft: rgba(220, 53, 69, 0.12);
+  --button-accent-strong: rgba(220, 53, 69, 0.24);
 }
 .btn.profile-completion-danger {
-  background: #c62832;
+  background: #fff;
   border-color: rgba(198, 40, 50, 0.45);
-  color: #fff;
+  color: #9f1f2b;
+  --button-accent-soft: rgba(198, 40, 50, 0.12);
+  --button-accent-strong: rgba(198, 40, 50, 0.24);
 }
 .btn.profile-completion-warning {
-  background: #f2c94c;
+  background: #fff;
   border-color: rgba(184, 134, 11, 0.4);
   color: #332600;
+  --button-accent-soft: rgba(242, 201, 76, 0.18);
+  --button-accent-strong: rgba(184, 134, 11, 0.24);
 }
 .profile-completion-panel {
   align-items: center;
@@ -365,6 +406,9 @@ input[type="checkbox"] {
   border-color: rgba(255, 255, 255, 0.35);
   color: #fff;
   box-shadow: none;
+}
+.btn.ghost::after {
+  display: none;
 }
 .grid {
   display: grid;
