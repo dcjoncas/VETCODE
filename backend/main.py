@@ -188,6 +188,39 @@ PROFILE_BADGES_PATH = os.path.join(DATA_DIR, "profile_badges.json")
 ONBOARDING_RECORDS_PATH = os.path.join(DATA_DIR, "onboarding_records.json")
 TIME_ENTRIES_PATH = os.path.join(DATA_DIR, "time_entries.json")
 WORKFLOW_EVENTS_PATH = os.path.join(DATA_DIR, "workflow_events.json")
+ACCESS_USERS_PATH = os.path.join(DATA_DIR, "access_users.json")
+ACCESS_CANDIDATES_PATH = os.path.join(DATA_DIR, "access_candidates.json")
+
+MENU_ITEMS = [
+    {"key": "talent", "label": "Talent", "href": "find-candidate.html"},
+    {"key": "find_in", "label": "Find Candidates (In)", "href": "match-role.html"},
+    {"key": "find_out", "label": "Find Candidates (Out)", "href": "mine-candidate-external.html"},
+    {"key": "profiles", "label": "Profiles", "href": "profile-preview.html"},
+    {"key": "job_descriptions", "label": "Job Descriptions", "href": "job-descriptions.html"},
+    {"key": "crm", "label": "CRM", "href": "crm.html"},
+    {"key": "meet", "label": "Meet", "href": "meet.html"},
+    {"key": "test_challenge", "label": "Test Challenge", "href": "test-challenge.html"},
+    {"key": "ai_cert", "label": "Get AI Certified", "href": "ai-cert.html"},
+    {"key": "badges", "label": "View Badges", "href": "badge-catalog.html"},
+    {"key": "meridian", "label": "Meridian", "href": "https://meridian-mvp-production.up.railway.app/"},
+    {"key": "admin", "label": "Admin", "href": "admin.html"},
+    {"key": "legacy", "label": "Legacy Dashboard", "href": "https://dev.readyplatform.io/dashboards/vetter"},
+]
+DEFAULT_INTERNAL_MENU = [
+    "talent",
+    "find_in",
+    "find_out",
+    "profiles",
+    "job_descriptions",
+    "crm",
+    "meet",
+    "test_challenge",
+    "ai_cert",
+    "badges",
+    "meridian",
+]
+DEFAULT_CANDIDATE_MENU = ["test_challenge", "ai_cert", "badges"]
+SUPER_MENU = [item["key"] for item in MENU_ITEMS]
 
 
 def _read_json_store(path: str, fallback):
@@ -215,6 +248,58 @@ def _now_utc() -> str:
 
 def _safe_token(prefix: str = "ONB") -> str:
     return new_id(prefix).replace(" ", "").replace("/", "-")
+
+
+def _normalize_user_key(value: str) -> str:
+    return (value or "").strip().lower()
+
+
+def _seed_access_users() -> dict:
+    users = _read_json_store(ACCESS_USERS_PATH, {})
+    if users:
+        return users
+    now = _now_utc()
+    email = os.getenv("DEVREADY_ADMIN_EMAIL", "Darrin.Joncas@gmail.com")
+    username = os.getenv("DEVREADY_ADMIN_USERNAME", "DJ")
+    user_id = _safe_token("USR")
+    users[user_id] = {
+        "id": user_id,
+        "username": username,
+        "display_name": "Darrin Joncas",
+        "email": email,
+        "role": "super_user",
+        "status": "active",
+        "allowed_menu": SUPER_MENU,
+        "created_at": now,
+        "updated_at": now,
+    }
+    _write_json_store(ACCESS_USERS_PATH, users)
+    return users
+
+
+def _public_user(user: dict) -> dict:
+    return {
+        "id": user.get("id", ""),
+        "username": user.get("username", ""),
+        "display_name": user.get("display_name", ""),
+        "email": user.get("email", ""),
+        "role": user.get("role", "internal"),
+        "status": user.get("status", "active"),
+        "allowed_menu": user.get("allowed_menu", []),
+        "created_at": user.get("created_at", ""),
+        "updated_at": user.get("updated_at", ""),
+    }
+
+
+def _find_access_user(users: dict, username: str = "", email: str = "") -> dict | None:
+    username_key = _normalize_user_key(username)
+    email_key = _normalize_user_key(email)
+    for user in users.values():
+        if username_key and _normalize_user_key(user.get("username", "")) == username_key:
+            return user
+        if email_key and _normalize_user_key(user.get("email", "")) == email_key:
+            return user
+    return None
 
 
 def _read_profile_badges() -> dict:
@@ -440,6 +525,185 @@ def environment():
         "source": source_name,
         "badge_color": badge_color,
     }
+
+
+@app.get("/api/access/menu")
+def access_menu():
+    return {
+        "items": MENU_ITEMS,
+        "default_internal_menu": DEFAULT_INTERNAL_MENU,
+        "default_candidate_menu": DEFAULT_CANDIDATE_MENU,
+        "super_menu": SUPER_MENU,
+    }
+
+
+@app.post("/api/access/login")
+def access_login(
+    username: str = Form(default=""),
+    email: str = Form(default=""),
+    login_type: str = Form(default="internal"),
+):
+    users = _seed_access_users()
+    username = (username or "").strip()
+    email = (email or "").strip()
+    if not username and not email:
+        raise HTTPException(status_code=400, detail="Enter a username or email.")
+
+    user = _find_access_user(users, username=username, email=email)
+    now = _now_utc()
+    if user and user.get("status") == "blocked":
+        raise HTTPException(status_code=403, detail="This user is blocked. Contact a DevReady admin.")
+    if not user:
+        user_id = _safe_token("USR")
+        role = "candidate" if login_type == "candidate" else "internal"
+        user = {
+            "id": user_id,
+            "username": username or email,
+            "display_name": username or email,
+            "email": email,
+            "role": role,
+            "status": "active",
+            "allowed_menu": DEFAULT_CANDIDATE_MENU if role == "candidate" else DEFAULT_INTERNAL_MENU,
+            "created_at": now,
+            "updated_at": now,
+        }
+        users[user_id] = user
+    user["last_login_at"] = now
+    user["updated_at"] = now
+    _write_json_store(ACCESS_USERS_PATH, users)
+    return {"ok": True, "user": _public_user(user), "menu_items": MENU_ITEMS}
+
+
+@app.get("/api/admin/users")
+def admin_users():
+    users = _seed_access_users()
+    candidates_state = _read_json_store(ACCESS_CANDIDATES_PATH, {})
+    return {
+        "users": [_public_user(user) for user in users.values()],
+        "menu_items": MENU_ITEMS,
+        "default_internal_menu": DEFAULT_INTERNAL_MENU,
+        "default_candidate_menu": DEFAULT_CANDIDATE_MENU,
+        "super_menu": SUPER_MENU,
+        "blocked_candidates": candidates_state,
+    }
+
+
+@app.post("/api/admin/users")
+def admin_save_user(
+    user_id: str = Form(default=""),
+    username: str = Form(default=""),
+    display_name: str = Form(default=""),
+    email: str = Form(default=""),
+    role: str = Form(default="internal"),
+    status: str = Form(default="active"),
+    allowed_menu_json: str = Form(default="[]"),
+):
+    users = _seed_access_users()
+    now = _now_utc()
+    role = role if role in {"super_user", "internal", "candidate"} else "internal"
+    status = status if status in {"active", "blocked"} else "active"
+    try:
+        allowed_menu = json.loads(allowed_menu_json or "[]")
+    except Exception:
+        allowed_menu = []
+    allowed_keys = {item["key"] for item in MENU_ITEMS}
+    allowed_menu = [key for key in allowed_menu if key in allowed_keys]
+    if role == "super_user":
+        allowed_menu = SUPER_MENU
+    elif not allowed_menu:
+        allowed_menu = DEFAULT_CANDIDATE_MENU if role == "candidate" else DEFAULT_INTERNAL_MENU
+
+    user_id = user_id or _safe_token("USR")
+    existing = users.get(user_id, {})
+    users[user_id] = {
+        "id": user_id,
+        "username": username or existing.get("username", "") or email,
+        "display_name": display_name or existing.get("display_name", "") or username or email,
+        "email": email or existing.get("email", ""),
+        "role": role,
+        "status": status,
+        "allowed_menu": allowed_menu,
+        "created_at": existing.get("created_at") or now,
+        "updated_at": now,
+        "last_login_at": existing.get("last_login_at", ""),
+    }
+    _write_json_store(ACCESS_USERS_PATH, users)
+    return {"ok": True, "user": _public_user(users[user_id])}
+
+
+@app.post("/api/admin/users/{user_id}/block")
+def admin_block_user(user_id: str, blocked: str = Form(default="true")):
+    users = _seed_access_users()
+    if user_id not in users:
+        raise HTTPException(status_code=404, detail="User not found.")
+    users[user_id]["status"] = "blocked" if str(blocked).lower() in {"true", "1", "yes", "on"} else "active"
+    users[user_id]["updated_at"] = _now_utc()
+    _write_json_store(ACCESS_USERS_PATH, users)
+    return {"ok": True, "user": _public_user(users[user_id])}
+
+
+@app.delete("/api/admin/users/{user_id}")
+def admin_delete_user(user_id: str):
+    users = _seed_access_users()
+    if user_id not in users:
+        raise HTTPException(status_code=404, detail="User not found.")
+    deleted = users.pop(user_id)
+    _write_json_store(ACCESS_USERS_PATH, users)
+    return {"ok": True, "deleted": _public_user(deleted)}
+
+
+@app.post("/api/admin/users/{user_id}/send-login")
+def admin_send_login_info(user_id: str):
+    users = _seed_access_users()
+    user = users.get(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    now = _now_utc()
+    events = _read_json_store(WORKFLOW_EVENTS_PATH, [])
+    login_link = "/ui/index.html"
+    events.insert(0, {
+        "id": _safe_token("EVT"),
+        "profile_id": "",
+        "candidate_name": user.get("display_name", ""),
+        "email": user.get("email", ""),
+        "domain": "admin",
+        "event_type": "login_information_prepared",
+        "status": "ready_to_send",
+        "notes": "Login information prepared for manual send.",
+        "payload": {"login_link": login_link, "username": user.get("username", "")},
+        "created_at": now,
+        "updated_at": now,
+    })
+    _write_json_store(WORKFLOW_EVENTS_PATH, events[:1000])
+    return {
+        "ok": True,
+        "message": "Login information prepared.",
+        "login_link": login_link,
+        "user": _public_user(user),
+    }
+
+
+@app.post("/api/admin/candidates/access")
+def admin_candidate_access(
+    candidate_id: str = Form(default=""),
+    candidate_email: str = Form(default=""),
+    action: str = Form(default="block"),
+    notes: str = Form(default=""),
+):
+    key = candidate_id or candidate_email
+    if not key:
+        raise HTTPException(status_code=400, detail="Enter a candidate id or email.")
+    records = _read_json_store(ACCESS_CANDIDATES_PATH, {})
+    now = _now_utc()
+    records[key] = {
+        "candidate_id": candidate_id,
+        "candidate_email": candidate_email,
+        "status": "blocked" if action == "block" else "deleted",
+        "notes": notes,
+        "updated_at": now,
+    }
+    _write_json_store(ACCESS_CANDIDATES_PATH, records)
+    return {"ok": True, "candidate": records[key]}
 
 
 def extract_text_from_upload(file: UploadFile) -> str:

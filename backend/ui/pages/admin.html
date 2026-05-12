@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Admin</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html");
+        $("#processFlow").load("components/processFlow.html");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+    <style>
+      .admin-grid {
+        display: grid;
+        grid-template-columns: minmax(360px, 0.85fr) minmax(0, 1.15fr);
+        gap: 14px;
+        align-items: start;
+      }
+      .admin-form {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .admin-form .wide {
+        grid-column: 1 / -1;
+      }
+      .admin-form label {
+        display: grid;
+        gap: 5px;
+        font-weight: 800;
+        color: #244239;
+      }
+      .permission-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 6px;
+      }
+      .permission-grid label {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 9px 10px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 750;
+      }
+      .user-list {
+        display: grid;
+        gap: 10px;
+      }
+      .user-row {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px;
+        background: #fff;
+      }
+      .user-row.blocked {
+        border-color: rgba(190, 38, 51, 0.38);
+        background: #fff7f7;
+      }
+      .candidate-access {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      @media (max-width: 980px) {
+        .admin-grid,
+        .admin-form,
+        .permission-grid,
+        .candidate-access {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Admin</div>
+            <div class="breadcrumb">Users - candidate access - menu permissions</div>
+          </div>
+          <div id="searchBar"></div>
+        </div>
+
+        <div id="processFlow"></div>
+
+        <section class="card">
+          <h2>Access controls</h2>
+          <p>
+            Create internal users or candidate users, choose the left-menu buttons they can see, block accounts, and prepare login information.
+          </p>
+          <div class="admin-grid">
+            <form id="userForm" class="admin-form">
+              <input id="userId" name="user_id" type="hidden" />
+              <label>
+                Username
+                <input id="username" name="username" required />
+              </label>
+              <label>
+                Display name
+                <input id="displayName" name="display_name" />
+              </label>
+              <label>
+                Email
+                <input id="email" name="email" type="email" />
+              </label>
+              <label>
+                Role
+                <select id="role" name="role" onchange="syncRolePermissions()">
+                  <option value="internal">Internal</option>
+                  <option value="candidate">Candidate</option>
+                  <option value="super_user">Super user</option>
+                </select>
+              </label>
+              <label>
+                Status
+                <select id="status" name="status">
+                  <option value="active">Active</option>
+                  <option value="blocked">Blocked</option>
+                </select>
+              </label>
+              <div class="wide">
+                <strong>Left-menu access</strong>
+                <div id="permissionGrid" class="permission-grid"></div>
+              </div>
+              <div class="row-actions wide">
+                <button class="btn" type="submit">Save user</button>
+                <button class="btn secondary" type="button" onclick="newUser()">New user</button>
+              </div>
+              <div id="adminStatus" class="wide muted"></div>
+            </form>
+
+            <div>
+              <h2>Users</h2>
+              <div id="userList" class="user-list">Loading users...</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top: 14px">
+          <h2>Candidate access</h2>
+          <p>
+            Block or mark candidate access deleted by profile id or email. This protects the workflow while we wire deeper source-system deletion per domain.
+          </p>
+          <form id="candidateAccessForm" class="candidate-access">
+            <label>
+              Candidate profile id
+              <input id="candidateId" name="candidate_id" />
+            </label>
+            <label>
+              Candidate email
+              <input id="candidateEmail" name="candidate_email" type="email" />
+            </label>
+            <label>
+              Action
+              <select id="candidateAction" name="action">
+                <option value="block">Block candidate</option>
+                <option value="delete">Delete candidate access</option>
+              </select>
+            </label>
+            <label>
+              Notes
+              <input id="candidateNotes" name="notes" />
+            </label>
+            <div class="row-actions" style="grid-column: 1 / -1">
+              <button class="btn danger" type="submit">Apply candidate action</button>
+            </div>
+          </form>
+          <div id="candidateAccessList" class="muted" style="margin-top: 10px"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="JS/apiScripts.js"></script>
+    <script>
+      let menuItems = [];
+      let users = [];
+      let defaults = { internal: [], candidate: [], super: [] };
+
+      function escapeLocal(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function currentUserCanAdmin() {
+        try {
+          const user = JSON.parse(sessionStorage.getItem("devreadyUser") || localStorage.getItem("devreadyUser") || "null");
+          return !user || user.role === "super_user" || (user.allowed_menu || []).includes("admin");
+        } catch {
+          return true;
+        }
+      }
+
+      function renderPermissionGrid(selected = []) {
+        const selectedSet = new Set(selected);
+        document.getElementById("permissionGrid").innerHTML = menuItems.map((item) => `
+          <label>
+            <input type="checkbox" value="${escapeLocal(item.key)}" ${selectedSet.has(item.key) ? "checked" : ""} />
+            ${escapeLocal(item.label)}
+          </label>
+        `).join("");
+      }
+
+      function selectedPermissions() {
+        return Array.from(document.querySelectorAll("#permissionGrid input:checked")).map((input) => input.value);
+      }
+
+      function syncRolePermissions() {
+        const role = document.getElementById("role").value;
+        if (role === "super_user") renderPermissionGrid(defaults.super);
+        if (role === "internal") renderPermissionGrid(defaults.internal);
+        if (role === "candidate") renderPermissionGrid(defaults.candidate);
+      }
+
+      function renderUsers() {
+        const container = document.getElementById("userList");
+        if (!users.length) {
+          container.textContent = "No users yet.";
+          return;
+        }
+        container.innerHTML = users.map((user) => `
+          <div class="user-row ${user.status === "blocked" ? "blocked" : ""}">
+            <strong>${escapeLocal(user.display_name || user.username)}</strong>
+            <div class="muted">${escapeLocal(user.email || "No email")} - ${escapeLocal(user.role)} - ${escapeLocal(user.status)}</div>
+            <div class="muted">${escapeLocal((user.allowed_menu || []).join(", "))}</div>
+            <div class="row-actions" style="margin-top: 8px">
+              <button class="btn secondary" type="button" onclick="editUser('${escapeLocal(user.id)}')">Edit</button>
+              <button class="btn secondary" type="button" onclick="sendLogin('${escapeLocal(user.id)}')">Send login info</button>
+              <button class="btn danger" type="button" onclick="toggleBlock('${escapeLocal(user.id)}', '${user.status === "blocked" ? "false" : "true"}')">${user.status === "blocked" ? "Unblock" : "Block"}</button>
+              <button class="btn danger" type="button" onclick="deleteUser('${escapeLocal(user.id)}')">Delete</button>
+            </div>
+          </div>
+        `).join("");
+      }
+
+      function renderCandidateAccess(records) {
+        const values = Object.values(records || {});
+        document.getElementById("candidateAccessList").innerHTML = values.length
+          ? values.map((record) => `${escapeLocal(record.status)}: ${escapeLocal(record.candidate_id || record.candidate_email)} - ${escapeLocal(record.notes)}`).join("<br>")
+          : "No candidate access blocks recorded.";
+      }
+
+      async function loadAdmin() {
+        if (!currentUserCanAdmin()) {
+          document.querySelector("main.main").innerHTML = "<section class='card'><h2>Admin access required</h2><p>Your account does not have Admin access.</p></section>";
+          return;
+        }
+        const data = await api("/api/admin/users");
+        users = data.users || [];
+        menuItems = data.menu_items || [];
+        defaults = {
+          internal: data.default_internal_menu || menuItems.filter((item) => item.key !== "admin").map((item) => item.key),
+          candidate: data.default_candidate_menu || ["test_challenge", "ai_cert", "badges"],
+          super: data.super_menu || menuItems.map((item) => item.key),
+        };
+        renderPermissionGrid(defaults.internal);
+        renderUsers();
+        renderCandidateAccess(data.blocked_candidates || {});
+      }
+
+      function editUser(id) {
+        const user = users.find((item) => item.id === id);
+        if (!user) return;
+        document.getElementById("userId").value = user.id;
+        document.getElementById("username").value = user.username || "";
+        document.getElementById("displayName").value = user.display_name || "";
+        document.getElementById("email").value = user.email || "";
+        document.getElementById("role").value = user.role || "internal";
+        document.getElementById("status").value = user.status || "active";
+        renderPermissionGrid(user.allowed_menu || []);
+      }
+
+      function newUser() {
+        document.getElementById("userForm").reset();
+        document.getElementById("userId").value = "";
+        renderPermissionGrid(defaults.internal);
+      }
+
+      document.getElementById("userForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const body = new URLSearchParams(new FormData(event.currentTarget));
+        body.set("allowed_menu_json", JSON.stringify(selectedPermissions()));
+        const data = await api("/api/admin/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+        });
+        document.getElementById("adminStatus").textContent = `Saved ${data.user.display_name || data.user.username}.`;
+        await loadAdmin();
+      });
+
+      async function toggleBlock(id, blocked) {
+        await api(`/api/admin/users/${encodeURIComponent(id)}/block`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ blocked }).toString(),
+        });
+        await loadAdmin();
+      }
+
+      async function deleteUser(id) {
+        if (!confirm("Delete this user access record?")) return;
+        await api(`/api/admin/users/${encodeURIComponent(id)}`, { method: "DELETE" });
+        await loadAdmin();
+      }
+
+      async function sendLogin(id) {
+        const data = await api(`/api/admin/users/${encodeURIComponent(id)}/send-login`, { method: "POST" });
+        const link = new URL(data.login_link, window.location.origin).href;
+        try {
+          await navigator.clipboard.writeText(link);
+        } catch {}
+        document.getElementById("adminStatus").textContent = `Login information prepared for ${data.user.display_name || data.user.username}. Link copied: ${link}`;
+      }
+
+      document.getElementById("candidateAccessForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const body = new URLSearchParams(new FormData(event.currentTarget));
+        await api("/api/admin/candidates/access", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+        });
+        event.currentTarget.reset();
+        await loadAdmin();
+      });
+
+      document.addEventListener("DOMContentLoaded", loadAdmin);
+    </script>
+  </body>
+</html>

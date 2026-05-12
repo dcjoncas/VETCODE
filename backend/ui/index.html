@@ -1,19 +1,212 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
-    <title>DevReady • Index Redirect</title>
-    <link
-      rel="icon"
-      href="../assets/devLogo.svg"
-      sizes="any"
-      type="image/svg+xml"
-    />
-    <meta http-equiv="refresh" content="0; url=pages/match-role.html" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Welcome</title>
+    <link rel="icon" href="assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/devStyles.css" />
+    <style>
+      body {
+        background:
+          linear-gradient(120deg, rgba(127, 191, 63, 0.12), rgba(58, 111, 181, 0.08)),
+          #f5f7f7;
+      }
+      .welcome-shell {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 28px;
+      }
+      .welcome-grid {
+        width: min(1120px, 100%);
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+        gap: 18px;
+        align-items: stretch;
+      }
+      .welcome-panel {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: var(--shadow);
+        padding: 24px;
+      }
+      .brand-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 18px;
+      }
+      .brand-row img {
+        width: 54px;
+        height: 54px;
+      }
+      .welcome-title {
+        font-size: clamp(30px, 5vw, 58px);
+        line-height: 0.98;
+        margin: 0 0 12px;
+        letter-spacing: 0;
+      }
+      .welcome-copy {
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1.45;
+        max-width: 780px;
+      }
+      .domain-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 22px;
+      }
+      .domain-card {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px;
+        background: #fff;
+        min-height: 132px;
+      }
+      .domain-card img {
+        width: 38px;
+        height: 38px;
+        object-fit: contain;
+      }
+      .domain-card strong {
+        display: block;
+        margin-top: 8px;
+      }
+      .domain-card small {
+        display: block;
+        margin-top: 4px;
+        line-height: 1.35;
+      }
+      .login-form {
+        display: grid;
+        gap: 12px;
+      }
+      .login-form label {
+        display: grid;
+        gap: 6px;
+        color: #244239;
+        font-weight: 800;
+      }
+      .login-type {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .login-type label {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .login-status {
+        min-height: 20px;
+        color: #125b36;
+        font-weight: 800;
+      }
+      @media (max-width: 900px) {
+        .welcome-grid,
+        .domain-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
   </head>
   <body>
-    <p>
-      If you are not redirected automatically, follow this
-      <a href="pages/match-role.html">link to the new page</a>.
-    </p>
+    <main class="welcome-shell">
+      <div class="welcome-grid">
+        <section class="welcome-panel">
+          <div class="brand-row">
+            <img src="assets/devLogo.svg" alt="DevReady" />
+            <div>
+              <strong>Welcome to DevReady</strong>
+              <div class="muted">AI-assisted recruiting and delivery readiness</div>
+            </div>
+          </div>
+          <h1 class="welcome-title">A complete end-to-end AI assisted recruiting system.</h1>
+          <p class="welcome-copy">
+            Source candidates, build profiles, complete AI chat, manage interviews, capture meeting intelligence, certify skills, move people into onboarding, and track time from one controlled workspace.
+          </p>
+          <div class="domain-grid" aria-label="Workspace areas">
+            <a class="domain-card" href="pages/find-candidate.html">
+              <img src="assets/devLogo.svg" alt="Candidate" />
+              <strong>Candidate</strong>
+              <small>Profile, chat, tests, interviews, onboarding, and time.</small>
+            </a>
+            <a class="domain-card" href="pages/find-candidate.html?domain=dev">
+              <img src="assets/devLogo.svg" alt="DevReady" />
+              <strong>DevReady</strong>
+              <small>Technology recruiting, vetting, matching, and certification.</small>
+            </a>
+            <a class="domain-card" href="pages/find-candidate.html?domain=engineer">
+              <img src="assets/engineerLogo.svg" alt="BuildReady" />
+              <strong>BuildReady</strong>
+              <small>Engineer domain intake, profiles, and workflow controls.</small>
+            </a>
+            <a class="domain-card" href="pages/find-candidate.html?domain=law">
+              <img src="assets/lawLogo.svg" alt="LegalReady" />
+              <strong>LegalReady</strong>
+              <small>Legal domain profiles, job descriptions, and candidate flow.</small>
+            </a>
+          </div>
+        </section>
+
+        <section class="welcome-panel">
+          <h2>Login</h2>
+          <p class="muted">
+            Enter your username or email. DevReady will remember your menu access and show only the workspace areas assigned to you.
+          </p>
+          <form id="loginForm" class="login-form">
+            <label>
+              Username
+              <input id="username" name="username" autocomplete="username" placeholder="DJ or Darrin.Joncas@gmail.com" />
+            </label>
+            <label>
+              Email
+              <input id="email" name="email" type="email" autocomplete="email" placeholder="name@company.com" />
+            </label>
+            <div class="login-type">
+              <label><input type="radio" name="login_type" value="internal" checked /> Internal</label>
+              <label><input type="radio" name="login_type" value="candidate" /> Candidate</label>
+            </div>
+            <button class="btn" type="submit">Enter workspace</button>
+            <a class="btn secondary" href="pages/admin.html">Admin</a>
+            <div id="loginStatus" class="login-status"></div>
+          </form>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const form = document.getElementById("loginForm");
+      const status = document.getElementById("loginStatus");
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const body = new URLSearchParams(new FormData(form));
+        try {
+          const response = await fetch("/api/access/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: body.toString(),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || "Login failed.");
+          sessionStorage.setItem("devreadyUser", JSON.stringify(data.user));
+          localStorage.setItem("devreadyUser", JSON.stringify(data.user));
+          status.textContent = `Welcome ${data.user.display_name || data.user.username}.`;
+          const nextPage = data.user.role === "candidate" ? "pages/ai-cert.html" : "pages/find-candidate.html";
+          window.location.href = nextPage;
+        } catch (error) {
+          status.textContent = error.message || "Login failed.";
+        }
+      });
+    </script>
   </body>
 </html>

@@ -1,5 +1,5 @@
 <aside class="sidebar">
-  <a id="textBlockLogo" class="brand" href="find-candidate.html" aria-label="Home - Talent">
+  <a id="textBlockLogo" class="brand" href="../index.html" aria-label="Home - Welcome">
     <img
       class="domainLogo"
       src="../assets/devLogo.svg"
@@ -32,7 +32,7 @@
       >Contact DevReady</a
     >
     <div style="font-size: 12px; opacity: 0.9">Welcome back,</div>
-    <div class="name">Darrin Joncas</div>
+    <div id="sidebarUserName" class="name">DevReady User</div>
     <div
       id="environmentNotice"
       class="workspace-status-link"
@@ -73,7 +73,10 @@
 
 <script>
   $(function () {
-    $("#pageNav").load("components/sideNav.html");
+    applyLoggedInUser();
+    $("#pageNav").load("components/sideNav.html", function () {
+      applyMenuAccess();
+    });
 
     const params = new URLSearchParams(window.location.search);
     const domainFromUrl = params.get("domain");
@@ -89,6 +92,35 @@
     initGlobalHints();
     environmentUpdate();
   });
+
+  function currentDevReadyUser() {
+    try {
+      return JSON.parse(sessionStorage.getItem("devreadyUser") || localStorage.getItem("devreadyUser") || "null");
+    } catch {
+      return null;
+    }
+  }
+
+  function applyLoggedInUser() {
+    const user = currentDevReadyUser();
+    const name = document.getElementById("sidebarUserName");
+    if (name && user) {
+      name.textContent = user.display_name || user.username || user.email || "DevReady User";
+    }
+  }
+
+  function applyMenuAccess() {
+    const user = currentDevReadyUser();
+    if (!user || user.role === "super_user") return;
+    const allowed = new Set(user.allowed_menu || []);
+    document.querySelectorAll("#pageNavInner [data-menu-key]").forEach((item) => {
+      const key = item.dataset.menuKey;
+      if (!allowed.has(key)) item.remove();
+    });
+    document.querySelectorAll("#pageNavInner .nav-group").forEach((group) => {
+      if (!group.querySelector("a")) group.remove();
+    });
+  }
 
   function hintsEnabled() {
     return localStorage.getItem("devreadyHints") !== "off";
