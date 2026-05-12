@@ -92,6 +92,7 @@
     </div>
 
     <script src="JS/apiScripts.js"></script>
+    <script src="JS/profileCompletion.js"></script>
     <script>
       let shortlistArray = [];
       // Used to store an array of JSON objects containing candidate scores
@@ -251,6 +252,7 @@
                       >
                         Open
                       </button>
+                      <span id="clientCompletion-${candidate}"></span>
                     </td>
                     <td>
                       <button
@@ -264,6 +266,13 @@
                   </tr>`;
                   })(),
                 );
+                if (window.profileCompletion) {
+                  window.profileCompletion.renderCompletionActionIfNeeded(
+                    { ...profileData, id: candidate },
+                    `clientCompletion-${candidate}`,
+                    "Complete profile",
+                  );
+                }
               } catch (error) {
                 console.log(error);
 
@@ -308,6 +317,7 @@
                       >
                         Open
                       </button>
+                      <span id="clientCompletion-${candidate.id}"></span>
                     </td>
                     <td>
                       <button
@@ -321,6 +331,13 @@
                   </tr>`;
                 })(),
               );
+              if (window.profileCompletion) {
+                window.profileCompletion.renderCompletionActionIfNeeded(
+                  candidate,
+                  `clientCompletion-${candidate.id}`,
+                  "Complete profile",
+                );
+              }
             });
           }
         }

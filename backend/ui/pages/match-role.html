@@ -182,6 +182,7 @@
 
     <script src="JS/apiScripts.js"></script>
     <script src="JS/updateProcessFlow.js"></script>
+    <script src="JS/profileCompletion.js"></script>
     <script>
       // tiny UX sugar (mock only)
       document
@@ -328,9 +329,16 @@
 
             tr.id = `resultRow-${r.profile_id}`;
             tr.style.cursor = "pointer";
-            tr.innerHTML = `<td>${i + 1}</td><td>${r.name || ""}</td><td>${r.email || ""}</td><td>${Math.round(r._score100 || 0)}%</td><td>${(r.top_matches || []).slice(0, 6).join(", ")}</td><td>${matchPercentage}</td>`;
+            tr.innerHTML = `<td>${i + 1}</td><td>${r.name || ""}</td><td>${r.email || ""}</td><td>${Math.round(r._score100 || 0)}%</td><td>${(r.top_matches || []).slice(0, 6).join(", ")}</td><td>${matchPercentage}</td><td id="matchCompletion-${r.profile_id}"></td>`;
             tr.addEventListener("click", () => selectRow(r));
             tbody.appendChild(tr);
+            if (window.profileCompletion) {
+              window.profileCompletion.renderCompletionActionIfNeeded(
+                r,
+                `matchCompletion-${r.profile_id}`,
+                "Complete profile",
+              );
+            }
           });
 
           document.getElementById("matchStatus").textContent =

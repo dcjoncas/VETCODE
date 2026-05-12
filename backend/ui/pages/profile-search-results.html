@@ -52,6 +52,7 @@
                 <th>Email</th>
                 <th>Location</th>
                 <th id="jobTopSkill">Top Skills</th>
+                <th>Profile</th>
               </tr>
             </thead>
             <tbody id="searchResultsBody">
@@ -72,6 +73,7 @@
       </main>
     </div>
     <script src="JS/apiScripts.js"></script>
+    <script src="JS/profileCompletion.js"></script>
 
     <script>
       const queryString = window.location.search;
@@ -208,6 +210,7 @@
                   <td>${r.email}</td>
                   <td>${r.location}</td>
                   <td>${topSkills}</td>
+                  <td id="searchCompletion-${r.id}"></td>
                 `;
 
             tr.style.cursor = "pointer";
@@ -224,6 +227,13 @@
             });
 
             tbody.appendChild(tr);
+            if (window.profileCompletion) {
+              window.profileCompletion.renderCompletionActionIfNeeded(
+                r,
+                `searchCompletion-${r.id}`,
+                "Complete profile",
+              );
+            }
           });
         } catch (error) {
           console.error("Error fetching search results:", error);

@@ -103,6 +103,47 @@
     return `<button class="btn ${buttonClass}" type="button" data-hint="Send this candidate a secure chat link to complete their profile for this domain." onclick="event.stopPropagation(); window.sendProfileCompletionChat('${safeId}', window.profileCompletionProfiles['${safeId}'])">${escapeHtml(label || "Finish profile chat")}</button>`;
   }
 
+  function normalizeProfileForCompletion(profile, status) {
+    const firstName = profile.firstName || "";
+    const lastName = profile.lastName || "";
+    const fullName = profile.name || profile.full_name || status?.name || [firstName, lastName].filter(Boolean).join(" ");
+    return {
+      ...(status || {}),
+      ...(profile || {}),
+      profile: {
+        id: profile.id || profile.profile_id || profile.personid || status?.profileId,
+        firstName,
+        lastName,
+        name: fullName,
+        email: profile.email || status?.email || "",
+        title: profile.title || status?.title || "",
+      },
+    };
+  }
+
+  async function renderCompletionActionIfNeeded(profile, targetId, label) {
+    const profileId = profile && (profile.id || profile.profile_id || profile.personid || profile.profileId);
+    if (!profileId) return;
+
+    const target = typeof targetId === "string" ? document.getElementById(targetId) : targetId;
+    if (!target) return;
+
+    try {
+      const status = await profileNeedsCompletion(profileId);
+      if (!status) {
+        target.innerHTML = "";
+        return;
+      }
+      target.innerHTML = completionButton(
+        profileId,
+        normalizeProfileForCompletion(profile, status),
+        label || "Complete profile",
+      );
+    } catch (error) {
+      console.warn("Could not check profile completion.", error);
+    }
+  }
+
   function renderProfileCompletionPanel(target, profileId, profileData) {
     const el = typeof target === "string" ? document.getElementById(target) : target;
     if (!el || !profileId) return;
@@ -141,6 +182,7 @@
     isProfileCompletionDone,
     sendProfileCompletionChat,
     completionButton,
+    renderCompletionActionIfNeeded,
     renderProfileCompletionPanel,
     profileNeedsCompletion,
   };

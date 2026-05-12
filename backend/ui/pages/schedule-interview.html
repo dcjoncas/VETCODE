@@ -346,6 +346,7 @@
     </div>
 
     <script src="JS/apiScripts.js"></script>
+    <script src="JS/profileCompletion.js"></script>
     <script>
       const CALENDLY_BASE_URL =
         "https://calendly.com/mitch-blake-devready/discovery-call";
@@ -693,12 +694,20 @@
             <button class="btn secondary" type="button" style="padding: 8px 12px">
               Use for invite
             </button>
+            <span id="scheduleCompletion-${id}"></span>
           </td>
         `;
         row.querySelector("button").addEventListener("click", () =>
           selectShortlistedCandidate(candidate),
         );
         tbody.appendChild(row);
+        if (window.profileCompletion) {
+          window.profileCompletion.renderCompletionActionIfNeeded(
+            candidate,
+            `scheduleCompletion-${id}`,
+            "Complete profile",
+          );
+        }
       }
 
       function summarizeShortlistForContext() {

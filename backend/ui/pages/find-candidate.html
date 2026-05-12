@@ -423,32 +423,12 @@
       }
 
       async function addCompletionActionIfNeeded(profile, targetId) {
-        if (!window.profileCompletion || !profile || !profile.id) return;
-        const target = document.getElementById(targetId);
-        if (!target) return;
-
-        try {
-          const status = await window.profileCompletion.profileNeedsCompletion(profile.id);
-          if (!status) return;
-          const profileData = {
-            ...status,
-            ...profile,
-            profile: {
-              firstName: profile.firstName,
-              lastName: profile.lastName,
-              name: profile.name || status.name,
-              email: profile.email || status.email,
-              title: profile.title || status.title,
-            },
-          };
-          target.innerHTML = window.profileCompletion.completionButton(
-            profile.id,
-            profileData,
-            "Finish profile",
-          );
-        } catch (error) {
-          console.warn("Could not check profile completion.", error);
-        }
+        if (!window.profileCompletion) return;
+        window.profileCompletion.renderCompletionActionIfNeeded(
+          profile,
+          targetId,
+          "Complete profile",
+        );
       }
 
       function mergeAndRankProfiles(skillProfiles, identityProfiles) {
@@ -611,7 +591,10 @@
                   <div style="font-size: 13px; margin-top: 4px">${skills}</div>
                   <div style="font-size: 13px; margin-top: 4px">${escapeHtml(experience)} - ${escapeHtml(profile.locationGroup || "Location unknown")} - ${escapeHtml(location)}</div>
                   <div style="font-size: 13px; color: var(--muted); margin-top: 4px">${personality || escapeHtml(profile.dominantPersonality || "No personality data")}</div>
-                  <button class="btn secondary" type="button" onclick="selectDiscoveredProfile(profileDiscoveryRows[${profileIndex}])">Open profile</button>
+                  <div class="row-actions" style="margin: 0">
+                    <button class="btn secondary" type="button" onclick="selectDiscoveredProfile(profileDiscoveryRows[${profileIndex}])">Open profile</button>
+                    <span id="discoveryCompletion-${profileIndex}"></span>
+                  </div>
                 </div>`;
               })
               .join("");
@@ -622,6 +605,9 @@
             </div>`;
           })
           .join("");
+        profileDiscoveryRows.forEach((profile, index) => {
+          addCompletionActionIfNeeded(profile, `discoveryCompletion-${index}`);
+        });
       }
 
       async function scanProfiles() {
@@ -814,11 +800,14 @@
                 <div style="font-size: 13px">${escapeHtml(bestProfileSignal(profile))}</div>
                 <div class="row-actions" style="margin: 0">
                   <a href="profile-preview.html" onclick="findSelect(allProfiles[${index}]); return false;">Open profile</a>
-                  ${window.profileCompletion ? window.profileCompletion.completionButton(profile.id, { ...profile, profile: profile }, "Finish profile") : ""}
+                  <span id="allProfilesCompletion-${escapeHtml(profile.id)}"></span>
                 </div>
               </div>`;
             })
             .join("");
+          incompleteProfiles.forEach((profile) => {
+            addCompletionActionIfNeeded(profile, `allProfilesCompletion-${profile.id}`);
+          });
           return;
         }
 
@@ -856,10 +845,16 @@
               </div>
               <div><span class="pill">${escapeHtml(profile.primaryStack || "Other")}</span></div>
               <div style="font-size: 13px">${skills}</div>
-              <a href="profile-preview.html" onclick="findSelect(allProfiles[${index}]); return false;">Open profile</a>
+              <div class="row-actions" style="margin: 0">
+                <a href="profile-preview.html" onclick="findSelect(allProfiles[${index}]); return false;">Open profile</a>
+                <span id="allProfilesCompletion-${escapeHtml(profile.id)}"></span>
+              </div>
             </div>`;
           })
           .join("");
+        rows.forEach((profile) => {
+          addCompletionActionIfNeeded(profile, `allProfilesCompletion-${profile.id}`);
+        });
       }
 
       function selectProfileLetter(letter) {

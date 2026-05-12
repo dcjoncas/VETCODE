@@ -22,6 +22,19 @@
 </div>
 
 <script>
+  function ensureProfileCompletionHelper() {
+    if (window.profileCompletion) return Promise.resolve();
+    if (window.profileCompletionHelperLoading) return window.profileCompletionHelperLoading;
+    window.profileCompletionHelperLoading = new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "JS/profileCompletion.js";
+      script.onload = resolve;
+      script.onerror = resolve;
+      document.head.appendChild(script);
+    });
+    return window.profileCompletionHelperLoading;
+  }
+
   function searchButton() {
     let domain = sessionStorage.getItem("domain");
     window.location.href = `profile-search-results.html?domain=${domain ? domain : "dev"}&query=${encodeURIComponent(document.getElementById("searchInput").value)}&page=1&pageLimit=10`;
@@ -40,6 +53,7 @@
 
   async function searchProfiles() {
     try {
+      await ensureProfileCompletionHelper();
       const query = document.getElementById("searchInput").value.trim();
 
       if (query.length === 0) {
@@ -85,9 +99,16 @@
 
         tr.id = `searchRow-${r._id}`;
         tr.style.cursor = "pointer";
-        tr.innerHTML = `<td class="search-result-formatting"><h3 class="search-result-formatting">${r.firstName || ""} ${r.lastName || ""}</h3><p class="muted search-result-formatting" style="margin: 1px; padding: 1px;">${r.email || ""}</p></td>`;
+        tr.innerHTML = `<td class="search-result-formatting"><h3 class="search-result-formatting">${r.firstName || ""} ${r.lastName || ""}</h3><p class="muted search-result-formatting" style="margin: 1px; padding: 1px;">${r.email || ""}</p><div id="topSearchCompletion-${r.id}"></div></td>`;
         tr.addEventListener("click", () => searchSelect(r));
         tbody.appendChild(tr);
+        if (window.profileCompletion) {
+          window.profileCompletion.renderCompletionActionIfNeeded(
+            r,
+            `topSearchCompletion-${r.id}`,
+            "Complete profile",
+          );
+        }
       });
     } catch (error) {
       console.error("Error searching profiles:", error);
