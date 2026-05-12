@@ -13,14 +13,6 @@
     </div>
   </a>
 
-  <a id="imgLogoLink" class="logo-home" href="find-candidate.html" aria-label="Home - Talent" style="display: none">
-    <img
-      id="imgLogo"
-      src="../assets/lawLogo.png"
-      style="width: 100%"
-    />
-  </a>
-
   <div class="userbox">
     <a
       href="https://devready.io/contact/"
@@ -132,13 +124,7 @@
 
     const logoSet = document.getElementsByClassName("domainLogo");
 
-    if (currentDomain == "law") {
-      document.getElementById("textBlockLogo").style.display = "none";
-      document.getElementById("imgLogoLink").style.display = "block";
-    } else {
-      document.getElementById("textBlockLogo").style.display = "flex";
-      document.getElementById("imgLogoLink").style.display = "none";
-    }
+    document.getElementById("textBlockLogo").style.display = "flex";
 
     for (const logo of logoSet) {
       logo.src = `../assets/${currentDomain}Logo.svg`;

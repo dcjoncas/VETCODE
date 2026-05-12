@@ -49,23 +49,26 @@ input[type="checkbox"] {
 }
 .container {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 264px 1fr;
   min-height: 100vh;
 }
 .sidebar {
   background: linear-gradient(180deg, var(--sidebar), var(--primary-3));
   color: #fff;
-  padding: 22px 18px;
+  padding: 16px 16px;
   position: sticky;
   top: 0;
   height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 6px 8px;
-  border-radius: 14px;
+  gap: 10px;
+  padding: 4px 6px;
+  border-radius: 12px;
 }
 .brand:hover,
 .logo-home:hover {
