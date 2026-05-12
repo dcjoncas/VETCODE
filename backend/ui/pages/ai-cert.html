@@ -81,6 +81,26 @@
         font-size: 12px;
       }
 
+      .cert-path {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 8px;
+      }
+
+      .cert-path .path-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 9px;
+        border-radius: 999px;
+        background: rgba(23, 105, 224, 0.1);
+        color: #124d9f;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
       .cert-candidate strong {
         color: var(--text);
       }
@@ -233,6 +253,7 @@
                 <strong id="certCandidateName">No candidate selected</strong>
                 <span id="certBadgeStatus"></span>
               </div>
+              <div id="certPath" class="cert-path"></div>
               <div class="cert-send-panel">
                 <div class="cert-send-grid">
                   <div>
@@ -270,6 +291,7 @@
               </div>
             </div>
             <div class="cert-actions">
+              <a id="viewBadgesBtn" class="btn" href="badge-catalog.html">View Badges</a>
               <button id="markCertifiedBtn" class="btn" type="button" disabled>Mark AI Certified</button>
               <button id="refreshCertBtn" class="btn secondary" type="button">Refresh AI Cert</button>
               <a class="btn secondary" href="profile-preview.html">Open Profile</a>
@@ -307,6 +329,8 @@
       const certBadgeStatus = document.getElementById("certBadgeStatus");
       const certRecipientEmail = document.getElementById("certRecipientEmail");
       const certOutboundLink = document.getElementById("certOutboundLink");
+      const certPath = document.getElementById("certPath");
+      const viewBadgesBtn = document.getElementById("viewBadgesBtn");
       const copyCertLinkBtn = document.getElementById("copyCertLinkBtn");
       const emailCertLinkBtn = document.getElementById("emailCertLinkBtn");
       const markCertSentBtn = document.getElementById("markCertSentBtn");
@@ -315,6 +339,15 @@
       const trackAttempts = document.getElementById("trackAttempts");
       const trackLastActivity = document.getElementById("trackLastActivity");
       let selectedCertCandidateId = "";
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
 
       function selectedCandidate() {
         const params = new URLSearchParams(window.location.search);
@@ -331,6 +364,38 @@
           name: sessionStorage.getItem("candidateName") || "",
           email: sessionStorage.getItem("candidateEmail") || "",
         };
+      }
+
+      function selectedBadge() {
+        const params = new URLSearchParams(window.location.search);
+        return {
+          role: params.get("badgeRole") || "",
+          roleKey: params.get("badgeRoleKey") || "",
+          level: params.get("badgeLevel") || "",
+          title: params.get("badgeTitle") || "",
+          certificateId: params.get("certificateId") || "",
+        };
+      }
+
+      function renderSelectedBadge() {
+        const badge = selectedBadge();
+        const candidate = selectedCandidate();
+        const catalogParams = new URLSearchParams();
+        if (candidate.id) catalogParams.set("profileId", candidate.id);
+        if (candidate.name) catalogParams.set("candidate", candidate.name);
+        if (candidate.email) catalogParams.set("email", candidate.email);
+        viewBadgesBtn.href = `badge-catalog.html${catalogParams.toString() ? "?" + catalogParams.toString() : ""}`;
+
+        if (!badge.title && !badge.role && !badge.level) {
+          certPath.innerHTML = `<span class="path-badge">No badge selected</span><a href="${escapeHtml(viewBadgesBtn.href)}">Choose a badge path</a>`;
+          return;
+        }
+
+        certPath.innerHTML = `
+          <span class="path-badge">${escapeHtml(badge.level || "Badge")}</span>
+          <span class="path-badge">${escapeHtml(badge.role || "Certification path")}</span>
+          <span class="path-badge">${escapeHtml(badge.title || "Selected badge")}</span>
+        `;
       }
 
       function certTrackingKey(candidate = selectedCandidate()) {
@@ -364,6 +429,12 @@
         if (candidate.name) params.set("candidate", candidate.name);
         const email = (certRecipientEmail?.value || candidate.email || "").trim();
         if (email) params.set("email", email);
+        const badge = selectedBadge();
+        if (badge.role) params.set("badgeRole", badge.role);
+        if (badge.roleKey) params.set("badgeRoleKey", badge.roleKey);
+        if (badge.level) params.set("badgeLevel", badge.level);
+        if (badge.title) params.set("badgeTitle", badge.title);
+        if (badge.certificateId) params.set("certificateId", badge.certificateId);
         params.set("source", outbound ? "devready_invite" : "devready");
         const returnTo = new URL(window.location.href);
         returnTo.searchParams.set("certComplete", "1");
@@ -412,11 +483,12 @@
 
         try {
           const candidate = selectedCandidate();
+          const selected = selectedBadge();
           const candidateName = result.candidate || candidate.name || "";
           const candidateEmail = result.email || candidate.email || "";
-          const certLevel = result.level || result.certificationLevel || "AI Certified";
-          const certId = result.certificateId || result.certificate_id || "";
-          const certTitle = result.title || `${certLevel} AI Certification`;
+          const certLevel = result.level || result.certificationLevel || selected.level || "AI Certified";
+          const certId = result.certificateId || result.certificate_id || selected.certificateId || "";
+          const certTitle = result.title || selected.title || `${certLevel} AI Certification`;
           const form = new URLSearchParams();
           if (selectedCertCandidateId) form.append("profile_id", selectedCertCandidateId);
           form.append("status", result.status || "certified");
@@ -526,6 +598,7 @@
       });
 
       loadSelectedCandidate();
+      renderSelectedBadge();
       loadCert();
     </script>
   </body>
