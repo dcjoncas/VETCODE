@@ -112,10 +112,18 @@ def _profile_completion_status(profile: dict):
         missing.append("personality survey")
     if not has_culture:
         missing.append("culture profile")
+    state = "complete"
+    if not has_personality and not has_culture:
+        state = "missing"
+    elif not has_personality or not has_culture:
+        state = "partial"
 
     return {
         "profileId": core_profile.get("id") or core_profile.get("personid"),
         "complete": has_personality and has_culture,
+        "state": state,
+        "hasPersonality": has_personality,
+        "hasCulture": has_culture,
         "missing": missing,
         "email": core_profile.get("email") or profile.get("email") or "",
         "name": " ".join(

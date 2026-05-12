@@ -19,6 +19,12 @@
   }
 
   function isProfileCompletionDone(profileData) {
+    return getProfileCompletionState(profileData) === "complete";
+  }
+
+  function getProfileCompletionState(profileData) {
+    if (profileData && profileData.state) return profileData.state;
+
     const personalityComplete =
       Array.isArray(profileData && profileData.personality) &&
       profileData.personality.some((item) => item && item.title && item.score);
@@ -27,7 +33,9 @@
       profileData.culturalExperience.some(
         (item) => item && item.title && Number(item.level) > 0,
       );
-    return personalityComplete && culturalExperienceComplete;
+    if (personalityComplete && culturalExperienceComplete) return "complete";
+    if (personalityComplete || culturalExperienceComplete) return "partial";
+    return "missing";
   }
 
   async function profileCompletionLink(profileId) {
@@ -85,9 +93,14 @@
 
   function completionButton(profileId, profileData, label) {
     const safeId = escapeHtml(profileId);
+    const state = getProfileCompletionState(profileData);
+    const buttonClass =
+      state === "partial"
+        ? "profile-completion-warning"
+        : "profile-completion-danger";
     window.profileCompletionProfiles = window.profileCompletionProfiles || {};
     window.profileCompletionProfiles[String(profileId)] = profileData || {};
-    return `<button class="btn profile-completion-danger" type="button" data-hint="Send this candidate a secure chat link to complete their profile for this domain." onclick="event.stopPropagation(); window.sendProfileCompletionChat('${safeId}', window.profileCompletionProfiles['${safeId}'])">${escapeHtml(label || "Finish profile chat")}</button>`;
+    return `<button class="btn ${buttonClass}" type="button" data-hint="Send this candidate a secure chat link to complete their profile for this domain." onclick="event.stopPropagation(); window.sendProfileCompletionChat('${safeId}', window.profileCompletionProfiles['${safeId}'])">${escapeHtml(label || "Finish profile chat")}</button>`;
   }
 
   function renderProfileCompletionPanel(target, profileId, profileData) {
@@ -100,12 +113,14 @@
       return;
     }
 
+    const state = getProfileCompletionState(profileData);
+    const isPartial = state === "partial";
     el.style.display = "block";
     el.innerHTML = `
-      <div class="profile-completion-panel">
+      <div class="profile-completion-panel ${isPartial ? "partial" : "missing"}">
         <div>
-          <strong>Profile needs completion</strong>
-          <div>This profile is missing culture/personality answers for the current domain.</div>
+          <strong>${isPartial ? "Profile partially complete" : "Profile needs completion"}</strong>
+          <div>${isPartial ? "This profile has either culture or personality saved, but still needs the remaining profile answers for this domain." : "This profile is missing culture/personality answers for the current domain."}</div>
         </div>
         ${completionButton(profileId, profileData, "Send finish-profile chat")}
       </div>
@@ -122,6 +137,7 @@
   window.profileCompletion = {
     currentDomain,
     escapeHtml,
+    getProfileCompletionState,
     isProfileCompletionDone,
     sendProfileCompletionChat,
     completionButton,
