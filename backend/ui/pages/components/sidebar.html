@@ -34,18 +34,6 @@
     <div style="font-size: 12px; opacity: 0.9">Welcome back,</div>
     <div class="name">Darrin Joncas</div>
     <div
-      id="environmentBadge"
-      class="badge"
-      style="
-        margin-top: 10px;
-        width: 100%;
-        justify-content: center;
-        background: rgba(255, 255, 255, 0.16);
-      "
-    >
-      Environment: Local
-    </div>
-    <div
       id="environmentNotice"
       class="workspace-status-link"
       style="
@@ -328,7 +316,6 @@
 
   async function environmentUpdate() {
     const host = window.location.host;
-    const badge = document.getElementById("environmentBadge");
     const notice = document.getElementById("environmentNotice");
     const domain = sessionStorage.getItem("domain") || document.getElementById("domainSelect")?.value || "dev";
     const domainName =
@@ -380,8 +367,6 @@
       sourceName = `${sourceName} - backend environment check unavailable`;
     }
 
-    badge.textContent = `Environment: ${environmentName}`;
-    badge.style.background = background;
     const statusText = [
       `Workspace status`,
       now,
