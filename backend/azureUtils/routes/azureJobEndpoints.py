@@ -661,6 +661,18 @@ def jd_get(jobId: str, domain: str = "dev"):
         raise HTTPException(status_code=404, detail="Job not found for this domain.")
     return jd
 
+@router.delete("/deleteJob/{jobId}")
+def jd_delete(jobId: str, domain: str = "dev"):
+    try:
+        deleted = jobs.deleteJob(jobId, domain)
+        if not deleted.get("deleted"):
+            raise HTTPException(status_code=404, detail="Job not found for this domain.")
+        return deleted
+    except HTTPException:
+        raise
+    except Exception:
+        return JSONResponse(status_code=500, content={"error": "Failed to delete job description.", "trace": traceback.format_exc()})
+
 @router.post("/match/run")
 def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k: int = Form(10), external_source: str = Form(default="none")):
     # TODO: Set up job descriptions in the database

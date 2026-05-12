@@ -79,6 +79,40 @@ def getJob(jobId: int, domain: str = None):
         'personalities':personalityArray
     }
 
+def deleteJob(jobId: int, domain: str = None):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    params = [jobId]
+    domain_filter = ""
+    if domain and domain != "all":
+        domain_filter = " AND domain = %s"
+        params.append(domain)
+
+    try:
+        cur.execute(f"SELECT id, company, jobtitle FROM jobdescription WHERE id = %s{domain_filter}", tuple(params))
+        result = cur.fetchone()
+        if not result:
+            conn.close()
+            return {"deleted": False, "job_id": jobId}
+
+        cur.execute("DELETE FROM jobskills WHERE jobid = %s", (jobId,))
+        cur.execute("DELETE FROM jobpersonalities WHERE jobid = %s", (jobId,))
+        cur.execute("DELETE FROM jobdescription WHERE id = %s", (jobId,))
+        conn.commit()
+        conn.close()
+        return {
+            "deleted": True,
+            "job_id": result[0],
+            "company": result[1],
+            "title": result[2],
+        }
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        print(f"Cannot delete job description {jobId}: {e}")
+        raise
+
 def searchJobs(domain: str, searchQuery: str, limit: int):
     conn = client.getConnection()
     cur = conn.cursor()

@@ -172,6 +172,16 @@
         font-size: 13px;
       }
 
+      .btn-danger {
+        border-color: rgba(170, 42, 42, 0.24);
+        background: #fff6f4;
+        color: #9f2f24;
+      }
+
+      .btn-danger:hover {
+        background: #fdebe7;
+      }
+
       @media (max-width: 760px) {
         .jd-row {
           grid-template-columns: 1fr;
@@ -484,6 +494,9 @@
               <button class="btn secondary" type="button" onclick="toggleJd('${escapeHtml(id)}')">
                 View
               </button>
+              <button class="btn secondary btn-danger" type="button" onclick="deleteJd('${escapeHtml(id)}')">
+                Delete
+              </button>
             </div>
             <div class="jd-details" id="jd-details-${escapeHtml(id)}">
               <div class="jd-meta">Loading details...</div>
@@ -524,6 +537,35 @@
           details.innerHTML = html;
         } catch (error) {
           details.innerHTML = `<div class="empty-state">Could not load this job description: ${escapeHtml(error.message || error)}</div>`;
+        }
+      }
+
+      async function deleteJd(jdId) {
+        const jd = jdById.get(jdId) || {};
+        const title = jd.title || "this job description";
+        const client = clientName(jd);
+        const confirmed = confirm(
+          `Delete ${title} for ${client}? This removes the saved JD from the current domain.`,
+        );
+        if (!confirmed) return;
+
+        const status = document.getElementById("jdStatus");
+        status.className = "notice";
+        status.style.display = "block";
+        status.textContent = "Deleting job description...";
+
+        try {
+          await api(
+            `/api/azureJobs/deleteJob/${encodeURIComponent(jdId)}?domain=${encodeURIComponent(currentDomain())}`,
+            { method: "DELETE" },
+          );
+          expandedDetails.delete(jdId);
+          jdById.delete(jdId);
+          status.textContent = `Deleted ${title}.`;
+          await loadJobDescriptions();
+        } catch (error) {
+          status.className = "empty-state";
+          status.textContent = `Delete failed: ${error.message || error}`;
         }
       }
 
