@@ -19,7 +19,7 @@
         </button>
       </div>
       <div class="flow-help">
-        Start in Talent for resumes, job descriptions, profile search, and discovery. Use MineEx when you need an outside candidate source.
+        Start in Talent for resumes, job descriptions, profile search, and discovery. Use Find (Out) only when no internal candidate fits.
       </div>
       <div id="candidateSelected" style="color: var(--muted); font-size: 13px">
         No Candidate Selected
@@ -29,14 +29,17 @@
       </div>
     </div>
     <div class="flow">
-      <a class="step" href="find-candidate.html">1 - Talent</a
-      ><a class="step" href="match-role.html">2 - Role & Match</a
-      ><a class="step" href="mine-candidate-external.html">2B - MineEx</a
-      ><a class="step" href="profile-preview.html">3 - Profile build</a
-      ><a class="step" href="candidate-chat.html">4 - Candidate chat</a
-      ><a class="step" href="client-comm.html">5 - Client comms</a
-      ><a class="step" href="schedule-interview.html">6 - Schedule interview</a
-      ><a class="step" href="status-tracker.html">7 - Status</a>
+      <a class="step" href="find-candidate.html">1 - Talent</a>
+      <div class="flow-branch-step">
+        <a class="step" href="match-role.html">2 - Find (In)</a>
+        <a class="step branch" href="mine-candidate-external.html">2* - Find (Out)</a>
+        <small>* if no candidate found internally</small>
+      </div>
+      <a class="step" href="profile-preview.html">3 - Profile build</a>
+      <a class="step" href="candidate-chat.html">4 - Candidate chat</a>
+      <a class="step" href="client-comm.html">5 - Client comms</a>
+      <a class="step" href="schedule-interview.html">6 - Schedule interview</a>
+      <a class="step" href="status-tracker.html">7 - Status</a>
     </div>
   </div>
 </div>
@@ -46,7 +49,7 @@
     <div class="process-map-head">
       <div>
         <div id="processMapTitle" class="process-map-title">You are here</div>
-        <div class="process-map-subtitle">Talent holds intake. Internal and external candidate search both return to the same profile and shortlist flow.</div>
+        <div class="process-map-subtitle">Talent holds intake. Find (Out) is the fallback branch when Find (In) does not produce the right candidate.</div>
       </div>
       <button class="process-map-close" type="button" onclick="closeProcessMap()" aria-label="Close process map">Close</button>
     </div>
@@ -59,15 +62,15 @@
       <div class="map-arrow"></div>
       <a class="map-node" data-map-path="match-role.html" href="match-role.html">
         <span>2</span>
-        <strong>Find Candidates (In)</strong>
+        <strong>Find (In)</strong>
         <small>Rank internal matches against a saved job description.</small>
       </a>
       <div class="map-branch">
         <div class="map-branch-line"></div>
-        <a class="map-node" data-map-path="mine-candidate-external.html" href="mine-candidate-external.html">
-          <span>2B</span>
-          <strong>MineEx</strong>
-          <small>Build a TEMP external profile when internal fit is thin.</small>
+        <a class="map-node branch" data-map-path="mine-candidate-external.html" href="mine-candidate-external.html">
+          <span>2*</span>
+          <strong>Find (Out)</strong>
+          <small>* if no candidate found internally. Build a TEMP external profile and return to the same flow.</small>
         </a>
       </div>
       <div class="map-arrow"></div>
