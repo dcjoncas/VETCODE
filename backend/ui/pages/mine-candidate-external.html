@@ -215,6 +215,9 @@
             <button class="btn primary" type="button" id="btnMine">
               Find Candidates (Out)
             </button>
+            <button class="btn" type="button" id="btnImportSelected">
+              Create TEMP profiles from checked
+            </button>
             <a class="btn secondary" href="find-candidate.html">Add JD in Talent</a>
             <a class="btn secondary" href="match-role.html">Continue to Role & Match</a>
           </div>
@@ -225,6 +228,10 @@
 
           <div id="jobSkillPanel" class="muted" style="margin-top: 12px"></div>
           <div id="results"></div>
+
+          <section class="card" style="box-shadow: none; margin-top: 14px">
+            <div id="shortlistTray"></div>
+          </section>
 
           <section class="temp-profile-panel" aria-labelledby="tempProfilesTitle">
             <div class="section-head">
@@ -248,6 +255,7 @@
 
     <script src="JS/apiScripts.js"></script>
     <script src="JS/updateProcessFlow.js"></script>
+    <script src="JS/shortlist.js"></script>
     <script>
       let selectedSource = "pdl";
       let latestExternalResults = [];
@@ -314,7 +322,9 @@
 
             return `<div class="candidate-card">
               <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
-                <div>
+                <label style="display:flex;gap:10px;align-items:flex-start">
+                  <input class="external-candidate-check" type="checkbox" data-index="${index}" style="margin-top:4px">
+                  <span>
                   <strong>${index + 1}. ${escapeHtml(candidate.name)}</strong>
                   <span class="pill" style="margin-left: 8px">TEMP if imported</span>
                   <div class="meta">${escapeHtml(candidate.title || "")}${candidate.company ? " at " + escapeHtml(candidate.company) : ""}</div>
@@ -323,7 +333,8 @@
                   ${repoEvidence}
                   ${profileLink ? `<div class="meta">${profileLink}</div>` : ""}
                   ${missingSkills}
-                </div>
+                  </span>
+                </label>
                 <div class="pill">${scoreLabel}</div>
               </div>
               <div class="skills">${skills}</div>
@@ -406,6 +417,21 @@
         sessionStorage.setItem("candidateProfileType", "Temporary Profile");
         sessionStorage.setItem("candidateTopMatches", (candidate.top_matches || []).join(", "));
         sessionStorage.setItem("externalCandidateSource", candidate.source_label || candidate.source);
+        window.DevReadyShortlist.add(
+          {
+            id: response.personid,
+            name: response.name,
+            title: candidate.title || "",
+            email: candidate.email || "",
+            status: "Temporary Profile",
+            profileType: "Temporary Profile",
+            source: candidate.source_label || candidate.source,
+            score: candidate.score,
+            skills: candidate.top_matches || candidate.skills || [],
+            top_matches: candidate.top_matches || [],
+          },
+          { stage: "2* - Find (Out)", source: candidate.source_label || candidate.source },
+        );
         const temporaryProfiles = JSON.parse(
           sessionStorage.getItem("temporaryProfiles") || "{}",
         );
@@ -424,6 +450,25 @@
         document.getElementById("mineStatus").textContent =
           "TEMP profile created. Use the link below to open it, make it permanent, or delete it.";
         await loadTempProfiles();
+      }
+
+      async function importSelectedExternalCandidates() {
+        const selected = [...document.querySelectorAll(".external-candidate-check:checked")]
+          .map((input) => Number(input.dataset.index))
+          .filter((index) => latestExternalResults[index]);
+        if (!selected.length) return alert("Check at least one external candidate first.");
+        document.getElementById("btnImportSelected").disabled = true;
+        let count = 0;
+        try {
+          for (const index of selected) {
+            await importExternalCandidate(index);
+            count++;
+          }
+          document.getElementById("mineStatus").textContent =
+            `Created ${count} TEMP profile${count === 1 ? "" : "s"} and added them to the shortlist.`;
+        } finally {
+          document.getElementById("btnImportSelected").disabled = false;
+        }
       }
 
       function tempProfileActionHtml(personId, linkLabel = "Link to TEMP profile") {
@@ -549,6 +594,7 @@
           button.addEventListener("click", () => setSource(button.dataset.source));
         });
         document.getElementById("btnMine").addEventListener("click", mineCandidates);
+        document.getElementById("btnImportSelected").addEventListener("click", importSelectedExternalCandidates);
         document.getElementById("externalSearchInput").addEventListener("keydown", (event) => {
           if (event.key === "Enter") {
             event.preventDefault();

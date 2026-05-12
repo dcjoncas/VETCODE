@@ -162,6 +162,9 @@
                 <button class="btn secondary" type="button" onclick="followUpLatest()">
                   Follow up
                 </button>
+                <button class="btn danger" type="button" onclick="closeArchiveLatest()">
+                  Close and archive status
+                </button>
                 <a id="eventLink" class="btn secondary" href="#" target="_blank" rel="noopener" hidden>
                   Open event
                 </a>
@@ -172,6 +175,7 @@
       </main>
     </div>
 
+    <script src="JS/shortlist.js"></script>
     <script>
       let records = [];
       let selectedRecord = null;
@@ -324,6 +328,26 @@
         sessionStorage.setItem(`latestScheduleTracking:${domain}`, JSON.stringify(selectedRecord));
         sessionStorage.setItem("latestScheduleTracking", JSON.stringify(selectedRecord));
         window.location.href = mailtoFor(selectedRecord, true);
+        renderDetail();
+      }
+
+      function closeArchiveLatest() {
+        if (!selectedRecord) return;
+        selectedRecord.status = "Closed / archived";
+        selectedRecord.nextAction = "Closed";
+        selectedRecord.archivedAt = new Date().toISOString();
+        const domain = sessionStorage.getItem("domain") || "dev";
+        records = records.map((record) =>
+          record.id === selectedRecord.id ? selectedRecord : record,
+        );
+        sessionStorage.setItem(`scheduleTracking:${domain}`, JSON.stringify(records));
+        sessionStorage.setItem(`latestScheduleTracking:${domain}`, JSON.stringify(selectedRecord));
+        sessionStorage.setItem("scheduleTracking", JSON.stringify(records));
+        sessionStorage.setItem("latestScheduleTracking", JSON.stringify(selectedRecord));
+        if (selectedRecord.candidateId && window.DevReadyShortlist) {
+          window.DevReadyShortlist.archive(selectedRecord.candidateId);
+        }
+        renderRows();
         renderDetail();
       }
 

@@ -245,12 +245,20 @@
           </div>
 
           <h2 style="margin-top: 18px">Search results</h2>
+          <div class="row-actions">
+            <button class="btn" type="button" id="addSelectedProfilesBtn">
+              Add checked candidates to shortlist
+            </button>
+            <a class="btn secondary" href="match-role.html">Continue to Find (In)</a>
+          </div>
           <table class="table">
             <thead>
               <tr>
+                <th class="candidate-select-cell"></th>
                 <th>#</th>
                 <th>Candidate</th>
                 <th>Email</th>
+                <th>Match</th>
                 <th>Primary stack</th>
                 <th>Status</th>
                 <th>AI Cert</th>
@@ -259,6 +267,10 @@
             </thead>
             <tbody id="cadidateSearchResults"></tbody>
           </table>
+        </section>
+
+        <section class="card" style="margin-top: 18px">
+          <div id="shortlistTray"></div>
         </section>
 
         <section id="allProfilesSection" class="card" style="margin-top: 18px; display: none">
@@ -323,7 +335,9 @@
     <script src="JS/apiScripts.js"></script>
     <script src="JS/updateProcessFlow.js"></script>
     <script src="JS/profileCompletion.js"></script>
+    <script src="JS/shortlist.js"></script>
     <script>
+      let latestSearchProfiles = [];
       // tiny UX sugar (mock only)
       document
         .querySelectorAll("a.step")
@@ -407,6 +421,49 @@
         sessionStorage.removeItem("knownProfileSelection");
 
         window.location.href = "profile-preview.html";
+      }
+
+      function scoreProfileForSearch(profile, query) {
+        const rawTokens = String(query || "")
+          .toLowerCase()
+          .split(/[,\s/]+/)
+          .map((row) => row.trim())
+          .filter((row) => row.length > 1);
+        const tokens = [...new Set(rawTokens)];
+        const haystack = [
+          profile.name,
+          profile.firstName,
+          profile.lastName,
+          profile.email,
+          profile.title,
+          profile.primaryStack,
+          ...(profile.skills || []),
+          ...(profile.skillMatches || []),
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (!tokens.length) return 50;
+        const matched = tokens.filter((token) => haystack.includes(token)).length;
+        const base = Math.round((matched / tokens.length) * 100);
+        const rankBoost = Math.min(15, Number(profile.searchRank || profile.skillCount || 0) * 3);
+        return Math.max(10, Math.min(100, base + rankBoost));
+      }
+
+      function checkedSearchProfiles() {
+        return [...document.querySelectorAll(".candidate-search-check:checked")]
+          .map((input) => latestSearchProfiles[Number(input.dataset.index)])
+          .filter(Boolean);
+      }
+
+      function addSelectedSearchProfiles() {
+        const selected = checkedSearchProfiles();
+        if (!selected.length) return alert("Check at least one candidate first.");
+        const added = window.DevReadyShortlist.addMany(selected, {
+          stage: "1 - Talent search",
+          source: "Talent search",
+        });
+        document.getElementById("addSelectedProfilesBtn").textContent =
+          `Added ${added.length} to shortlist`;
       }
 
       function escapeHtml(value) {
@@ -666,13 +723,17 @@
           });
 
           const profiles = mergeAndRankProfiles(skillProfiles, identityProfiles).slice(0, limit);
+          latestSearchProfiles = profiles.map((profile) => ({
+            ...profile,
+            matchPercentage: scoreProfileForSearch(profile, searchInput),
+          }));
 
           const tbody = document.getElementById("cadidateSearchResults");
           tbody.innerHTML = "";
 
           const candidateId = sessionStorage.getItem("candidateId");
 
-          profiles.forEach((r, i) => {
+          latestSearchProfiles.forEach((r, i) => {
             const tr = document.createElement("tr");
             tr.classList.add("search-result-row");
 
@@ -684,8 +745,9 @@
             //tr.style.cursor = "pointer";
             const cert = r.aiCertification || {};
             const certLabel = cert.level ? `Certified - ${cert.level}` : cert.status || "Not started";
-            tr.innerHTML = `<td>${i + 1}</td><td>${escapeHtml(r.firstName || "")} ${escapeHtml(r.lastName || "")}</td><td>${escapeHtml(r.email || "")}</td><td>${escapeHtml(r.primaryStack || r.title || "Other")}</td><td><div class="pill">${escapeHtml(r.step)}</div></td><td><a class="pill" href="${aiCertUrl(r)}">${escapeHtml(certLabel)}</a></td><td id="completionAction-${escapeHtml(r.id)}"></td>`;
+            tr.innerHTML = `<td class="candidate-select-cell"><input class="candidate-search-check" type="checkbox" data-index="${i}" aria-label="Select ${escapeHtml(r.firstName || r.name || "candidate")}"></td><td>${i + 1}</td><td>${escapeHtml(r.firstName || "")} ${escapeHtml(r.lastName || "")}</td><td>${escapeHtml(r.email || "")}</td><td><span class="match-percent">${Math.round(r.matchPercentage || 0)}%</span></td><td>${escapeHtml(r.primaryStack || r.title || "Other")}</td><td><div class="pill">${escapeHtml(r.step)}</div></td><td><a class="pill" href="${aiCertUrl(r)}">${escapeHtml(certLabel)}</a></td><td id="completionAction-${escapeHtml(r.id)}"></td>`;
             tr.addEventListener("click", () => findSelect(r));
+            tr.querySelector("input").addEventListener("click", (event) => event.stopPropagation());
             tr.querySelector("a").addEventListener("click", (event) => event.stopPropagation());
             tr.style.cursor = "pointer";
             tbody.appendChild(tr);
@@ -943,6 +1005,10 @@
         document
           .getElementById("searchProfilesBtn")
           .addEventListener("click", searchSkillList);
+
+        document
+          .getElementById("addSelectedProfilesBtn")
+          .addEventListener("click", addSelectedSearchProfiles);
 
         document
           .getElementById("listProfilesBtn")

@@ -522,6 +522,7 @@
 
     <script src="JS/apiScripts.js"></script>
     <script src="JS/profileCompletion.js"></script>
+    <script src="JS/shortlist.js"></script>
 
     <script>
       // tiny UX sugar (mock only)
@@ -531,22 +532,15 @@
 
       function shortlistCandidate() {
         const candidateId = sessionStorage.getItem("candidateId");
-        const shortlist = sessionStorage.getItem("shortlist");
         const profileType = sessionStorage.getItem("candidateProfileType");
-
-        // If first element, just add
-        if (!shortlist || shortlist.length < 1)
-          sessionStorage.setItem("shortlist", candidateId);
-        else {
-          let shortlistArray = shortlist.split(",");
-
-          // No duplicates
-          if (shortlistArray.includes(candidateId)) return;
-
-          shortlistArray.push(candidateId);
-
-          sessionStorage.setItem("shortlist", shortlistArray);
-        }
+        window.DevReadyShortlist.add({
+          id: candidateId,
+          name: sessionStorage.getItem("candidateName") || "Candidate",
+          email: sessionStorage.getItem("candidateEmail") || "",
+          status: sessionStorage.getItem("candidateStatus") || "Profile reviewed",
+          profileType,
+          source: sessionStorage.getItem("externalCandidateSource") || "Profile preview",
+        }, { stage: "3 - Profile build" });
 
         if (profileType === "Temporary Profile") {
           const temporaryProfiles = JSON.parse(

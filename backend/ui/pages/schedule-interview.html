@@ -410,6 +410,7 @@
 
     <script src="JS/apiScripts.js"></script>
     <script src="JS/profileCompletion.js"></script>
+    <script src="JS/shortlist.js"></script>
     <script>
       const CALENDLY_BASE_URL =
         "https://calendly.com/mitch-blake-devready/discovery-call";
@@ -878,15 +879,23 @@
         }
 
         shortlistDetails = [];
+        const cachedDetails = window.DevReadyShortlist ? window.DevReadyShortlist.readDetails() : {};
         for (const candidateId of shortlistArray) {
           try {
             const domain = sessionStorage.getItem("domain") || "dev";
             const profileData = await api(`/api/azure/getProfile/short/${candidateId}?domain=${encodeURIComponent(domain)}`);
-            const candidate = { id: candidateId, ...profileData };
+            const cached = cachedDetails[String(candidateId)] || {};
+            const candidate = { id: candidateId, ...cached, ...profileData, score: cached.score || profileData.score };
             shortlistDetails.push(candidate);
-            addShortlistRow(candidate, "Job missing");
+            addShortlistRow(candidate, candidate.score ? `${candidate.score}%` : "Job missing");
           } catch (error) {
-            console.log(`Could not load candidate ${candidateId}`, error);
+            const cached = cachedDetails[String(candidateId)];
+            if (cached) {
+              shortlistDetails.push(cached);
+              addShortlistRow(cached, cached.score ? `${cached.score}%` : "Profile cached");
+            } else {
+              console.log(`Could not load candidate ${candidateId}`, error);
+            }
           }
         }
         summarizeShortlistForContext();
@@ -964,6 +973,7 @@
         return {
           id: `${Date.now()}`,
           domain: sessionStorage.getItem("domain") || "dev",
+          candidateId: sessionStorage.getItem("candidateId") || "",
           candidateName,
           candidateEmail,
           role: byId("roleInput").value.trim(),

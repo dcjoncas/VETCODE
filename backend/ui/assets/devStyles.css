@@ -410,6 +410,48 @@ input[type="checkbox"] {
 .btn.ghost::after {
   display: none;
 }
+.shortlist-tray-head {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.shortlist-tray-head h2,
+.shortlist-tray-head p {
+  margin-bottom: 0;
+}
+.shortlist-sections {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+.shortlist-section {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+}
+.shortlist-section-title {
+  color: var(--primary-2);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.candidate-select-cell {
+  width: 42px;
+}
+.candidate-select-cell input {
+  height: 18px;
+  width: 18px;
+}
+.match-percent {
+  color: var(--primary-2);
+  font-weight: 900;
+  white-space: nowrap;
+}
 .grid {
   display: grid;
   grid-template-columns: 1.2fr 0.8fr;

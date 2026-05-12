@@ -123,6 +123,9 @@
                   <button class="btn" type="button" id="btnRank">
                     Rank Profiles
                   </button>
+                  <button class="btn" type="button" id="btnAddRankedSelected">
+                    Add checked to shortlist
+                  </button>
                   <a class="btn secondary" href="find-candidate.html" style="text-decoration: none">
                     Add JD in Talent
                   </a>
@@ -147,6 +150,7 @@
           <table class="table" id="resultsTableInternal">
             <thead>
               <tr>
+                <th class="candidate-select-cell"></th>
                 <th>#</th>
                 <th>Candidate</th>
                 <th>Email</th>
@@ -166,6 +170,9 @@
             private + public profile.
           </div>
         </section>
+        <section class="card" style="margin-top: 18px">
+          <div id="shortlistTray"></div>
+        </section>
         <!-- TODO: REMOVE LATER
       <aside class="card">
           
@@ -183,7 +190,9 @@
     <script src="JS/apiScripts.js"></script>
     <script src="JS/updateProcessFlow.js"></script>
     <script src="JS/profileCompletion.js"></script>
+    <script src="JS/shortlist.js"></script>
     <script>
+      let latestRank = [];
       // tiny UX sugar (mock only)
       document
         .querySelectorAll("a.step")
@@ -264,6 +273,34 @@
         window.location.href = "profile-preview.html";
       }
 
+      function rankedCandidateForShortlist(r) {
+        const nameParts = String(r.name || "").trim().split(/\s+/);
+        return {
+          ...r,
+          id: r.profile_id,
+          firstName: r.firstName || nameParts.slice(0, -1).join(" "),
+          lastName: r.lastName || nameParts.slice(-1).join(" "),
+          score: Math.round(r._score100 || r.score || 0),
+          status: r.step || r.status || "Ranked match",
+          skills: r.top_matches || [],
+          top_matches: r.top_matches || [],
+        };
+      }
+
+      function addCheckedRankedCandidates() {
+        const selected = [...document.querySelectorAll(".ranked-candidate-check:checked")]
+          .map((input) => latestRank[Number(input.dataset.index)])
+          .filter(Boolean)
+          .map(rankedCandidateForShortlist);
+        if (!selected.length) return alert("Check at least one ranked candidate first.");
+        const added = window.DevReadyShortlist.addMany(selected, {
+          stage: "2 - Find (In)",
+          source: "Role match",
+        });
+        document.getElementById("matchStatus").textContent =
+          `Added ${added.length} candidate${added.length === 1 ? "" : "s"} to the shortlist.`;
+      }
+
       // Rank profiles based on job description
       async function rank() {
         const jd_id = document.getElementById("jdSelect").value;
@@ -329,7 +366,8 @@
 
             tr.id = `resultRow-${r.profile_id}`;
             tr.style.cursor = "pointer";
-            tr.innerHTML = `<td>${i + 1}</td><td>${r.name || ""}</td><td>${r.email || ""}</td><td>${Math.round(r._score100 || 0)}%</td><td>${(r.top_matches || []).slice(0, 6).join(", ")}</td><td>${matchPercentage}</td><td id="matchCompletion-${r.profile_id}"></td>`;
+            tr.innerHTML = `<td class="candidate-select-cell"><input class="ranked-candidate-check" type="checkbox" data-index="${i}" aria-label="Select ${escapeHtml(r.name || "candidate")}"></td><td>${i + 1}</td><td>${r.name || ""}</td><td>${r.email || ""}</td><td><span class="match-percent">${Math.round(r._score100 || 0)}%</span></td><td>${(r.top_matches || []).slice(0, 6).join(", ")}</td><td>${matchPercentage}</td><td id="matchCompletion-${r.profile_id}"></td>`;
+            tr.querySelector("input").addEventListener("click", (event) => event.stopPropagation());
             tr.addEventListener("click", () => selectRow(r));
             tbody.appendChild(tr);
             if (window.profileCompletion) {
@@ -342,7 +380,7 @@
           });
 
           document.getElementById("matchStatus").textContent =
-            `Returned ${latestRank.length} results (Top ${top_k}). Click a row to select.`;
+            `Returned ${latestRank.length} results (Top ${top_k}). Check 2-3 candidates and add them to the shortlist, or click a row to open one profile.`;
           // setDisabled("btnReadyIT", true);
           // setDisabled("btnReadyIT2", true);
           // setDisabled("btnReportHtml", true);
@@ -403,6 +441,7 @@
         });
 
         document.getElementById("btnRank").addEventListener("click", rank);
+        document.getElementById("btnAddRankedSelected").addEventListener("click", addCheckedRankedCandidates);
         document
           .getElementById("jdSelect")
           .addEventListener("change", enableJDButtons);
