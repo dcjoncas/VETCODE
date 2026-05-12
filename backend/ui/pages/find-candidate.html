@@ -47,6 +47,25 @@
         gap: 12px;
       }
 
+      .candidate-match-grid {
+        display: grid;
+        grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.15fr);
+        gap: 12px;
+        align-items: end;
+      }
+
+      .match-mode-box {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fff;
+      }
+
+      .match-mode-box.active {
+        border-color: rgba(45, 125, 70, 0.45);
+        background: rgba(45, 125, 70, 0.06);
+      }
+
       .resume-upload-actions {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
@@ -136,6 +155,7 @@
 
       @media (max-width: 980px) {
         .talent-intake-grid,
+        .candidate-match-grid,
         .resume-upload-actions {
           grid-template-columns: 1fr;
         }
@@ -172,11 +192,40 @@
 
           <div class="talent-intake-grid">
             <div class="field">
-              <label>Search existing profiles</label>
-              <input
-                id="findSearchBar"
-                placeholder="Name, email, comma separated skills (e.g. Python, C#, React)"
-              />
+              <label>Match candidates</label>
+              <div class="candidate-match-grid">
+                <div id="jdMatchBox" class="match-mode-box">
+                  <label>Load job description</label>
+                  <div style="color: var(--muted); font-size: 13px; line-height: 1.35">
+                    Optional. If loaded, search will match candidates to this JD.
+                  </div>
+                  <select id="jdSelect" style="margin-top: 10px">
+                    <option value="" selected disabled hidden>Select job description</option>
+                  </select>
+                  <div class="row-actions">
+                    <button class="btn" type="button" id="btnLoadJd">
+                      Use JD
+                    </button>
+                    <button class="btn secondary" type="button" id="btnClearJd">
+                      Clear JD
+                    </button>
+                    <a class="btn secondary" href="job-descriptions.html">Manage</a>
+                  </div>
+                  <div id="jdStatus" style="color: var(--muted); font-size: 13px">
+                    No job description loaded.
+                  </div>
+                </div>
+                <div id="criteriaMatchBox" class="match-mode-box">
+                  <label>Or enter search criteria</label>
+                  <input
+                    id="findSearchBar"
+                    placeholder="Name, email, comma separated skills (e.g. Python, C#, React)"
+                  />
+                  <div style="color: var(--muted); font-size: 13px; line-height: 1.35; margin-top: 6px">
+                    Use this only when no job description is loaded.
+                  </div>
+                </div>
+              </div>
               <div class="row-actions">
                 <button id="searchProfilesBtn" class="btn" type="button">
                   Search Profiles
@@ -221,25 +270,6 @@
                   </button>
                 </div>
                 <div id="uploadStatus" style="color: var(--muted)"></div>
-              </div>
-
-              <div class="field resume-upload-box">
-                <label>Load job description</label>
-                <div style="color: var(--muted); font-size: 13px; line-height: 1.35">
-                  Select a job description already created on the Job Descriptions page.
-                </div>
-                <select id="jdSelect" style="margin-top: 10px">
-                  <option value="" selected disabled hidden>Select job description</option>
-                </select>
-                <div class="row-actions">
-                  <a class="btn secondary" href="job-descriptions.html">Manage JDs</a>
-                  <button class="btn" type="button" id="btnLoadJd">
-                    Load JD
-                  </button>
-                </div>
-                <div id="jdStatus" style="color: var(--muted); font-size: 13px">
-                  No job description loaded.
-                </div>
               </div>
             </div>
           </div>
@@ -383,6 +413,9 @@
           "shortlist",
           "clientEmail",
           "jobID",
+          "jobId",
+          "jdId",
+          "selectedJdId",
           "jobCompany",
           "jobTitle",
           "jobSkills",
@@ -398,6 +431,7 @@
         sessionStorage.setItem("domain", keepDomain);
         document.getElementById("cadidateSearchResults").innerHTML = "";
         document.getElementById("findSearchBar").value = "";
+        updateMatchModeUI();
         alert("Process cleared. You are back at Talent with a clean workflow state.");
         if (typeof updateCandidate === "function") updateCandidate();
         if (typeof updateJob === "function") updateJob();
@@ -537,11 +571,57 @@
           if (savedJdId && (jds || []).some((j) => String(j.jd_id) === String(savedJdId))) {
             picker.value = savedJdId;
           }
-          status.textContent = jds.length
-            ? "Choose a saved job description to use in matching."
-            : "No job descriptions found. Create one from Job Descriptions first.";
+          const jdCount = (jds || []).length;
+          status.textContent = activeJobId()
+            ? `JD loaded: ${sessionStorage.getItem("jobCompany") ? sessionStorage.getItem("jobCompany") + " - " : ""}${sessionStorage.getItem("jobTitle") || "job description"}`
+            : jdCount
+              ? "Choose a saved job description to use in matching, or leave blank and search by criteria."
+              : "No job descriptions found. Create one from Job Descriptions first.";
+          updateMatchModeUI();
         } catch (e) {
           status.textContent = `Could not load job descriptions: ${e.message}`;
+        }
+      }
+
+      function activeJobId() {
+        return (
+          sessionStorage.getItem("selectedJdId") ||
+          sessionStorage.getItem("jdId") ||
+          sessionStorage.getItem("jobId") ||
+          sessionStorage.getItem("jobID") ||
+          ""
+        );
+      }
+
+      function clearLoadedJobDescription() {
+        ["jobID", "jobId", "selectedJdId", "jdId", "jobCompany", "jobTitle", "jobSkills"].forEach((key) =>
+          sessionStorage.removeItem(key),
+        );
+        const picker = document.getElementById("jdSelect");
+        const status = document.getElementById("jdStatus");
+        const searchInput = document.getElementById("findSearchBar");
+        if (picker) picker.value = "";
+        if (searchInput) {
+          searchInput.disabled = false;
+          searchInput.placeholder = "Name, email, comma separated skills (e.g. Python, C#, React)";
+        }
+        if (status) status.textContent = "No job description loaded. Enter search criteria to find profiles.";
+        updateMatchModeUI();
+        if (typeof updateJob === "function") updateJob();
+      }
+
+      function updateMatchModeUI() {
+        const hasJob = Boolean(activeJobId());
+        const jdBox = document.getElementById("jdMatchBox");
+        const criteriaBox = document.getElementById("criteriaMatchBox");
+        const searchInput = document.getElementById("findSearchBar");
+        if (jdBox) jdBox.classList.toggle("active", hasJob);
+        if (criteriaBox) criteriaBox.classList.toggle("active", !hasJob);
+        if (searchInput) {
+          searchInput.disabled = hasJob;
+          searchInput.placeholder = hasJob
+            ? "JD loaded. Clear JD to search by criteria instead."
+            : "Name, email, comma separated skills (e.g. Python, C#, React)";
         }
       }
 
@@ -562,6 +642,8 @@
           const jobCompany = jd.company || selected.dataset.company || "";
           const jobSkills = Array.isArray(jd.skills)
             ? jd.skills.filter(Boolean).join(", ")
+            : Array.isArray(jd.skillList)
+              ? jd.skillList.filter(Boolean).join(", ")
             : "";
 
           sessionStorage.setItem("jobID", picker.value);
@@ -571,7 +653,9 @@
           sessionStorage.setItem("jobCompany", jobCompany);
           sessionStorage.setItem("jobTitle", jobTitle);
           sessionStorage.setItem("jobSkills", jobSkills);
+          document.getElementById("findSearchBar").value = "";
           status.textContent = `Loaded ${jobCompany ? jobCompany + " - " : ""}${jobTitle || "job description"} for this process.`;
+          updateMatchModeUI();
           if (typeof updateJob === "function") updateJob();
         } catch (error) {
           status.textContent =
@@ -695,11 +779,27 @@
         const searchInput = document
           .getElementById("findSearchBar")
           .value.trim();
-        const skills = searchInput
+        const loadedJobId = activeJobId();
+        const loadedJobSkills = sessionStorage.getItem("jobSkills") || "";
+
+        if (loadedJobId && searchInput) {
+          return alert("Use either a loaded job description or search criteria, not both. Clear the JD to search by criteria.");
+        }
+
+        if (!loadedJobId && !searchInput) {
+          return alert("Load a job description or enter search criteria first.");
+        }
+
+        if (loadedJobId && !loadedJobSkills.trim()) {
+          return alert("The loaded job description has no extracted skills yet. Clear it and use search criteria, or update the JD.");
+        }
+
+        const searchBasis = loadedJobId ? loadedJobSkills : searchInput;
+        const skills = searchBasis
           .split(",")
           .map((s) => s.trim())
           .filter((s) => s.length > 0);
-        let limit = 5;
+        let limit = 10;
 
         const fd = new FormData();
 
@@ -715,18 +815,40 @@
             body: fd,
           });
 
-          fd.set("limit", limit);
-          fd.set("search_string", searchInput);
-          const identityProfiles = await api("/api/azure/searchNameEmail", {
-            method: "POST",
-            body: fd,
-          });
+          let profiles = skillProfiles || [];
+          if (loadedJobId) {
+            const profileIds = profiles.map((profile) => profile.id).filter(Boolean);
+            if (profileIds.length) {
+              const scoreFd = new FormData();
+              scoreFd.append("domain", domain);
+              scoreFd.append("profileIds", profileIds.join(","));
+              profiles = await api(`/api/azure/getProfile/short/score/${encodeURIComponent(loadedJobId)}`, {
+                method: "POST",
+                body: scoreFd,
+              });
+            }
+            latestSearchProfiles = (profiles || []).slice(0, limit).map((profile) => ({
+              ...profile,
+              step: profile.step || profile.status || "",
+              primaryStack: profile.primaryStack || (profile.skills || [])[0] || "Other",
+              matchPercentage: Number(profile.score || 0),
+              matchBasis: "JD",
+            }));
+          } else {
+            fd.set("limit", limit);
+            fd.set("search_string", searchInput);
+            const identityProfiles = await api("/api/azure/searchNameEmail", {
+              method: "POST",
+              body: fd,
+            });
 
-          const profiles = mergeAndRankProfiles(skillProfiles, identityProfiles).slice(0, limit);
-          latestSearchProfiles = profiles.map((profile) => ({
-            ...profile,
-            matchPercentage: scoreProfileForSearch(profile, searchInput),
-          }));
+            profiles = mergeAndRankProfiles(skillProfiles, identityProfiles).slice(0, limit);
+            latestSearchProfiles = profiles.map((profile) => ({
+              ...profile,
+              matchPercentage: scoreProfileForSearch(profile, searchInput),
+              matchBasis: "Search",
+            }));
+          }
 
           const tbody = document.getElementById("cadidateSearchResults");
           tbody.innerHTML = "";
@@ -745,7 +867,7 @@
             //tr.style.cursor = "pointer";
             const cert = r.aiCertification || {};
             const certLabel = cert.level ? `Certified - ${cert.level}` : cert.status || "Not started";
-            tr.innerHTML = `<td class="candidate-select-cell"><input class="candidate-search-check" type="checkbox" data-index="${i}" aria-label="Select ${escapeHtml(r.firstName || r.name || "candidate")}"></td><td>${i + 1}</td><td>${escapeHtml(r.firstName || "")} ${escapeHtml(r.lastName || "")}</td><td>${escapeHtml(r.email || "")}</td><td><span class="match-percent">${Math.round(r.matchPercentage || 0)}%</span></td><td>${escapeHtml(r.primaryStack || r.title || "Other")}</td><td><div class="pill">${escapeHtml(r.step)}</div></td><td><a class="pill" href="${aiCertUrl(r)}">${escapeHtml(certLabel)}</a></td><td id="completionAction-${escapeHtml(r.id)}"></td>`;
+            tr.innerHTML = `<td class="candidate-select-cell"><input class="candidate-search-check" type="checkbox" data-index="${i}" aria-label="Select ${escapeHtml(r.firstName || r.name || "candidate")}"></td><td>${i + 1}</td><td>${escapeHtml(r.firstName || "")} ${escapeHtml(r.lastName || "")}</td><td>${escapeHtml(r.email || "")}</td><td><span class="match-percent">${Math.round(r.matchPercentage || 0)}%</span><div style="color: var(--muted); font-size: 12px">${escapeHtml(r.matchBasis || "")}</div></td><td>${escapeHtml(r.primaryStack || r.title || "Other")}</td><td><div class="pill">${escapeHtml(r.step || r.status || "")}</div></td><td><a class="pill" href="${aiCertUrl(r)}">${escapeHtml(certLabel)}</a></td><td id="completionAction-${escapeHtml(r.id)}"></td>`;
             tr.addEventListener("click", () => findSelect(r));
             tr.querySelector("input").addEventListener("click", (event) => event.stopPropagation());
             tr.querySelector("a").addEventListener("click", (event) => event.stopPropagation());
@@ -1007,6 +1129,10 @@
           .addEventListener("click", searchSkillList);
 
         document
+          .getElementById("btnClearJd")
+          .addEventListener("click", clearLoadedJobDescription);
+
+        document
           .getElementById("addSelectedProfilesBtn")
           .addEventListener("click", addSelectedSearchProfiles);
 
@@ -1046,6 +1172,7 @@
         document
           .getElementById("scanProfilesBtn")
           .addEventListener("click", scanProfiles);
+        updateMatchModeUI();
         loadExistingDescriptions();
 
         document
