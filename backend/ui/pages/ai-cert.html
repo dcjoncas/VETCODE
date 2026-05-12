@@ -368,14 +368,32 @@
 
       function selectedBadge() {
         const params = new URLSearchParams(window.location.search);
+        const roleKey = params.get("badgeRoleKey") || "";
+        const level = params.get("badgeLevel") || "";
+        const rawCertificateId = params.get("certificateId") || "";
+        const parsedVersion = (rawCertificateId.match(/-v([a-c])$/i) || [])[1] || "";
+        const examVersion = params.get("examVersion") || parsedVersion.toUpperCase() || (roleKey && level ? "A" : "");
+        const normalizedLevel = level ? level.toLowerCase() : "";
+        const normalizedVersion = examVersion ? examVersion.toLowerCase() : "";
+        const examId =
+          params.get("examId") ||
+          (roleKey && normalizedLevel && normalizedVersion
+            ? `${roleKey}-${normalizedLevel}-exam-${normalizedVersion}`
+            : "");
+        const certificateId =
+          rawCertificateId && parsedVersion
+            ? rawCertificateId
+            : roleKey && normalizedLevel && normalizedVersion
+              ? `${roleKey}-${normalizedLevel}-v${normalizedVersion}`
+              : rawCertificateId;
         return {
           role: params.get("badgeRole") || "",
-          roleKey: params.get("badgeRoleKey") || "",
-          level: params.get("badgeLevel") || "",
+          roleKey,
+          level,
           title: params.get("badgeTitle") || "",
-          certificateId: params.get("certificateId") || "",
-          examId: params.get("examId") || "",
-          examVersion: params.get("examVersion") || "",
+          certificateId,
+          examId,
+          examVersion,
         };
       }
 
@@ -443,6 +461,13 @@
         if (badge.examVersion) params.set("examVersion", badge.examVersion);
         params.set("source", outbound ? "devready_invite" : "devready");
         const returnTo = new URL(window.location.href);
+        if (badge.role) returnTo.searchParams.set("badgeRole", badge.role);
+        if (badge.roleKey) returnTo.searchParams.set("badgeRoleKey", badge.roleKey);
+        if (badge.level) returnTo.searchParams.set("badgeLevel", badge.level);
+        if (badge.title) returnTo.searchParams.set("badgeTitle", badge.title);
+        if (badge.certificateId) returnTo.searchParams.set("certificateId", badge.certificateId);
+        if (badge.examId) returnTo.searchParams.set("examId", badge.examId);
+        if (badge.examVersion) returnTo.searchParams.set("examVersion", badge.examVersion);
         returnTo.searchParams.set("certComplete", "1");
         params.set("returnTo", returnTo.toString());
         return `${certBaseUrl}?${params.toString()}`;
