@@ -14,23 +14,6 @@
   </a>
 
   <div class="userbox">
-    <a
-      href="https://devready.io/contact/"
-      target="_blank"
-      rel="noopener"
-      style="
-        display: block;
-        margin-bottom: 10px;
-        padding: 8px 10px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.92);
-        color: #125b36;
-        font-size: 12px;
-        font-weight: 900;
-        text-align: center;
-      "
-      >Contact DevReady</a
-    >
     <div style="font-size: 12px; opacity: 0.9">Welcome back,</div>
     <div id="sidebarUserName" class="name">DevReady User</div>
     <div
@@ -56,7 +39,164 @@
   </div>
 </aside>
 
+<style>
+  .devready-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 22px;
+    background: rgba(9, 17, 27, 0.45);
+    backdrop-filter: blur(5px);
+  }
+
+  .devready-modal-backdrop.open {
+    display: flex;
+  }
+
+  .devready-modal {
+    width: min(520px, 100%);
+    border: 1px solid rgba(255, 255, 255, 0.54);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.24);
+    overflow: hidden;
+  }
+
+  .devready-modal-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--line, #dfe7e2);
+    background: linear-gradient(135deg, rgba(47, 125, 75, 0.12), rgba(47, 125, 75, 0.03));
+  }
+
+  .devready-modal-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    background: #2f7d4b;
+    color: #fff;
+    font-weight: 900;
+    font-size: 13px;
+  }
+
+  .devready-modal-title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 900;
+    color: var(--text, #07130c);
+  }
+
+  .devready-modal-body {
+    padding: 16px 18px 4px;
+    color: var(--text, #07130c);
+    line-height: 1.45;
+  }
+
+  .devready-modal-body pre {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-family: inherit;
+  }
+
+  .devready-modal-list {
+    display: grid;
+    gap: 9px;
+  }
+
+  .devready-modal-row {
+    display: grid;
+    grid-template-columns: 115px 1fr;
+    gap: 10px;
+    padding: 9px 10px;
+    border: 1px solid var(--line, #dfe7e2);
+    border-radius: 10px;
+    background: #f8faf9;
+  }
+
+  .devready-modal-row strong {
+    color: var(--muted, #50635a);
+    font-size: 12px;
+  }
+
+  .devready-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 14px 18px 18px;
+  }
+</style>
+
 <script>
+  function ensureDevReadyModal() {
+    let backdrop = document.getElementById("devreadyModalBackdrop");
+    if (backdrop) return backdrop;
+    backdrop = document.createElement("div");
+    backdrop.id = "devreadyModalBackdrop";
+    backdrop.className = "devready-modal-backdrop";
+    backdrop.innerHTML = `
+      <div class="devready-modal" role="dialog" aria-modal="true" aria-labelledby="devreadyModalTitle">
+        <div class="devready-modal-head">
+          <div class="devready-modal-mark">DR</div>
+          <h2 id="devreadyModalTitle" class="devready-modal-title">DevReady</h2>
+        </div>
+        <div id="devreadyModalBody" class="devready-modal-body"></div>
+        <div class="devready-modal-actions">
+          <button id="devreadyModalOk" class="btn primary" type="button">OK</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(backdrop);
+    backdrop.addEventListener("click", (event) => {
+      if (event.target === backdrop) closeDevReadyModal();
+    });
+    backdrop.querySelector("#devreadyModalOk").addEventListener("click", closeDevReadyModal);
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeDevReadyModal();
+    });
+    return backdrop;
+  }
+
+  function closeDevReadyModal() {
+    document.getElementById("devreadyModalBackdrop")?.classList.remove("open");
+  }
+
+  function showDevReadyModal(title, content) {
+    const backdrop = ensureDevReadyModal();
+    backdrop.querySelector("#devreadyModalTitle").textContent = title || "DevReady";
+    const body = backdrop.querySelector("#devreadyModalBody");
+    if (Array.isArray(content)) {
+      body.innerHTML = `<div class="devready-modal-list">${content
+        .map(
+          (row) => `<div class="devready-modal-row"><strong>${escapeModal(row.label)}</strong><span>${escapeModal(row.value)}</span></div>`,
+        )
+        .join("")}</div>`;
+    } else {
+      body.innerHTML = `<pre>${escapeModal(content || "")}</pre>`;
+    }
+    backdrop.classList.add("open");
+    setTimeout(() => backdrop.querySelector("#devreadyModalOk")?.focus(), 0);
+  }
+
+  function escapeModal(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  window.devReadyAlert = showDevReadyModal;
+  window.alert = (message) => showDevReadyModal("DevReady", message);
+
   $(function () {
     applyLoggedInUser();
     $("#pageNav").load("components/sideNav.html?v=20260512-icons", function () {
@@ -382,21 +522,24 @@
       sourceName = `${sourceName} - backend environment check unavailable`;
     }
 
+    const statusRows = [
+      { label: "Updated", value: now },
+      { label: "Domain", value: domainName },
+      { label: "Database", value: databaseName },
+      { label: "DB host", value: databaseHost },
+      { label: "Storage", value: storageContainer },
+      { label: "App", value: publicDomain },
+      { label: "Source", value: sourceName },
+    ];
     const statusText = [
-      `Workspace status`,
-      now,
-      `Domain: ${domainName}`,
-      `Database: ${databaseName}`,
-      `DB host: ${databaseHost}`,
-      `Storage: ${storageContainer}`,
-      `App: ${publicDomain}`,
-      `Source: ${sourceName}`,
+      "Workspace status",
+      ...statusRows.map((row) => `${row.label}: ${row.value}`),
     ].join("\n");
     notice.innerHTML = `<button class="workspace-status-button" type="button">Workspace status</button>`;
     const button = notice.querySelector("button");
     button.dataset.hint = statusText;
     button.setAttribute("aria-label", statusText);
-    button.onclick = () => alert(statusText);
+    button.onclick = () => showDevReadyModal("Workspace Status", statusRows);
     if (typeof applyButtonHints === "function") applyButtonHints(notice);
   }
 
