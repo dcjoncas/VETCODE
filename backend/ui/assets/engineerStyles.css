@@ -1274,6 +1274,21 @@ input[type="checkbox"] {
   white-space: normal;
   text-align: left;
   line-height: 1.2;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  box-shadow: none;
+}
+
+.workspace-status-button:hover {
+  background: transparent;
+  color: #fff;
 }
 
 .process-actions {
@@ -1281,14 +1296,21 @@ input[type="checkbox"] {
 }
 
 .process-hint-toggle {
-  height: 31px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(20, 93, 178, 0.22);
-  background: #fff;
+  height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--primary-2);
   font-size: 12px;
   font-weight: 900;
   cursor: pointer;
   box-shadow: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.process-hint-toggle:hover {
+  color: var(--primary-3);
+  background: transparent;
 }
