@@ -1,63 +1,141 @@
 <style>
+  #pageNavInner {
+    --nav-accent: rgba(141, 202, 100, 0.95);
+    gap: 2px;
+  }
+
+  #pageNavInner .nav-group,
   #pageNavInner .nav-group.cert-nav-group {
-    background: rgba(255, 255, 255, 0.055);
-    border-color: rgba(225, 239, 231, 0.18);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    gap: 2px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
-  #pageNavInner a.ai-cert-link {
-    background: linear-gradient(135deg, rgba(24, 98, 184, 0.92), rgba(17, 73, 142, 0.9));
-    color: #fff;
-    border-color: rgba(191, 219, 254, 0.32);
-  }
-
-  #pageNavInner a.badge-catalog-link {
-    background: linear-gradient(135deg, rgba(219, 234, 254, 0.95), rgba(240, 247, 255, 0.94));
-    color: #123d73;
-    border-color: rgba(147, 197, 253, 0.5);
-  }
-
-  #pageNavInner a.crm-link {
-    background: linear-gradient(135deg, rgba(234, 179, 8, 0.92), rgba(202, 138, 4, 0.9));
-    color: #1f2933;
-    border-color: rgba(254, 240, 138, 0.34);
-  }
-
-  #pageNavInner a.meridian-link {
-    background: linear-gradient(135deg, rgba(255, 251, 235, 0.96), rgba(229, 231, 235, 0.94));
-    color: #2f2a1d;
-    border-color: rgba(212, 175, 55, 0.74);
-    box-shadow:
-      inset 0 0 0 1px rgba(192, 192, 192, 0.48),
-      inset 0 1px 0 rgba(255, 255, 255, 0.62);
-  }
-
+  #pageNavInner a,
+  #pageNavInner a.nav-talent,
+  #pageNavInner a.nav-find-in,
+  #pageNavInner a.nav-find-out,
+  #pageNavInner a.nav-profiles,
+  #pageNavInner a.nav-jds,
+  #pageNavInner a.crm-link,
+  #pageNavInner a.recordings-link,
+  #pageNavInner a.test-challenge-link,
+  #pageNavInner a.ai-cert-link,
+  #pageNavInner a.badge-catalog-link,
+  #pageNavInner a.meridian-link,
+  #pageNavInner a.admin-link,
   #pageNavInner a.legacy-link {
-    background: linear-gradient(135deg, rgba(100, 116, 139, 0.86), rgba(71, 85, 105, 0.9));
-    color: #fff;
-    border-color: rgba(226, 232, 240, 0.24);
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    min-height: 46px;
+    padding: 11px 12px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    box-shadow: none;
+    color: rgba(255, 255, 255, 0.84);
+    font-size: 14px;
+    font-weight: 650;
+    letter-spacing: 0;
+    text-decoration: none;
   }
 
-  #pageNavInner a.admin-link {
-    background: linear-gradient(135deg, #111827, #273449);
+  #pageNavInner a:hover {
+    transform: none;
+    background: rgba(255, 255, 255, 0.075);
     color: #fff;
-    border-color: rgba(226, 232, 240, 0.24);
+  }
+
+  #pageNavInner a.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    box-shadow: inset 3px 0 0 var(--nav-accent);
+    outline: 0;
+  }
+
+  #pageNavInner a.nav-find-in,
+  #pageNavInner a.nav-find-out {
+    padding-left: 18px;
   }
 
   #pageNavInner .nav-icon {
-    width: 19px;
-    height: 19px;
-    flex: 0 0 19px;
+    width: 21px;
+    height: 21px;
+    flex: 0 0 21px;
     stroke: currentColor;
-    stroke-width: 2;
+    stroke-width: 1.9;
     stroke-linecap: round;
     stroke-linejoin: round;
     fill: none;
-    opacity: 0.92;
+    opacity: 0.86;
   }
 
-  #pageNavInner a.active .nav-icon {
+  #pageNavInner a.active .nav-icon,
+  #pageNavInner a:hover .nav-icon {
     opacity: 1;
+  }
+
+  #pageNavInner a.nav-talent {
+    --nav-accent: #8dcc64;
+  }
+
+  #pageNavInner a.nav-find-in,
+  #pageNavInner a.nav-find-out {
+    --nav-accent: #9fe7d0;
+  }
+
+  #pageNavInner a.nav-profiles {
+    --nav-accent: #7db8ff;
+  }
+
+  #pageNavInner a.nav-jds {
+    --nav-accent: #f2a13b;
+  }
+
+  #pageNavInner a.crm-link {
+    --nav-accent: #f2d34f;
+  }
+
+  #pageNavInner a.recordings-link {
+    --nav-accent: #dc6060;
+  }
+
+  #pageNavInner a.test-challenge-link {
+    --nav-accent: #4aa36f;
+  }
+
+  #pageNavInner a.ai-cert-link {
+    --nav-accent: #4f96ff;
+  }
+
+  #pageNavInner a.badge-catalog-link {
+    --nav-accent: #cfe8ff;
+  }
+
+  #pageNavInner a.meridian-link {
+    --nav-accent: #d7b56d;
+  }
+
+  #pageNavInner a.admin-link {
+    --nav-accent: #d1d5db;
+  }
+
+  #pageNavInner a.legacy-link {
+    --nav-accent: #94a3b8;
+  }
+
+  #pageNavInner::before {
+    content: "NAVIGATION";
+    display: block;
+    margin: 16px 12px 8px;
+    color: rgba(255, 255, 255, 0.56);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
   }
 </style>
 
