@@ -126,6 +126,11 @@
         justify-content: flex-end;
       }
 
+      .temp-profile-panel:target {
+        border-color: var(--primary-2);
+        box-shadow: 0 0 0 3px rgba(34, 113, 177, 0.12);
+      }
+
       @media (max-width: 760px) {
         .temp-profile-row {
           grid-template-columns: 1fr;
@@ -218,6 +223,9 @@
             <button class="btn" type="button" id="btnImportSelected">
               Create TEMP profiles from checked
             </button>
+            <button class="btn secondary" type="button" id="btnViewTempProfiles">
+              View TEMP Profiles
+            </button>
             <a class="btn secondary" href="find-candidate.html">Add JD in Talent</a>
             <a class="btn secondary" href="match-role.html">Continue to Role & Match</a>
           </div>
@@ -233,7 +241,7 @@
             <div id="shortlistTray"></div>
           </section>
 
-          <section class="temp-profile-panel" aria-labelledby="tempProfilesTitle">
+          <section id="tempProfiles" class="temp-profile-panel" aria-labelledby="tempProfilesTitle">
             <div class="section-head">
               <div>
                 <h2 id="tempProfilesTitle">TEMP Profiles</h2>
@@ -241,7 +249,7 @@
                   Review externally mined profiles, delete records you do not need, or make reviewed profiles permanent.
                 </p>
               </div>
-              <button class="btn secondary" type="button" onclick="loadTempProfiles()">Refresh TEMP Profiles</button>
+              <button class="btn secondary" type="button" onclick="loadTempProfiles({ scroll: true })">Refresh TEMP Profiles</button>
             </div>
             <div id="tempProfileStatus" class="notice" style="margin-top: 10px">
               TEMP profiles are kept separate for PII review.
@@ -401,15 +409,33 @@
         const candidate = latestExternalResults[index];
         if (!candidate) return;
 
-        const response = await api("/api/azureJobs/external/import", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            domain: currentDomain(),
-            source: candidate.source,
-            candidate,
-          }),
-        });
+        document.getElementById("mineStatus").textContent =
+          `Creating TEMP profile for ${candidate.name || "selected candidate"}...`;
+
+        let response;
+        try {
+          response = await api("/api/azureJobs/external/import", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              domain: currentDomain(),
+              source: candidate.source,
+              candidate,
+            }),
+          });
+        } catch (e) {
+          document.getElementById("mineStatus").textContent =
+            `TEMP profile was not created: ${e.message}`;
+          document.getElementById("tempProfileStatus").textContent =
+            "Create TEMP profile failed. Check the message above before refreshing.";
+          return null;
+        }
+
+        if (!response || !response.personid) {
+          document.getElementById("mineStatus").textContent =
+            "TEMP profile was not created: the server did not return a profile id.";
+          return null;
+        }
 
         sessionStorage.setItem("candidateId", response.personid);
         sessionStorage.setItem("candidateName", response.name);
@@ -449,7 +475,8 @@
         });
         document.getElementById("mineStatus").textContent =
           "TEMP profile created. Use the link below to open it, make it permanent, or delete it.";
-        await loadTempProfiles();
+        await loadTempProfiles({ scroll: true });
+        return response;
       }
 
       async function importSelectedExternalCandidates() {
@@ -461,11 +488,13 @@
         let count = 0;
         try {
           for (const index of selected) {
-            await importExternalCandidate(index);
-            count++;
+            const created = await importExternalCandidate(index);
+            if (created) count++;
           }
           document.getElementById("mineStatus").textContent =
-            `Created ${count} TEMP profile${count === 1 ? "" : "s"} and added them to the shortlist.`;
+            count
+              ? `Created ${count} TEMP profile${count === 1 ? "" : "s"} and added them to the shortlist.`
+              : "No TEMP profiles were created. Check the error message above.";
         } finally {
           document.getElementById("btnImportSelected").disabled = false;
         }
@@ -524,7 +553,15 @@
           .join("");
       }
 
-      async function loadTempProfiles() {
+      function scrollToTempProfiles() {
+        const panel = document.getElementById("tempProfiles");
+        if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      async function loadTempProfiles(options = {}) {
+        document.getElementById("tempProfileStatus").textContent =
+          `Loading TEMP profiles for ${currentDomain()}...`;
+        if (options.scroll) scrollToTempProfiles();
         try {
           const response = await api(`/api/azureJobs/external/temp?domain=${encodeURIComponent(currentDomain())}&limit=100`);
           renderTempProfiles(response.profiles || []);
@@ -595,13 +632,18 @@
         });
         document.getElementById("btnMine").addEventListener("click", mineCandidates);
         document.getElementById("btnImportSelected").addEventListener("click", importSelectedExternalCandidates);
+        document.getElementById("btnViewTempProfiles").addEventListener("click", () => loadTempProfiles({ scroll: true }));
         document.getElementById("externalSearchInput").addEventListener("keydown", (event) => {
           if (event.key === "Enter") {
             event.preventDefault();
             mineCandidates();
           }
         });
-        loadTempProfiles();
+        if (window.location.hash === "#tempProfiles") {
+          loadTempProfiles({ scroll: true });
+        } else {
+          loadTempProfiles();
+        }
       });
     </script>
   </body>

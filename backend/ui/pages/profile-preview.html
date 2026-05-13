@@ -145,6 +145,16 @@
                   Load Known Profile
                 </button></a
               >
+              <a href="mine-candidate-external.html#tempProfiles"
+                ><button
+                  id="viewTempProfilesBtn"
+                  class="btn secondary"
+                  type="button"
+                  data-hint="Open the TEMP profile review list for externally mined candidates."
+                >
+                  View TEMP Profiles
+                </button></a
+              >
               <a id="publicBtnLink" href="profile-public.html" target="_blank"
                 ><button id="publicBtn" class="btn" type="button" disabled>
                   Public Profile
@@ -721,7 +731,13 @@
 
           console.log(profileData);
 
-          if (profileType === "Temporary Profile") {
+          const profileDescription = profileData.profile?.description || "";
+          const isTemporaryProfile =
+            profileType === "Temporary Profile" ||
+            profileDescription.includes("Temporary external profile");
+          if (isTemporaryProfile) {
+            sessionStorage.setItem("candidateProfileType", "Temporary Profile");
+            sessionStorage.setItem("candidateStatus", "Temporary Profile");
             document.getElementById("deleteTempBtn").style.display = "inline-block";
             document.getElementById("makePermanentTempBtn").style.display = "inline-block";
             document
