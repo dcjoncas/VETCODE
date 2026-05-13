@@ -109,8 +109,8 @@ input[type="checkbox"] {
   border-radius: 20px;
   background: linear-gradient(
     135deg,
-    rgba(127, 191, 63, 0.35),
-    rgba(47, 125, 75, 0.25)
+    rgba(var(--primary-rgb), 0.28),
+    rgba(var(--primary-2-rgb), 0.2)
   );
   border: 1px solid var(--line);
   display: flex;
@@ -125,8 +125,8 @@ input[type="checkbox"] {
   border-radius: 20px;
   background: linear-gradient(
     135deg,
-    rgba(127, 191, 63, 0.35),
-    rgba(47, 125, 75, 0.25)
+    rgba(var(--primary-rgb), 0.28),
+    rgba(var(--primary-2-rgb), 0.2)
   );
   border: 1px solid var(--line);
   display: flex;
@@ -458,7 +458,6 @@ input[type="checkbox"] {
 .pillFeature {
   display: inline-block;
   margin-bottom: 5px;
-  /*border: 1px solid rgba(47, 125, 75, 0.25);*/
   color: var(--primary-2);
   padding: 5px 9px;
   border-radius: 999px;
@@ -559,8 +558,8 @@ input[type="checkbox"] {
   margin-top: 12px;
 }
 .notice {
-  border: 1px dashed rgba(47, 125, 75, 0.35);
-  background: rgba(127, 191, 63, 0.1);
+  border: 1px dashed rgba(var(--primary-2-rgb), 0.35);
+  background: rgba(var(--primary-rgb), 0.1);
   border-radius: 16px;
   padding: 12px 12px;
   color: var(--primary-2);
@@ -805,7 +804,7 @@ input[type="checkbox"] {
 }
 .map-node.here {
   border-color: var(--primary-2);
-  box-shadow: inset 0 0 0 3px rgba(127, 191, 63, 0.24);
+  box-shadow: inset 0 0 0 3px rgba(var(--primary-rgb), 0.24);
 }
 .map-node.here::before {
   content: "You are here";
@@ -966,8 +965,8 @@ input[type="checkbox"] {
   padding: 12px 14px;
   background: linear-gradient(
     90deg,
-    rgba(127, 191, 63, 0.2),
-    rgba(47, 125, 75, 0.12)
+    rgba(var(--primary-rgb), 0.2),
+    rgba(var(--primary-2-rgb), 0.12)
   );
   border-bottom: 1px solid var(--line);
   display: flex;
@@ -987,8 +986,8 @@ input[type="checkbox"] {
   border: 1px solid var(--line);
 }
 .bubble.ai {
-  background: rgba(127, 191, 63, 0.1);
-  border-color: rgba(47, 125, 75, 0.22);
+  background: rgba(var(--primary-rgb), 0.1);
+  border-color: rgba(var(--primary-2-rgb), 0.22);
 }
 .bubble.me {
   margin-left: auto;
@@ -1051,16 +1050,16 @@ input[type="checkbox"] {
 }
 
 .search-result-row:hover {
-  background: rgba(139, 233, 45, 0.24);
+  background: rgba(var(--primary-rgb), 0.16);
 }
 
 .active-candidate-row {
-  background: rgba(127, 191, 63, 0.12) !important;
+  background: rgba(var(--primary-rgb), 0.12) !important;
   border-radius: 16px !important;
 }
 
 .active-candidate-row:hover {
-  background: rgba(139, 233, 45, 0.445) !important;
+  background: rgba(var(--primary-rgb), 0.22) !important;
 }
 
 .pagination {
