@@ -111,6 +111,92 @@
         padding-top: 10px;
       }
 
+      .cert-step-card {
+        display: grid;
+        gap: 8px;
+        margin-top: 10px;
+        padding: 10px;
+        border: 1px solid rgba(var(--primary-2-rgb), 0.22);
+        border-radius: 12px;
+        background: rgba(var(--primary-rgb), 0.07);
+      }
+
+      .cert-step-card h3 {
+        margin: 0;
+        font-size: 14px;
+      }
+
+      .cert-candidate-picker {
+        display: grid;
+        grid-template-columns: minmax(180px, 1fr) auto;
+        gap: 8px;
+        align-items: end;
+      }
+
+      .cert-candidate-results {
+        display: grid;
+        gap: 6px;
+        max-height: 190px;
+        overflow: auto;
+      }
+
+      .cert-candidate-result {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        padding: 8px 10px;
+        color: var(--text);
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .cert-candidate-result:hover,
+      .cert-candidate-result.active {
+        border-color: var(--primary-2);
+        background: rgba(var(--primary-rgb), 0.1);
+      }
+
+      .cert-candidate-result strong,
+      .cert-candidate-result span {
+        display: block;
+      }
+
+      .cert-candidate-result span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .cert-path-select {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .cert-next-panel {
+        display: none;
+        margin-top: 10px;
+        padding: 10px;
+        border: 1px solid rgba(47, 143, 78, 0.28);
+        border-radius: 12px;
+        background: rgba(47, 143, 78, 0.08);
+      }
+
+      .cert-next-panel.show {
+        display: block;
+      }
+
+      .cert-next-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+
       .cert-send-grid {
         display: grid;
         grid-template-columns: 1.1fr 1.2fr auto;
@@ -133,6 +219,12 @@
         border: 1px solid var(--line);
         border-radius: 8px;
         padding: 7px 9px;
+        font-size: 12px;
+      }
+
+      .cert-support {
+        margin-top: 8px;
+        color: var(--muted);
         font-size: 12px;
       }
 
@@ -213,7 +305,9 @@
         }
 
         .cert-send-grid,
-        .cert-tracker {
+        .cert-tracker,
+        .cert-candidate-picker,
+        .cert-path-select {
           grid-template-columns: 1fr;
         }
       }
@@ -254,6 +348,27 @@
                 <span id="certBadgeStatus"></span>
               </div>
               <div id="certPath" class="cert-path"></div>
+              <div class="cert-step-card">
+                <h3>1. Link candidate to certification path</h3>
+                <div class="cert-candidate-picker">
+                  <div>
+                    <label for="certCandidateSearch">Find candidate</label>
+                    <input id="certCandidateSearch" type="search" placeholder="Search name or email" />
+                  </div>
+                  <button id="certCandidateSearchBtn" class="btn secondary" type="button">Search</button>
+                </div>
+                <div id="certCandidateResults" class="cert-candidate-results"></div>
+                <div class="cert-path-select">
+                  <div>
+                    <label for="certPathSelect">Certification path</label>
+                    <select id="certPathSelect"></select>
+                  </div>
+                  <div>
+                    <label for="certStartLevel">Starting point</label>
+                    <input id="certStartLevel" type="text" readonly value="Badge 1 - L1 Foundations" />
+                  </div>
+                </div>
+              </div>
               <div class="cert-send-panel">
                 <div class="cert-send-grid">
                   <div>
@@ -268,6 +383,19 @@
                     <button id="copyCertLinkBtn" class="btn secondary" type="button">Copy Link</button>
                     <button id="emailCertLinkBtn" class="btn secondary" type="button">Email Link</button>
                     <button id="markCertSentBtn" class="btn secondary" type="button">Mark Sent</button>
+                  </div>
+                </div>
+                <div class="cert-support">
+                  Candidates start at the beginning of their assigned domain path. For help or a new link, email
+                  <a href="mailto:certification@devready.io">certification@devready.io</a>.
+                </div>
+                <div id="certNextPanel" class="cert-next-panel">
+                  <strong>Next certification is ready.</strong>
+                  <div id="certNextText" class="muted"></div>
+                  <div class="cert-next-actions">
+                    <input id="certNextLink" type="text" readonly />
+                    <button id="copyNextCertLinkBtn" class="btn secondary" type="button">Copy Next Link</button>
+                    <button id="emailNextCertLinkBtn" class="btn secondary" type="button">Email Next Link</button>
                   </div>
                 </div>
                 <div class="cert-tracker" aria-label="Certification tracking">
@@ -321,6 +449,23 @@
     <script src="JS/apiScripts.js"></script>
     <script>
       const certBaseUrl = "https://aicert-production.up.railway.app/";
+      const certPaths = [
+        { domain: "dev", domainName: "Technology", role: "AI / ML", roleKey: "ai", titlePrefix: "AI / ML" },
+        { domain: "engineer", domainName: "Engineer", role: "BuildReady Engineer", roleKey: "buildready-engineer", titlePrefix: "BuildReady Engineer" },
+        { domain: "law", domainName: "Law", role: "LawReady", roleKey: "lawready", titlePrefix: "LawReady" },
+      ];
+      const certLevels = [
+        ["L1", "Foundations"],
+        ["L2", "Practitioner"],
+        ["L3", "Builder"],
+        ["L4", "Workflow"],
+        ["L5", "Automation"],
+        ["L6", "Quality"],
+        ["L7", "Integration"],
+        ["L8", "Lead"],
+        ["L9", "Architect"],
+        ["L10", "Principal"],
+      ];
       const certFrame = document.getElementById("certFrame");
       const certStatus = document.getElementById("certStatus");
       const refreshCertBtn = document.getElementById("refreshCertBtn");
@@ -338,6 +483,15 @@
       const trackStage = document.getElementById("trackStage");
       const trackAttempts = document.getElementById("trackAttempts");
       const trackLastActivity = document.getElementById("trackLastActivity");
+      const certCandidateSearch = document.getElementById("certCandidateSearch");
+      const certCandidateSearchBtn = document.getElementById("certCandidateSearchBtn");
+      const certCandidateResults = document.getElementById("certCandidateResults");
+      const certPathSelect = document.getElementById("certPathSelect");
+      const certNextPanel = document.getElementById("certNextPanel");
+      const certNextText = document.getElementById("certNextText");
+      const certNextLink = document.getElementById("certNextLink");
+      const copyNextCertLinkBtn = document.getElementById("copyNextCertLinkBtn");
+      const emailNextCertLinkBtn = document.getElementById("emailNextCertLinkBtn");
       let alreadyAiCertified = false;
       const certAllowedOrigins = new Set([
         "https://aicert-production.up.railway.app",
@@ -345,6 +499,69 @@
         "http://localhost:8001",
       ]);
       let selectedCertCandidateId = "";
+
+      function activeDomainKey() {
+        const raw = new URLSearchParams(window.location.search).get("domain") || sessionStorage.getItem("domain") || "dev";
+        if (raw === "technology") return "dev";
+        if (raw === "engineer" || raw === "law") return raw;
+        return "dev";
+      }
+
+      function pathForDomain(domain = activeDomainKey()) {
+        return certPaths.find((path) => path.domain === domain) || certPaths[0];
+      }
+
+      function currentAssignedPath() {
+        return certPaths.find((path) => path.roleKey === certPathSelect.value) || pathForDomain();
+      }
+
+      function levelIndexFromLevel(level) {
+        const index = certLevels.findIndex((item) => item[0].toLowerCase() === String(level || "").toLowerCase());
+        return index >= 0 ? index : 0;
+      }
+
+      function levelMeta(index = 0) {
+        return certLevels[Math.max(0, Math.min(index, certLevels.length - 1))] || certLevels[0];
+      }
+
+      function badgeForPath(path = currentAssignedPath(), levelIndex = 0, version = "A") {
+        const level = levelMeta(levelIndex);
+        const normalizedLevel = level[0].toLowerCase();
+        const normalizedVersion = String(version || "A").toLowerCase();
+        return {
+          role: path.role,
+          roleKey: path.roleKey,
+          level: level[0],
+          levelIndex,
+          title: `${path.titlePrefix} ${level[0]} - ${level[1]}`,
+          certificateId: `${path.roleKey}-${normalizedLevel}-v${normalizedVersion}`,
+          examId: `${path.roleKey}-${normalizedLevel}-exam-${normalizedVersion}`,
+          examVersion: String(version || "A").toUpperCase(),
+        };
+      }
+
+      function firstBadgeForPath(path = currentAssignedPath()) {
+        return badgeForPath(path, 0, "A");
+      }
+
+      function nextBadgeAfter(badge) {
+        const currentIndex = levelIndexFromLevel(badge?.level || "L1");
+        if (currentIndex >= certLevels.length - 1) return null;
+        const path = certPaths.find((item) => item.roleKey === badge?.roleKey) || currentAssignedPath();
+        return badgeForPath(path, currentIndex + 1, "A");
+      }
+
+      function renderPathOptions() {
+        const params = new URLSearchParams(window.location.search);
+        const requestedRoleKey = params.get("badgeRoleKey") || "";
+        const active = certPaths.find((path) => path.roleKey === requestedRoleKey) || pathForDomain();
+        certPathSelect.innerHTML = certPaths
+          .map(
+            (path) =>
+              `<option value="${escapeHtml(path.roleKey)}" ${path.roleKey === active.roleKey ? "selected" : ""}>${escapeHtml(path.domainName)} - ${escapeHtml(path.role)}</option>`,
+          )
+          .join("");
+      }
 
       function escapeHtml(value) {
         return String(value || "")
@@ -374,6 +591,7 @@
 
       function selectedBadge() {
         const params = new URLSearchParams(window.location.search);
+        const firstBadge = firstBadgeForPath();
         const roleKey = params.get("badgeRoleKey") || "";
         const level = params.get("badgeLevel") || "";
         const rawCertificateId = params.get("certificateId") || "";
@@ -393,14 +611,18 @@
               ? `${roleKey}-${normalizedLevel}-v${normalizedVersion}`
               : rawCertificateId;
         return {
-          role: params.get("badgeRole") || "",
-          roleKey,
-          level,
-          title: params.get("badgeTitle") || "",
-          certificateId,
-          examId,
-          examVersion,
+          role: params.get("badgeRole") || firstBadge.role,
+          roleKey: roleKey || firstBadge.roleKey,
+          level: level || firstBadge.level,
+          title: params.get("badgeTitle") || firstBadge.title,
+          certificateId: certificateId || firstBadge.certificateId,
+          examId: examId || firstBadge.examId,
+          examVersion: examVersion || firstBadge.examVersion,
         };
+      }
+
+      function outboundBadge() {
+        return firstBadgeForPath();
       }
 
       function renderSelectedBadge() {
@@ -412,17 +634,11 @@
         if (candidate.email) catalogParams.set("email", candidate.email);
         viewBadgesBtn.href = `badge-catalog.html${catalogParams.toString() ? "?" + catalogParams.toString() : ""}`;
 
-        if (!badge.title && !badge.role && !badge.level) {
-          certPath.innerHTML = `<span class="path-badge">No badge selected</span><a href="${escapeHtml(viewBadgesBtn.href)}">Choose a badge path</a>`;
-          return;
-        }
-
         certPath.innerHTML = `
-          <span class="path-badge">${escapeHtml(badge.level || "Badge")}</span>
-          <span class="path-badge">${escapeHtml(badge.role || "Certification path")}</span>
-          <span class="path-badge">${escapeHtml(badge.title || "Selected badge")}</span>
-          <span class="path-badge">${escapeHtml(badge.examId || "No exam selected")}</span>
-          <span class="path-badge">${escapeHtml(badge.examVersion ? "Version " + badge.examVersion : "No version")}</span>
+          <span class="path-badge">Assigned path: ${escapeHtml(outboundBadge().role)}</span>
+          <span class="path-badge">Starts at ${escapeHtml(outboundBadge().level)} - Foundations</span>
+          <span class="path-badge">Version ${escapeHtml(outboundBadge().examVersion)}</span>
+          <span class="path-badge">Current view: ${escapeHtml(badge.title)}</span>
         `;
       }
 
@@ -450,14 +666,14 @@
         renderCertHandoff();
       }
 
-      function certUrl(outbound = false) {
+      function certUrl(outbound = false, badgeOverride = null) {
         const candidate = selectedCandidate();
         const params = new URLSearchParams();
         if (candidate.id) params.set("profileId", candidate.id);
         if (candidate.name) params.set("candidate", candidate.name);
         const email = (certRecipientEmail?.value || candidate.email || "").trim();
         if (email) params.set("email", email);
-        const badge = selectedBadge();
+        const badge = badgeOverride || (outbound ? outboundBadge() : selectedBadge());
         if (badge.role) params.set("badgeRole", badge.role);
         if (badge.roleKey) params.set("badgeRoleKey", badge.roleKey);
         if (badge.level) params.set("badgeLevel", badge.level);
@@ -482,15 +698,16 @@
       function renderCertHandoff() {
         const candidate = selectedCandidate();
         if (certRecipientEmail && !certRecipientEmail.value) certRecipientEmail.value = candidate.email || "";
-        if (certOutboundLink) certOutboundLink.value = certUrl(true);
-
         const tracking = readCertTracking(candidate);
+        const nextBadge = tracking.completedBadge ? nextBadgeAfter(tracking.completedBadge) : null;
+        if (certOutboundLink) certOutboundLink.value = certUrl(true, nextBadge || outboundBadge());
         if (tracking.certifiedAt) alreadyAiCertified = true;
         trackCandidate.textContent = candidate.name || certRecipientEmail.value || "No candidate selected";
         trackStage.textContent = tracking.stage || (tracking.certifiedAt ? "Certified" : "Not sent");
         trackAttempts.textContent = tracking.outcome || tracking.attempts || "No attempt recorded";
         trackLastActivity.textContent = tracking.updatedAt || "None yet";
         applyCertifiedLock();
+        renderNextCertification();
       }
 
       function setSendButtonsDisabled(disabled) {
@@ -501,15 +718,21 @@
       }
 
       function applyCertifiedLock() {
-        if (!alreadyAiCertified) {
+        const tracking = readCertTracking();
+        const nextBadge = tracking.completedBadge ? nextBadgeAfter(tracking.completedBadge) : null;
+        if (!alreadyAiCertified || nextBadge) {
           setSendButtonsDisabled(false);
           markCertifiedBtn.disabled = !selectedCertCandidateId && !selectedCandidate().name && !certRecipientEmail.value;
+          if (alreadyAiCertified && nextBadge) {
+            certBadgeStatus.textContent = "Candidate passed the current badge. The next certification link is ready.";
+            certStatus.textContent = `Next certification: ${nextBadge.title}.`;
+          }
           return;
         }
         setSendButtonsDisabled(true);
         markCertifiedBtn.disabled = true;
-        certBadgeStatus.textContent = "Candidate is already AI certified. New certification links are disabled.";
-        certStatus.textContent = "Candidate is already AI certified.";
+        certBadgeStatus.textContent = "Candidate completed the full certification path. New certification links are disabled.";
+        certStatus.textContent = "Candidate completed the full certification path.";
       }
 
       function aiCertIsComplete(badge) {
@@ -532,6 +755,7 @@
                 outcome: `${aiCert.level || "AI Certified"}${aiCert.score ? ` - ${aiCert.score}` : ""}`,
                 attempts: "Certification already recorded",
                 certifiedAt: aiCert.updatedAt || new Date().toISOString(),
+                completedBadge: badgeForPath(currentAssignedPath(), levelIndexFromLevel(aiCert.level || "L1"), "A"),
               });
               return;
             }
@@ -544,7 +768,91 @@
 
       function loadCert() {
         certStatus.textContent = "Loading AI Cert workspace...";
-        certFrame.src = certUrl();
+        certFrame.src = certUrl(false, outboundBadge());
+      }
+
+      function renderNextCertification() {
+        const candidate = selectedCandidate();
+        const tracking = readCertTracking(candidate);
+        const completedBadge = tracking.completedBadge || null;
+        const next = completedBadge ? nextBadgeAfter(completedBadge) : null;
+        if (!next) {
+          certNextPanel.classList.remove("show");
+          return;
+        }
+        const link = certUrl(true, next);
+        certNextLink.value = link;
+        certNextText.textContent = `${candidate.name || "Candidate"} passed ${completedBadge.title || completedBadge.level}. Next step: ${next.title}. They can save the badge locally and use this live link to continue the next certification.`;
+        certNextPanel.classList.add("show");
+      }
+
+      function setSelectedCandidate(profile) {
+        const firstName = profile.firstName || profile.first_name || "";
+        const lastName = profile.lastName || profile.last_name || "";
+        const fullName = profile.name || [firstName, lastName].filter(Boolean).join(" ") || profile.display_name || profile.email || "";
+        sessionStorage.setItem("candidateId", profile.id || profile.profile_id || "");
+        sessionStorage.setItem("candidateName", fullName);
+        sessionStorage.setItem("candidateEmail", profile.email || "");
+        selectedCertCandidateId = profile.id || profile.profile_id || "";
+        certRecipientEmail.value = profile.email || "";
+        certCandidateResults.innerHTML = "";
+        certCandidateSearch.value = fullName;
+        loadSelectedCandidate();
+        renderSelectedBadge();
+        loadCert();
+      }
+
+      async function searchCertificationCandidates() {
+        const query = certCandidateSearch.value.trim();
+        if (!query) {
+          certCandidateResults.innerHTML = `<div class="muted">Enter a candidate name or email to link certification.</div>`;
+          return;
+        }
+        certCandidateResults.innerHTML = `<div class="muted">Searching candidates...</div>`;
+        const fd = new FormData();
+        fd.append("domain", activeDomainKey());
+        fd.append("search_string", query);
+        try {
+          let results = [];
+          const response = await fetch("/api/azure/searchNameEmail", { method: "POST", body: fd });
+          if (response.ok) results = await response.json();
+          if (!Array.isArray(results) || !results.length) {
+            const fallback = await api("/api/profile/search", {
+              method: "POST",
+              body: fd,
+            });
+            results = Array.isArray(fallback) ? fallback : [];
+          }
+          if (!results.length) {
+            certCandidateResults.innerHTML = `<div class="muted">No candidates found.</div>`;
+            return;
+          }
+          certCandidateResults.innerHTML = results
+            .slice(0, 8)
+            .map((profile, index) => {
+              const name =
+                profile.name ||
+                [profile.firstName || profile.first_name || "", profile.lastName || profile.last_name || ""].filter(Boolean).join(" ") ||
+                profile.display_name ||
+                profile.email ||
+                `Candidate ${index + 1}`;
+              return `
+                <button class="cert-candidate-result" type="button" data-index="${index}">
+                  <span>
+                    <strong>${escapeHtml(name)}</strong>
+                    <span>${escapeHtml(profile.email || profile.title || profile.primary_stack || "")}</span>
+                  </span>
+                  <strong>Select</strong>
+                </button>
+              `;
+            })
+            .join("");
+          certCandidateResults.querySelectorAll(".cert-candidate-result").forEach((button) => {
+            button.addEventListener("click", () => setSelectedCandidate(results[Number(button.dataset.index)]));
+          });
+        } catch (error) {
+          certCandidateResults.innerHTML = `<div class="muted">Candidate search failed: ${escapeHtml(error.message)}</div>`;
+        }
       }
 
       async function loadSelectedCandidate() {
@@ -569,16 +877,27 @@
 
       async function saveAiCertification(result = {}) {
         if (alreadyAiCertified) {
-          certBadgeStatus.textContent = "Candidate is already AI certified. No new certification action is needed.";
-          applyCertifiedLock();
-          return;
+          const tracking = readCertTracking();
+          const nextBadge = tracking.completedBadge ? nextBadgeAfter(tracking.completedBadge) : null;
+          const incomingBadge = selectedBadge();
+          if (nextBadge && incomingBadge.level === nextBadge.level && incomingBadge.roleKey === nextBadge.roleKey) {
+            alreadyAiCertified = false;
+          } else if (nextBadge) {
+            certBadgeStatus.textContent = "Candidate has already passed this badge. Use the next certification link.";
+            applyCertifiedLock();
+            return;
+          } else {
+            certBadgeStatus.textContent = "Candidate completed the full certification path.";
+            applyCertifiedLock();
+            return;
+          }
         }
         markCertifiedBtn.disabled = true;
         certBadgeStatus.textContent = "Saving AI certification badge...";
 
         try {
           const candidate = selectedCandidate();
-          const selected = selectedBadge();
+          const selected = result.examId || result.certificateId ? selectedBadge() : outboundBadge();
           if (result.profileId || result.profile_id) {
             selectedCertCandidateId = result.profileId || result.profile_id;
             sessionStorage.setItem("candidateId", selectedCertCandidateId);
@@ -625,6 +944,7 @@
             outcome: `${certLevel}${result.score ? ` - ${result.score}` : ""}`,
             attempts: "1 completed attempt recorded",
             certifiedAt: new Date().toISOString(),
+            completedBadge: selected,
           });
           markCertifiedBtn.textContent = "AI Certified";
         } catch (error) {
@@ -702,7 +1022,7 @@
         const recipient = (certRecipientEmail.value || "").trim();
         const subject = encodeURIComponent("DevReady AI Certification Link");
         const body = encodeURIComponent(
-          `Hi ${candidate.name || "there"},\n\nPlease complete your DevReady AI certification here:\n\n${certOutboundLink.value}\n\nThank you,\nDevReady`,
+          `Hi ${candidate.name || "there"},\n\nPlease start your assigned DevReady certification path here:\n\n${certOutboundLink.value}\n\nAll candidates start at Badge 1 of their domain path. When you pass, your badge is recorded to your profile and you will receive the next certification link.\n\nFor questions or a replacement link, email certification@devready.io.\n\nThank you,\nDevReady`,
         );
         writeCertTracking({ stage: "Email opened", recipient });
         window.location.href = `mailto:${encodeURIComponent(recipient)}?subject=${subject}&body=${body}`;
@@ -719,6 +1039,31 @@
       });
 
       certRecipientEmail.addEventListener("input", renderCertHandoff);
+      certPathSelect.addEventListener("change", () => {
+        renderSelectedBadge();
+        renderCertHandoff();
+        loadCert();
+      });
+      certCandidateSearchBtn.addEventListener("click", searchCertificationCandidates);
+      certCandidateSearch.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          searchCertificationCandidates();
+        }
+      });
+      copyNextCertLinkBtn.addEventListener("click", async () => {
+        if (!certNextLink.value) return;
+        await navigator.clipboard.writeText(certNextLink.value);
+      });
+      emailNextCertLinkBtn.addEventListener("click", () => {
+        const candidate = selectedCandidate();
+        const recipient = (certRecipientEmail.value || candidate.email || "").trim();
+        const subject = encodeURIComponent("Next DevReady Certification Link");
+        const body = encodeURIComponent(
+          `Hi ${candidate.name || "there"},\n\nCongratulations on passing your previous DevReady certification. Your next certification link is:\n\n${certNextLink.value}\n\nFor questions or a replacement link, email certification@devready.io.\n\nThank you,\nDevReady`,
+        );
+        window.location.href = `mailto:${encodeURIComponent(recipient)}?subject=${subject}&body=${body}`;
+      });
       refreshCertBtn.addEventListener("click", loadCert);
       markCertifiedBtn.addEventListener("click", () => saveAiCertification());
       certFrame.addEventListener("load", () => {
@@ -726,6 +1071,7 @@
         tryCaptureReturnedIframe();
       });
 
+      renderPathOptions();
       loadSelectedCandidate();
       renderSelectedBadge();
       if (!captureTopLevelReturn()) loadCert();
