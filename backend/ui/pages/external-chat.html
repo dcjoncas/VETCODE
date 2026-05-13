@@ -90,6 +90,7 @@
       let surveyId = "";
       let questionNumber = 1;
       let maxQuestions = 100;
+      let isSending = false;
 
       // Add new messages to the chat
       function appendMessage(sender, message) {
@@ -130,7 +131,15 @@
       }
 
       async function sendMessage() {
-        userMsg = document.getElementById("msgInput").value;
+        if (isSending) return;
+        const input = document.getElementById("msgInput");
+        const sendButton = document.getElementById("sendBtn");
+        const userMsg = input.value.trim();
+        if (!userMsg) return;
+
+        isSending = true;
+        sendButton.disabled = true;
+        input.disabled = true;
         document.getElementById("msgInput").value = "";
 
         appendMessage(userName, userMsg);
@@ -145,36 +154,44 @@
 
         let aiResponse = {};
 
-        if (questionNumber <= maxQuestions) {
-          aiResponse = await api(`/api/chat/sendChat/${questionNumber}`, {
-            method: "POST",
-            body: fd,
-          });
-        } else {
-          aiResponse = await api(`/api/chat/sendChat`, {
-            method: "POST",
-            body: fd,
-          });
+        try {
+          if (questionNumber <= maxQuestions + 1) {
+            aiResponse = await api(`/api/chat/sendChat/${questionNumber}`, {
+              method: "POST",
+              body: fd,
+            });
+          } else {
+            aiResponse = await api(`/api/chat/sendChat`, {
+              method: "POST",
+              body: fd,
+            });
+          }
+
+          if (aiResponse.answered) questionNumber++;
+
+          // Add AI response and replace old transcript
+          appendMessage("DevReady AI", aiResponse.recentMessage);
+          chatTranscript = aiResponse.aiTranscript;
+        } catch (error) {
+          appendMessage(
+            "DevReady AI",
+            "Sorry, I could not save that answer. Please wait a moment and try again."
+          );
+          console.error(error);
+        } finally {
+          isSending = false;
+          input.disabled = false;
+          sendButton.disabled = false;
+          input.focus();
         }
-
-        if (aiResponse.answered) questionNumber++;
-
-        // Add AI response and replace old transcript
-        appendMessage("DevReady AI", aiResponse.recentMessage);
-        chatTranscript = aiResponse.aiTranscript;
       }
 
       document.addEventListener("DOMContentLoaded", () => {
         document
-          .getElementById("sendBtn")
-          .addEventListener("click", (event) => {
+          .querySelector(".send")
+          .addEventListener("submit", async (event) => {
             event.preventDefault();
-
-            sendButton = document.getElementById("sendBtn");
-            // Disable to prevent user from messaging AI while it is thinking
-            sendButton.disabled = true;
-            sendMessage();
-            sendButton.disabled = false;
+            await sendMessage();
           });
         getChatHistory();
       });

@@ -73,112 +73,62 @@ def getNumber(text: str):
         print(f"An API error occurred when calling ChatGPT: {e}")
         client.close()
         raise
+
+def _question_text(question_number: int, domain: str = "dev") -> str:
+    if engineeringSurvey.is_engineer_domain(domain):
+        return engineeringSurvey.get_question(question_number)
+    return getQuestion(question_number, domain)
+
+def _next_question_message(question_number: int, domain: str = "dev") -> str:
+    statement = _question_text(question_number, domain)
+    clean_statement = (statement[0].lower() + statement[1:]) if statement else "this statement"
+    return (
+        f"Question {question_number}: On a scale from 1 to 5, how much do you agree with the statement: "
+        f"**\"{clean_statement}\"** You can reply with just a number from **1 to 5**, "
+        "and if you'd like, a brief explanation too."
+    )
+
+def _parse_scale_answer(user_response: str):
+    match = re.search(r"\b([1-5])\b", str(user_response or ""))
+    return int(match.group(1)) if match else None
     
 def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumber: int, domain: str = "dev"):
     questions = get_candidate_questions(domain)
     current_total = len(questions)
     userResponse = transcript[len(transcript)-1]['content']
-    
-    try:
-        if engineeringSurvey.is_engineer_domain(domain):
-            question = engineeringSurvey.get_question(questionNumber)
-        else:
-            question = getQuestion(questionNumber, domain)
-        question = f'On a scale from 1 to 5, how much do you agree with the statement "{question[0].lower() + question[1:]}"'
-        questionAnswer = 0
 
-        systemInstructions = [{"role": "system",
-                            "content":f'''You are an AI recruitment assistant. You will be chating with {candidateName}. MAKE NO HIRING PROMISES. NEVER SAY END THE CONVERSATION OR TELL THE CANDIDATE IT IS THE LAST QUESTION. THERE ARE {current_total} QUESTIONS TO ANSWER.
-        It is your job to ask them about the following statement in a casual yet professional manner. FOCUS ONLY ON THE FOLLOWING STATEMENT:\n{question}'''}]
-
-    except Exception as e:
-        systemInstructions = [{"role": "system",
-                            "content":f'''You are an AI recruitment assistant. You will be chating with {candidateName}. MAKE NO HIRING PROMISES.
-                            Have a casual, yet professional conversation with them asking about their career goals and work experience.'''}]
-
-    client = getOpenAPIClient()
-
-    fullTranscript = systemInstructions + transcript
-
-    response = client.chat.completions.create(
-            model="gpt-5.4-mini",  # Specify the model
-            messages=fullTranscript,
-            max_completion_tokens=100, # Limit the response length to manage costs
-            temperature=0.7 # Control the randomness of the response
-        )
-
-    client.close()
-
-    question = response.choices[0].message.content.strip()
-
-    # If first question
-    if (questionNumber <= 1) or ('skip' in userResponse.lower()):
-        # question = "Great, let's start with the first question: " + question
-        print('skipping')
+    if questionNumber <= 1:
+        question = _next_question_message(1, domain)
         transcript.append({"role":"assistant", "content":question})
         saveChat(chatUrl,candidateName,transcript)
         return {"aiTranscript": transcript, "recentMessage": question, "answered": True}
-    # If candidate wants to skip
-    #elif 'skip' in userResponse.lower():
-        # question = "No worries, let's move on. " + question
-        #return {"aiTranscript": transcript, "recentMessage": question, "answered": True}
+
+    if 'skip' in userResponse.lower():
+        questionAnswer = None
     else:
-        try:
-            questionAnswer = int(re.sub(r'[^0-9]', '', userResponse))
-        except Exception as e:
-            print(f'Could not pull valid value from user response. Attempting with AI: {e}')
+        questionAnswer = _parse_scale_answer(userResponse)
+        if questionAnswer is None:
+            retry = "Please choose a number from **1 to 5** for the current question."
+            transcript.append({"role":"assistant", "content":retry})
+            saveChat(chatUrl,candidateName,transcript)
+            return {"aiTranscript": transcript, "recentMessage": retry, "answered": False}
 
-            try:
-                questionAnswer = getNumber(userResponse)
-            except Exception as e:
-                print(f'Could not pull value using AI. Asking user to repeat: {e}')
-                systemInstructions = [{"role": "system",
-                        "content":f'''The previous answer from the candidate could not be processed. Ask the candidate to repeat their answer to the following question as an integer value.
-                        FOCUS ONLY ON THE FOLLOWING STATEMENT:\n{question}'''}]
-                
-                client = getOpenAPIClient()
-
-                fullTranscript = systemInstructions + transcript
-
-                response = client.chat.completions.create(
-                        model="gpt-5.4-mini",  # Specify the model
-                        messages=fullTranscript,
-                        max_completion_tokens=100, # Limit the response length to manage costs
-                        temperature=0.7 # Control the randomness of the response
-                    )
-                
-                question = response.choices[0].message.content.strip()
-
-                client.close()
-
-                transcript.append({"role":"assistant", "content":question})
-                saveChat(chatUrl,candidateName,transcript)
-                return {"aiTranscript": transcript, "recentMessage": question, "answered": False}
-
-        print(f'{candidateName} Answered: {questionAnswer}')
-
-        if questionAnswer > 5 and questionAnswer < 10:
-            questionAnswer = 5
-        elif questionAnswer > 5:
-            # Account for decimals in answer above
-            questionAnswer = round(float(questionAnswer)/(10**(len(str(questionAnswer))-1)))
-        elif questionAnswer < 1:
-            questionAnswer = 1
-        else:
-            # Account for AI not understanding what an integer is
-            round(questionAnswer)
-
-        print(f'{candidateName} Corrected Answer: {questionAnswer}')
+    print(f'{candidateName} Answered: {questionAnswer}')
 
     person_id = getPersonId(chatUrl)
-    if engineeringSurvey.is_engineer_domain(domain):
-        if not isLocalChatUrl(chatUrl):
-            engineeringSurvey.save_answer(person_id, questionNumber, questionAnswer)
-    else:
-        survey_id = None if isLocalChatUrl(chatUrl) else getSurveyId(person_id)
-        if survey_id:
-            upsertSurveyAnswer(questionNumber-1, questionAnswer, survey_id)
+    answered_question_number = questionNumber - 1
+    if questionAnswer is not None:
+        if engineeringSurvey.is_engineer_domain(domain):
+            engineeringSurvey.save_answer(person_id, answered_question_number, questionAnswer)
+        else:
+            survey_id = None if isLocalChatUrl(chatUrl) else getSurveyId(person_id)
+            if survey_id:
+                upsertSurveyAnswer(answered_question_number, questionAnswer, survey_id)
 
+    if questionNumber > current_total:
+        question = "Thanks, your DevReady profile chat is complete. Our team will review the completed profile and follow up with next steps."
+    else:
+        question = _next_question_message(questionNumber, domain)
     transcript.append({"role":"assistant", "content":question})
 
     saveChat(chatUrl,candidateName,transcript)
