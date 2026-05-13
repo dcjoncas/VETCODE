@@ -71,7 +71,11 @@
     gap: 10px;
     padding: 16px 18px;
     border-bottom: 1px solid var(--line, #dfe7e2);
-    background: linear-gradient(135deg, rgba(47, 125, 75, 0.12), rgba(47, 125, 75, 0.03));
+    background: linear-gradient(
+      135deg,
+      rgba(var(--primary-rgb, 47, 125, 75), 0.12),
+      rgba(var(--primary-rgb, 47, 125, 75), 0.03)
+    );
   }
 
   .devready-modal-mark {
@@ -80,7 +84,7 @@
     border-radius: 10px;
     display: grid;
     place-items: center;
-    background: #2f7d4b;
+    background: var(--primary-2, #2f7d4b);
     color: #fff;
     font-weight: 900;
     font-size: 13px;

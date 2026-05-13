@@ -8,6 +8,10 @@
   --primary: #2f80ed; /* Engineer blue */
   --primary-2: #145db2; /* deep blue */
   --primary-3: #cfe4ff; /* light blue */
+  --primary-rgb: 47, 128, 237;
+  --primary-2-rgb: 20, 93, 178;
+  --primary-3-rgb: 207, 228, 255;
+  --domain-contrast: #0b2f5d;
   --btn: #236fc6; /* Engineer blue */
   --button-accent-soft: rgba(20, 93, 178, 0.1);
   --button-accent-strong: rgba(20, 93, 178, 0.24);
@@ -1313,4 +1317,86 @@ input[type="checkbox"] {
 .process-hint-toggle:hover {
   color: var(--primary-3);
   background: transparent;
+}
+
+/* Domain consistency overrides */
+.nav a.nav-talent,
+.nav a.nav-find-in,
+.nav a.nav-find-out,
+.nav a.nav-profiles,
+.nav a.nav-jds,
+.nav a.branch-link,
+.nav a.crm-link,
+.nav a.recordings-link,
+.nav a.test-challenge-link,
+.nav a.ai-cert-link,
+.nav a.badge-catalog-link,
+.nav a.meridian-link,
+.nav a.admin-link,
+.nav a.legacy-link {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.055));
+  border-color: rgba(var(--primary-3-rgb), 0.28);
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.nav a.nav-talent.active,
+.nav a.nav-find-in.active,
+.nav a.nav-find-out.active,
+.nav a.nav-profiles.active,
+.nav a.nav-jds.active,
+.nav a.branch-link.active,
+.nav a.crm-link.active,
+.nav a.recordings-link.active,
+.nav a.test-challenge-link.active,
+.nav a.ai-cert-link.active,
+.nav a.badge-catalog-link.active,
+.nav a.meridian-link.active,
+.nav a.admin-link.active,
+.nav a.legacy-link.active {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.21), rgba(255, 255, 255, 0.09));
+  border-color: rgba(var(--primary-3-rgb), 0.42);
+  color: #fff;
+}
+
+.map-node.here,
+.map-node.branch,
+.map-node.branch.here,
+.step.branch,
+.step.branch.on {
+  border-color: var(--primary-2);
+}
+
+.map-node.here,
+.map-node.branch.here {
+  box-shadow: inset 0 0 0 3px rgba(var(--primary-rgb), 0.2);
+}
+
+.map-node.branch span,
+.split-step-branch.on,
+.step.branch.on {
+  background: var(--primary);
+  color: #fff;
+}
+
+.map-node.branch.here::before,
+.split-step-branch,
+.step.branch {
+  color: var(--primary-2);
+}
+
+.split-step-link:hover,
+.notice,
+.source-toggle,
+.profile-badge,
+.path-badge {
+  background-color: rgba(var(--primary-rgb), 0.08);
+}
+
+.imageBox,
+.imageBoxPublic {
+  background: linear-gradient(
+    135deg,
+    rgba(var(--primary-rgb), 0.24),
+    rgba(var(--primary-2-rgb), 0.18)
+  );
 }
