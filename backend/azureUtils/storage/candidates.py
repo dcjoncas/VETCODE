@@ -12,6 +12,7 @@ def _sync_identity_sequence(cur, table: str, column: str = "id"):
         "address",
         "professional",
         "professionalprofile",
+        "professionalexperience",
         "platformactivity",
         "professionalculturalexperience",
     }
@@ -1507,6 +1508,7 @@ def updateCandidatePortfolio(personId: str, portfolio: list[PortfolioExperience]
     for experience in portfolio:
         print(experience)
 
+        _sync_identity_sequence(cur, "professionalexperience")
         if experience.finishDate is not None and experience.finishDate != "":
             experience.finishDate = int(experience.finishDate)
             query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, finishdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id"
