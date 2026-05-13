@@ -361,10 +361,6 @@
               <input id="subjectInput" type="text" />
             </div>
             <div id="emailOutput" class="draft-output">Generate an email draft to preview it here.</div>
-            <details style="margin-top: 10px">
-              <summary>Raw draft data</summary>
-              <pre id="rawDraftOutput"></pre>
-            </details>
           </div>
 
           <div id="calendlyPanel" class="schedule-panel" style="margin-top: 14px">
@@ -1020,7 +1016,6 @@
           });
           byId("subjectInput").value = latestDraft.email_subject || latestDraft.title || "";
           byId("emailOutput").textContent = latestDraft.email_body || "";
-          byId("rawDraftOutput").textContent = JSON.stringify(latestDraft, null, 2);
           showResult("Draft ready.");
           return latestDraft;
         } catch (error) {
