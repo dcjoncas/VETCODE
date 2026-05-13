@@ -338,6 +338,11 @@
       const trackStage = document.getElementById("trackStage");
       const trackAttempts = document.getElementById("trackAttempts");
       const trackLastActivity = document.getElementById("trackLastActivity");
+      const certAllowedOrigins = new Set([
+        "https://aicert-production.up.railway.app",
+        "http://127.0.0.1:8001",
+        "http://localhost:8001",
+      ]);
       let selectedCertCandidateId = "";
 
       function escapeHtml(value) {
@@ -515,6 +520,10 @@
         try {
           const candidate = selectedCandidate();
           const selected = selectedBadge();
+          if (result.profileId || result.profile_id) {
+            selectedCertCandidateId = result.profileId || result.profile_id;
+            sessionStorage.setItem("candidateId", selectedCertCandidateId);
+          }
           const candidateName = result.candidate || candidate.name || "";
           const candidateEmail = result.email || candidate.email || "";
           const certLevel = result.level || result.certificationLevel || selected.level || "AI Certified";
@@ -584,12 +593,35 @@
       }
 
       window.addEventListener("message", (event) => {
-        if (event.origin !== "https://aicert-production.up.railway.app") return;
+        if (!certAllowedOrigins.has(event.origin)) return;
         const data = event.data || {};
         if (data.type === "ai-cert-complete" || data.type === "certification-complete") {
           saveAiCertification(data);
         }
       });
+
+      function captureTopLevelReturn() {
+        const params = new URLSearchParams(window.location.search);
+        if (!params.get("certComplete")) return false;
+        saveAiCertification({
+          status: params.get("status") || "certified",
+          candidate: params.get("candidate") || "",
+          email: params.get("email") || "",
+          profileId: params.get("profileId") || "",
+          level: params.get("level") || "AI Certified",
+          score: params.get("score") || "",
+          certificateId: params.get("certificateId") || "",
+          title: params.get("badgeTitle") || "",
+          examId: params.get("examId") || "",
+          examVersion: params.get("examVersion") || "",
+        });
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete("certComplete");
+        cleanUrl.searchParams.delete("status");
+        cleanUrl.searchParams.delete("score");
+        window.history.replaceState({}, "", cleanUrl.toString());
+        return true;
+      }
 
       copyCertLinkBtn.addEventListener("click", async () => {
         renderCertHandoff();
@@ -634,7 +666,7 @@
 
       loadSelectedCandidate();
       renderSelectedBadge();
-      loadCert();
+      if (!captureTopLevelReturn()) loadCert();
     </script>
   </body>
 </html>
