@@ -204,8 +204,89 @@
       function currentUserCanAdmin() {
         try {
           const user = JSON.parse(sessionStorage.getItem("devreadyUser") || localStorage.getItem("devreadyUser") || "null");
-          return Boolean(user && (user.role === "super_user" || (user.allowed_menu || []).includes("admin")));
+          return Boolean(user && String(user.username || "").trim().toLowerCase() === "administrator");
         } catch {
+          return false;
+        }
+      }
+
+      function adminUnlock() {
+        try {
+          return JSON.parse(sessionStorage.getItem("devreadyAdminUnlock") || "null");
+        } catch {
+          return null;
+        }
+      }
+
+      async function adminApi(path, opts = {}) {
+        const token = adminUnlock()?.token || "";
+        const headers = new Headers(opts.headers || {});
+        if (token) headers.set("X-DevReady-Admin-Token", token);
+        return api(path, { ...opts, headers });
+      }
+
+      function renderAdminLogin(message = "") {
+        document.querySelector("main.main").innerHTML = `
+          <section class="card" style="max-width: 520px">
+            <h2>Administrator Required</h2>
+            <p>Admin is restricted to the Administrator account.</p>
+            <form id="adminUnlockPageForm" class="admin-form" style="grid-template-columns: 1fr">
+              <label>
+                Username
+                <input name="username" value="Administrator" autocomplete="username" required />
+              </label>
+              <label>
+                Password
+                <input name="password" type="password" autocomplete="current-password" required />
+              </label>
+              <button class="btn primary" type="submit">Unlock Admin</button>
+              <div id="adminUnlockPageStatus" class="muted">${escapeLocal(message)}</div>
+            </form>
+          </section>
+        `;
+        document.getElementById("adminUnlockPageForm").addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const status = document.getElementById("adminUnlockPageStatus");
+          status.textContent = "";
+          try {
+            const data = await api("/api/access/admin-login", {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: new URLSearchParams(new FormData(event.currentTarget)).toString(),
+            });
+            sessionStorage.setItem("devreadyAdminUnlock", JSON.stringify({
+              token: data.token,
+              user: data.user,
+              unlocked_at: new Date().toISOString(),
+            }));
+            sessionStorage.setItem("devreadyUser", JSON.stringify(data.user));
+            window.location.reload();
+          } catch (error) {
+            status.textContent = error.message || "Admin unlock failed.";
+          }
+        });
+      }
+
+      async function ensureAdminUnlocked() {
+        if (!currentUserCanAdmin()) {
+          renderAdminLogin("Use Administrator to continue.");
+          return false;
+        }
+        const token = adminUnlock()?.token || "";
+        if (!token) {
+          renderAdminLogin("Enter the Administrator password to continue.");
+          return false;
+        }
+        try {
+          await api("/api/access/admin-check", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({ token }).toString(),
+          });
+          return true;
+        } catch {
+          sessionStorage.removeItem("devreadyAdminUnlock");
+          renderAdminLogin("Admin session expired. Enter the Administrator password again.");
           return false;
         }
       }
@@ -260,11 +341,8 @@
       }
 
       async function loadAdmin() {
-        if (!currentUserCanAdmin()) {
-          document.querySelector("main.main").innerHTML = "<section class='card'><h2>Admin access required</h2><p>Your account does not have Admin access.</p></section>";
-          return;
-        }
-        const data = await api("/api/admin/users");
+        if (!(await ensureAdminUnlocked())) return;
+        const data = await adminApi("/api/admin/users");
         users = data.users || [];
         menuItems = data.menu_items || [];
         defaults = {
@@ -309,7 +387,7 @@
           return;
         }
         body.set("allowed_menu_json", JSON.stringify(selectedPermissions()));
-        const data = await api("/api/admin/users", {
+        const data = await adminApi("/api/admin/users", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: body.toString(),
@@ -319,7 +397,7 @@
       });
 
       async function toggleBlock(id, blocked) {
-        await api(`/api/admin/users/${encodeURIComponent(id)}/block`, {
+        await adminApi(`/api/admin/users/${encodeURIComponent(id)}/block`, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams({ blocked }).toString(),
@@ -329,12 +407,12 @@
 
       async function deleteUser(id) {
         if (!confirm("Delete this user access record?")) return;
-        await api(`/api/admin/users/${encodeURIComponent(id)}`, { method: "DELETE" });
+        await adminApi(`/api/admin/users/${encodeURIComponent(id)}`, { method: "DELETE" });
         await loadAdmin();
       }
 
       async function sendLogin(id) {
-        const data = await api(`/api/admin/users/${encodeURIComponent(id)}/send-login`, { method: "POST" });
+        const data = await adminApi(`/api/admin/users/${encodeURIComponent(id)}/send-login`, { method: "POST" });
         const link = new URL(data.login_link, window.location.origin).href;
         try {
           await navigator.clipboard.writeText(link);
@@ -345,7 +423,7 @@
       document.getElementById("candidateAccessForm").addEventListener("submit", async (event) => {
         event.preventDefault();
         const body = new URLSearchParams(new FormData(event.currentTarget));
-        await api("/api/admin/candidates/access", {
+        await adminApi("/api/admin/candidates/access", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: body.toString(),

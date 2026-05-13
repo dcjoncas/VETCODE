@@ -19,7 +19,7 @@ def top_matches_from_parts(parts: dict, limit: int = 8):
     return out
 
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -190,6 +190,7 @@ TIME_ENTRIES_PATH = os.path.join(DATA_DIR, "time_entries.json")
 WORKFLOW_EVENTS_PATH = os.path.join(DATA_DIR, "workflow_events.json")
 ACCESS_USERS_PATH = os.path.join(DATA_DIR, "access_users.json")
 ACCESS_CANDIDATES_PATH = os.path.join(DATA_DIR, "access_candidates.json")
+ADMIN_SESSION_TOKENS = {}
 
 MENU_ITEMS = [
     {"key": "talent", "label": "Talent", "href": "find-candidate.html"},
@@ -204,7 +205,6 @@ MENU_ITEMS = [
     {"key": "badges", "label": "View Badges", "href": "badge-catalog.html"},
     {"key": "meridian", "label": "Meridian", "href": "https://meridian-mvp-production.up.railway.app/"},
     {"key": "admin", "label": "Admin", "href": "admin.html"},
-    {"key": "legacy", "label": "Legacy Dashboard", "href": "https://dev.readyplatform.io/dashboards/vetter"},
 ]
 DEFAULT_INTERNAL_MENU = [
     "talent",
@@ -349,6 +349,32 @@ def _public_user(user: dict) -> dict:
         "created_at": user.get("created_at", ""),
         "updated_at": user.get("updated_at", ""),
     }
+
+
+def _administrator_user(users: dict, username: str = "Administrator") -> dict | None:
+    user = _find_access_user(users, username=username, email="")
+    if user and _normalize_user_key(user.get("username", "")) == "administrator":
+        return user
+    return None
+
+
+def _create_admin_token(user: dict) -> str:
+    token_seed = base64.urlsafe_b64encode(os.urandom(32)).decode("ascii").rstrip("=")
+    token = hashlib.sha256(f"{token_seed}:{datetime.utcnow().isoformat()}".encode("utf-8")).hexdigest()
+    ADMIN_SESSION_TOKENS[token] = {
+        "user_id": user.get("id", ""),
+        "username": user.get("username", ""),
+        "created_at": _now_utc(),
+    }
+    return token
+
+
+def _require_admin_token(token: str):
+    token = (token or "").strip()
+    session = ADMIN_SESSION_TOKENS.get(token)
+    if not session or _normalize_user_key(session.get("username", "")) != "administrator":
+        raise HTTPException(status_code=403, detail="Administrator access required.")
+    return session
 
 
 def _find_access_user(users: dict, username: str = "", email: str = "") -> dict | None:
@@ -625,6 +651,34 @@ def access_login(
     return {"ok": True, "user": _public_user(user), "menu_items": MENU_ITEMS}
 
 
+@app.post("/api/access/admin-login")
+def access_admin_login(
+    username: str = Form(default=""),
+    password: str = Form(default=""),
+):
+    users = _seed_access_users()
+    username = (username or "").strip()
+    if _normalize_user_key(username) != "administrator":
+        raise HTTPException(status_code=403, detail="Use the Administrator account for Admin.")
+    if not password:
+        raise HTTPException(status_code=400, detail="Enter the Administrator password.")
+    user = _administrator_user(users, username=username)
+    if not user:
+        raise HTTPException(status_code=404, detail="Administrator account not found.")
+    if user.get("status") == "blocked":
+        raise HTTPException(status_code=403, detail="Administrator account is blocked.")
+    if not _verify_password(password, user.get("password_hash", "")):
+        raise HTTPException(status_code=403, detail="Incorrect Administrator password.")
+    token = _create_admin_token(user)
+    return {"ok": True, "token": token, "user": _public_user(user)}
+
+
+@app.post("/api/access/admin-check")
+def access_admin_check(token: str = Form(default="")):
+    session = _require_admin_token(token)
+    return {"ok": True, "session": session}
+
+
 @app.post("/api/access/register")
 def access_register(
     username: str = Form(default=""),
@@ -670,7 +724,8 @@ def access_register(
 
 
 @app.get("/api/admin/users")
-def admin_users():
+def admin_users(x_devready_admin_token: str = Header(default="")):
+    _require_admin_token(x_devready_admin_token)
     users = _seed_access_users()
     candidates_state = _read_json_store(ACCESS_CANDIDATES_PATH, {})
     return {
@@ -685,6 +740,7 @@ def admin_users():
 
 @app.post("/api/admin/users")
 def admin_save_user(
+    x_devready_admin_token: str = Header(default=""),
     user_id: str = Form(default=""),
     username: str = Form(default=""),
     display_name: str = Form(default=""),
@@ -696,6 +752,7 @@ def admin_save_user(
     status: str = Form(default="active"),
     allowed_menu_json: str = Form(default="[]"),
 ):
+    _require_admin_token(x_devready_admin_token)
     users = _seed_access_users()
     now = _now_utc()
     role = role if role in {"super_user", "internal", "candidate"} else "internal"
@@ -743,7 +800,8 @@ def admin_save_user(
 
 
 @app.post("/api/admin/users/{user_id}/block")
-def admin_block_user(user_id: str, blocked: str = Form(default="true")):
+def admin_block_user(user_id: str, blocked: str = Form(default="true"), x_devready_admin_token: str = Header(default="")):
+    _require_admin_token(x_devready_admin_token)
     users = _seed_access_users()
     if user_id not in users:
         raise HTTPException(status_code=404, detail="User not found.")
@@ -754,7 +812,8 @@ def admin_block_user(user_id: str, blocked: str = Form(default="true")):
 
 
 @app.delete("/api/admin/users/{user_id}")
-def admin_delete_user(user_id: str):
+def admin_delete_user(user_id: str, x_devready_admin_token: str = Header(default="")):
+    _require_admin_token(x_devready_admin_token)
     users = _seed_access_users()
     if user_id not in users:
         raise HTTPException(status_code=404, detail="User not found.")
@@ -764,7 +823,8 @@ def admin_delete_user(user_id: str):
 
 
 @app.post("/api/admin/users/{user_id}/send-login")
-def admin_send_login_info(user_id: str):
+def admin_send_login_info(user_id: str, x_devready_admin_token: str = Header(default="")):
+    _require_admin_token(x_devready_admin_token)
     users = _seed_access_users()
     user = users.get(user_id)
     if not user:
@@ -796,11 +856,13 @@ def admin_send_login_info(user_id: str):
 
 @app.post("/api/admin/candidates/access")
 def admin_candidate_access(
+    x_devready_admin_token: str = Header(default=""),
     candidate_id: str = Form(default=""),
     candidate_email: str = Form(default=""),
     action: str = Form(default="block"),
     notes: str = Form(default=""),
 ):
+    _require_admin_token(x_devready_admin_token)
     key = candidate_id or candidate_email
     if not key:
         raise HTTPException(status_code=400, detail="Enter a candidate id or email.")

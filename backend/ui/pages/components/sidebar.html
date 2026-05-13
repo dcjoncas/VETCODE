@@ -248,6 +248,10 @@
       window.location.href = "/ui/index.html";
       return;
     }
+    const isAdministrator = String(user.username || "").trim().toLowerCase() === "administrator";
+    if (!isAdministrator) {
+      document.querySelector('#pageNavInner [data-menu-key="admin"]')?.remove();
+    }
     if (user.role === "super_user") return;
     const allowed = new Set(user.allowed_menu || []);
     document.querySelectorAll("#pageNavInner [data-menu-key]").forEach((item) => {

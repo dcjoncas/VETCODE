@@ -93,6 +93,87 @@
     --nav-accent: var(--primary-3);
   }
 
+  #pageNavInner a.admin-link {
+    background: rgba(255, 255, 255, 0.94);
+    color: #050505;
+  }
+
+  #pageNavInner a.admin-link:hover,
+  #pageNavInner a.admin-link.active {
+    background: #050505;
+    color: #fff;
+    box-shadow: inset 3px 0 0 #fff;
+  }
+
+  .admin-unlock-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10001;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 22px;
+    background: rgba(5, 5, 5, 0.48);
+    backdrop-filter: blur(5px);
+  }
+
+  .admin-unlock-backdrop.open {
+    display: flex;
+  }
+
+  .admin-unlock-panel {
+    width: min(420px, 100%);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.42);
+    background: #fff;
+    color: #050505;
+    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.24);
+    padding: 18px;
+  }
+
+  .admin-unlock-panel h2 {
+    margin: 0 0 6px;
+    font-size: 18px;
+  }
+
+  .admin-unlock-panel p {
+    margin: 0 0 14px;
+    color: #4b5563;
+    font-size: 13px;
+  }
+
+  .admin-unlock-panel label {
+    display: grid;
+    gap: 5px;
+    margin-top: 10px;
+    font-weight: 800;
+    font-size: 13px;
+  }
+
+  .admin-unlock-panel input {
+    width: 100%;
+    min-height: 40px;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    padding: 8px 10px;
+    font: inherit;
+  }
+
+  .admin-unlock-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 14px;
+  }
+
+  .admin-unlock-error {
+    min-height: 18px;
+    margin-top: 10px;
+    color: #be2633;
+    font-weight: 800;
+    font-size: 12px;
+  }
+
   #pageNavInner::before {
     content: "NAVIGATION";
     display: block;
@@ -183,6 +264,95 @@
 </nav>
 
 <script>
+  function adminUnlockBase() {
+    const port = window.location.port;
+    if (port === "5500") return "http://127.0.0.1:8000";
+    return window.location.origin;
+  }
+
+  function adminUnlockSession() {
+    try {
+      return JSON.parse(sessionStorage.getItem("devreadyAdminUnlock") || "null");
+    } catch {
+      return null;
+    }
+  }
+
+  function ensureAdminUnlockModal() {
+    let backdrop = document.getElementById("adminUnlockBackdrop");
+    if (backdrop) return backdrop;
+    backdrop = document.createElement("div");
+    backdrop.id = "adminUnlockBackdrop";
+    backdrop.className = "admin-unlock-backdrop";
+    backdrop.innerHTML = `
+      <form class="admin-unlock-panel" id="adminUnlockForm">
+        <h2>Administrator Required</h2>
+        <p>Admin is restricted to the Administrator account.</p>
+        <label>
+          Username
+          <input id="adminUnlockUsername" name="username" autocomplete="username" value="Administrator" required />
+        </label>
+        <label>
+          Password
+          <input id="adminUnlockPassword" name="password" type="password" autocomplete="current-password" required />
+        </label>
+        <div id="adminUnlockError" class="admin-unlock-error"></div>
+        <div class="admin-unlock-actions">
+          <button class="btn secondary" type="button" id="adminUnlockCancel">Cancel</button>
+          <button class="btn primary" type="submit">Unlock Admin</button>
+        </div>
+      </form>
+    `;
+    document.body.appendChild(backdrop);
+    backdrop.querySelector("#adminUnlockCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+    backdrop.addEventListener("click", (event) => {
+      if (event.target === backdrop) backdrop.classList.remove("open");
+    });
+    return backdrop;
+  }
+
+  async function unlockAdminFor(targetHref) {
+    const existing = adminUnlockSession();
+    if (existing?.token) {
+      window.location.href = targetHref;
+      return;
+    }
+    const backdrop = ensureAdminUnlockModal();
+    const form = backdrop.querySelector("#adminUnlockForm");
+    const error = backdrop.querySelector("#adminUnlockError");
+    form.onsubmit = async (event) => {
+      event.preventDefault();
+      error.textContent = "";
+      const body = new URLSearchParams(new FormData(form));
+      try {
+        const response = await fetch(`${adminUnlockBase()}/api/access/admin-login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+        });
+        const text = await response.text();
+        if (!response.ok) {
+          let message = text;
+          try {
+            message = JSON.parse(text).detail || text;
+          } catch {}
+          throw new Error(message);
+        }
+        const data = JSON.parse(text);
+        sessionStorage.setItem("devreadyAdminUnlock", JSON.stringify({
+          token: data.token,
+          user: data.user,
+          unlocked_at: new Date().toISOString(),
+        }));
+        window.location.href = targetHref;
+      } catch (err) {
+        error.textContent = err.message || "Admin unlock failed.";
+      }
+    };
+    backdrop.classList.add("open");
+    setTimeout(() => backdrop.querySelector("#adminUnlockPassword")?.focus(), 0);
+  }
+
   const currentNavPath = window.location.pathname.replace(/\/$/, "");
   const navLinks = document.querySelectorAll("#pageNav a");
   navLinks.forEach((link) => {
@@ -191,5 +361,10 @@
     if (currentNavPath === linkPath) {
       link.classList.add("active");
     }
+  });
+
+  document.querySelector("#pageNavInner .admin-link")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    unlockAdminFor(event.currentTarget.href);
   });
 </script>
