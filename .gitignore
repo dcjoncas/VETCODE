@@ -7,7 +7,9 @@ node_modules
 .venv/
 __pycache__
 backend/exports
+backend/data/
 devready.db*
+backend/devready_testcopy.db
 backend/*token.json
 backend/calendar_tokens/
 backend/google_client_secret.json

@@ -180,7 +180,7 @@ import storage
 from renderers import profile_to_html, profile_to_docx, jd_to_html, jd_to_docx, match_report_to_html, match_report_to_docx
 
 VERSION = "v2.8.6"
-DB_PATH = "devready.db"
+DB_PATH = os.getenv("DEVREADY_DB_PATH", "devready.db")
 UPLOAD_DIR = "uploads"
 EXPORT_DIR = "exports"
 DATA_DIR = "data"
@@ -239,7 +239,15 @@ def _write_json_store(path: str, data) -> None:
     tmp_path = path + ".tmp"
     with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, sort_keys=True)
-    os.replace(tmp_path, path)
+    try:
+        os.replace(tmp_path, path)
+    except PermissionError:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, sort_keys=True)
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
 
 
 def _now_utc() -> str:
