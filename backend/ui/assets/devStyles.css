@@ -1312,3 +1312,32 @@ input[type="checkbox"] {
   color: rgba(255, 255, 255, 0.82);
   font-size: 11px;
 }
+
+.workspace-status-link {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.workspace-status-button {
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.2;
+}
+
+.process-actions {
+  margin-left: auto;
+}
+
+.process-hint-toggle {
+  height: 31px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(47, 125, 75, 0.22);
+  background: #fff;
+  color: var(--primary-2);
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: none;
+}

@@ -26,6 +26,16 @@
         <option value="law">Law Domain</option>
       </select>
       <button
+        id="hintToggle"
+        class="process-hint-toggle hint-toggle"
+        type="button"
+        onclick="toggleGlobalHints()"
+        data-hint="Turn guidance notes and hover tips on or off across the workspace."
+        title="Toggle guidance hints"
+      >
+        Hints On
+      </button>
+      <button
         class="process-map-button"
         type="button"
         onclick="openProcessMap()"
@@ -221,6 +231,9 @@
   }
   if (typeof applyButtonHints === "function") {
     applyButtonHints(document.getElementById("processFlow"));
+  }
+  if (typeof applyGlobalHints === "function") {
+    applyGlobalHints();
   }
   updateCandidate();
   updateJob();
