@@ -156,7 +156,7 @@
             </div>
             <div class="meet-actions">
               <button id="refreshMeetBtn" class="btn secondary" type="button">Refresh Meet</button>
-              <a class="btn secondary" href="crm.html">Open CRM</a>
+              <a id="openCrmBtn" class="btn secondary" href="crm.html">Open CRM</a>
             </div>
           </div>
         </section>
@@ -185,12 +185,61 @@
       const meetFrame = document.getElementById("meetFrame");
       const meetStatus = document.getElementById("meetStatus");
       const refreshMeetBtn = document.getElementById("refreshMeetBtn");
+      const openCrmBtn = document.getElementById("openCrmBtn");
+      const meetOrigin = new URL(meetBaseUrl).origin;
 
       function buildMeetUrl() {
-        const crmReturnUrl = new URL("crm.html", window.location.href);
         const meetUrl = new URL(meetBaseUrl);
-        meetUrl.searchParams.set("returnTo", crmReturnUrl.href);
+        meetUrl.searchParams.set("crmHandoff", "parent");
         return meetUrl.href;
+      }
+
+      function currentDomain() {
+        return sessionStorage.getItem("domain") || "dev";
+      }
+
+      function crmStorageKey() {
+        return `devreadyCrmRecords:${currentDomain()}`;
+      }
+
+      function saveCrmRecordFromMeet(data) {
+        const records = JSON.parse(localStorage.getItem(crmStorageKey()) || "[]");
+        records.unshift({
+          id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+          domain: currentDomain(),
+          createdAt: new Date().toISOString(),
+          customer: data.customer || data.account || "",
+          contact: data.contact || data.who || "",
+          when: data.when || new Date().toISOString(),
+          where: data.where || "DevMeet",
+          meetingUrl: data.meetingUrl || data.meeting_url || "",
+          what: data.what || data.summary || "",
+          why: data.why || "",
+          contacts: data.contacts || "",
+          history: data.history || data.transcript || "",
+          nextStep: data.nextStep || data.next_step || "",
+        });
+        localStorage.setItem(crmStorageKey(), JSON.stringify(records.slice(0, 200)));
+      }
+
+      function crmUrlFromMeet(data) {
+        const crmUrl = new URL("crm.html", window.location.href);
+        [
+          ["customer", data.customer || data.account],
+          ["contact", data.contact || data.who],
+          ["when", data.when],
+          ["where", data.where],
+          ["meetingUrl", data.meetingUrl || data.meeting_url],
+          ["what", data.what || data.summary],
+          ["summary", data.summary || data.what],
+          ["why", data.why],
+          ["contacts", data.contacts],
+          ["history", data.history || data.transcript],
+          ["nextStep", data.nextStep || data.next_step],
+        ].forEach(([key, value]) => {
+          if (value) crmUrl.searchParams.set(key, value);
+        });
+        return crmUrl.href;
       }
 
       function loadMeet() {
@@ -199,6 +248,15 @@
       }
 
       refreshMeetBtn.addEventListener("click", loadMeet);
+
+      window.addEventListener("message", (event) => {
+        if (event.origin !== meetOrigin) return;
+        const data = event.data || {};
+        if (data.type !== "devready-crm") return;
+        saveCrmRecordFromMeet(data);
+        openCrmBtn.href = crmUrlFromMeet(data);
+        meetStatus.textContent = "Meeting summary saved to CRM. Open CRM when you are ready to review it.";
+      });
 
       meetFrame.addEventListener("load", () => {
         try {
