@@ -3,7 +3,9 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 import traceback
 import os
 import re
+import json
 import requests
+from openai import OpenAI
 from azureUtils.storage import jobs, candidates
 from jd_match import normalize_jd, azureJobMatch, normalize_all_skills
 from openAI import externalPeopleSearch
@@ -174,6 +176,107 @@ def _score_band(score: int):
     if score > 0:
         return "Below threshold"
     return "No measurable match"
+
+def _deterministic_fit_reason(candidate_name: str, score: int, top_matches: list[str], score_details: dict, culture_match: int = -1):
+    matched = _safe_list(top_matches)
+    missing = _safe_list((score_details or {}).get("missing"))[:5]
+    scoring_skills = _safe_list((score_details or {}).get("scoring_skills"))[:8]
+    band = (score_details or {}).get("band") or _score_band(score)
+    matched_count = (score_details or {}).get("matched_count", len(matched))
+    required_count = (score_details or {}).get("required_count", len(scoring_skills))
+    matched_weight = (score_details or {}).get("matched_weight", 0)
+    required_weight = (score_details or {}).get("required_weight", 0)
+
+    if score >= 75:
+        decision = "Strong fit"
+    elif score >= 50:
+        decision = "Fit"
+    elif score > 0:
+        decision = "Below 50% review"
+    else:
+        decision = "Not enough evidence"
+
+    reason_bits = [
+        f"{band}: matched {matched_count} of {required_count} weighted JD signals",
+    ]
+    if required_weight:
+        reason_bits.append(f"({matched_weight}/{required_weight} weighted coverage)")
+    if matched:
+        reason_bits.append("matched " + ", ".join(matched[:5]))
+    if missing:
+        reason_bits.append("missing or not found: " + ", ".join(missing))
+    if culture_match >= 0:
+        reason_bits.append(f"culture match {culture_match}%")
+    if score < 50:
+        reason_bits.append("Below 50% means the stored profile does not show enough required JD signals yet; verify resume/chat before rejecting.")
+    return {
+        "fit_decision": decision,
+        "fit_reason": ". ".join(reason_bits) + ".",
+        "score_formula": "Score = weighted matched JD signals / weighted searchable JD signals.",
+        "scoring_skills": scoring_skills,
+    }
+
+def _ai_fit_explanations(jd: dict, scoring_skills: list[str], rows: list[dict]):
+    if not os.getenv("OPENAI_API_KEY", "").strip() or not rows:
+        return {}
+    payload = {
+        "job": {
+            "company": jd.get("company", ""),
+            "title": jd.get("title", ""),
+            "skills_used_for_scoring": scoring_skills,
+            "description_excerpt": (jd.get("jd_text") or jd.get("description") or "")[:2500],
+        },
+        "candidates": [
+            {
+                "profile_id": row.get("profile_id", ""),
+                "name": row.get("name", ""),
+                "score": row.get("score", 0),
+                "matched": row.get("top_matches", []),
+                "missing": (row.get("score_details") or {}).get("missing", []),
+                "candidate_skills": row.get("breakdown", [])[:40] if isinstance(row.get("breakdown"), list) else row.get("breakdown", {}),
+                "culture_match": row.get("culture_match", -1),
+            }
+            for row in rows[:20]
+        ],
+    }
+    try:
+        client = OpenAI()
+        response = client.chat.completions.create(
+            model=os.getenv("OPENAI_MATCH_MODEL", "gpt-4o-mini"),
+            temperature=0.2,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You explain recruiting match scores. Return strict JSON only. "
+                        "For each candidate, give concise, evidence-based reasoning. "
+                        "Do not invent skills. If score is below 50, clearly state why it is below threshold and what to validate."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        "Return JSON with this shape: "
+                        "{\"items\":[{\"profile_id\":\"...\",\"fit_decision\":\"Strong fit|Fit|Below 50% review|Not enough evidence\","
+                        "\"fit_reason\":\"one or two sentences\",\"score_formula\":\"brief formula explanation\"}]}.\n\n"
+                        + json.dumps(payload, ensure_ascii=False)
+                    ),
+                },
+            ],
+        )
+        content = (response.choices[0].message.content or "{}").strip()
+        if content.startswith("```"):
+            content = re.sub(r"^```(?:json)?\s*", "", content)
+            content = re.sub(r"\s*```$", "", content).strip()
+        parsed = json.loads(content)
+        return {
+            str(item.get("profile_id")): item
+            for item in parsed.get("items", [])
+            if item.get("profile_id")
+        }
+    except Exception as exc:
+        print(f"AI match explanation failed: {exc}")
+        return {}
 
 def _rank_external_skill_match(raw_skills: list[str], job_skills: list[str], scoring_skills: list[str] | None = None):
     candidate_skills = _safe_list(raw_skills)
@@ -737,6 +840,14 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
             # numbers closer to zero are better and scale is of 5, so take percentage out of five, then subtract from 1 to determine closeness to zero
             percentageNum = round((1-(averageDifference/5))*100)
         
+        deterministic_reason = _deterministic_fit_reason(
+            f"{row['firstName']} {row['lastName']}",
+            score,
+            top_matches,
+            score_details,
+            percentageNum,
+        )
+
         ranked.append({
             "profile_id": row["id"],
             "name": row["firstName"] + ' ' + row["lastName"],
@@ -744,12 +855,25 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
             "score": score,
             "match_band": score_details["band"],
             "score_details": score_details,
+            "fit_decision": deterministic_reason["fit_decision"],
+            "fit_reason": deterministic_reason["fit_reason"],
+            "score_formula": deterministic_reason["score_formula"],
             "top_matches": top_matches,
             "breakdown": row['skillMatches'],
             'culture_match': percentageNum
         })
 
     ranked.sort(key=lambda x: (x["score"], x["culture_match"]), reverse=True)
+    ai_reasons = _ai_fit_explanations(jd, scoringSkills, ranked[:top_k])
+    for row in ranked[:top_k]:
+        ai_reason = ai_reasons.get(str(row.get("profile_id")))
+        if ai_reason:
+            row["fit_decision"] = ai_reason.get("fit_decision") or row.get("fit_decision")
+            row["fit_reason"] = ai_reason.get("fit_reason") or row.get("fit_reason")
+            row["score_formula"] = ai_reason.get("score_formula") or row.get("score_formula")
+            row["fit_reason_source"] = "ai"
+        else:
+            row["fit_reason_source"] = "deterministic"
 
     rankedExternal = []
     for row in returnedExternalPeople:
@@ -762,6 +886,14 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
 
         score, top_matches, score_details = _rank_external_skill_match(row['skills'], peopleDataSkills, scoringSkills)
         
+        deterministic_reason = _deterministic_fit_reason(
+            f"{row.get('first_name', '')} {row.get('last_name', '')}".strip(),
+            score,
+            top_matches,
+            score_details,
+            -1,
+        )
+
         rankedExternal.append({
             "profile_id": row["id"],
             "first_name": row["first_name"],
@@ -772,6 +904,9 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
             "score": score,
             "match_band": score_details["band"],
             "score_details": score_details,
+            "fit_decision": deterministic_reason["fit_decision"],
+            "fit_reason": deterministic_reason["fit_reason"],
+            "score_formula": deterministic_reason["score_formula"],
             "top_matches": top_matches,
             "breakdown": row['skills']
         })
