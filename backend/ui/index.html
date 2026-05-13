@@ -214,6 +214,10 @@
                 Password
                 <input id="registerPassword" name="password" type="password" autocomplete="new-password" minlength="8" required />
               </label>
+              <label>
+                Confirm password
+                <input id="registerPasswordConfirm" name="password_confirm" type="password" autocomplete="new-password" minlength="8" required />
+              </label>
               <div class="login-type">
                 <label><input type="radio" name="login_type" value="internal" checked /> Internal</label>
                 <label><input type="radio" name="login_type" value="candidate" /> Candidate</label>
@@ -264,6 +268,10 @@
       registerForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         const body = new URLSearchParams(new FormData(registerForm));
+        if ((body.get("password") || "") !== (body.get("password_confirm") || "")) {
+          registerStatus.textContent = "Password and confirmation do not match.";
+          return;
+        }
         try {
           const response = await fetch("/api/access/register", {
             method: "POST",

@@ -116,6 +116,10 @@
                 <input id="password" name="password" type="password" autocomplete="new-password" placeholder="Set or reset password" />
               </label>
               <label>
+                Confirm password
+                <input id="passwordConfirm" name="password_confirm" type="password" autocomplete="new-password" placeholder="Confirm password" />
+              </label>
+              <label>
                 Role
                 <select id="role" name="role" onchange="syncRolePermissions()">
                   <option value="internal">Internal</option>
@@ -281,7 +285,9 @@
         document.getElementById("displayName").value = user.display_name || "";
         document.getElementById("email").value = user.email || "";
         document.getElementById("password").value = "";
+        document.getElementById("passwordConfirm").value = "";
         document.getElementById("password").placeholder = "Leave blank to keep current password";
+        document.getElementById("passwordConfirm").placeholder = "Leave blank to keep current password";
         document.getElementById("role").value = user.role || "internal";
         document.getElementById("status").value = user.status || "active";
         renderPermissionGrid(user.allowed_menu || []);
@@ -291,12 +297,17 @@
         document.getElementById("userForm").reset();
         document.getElementById("userId").value = "";
         document.getElementById("password").placeholder = "Required for new users";
+        document.getElementById("passwordConfirm").placeholder = "Confirm required password";
         renderPermissionGrid(defaults.internal);
       }
 
       document.getElementById("userForm").addEventListener("submit", async (event) => {
         event.preventDefault();
         const body = new URLSearchParams(new FormData(event.currentTarget));
+        if ((body.get("password") || "") !== (body.get("password_confirm") || "")) {
+          document.getElementById("adminStatus").textContent = "Password and confirmation do not match.";
+          return;
+        }
         body.set("allowed_menu_json", JSON.stringify(selectedPermissions()));
         const data = await api("/api/admin/users", {
           method: "POST",

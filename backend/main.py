@@ -631,6 +631,8 @@ def access_register(
     display_name: str = Form(default=""),
     email: str = Form(default=""),
     password: str = Form(default=""),
+    confirm_password: str = Form(default=""),
+    password_confirm: str = Form(default=""),
     login_type: str = Form(default="internal"),
 ):
     users = _seed_access_users()
@@ -641,6 +643,9 @@ def access_register(
         raise HTTPException(status_code=400, detail="Enter a username or email.")
     if len(password or "") < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+    confirmation = password_confirm or confirm_password
+    if password != confirmation:
+        raise HTTPException(status_code=400, detail="Password and confirmation do not match.")
     if _find_access_user(users, username=username, email=email):
         raise HTTPException(status_code=409, detail="Account already exists. Use login or ask an admin to reset access.")
 
@@ -685,6 +690,8 @@ def admin_save_user(
     display_name: str = Form(default=""),
     email: str = Form(default=""),
     password: str = Form(default=""),
+    confirm_password: str = Form(default=""),
+    password_confirm: str = Form(default=""),
     role: str = Form(default="internal"),
     status: str = Form(default="active"),
     allowed_menu_json: str = Form(default="[]"),
@@ -712,6 +719,9 @@ def admin_save_user(
     if password:
         if len(password) < 8:
             raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+        confirmation = password_confirm or confirm_password
+        if password != confirmation:
+            raise HTTPException(status_code=400, detail="Password and confirmation do not match.")
         password_hash = _password_hash(password)
     elif not password_hash:
         raise HTTPException(status_code=400, detail="Set a password for this user.")
