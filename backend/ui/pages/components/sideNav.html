@@ -26,8 +26,7 @@
   #pageNavInner a.ai-cert-link,
   #pageNavInner a.badge-catalog-link,
   #pageNavInner a.meridian-link,
-  #pageNavInner a.admin-link,
-  #pageNavInner a.legacy-link {
+  #pageNavInner a.admin-link {
     display: flex;
     align-items: center;
     gap: 13px;
@@ -90,8 +89,7 @@
   #pageNavInner a.ai-cert-link,
   #pageNavInner a.badge-catalog-link,
   #pageNavInner a.meridian-link,
-  #pageNavInner a.admin-link,
-  #pageNavInner a.legacy-link {
+  #pageNavInner a.admin-link {
     --nav-accent: var(--primary-3);
   }
 
@@ -120,7 +118,6 @@
     <symbol id="nav-badge" viewBox="0 0 24 24"><path d="M12 3 19 6v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path><path d="m9 12 2 2 4-5"></path></symbol>
     <symbol id="nav-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="m15 9-2 6-4 2 2-6z"></path></symbol>
     <symbol id="nav-admin" viewBox="0 0 24 24"><path d="M12 3 20 6v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"></path><path d="M9 12h6"></path><path d="M12 9v6"></path></symbol>
-    <symbol id="nav-legacy" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"></path><path d="M4 9h16"></path><path d="M8 13h3"></path><path d="M14 13h2"></path><path d="M8 16h8"></path></symbol>
   </svg>
   <a href="find-candidate.html" class="nav-talent" data-menu-key="talent" data-hint="Start here to search profiles, upload resumes, load job descriptions, and scan profile groups."><svg class="nav-icon"><use href="#nav-home"></use></svg>Talent</a>
   <div class="nav-group" aria-label="Candidate mining">
@@ -182,15 +179,6 @@
     data-menu-key="admin"
     data-hint="Manage users, candidate access, menu permissions, and login information."
     ><svg class="nav-icon"><use href="#nav-admin"></use></svg>Admin</a
-  >
-  <a
-    href="https://dev.readyplatform.io/dashboards/vetter"
-    target="_blank"
-    rel="noopener"
-    class="legacy-link"
-    data-menu-key="legacy"
-    data-hint="Open the older dashboard in a separate tab when legacy data is needed."
-    ><svg class="nav-icon"><use href="#nav-legacy"></use></svg>Legacy Dashboard</a
   >
 </nav>
 

@@ -1381,8 +1381,7 @@ input[type="checkbox"] {
 .nav a.ai-cert-link,
 .nav a.badge-catalog-link,
 .nav a.meridian-link,
-.nav a.admin-link,
-.nav a.legacy-link {
+.nav a.admin-link {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.055));
   border-color: rgba(var(--primary-3-rgb), 0.28);
   color: rgba(255, 255, 255, 0.94);
@@ -1400,8 +1399,7 @@ input[type="checkbox"] {
 .nav a.ai-cert-link.active,
 .nav a.badge-catalog-link.active,
 .nav a.meridian-link.active,
-.nav a.admin-link.active,
-.nav a.legacy-link.active {
+.nav a.admin-link.active {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.21), rgba(255, 255, 255, 0.09));
   border-color: rgba(var(--primary-3-rgb), 0.42);
   color: #fff;
