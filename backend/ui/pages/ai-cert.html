@@ -257,6 +257,37 @@
         overflow-wrap: anywhere;
       }
 
+      .track-candidate-picker {
+        display: grid;
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .track-candidate-picker.hidden {
+        display: none;
+      }
+
+      .track-candidate-search {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 6px;
+      }
+
+      .track-candidate-search input {
+        width: 100%;
+        min-height: 32px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+
+      .track-candidate-search .btn {
+        min-height: 32px;
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+
       .cert-frame-shell {
         margin-top: 8px;
         border: 1px solid var(--line);
@@ -402,6 +433,13 @@
                   <div class="track-cell">
                     <label>Candidate</label>
                     <strong id="trackCandidate">Not selected</strong>
+                    <div id="trackCandidatePicker" class="track-candidate-picker">
+                      <div class="track-candidate-search">
+                        <input id="trackCandidateSearch" type="search" placeholder="Search candidate" />
+                        <button id="trackCandidateSearchBtn" class="btn secondary" type="button">Select</button>
+                      </div>
+                      <div id="trackCandidateResults" class="cert-candidate-results"></div>
+                    </div>
                   </div>
                   <div class="track-cell">
                     <label>Stage</label>
@@ -486,6 +524,10 @@
       const certCandidateSearch = document.getElementById("certCandidateSearch");
       const certCandidateSearchBtn = document.getElementById("certCandidateSearchBtn");
       const certCandidateResults = document.getElementById("certCandidateResults");
+      const trackCandidatePicker = document.getElementById("trackCandidatePicker");
+      const trackCandidateSearch = document.getElementById("trackCandidateSearch");
+      const trackCandidateSearchBtn = document.getElementById("trackCandidateSearchBtn");
+      const trackCandidateResults = document.getElementById("trackCandidateResults");
       const certPathSelect = document.getElementById("certPathSelect");
       const certNextPanel = document.getElementById("certNextPanel");
       const certNextText = document.getElementById("certNextText");
@@ -703,6 +745,7 @@
         if (certOutboundLink) certOutboundLink.value = certUrl(true, nextBadge || outboundBadge());
         if (tracking.certifiedAt) alreadyAiCertified = true;
         trackCandidate.textContent = candidate.name || certRecipientEmail.value || "No candidate selected";
+        trackCandidatePicker.classList.toggle("hidden", Boolean(candidate.name || candidate.email || candidate.id));
         trackStage.textContent = tracking.stage || (tracking.certifiedAt ? "Certified" : "Not sent");
         trackAttempts.textContent = tracking.outcome || tracking.attempts || "No attempt recorded";
         trackLastActivity.textContent = tracking.updatedAt || "None yet";
@@ -796,19 +839,21 @@
         selectedCertCandidateId = profile.id || profile.profile_id || "";
         certRecipientEmail.value = profile.email || "";
         certCandidateResults.innerHTML = "";
+        trackCandidateResults.innerHTML = "";
         certCandidateSearch.value = fullName;
+        trackCandidateSearch.value = fullName;
         loadSelectedCandidate();
         renderSelectedBadge();
         loadCert();
       }
 
-      async function searchCertificationCandidates() {
-        const query = certCandidateSearch.value.trim();
+      async function searchCertificationCandidates(sourceInput = certCandidateSearch, resultContainer = certCandidateResults) {
+        const query = sourceInput.value.trim();
         if (!query) {
-          certCandidateResults.innerHTML = `<div class="muted">Enter a candidate name or email to link certification.</div>`;
+          resultContainer.innerHTML = `<div class="muted">Enter a candidate name or email to link certification.</div>`;
           return;
         }
-        certCandidateResults.innerHTML = `<div class="muted">Searching candidates...</div>`;
+        resultContainer.innerHTML = `<div class="muted">Searching candidates...</div>`;
         const fd = new FormData();
         fd.append("domain", activeDomainKey());
         fd.append("search_string", query);
@@ -824,10 +869,10 @@
             results = Array.isArray(fallback) ? fallback : [];
           }
           if (!results.length) {
-            certCandidateResults.innerHTML = `<div class="muted">No candidates found.</div>`;
+            resultContainer.innerHTML = `<div class="muted">No candidates found.</div>`;
             return;
           }
-          certCandidateResults.innerHTML = results
+          resultContainer.innerHTML = results
             .slice(0, 8)
             .map((profile, index) => {
               const name =
@@ -847,11 +892,11 @@
               `;
             })
             .join("");
-          certCandidateResults.querySelectorAll(".cert-candidate-result").forEach((button) => {
+          resultContainer.querySelectorAll(".cert-candidate-result").forEach((button) => {
             button.addEventListener("click", () => setSelectedCandidate(results[Number(button.dataset.index)]));
           });
         } catch (error) {
-          certCandidateResults.innerHTML = `<div class="muted">Candidate search failed: ${escapeHtml(error.message)}</div>`;
+          resultContainer.innerHTML = `<div class="muted">Candidate search failed: ${escapeHtml(error.message)}</div>`;
         }
       }
 
@@ -1044,11 +1089,18 @@
         renderCertHandoff();
         loadCert();
       });
-      certCandidateSearchBtn.addEventListener("click", searchCertificationCandidates);
+      certCandidateSearchBtn.addEventListener("click", () => searchCertificationCandidates());
       certCandidateSearch.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
           event.preventDefault();
           searchCertificationCandidates();
+        }
+      });
+      trackCandidateSearchBtn.addEventListener("click", () => searchCertificationCandidates(trackCandidateSearch, trackCandidateResults));
+      trackCandidateSearch.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          searchCertificationCandidates(trackCandidateSearch, trackCandidateResults);
         }
       });
       copyNextCertLinkBtn.addEventListener("click", async () => {
