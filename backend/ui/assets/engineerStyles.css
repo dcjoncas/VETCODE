@@ -570,6 +570,13 @@ input[type="checkbox"] {
 .process-flow-card {
   margin-bottom: 12px;
   padding: 10px 14px;
+  background:
+    linear-gradient(90deg, rgba(47, 128, 237, 0.13), rgba(255, 255, 255, 0.96) 42%),
+    #fff;
+  border-color: rgba(20, 93, 178, 0.18);
+  box-shadow:
+    inset 4px 0 0 rgba(47, 128, 237, 0.55),
+    0 8px 24px rgba(18, 64, 128, 0.05);
 }
 .process-compact {
   display: flex;
