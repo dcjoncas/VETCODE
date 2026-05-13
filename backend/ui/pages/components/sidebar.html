@@ -88,6 +88,10 @@
 
   function applyLoggedInUser() {
     const user = currentDevReadyUser();
+    if (!user) {
+      window.location.href = "/ui/index.html";
+      return;
+    }
     const name = document.getElementById("sidebarUserName");
     if (name && user) {
       name.textContent = user.display_name || user.username || user.email || "DevReady User";
@@ -96,7 +100,11 @@
 
   function applyMenuAccess() {
     const user = currentDevReadyUser();
-    if (!user || user.role === "super_user") return;
+    if (!user) {
+      window.location.href = "/ui/index.html";
+      return;
+    }
+    if (user.role === "super_user") return;
     const allowed = new Set(user.allowed_menu || []);
     document.querySelectorAll("#pageNavInner [data-menu-key]").forEach((item) => {
       const key = item.dataset.menuKey;

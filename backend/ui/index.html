@@ -110,6 +110,27 @@
         color: #125b36;
         font-weight: 800;
       }
+      .auth-divider {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+      .auth-divider::before,
+      .auth-divider::after {
+        content: "";
+        height: 1px;
+        flex: 1;
+        background: var(--line);
+      }
+      .create-panel {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--line);
+      }
       @media (max-width: 900px) {
         .welcome-grid,
         .domain-grid {
@@ -160,36 +181,71 @@
         <section class="welcome-panel">
           <h2>Login</h2>
           <p class="muted">
-            Enter your username or email. DevReady will remember your menu access and show only the workspace areas assigned to you.
+            Enter your username and password. DevReady will remember your assigned menu access.
           </p>
           <form id="loginForm" class="login-form">
             <label>
-              Username
-              <input id="username" name="username" autocomplete="username" placeholder="DJ or Darrin.Joncas@gmail.com" />
+              Username or email
+              <input id="loginUsername" name="username" autocomplete="username" placeholder="DJ or Darrin.Joncas@gmail.com" required />
             </label>
             <label>
-              Email
-              <input id="email" name="email" type="email" autocomplete="email" placeholder="name@company.com" />
+              Password
+              <input id="loginPassword" name="password" type="password" autocomplete="current-password" required />
             </label>
-            <div class="login-type">
-              <label><input type="radio" name="login_type" value="internal" checked /> Internal</label>
-              <label><input type="radio" name="login_type" value="candidate" /> Candidate</label>
-            </div>
-            <button class="btn" type="submit">Enter workspace</button>
-            <a class="btn secondary" href="pages/admin.html">Admin</a>
+            <button class="btn" type="submit">Login</button>
             <div id="loginStatus" class="login-status"></div>
           </form>
+          <div class="create-panel">
+            <div class="auth-divider">No account yet?</div>
+            <form id="registerForm" class="login-form" style="margin-top: 12px">
+              <label>
+                Username
+                <input id="registerUsername" name="username" autocomplete="username" required />
+              </label>
+              <label>
+                Display name
+                <input id="registerDisplayName" name="display_name" autocomplete="name" />
+              </label>
+              <label>
+                Email
+                <input id="registerEmail" name="email" type="email" autocomplete="email" />
+              </label>
+              <label>
+                Password
+                <input id="registerPassword" name="password" type="password" autocomplete="new-password" minlength="8" required />
+              </label>
+              <div class="login-type">
+                <label><input type="radio" name="login_type" value="internal" checked /> Internal</label>
+                <label><input type="radio" name="login_type" value="candidate" /> Candidate</label>
+              </div>
+              <button class="btn secondary" type="submit">Create account</button>
+              <div id="registerStatus" class="login-status"></div>
+            </form>
+          </div>
         </section>
       </div>
     </main>
 
     <script>
       const form = document.getElementById("loginForm");
+      const registerForm = document.getElementById("registerForm");
       const status = document.getElementById("loginStatus");
+      const registerStatus = document.getElementById("registerStatus");
+
+      function enterWorkspace(user) {
+        sessionStorage.setItem("devreadyUser", JSON.stringify(user));
+        localStorage.setItem("devreadyUser", JSON.stringify(user));
+        const nextPage = user.role === "candidate" ? "pages/ai-cert.html" : "pages/find-candidate.html";
+        window.location.href = nextPage;
+      }
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const body = new URLSearchParams(new FormData(form));
+        const loginValue = body.get("username") || "";
+        if (loginValue.includes("@")) {
+          body.set("email", loginValue);
+        }
         try {
           const response = await fetch("/api/access/login", {
             method: "POST",
@@ -198,13 +254,28 @@
           });
           const data = await response.json();
           if (!response.ok) throw new Error(data.detail || "Login failed.");
-          sessionStorage.setItem("devreadyUser", JSON.stringify(data.user));
-          localStorage.setItem("devreadyUser", JSON.stringify(data.user));
           status.textContent = `Welcome ${data.user.display_name || data.user.username}.`;
-          const nextPage = data.user.role === "candidate" ? "pages/ai-cert.html" : "pages/find-candidate.html";
-          window.location.href = nextPage;
+          enterWorkspace(data.user);
         } catch (error) {
           status.textContent = error.message || "Login failed.";
+        }
+      });
+
+      registerForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const body = new URLSearchParams(new FormData(registerForm));
+        try {
+          const response = await fetch("/api/access/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: body.toString(),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || "Account creation failed.");
+          registerStatus.textContent = `Account created. Welcome ${data.user.display_name || data.user.username}.`;
+          enterWorkspace(data.user);
+        } catch (error) {
+          registerStatus.textContent = error.message || "Account creation failed.";
         }
       });
     </script>

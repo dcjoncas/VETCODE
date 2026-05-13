@@ -10,7 +10,6 @@
     <script>
       $(function () {
         $("#siteSidebar").load("components/sidebar.html");
-        $("#processFlow").load("components/processFlow.html");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -92,8 +91,6 @@
           <div id="searchBar"></div>
         </div>
 
-        <div id="processFlow"></div>
-
         <section class="card">
           <h2>Access controls</h2>
           <p>
@@ -113,6 +110,10 @@
               <label>
                 Email
                 <input id="email" name="email" type="email" />
+              </label>
+              <label>
+                Password
+                <input id="password" name="password" type="password" autocomplete="new-password" placeholder="Set or reset password" />
               </label>
               <label>
                 Role
@@ -199,9 +200,9 @@
       function currentUserCanAdmin() {
         try {
           const user = JSON.parse(sessionStorage.getItem("devreadyUser") || localStorage.getItem("devreadyUser") || "null");
-          return !user || user.role === "super_user" || (user.allowed_menu || []).includes("admin");
+          return Boolean(user && (user.role === "super_user" || (user.allowed_menu || []).includes("admin")));
         } catch {
-          return true;
+          return false;
         }
       }
 
@@ -279,6 +280,8 @@
         document.getElementById("username").value = user.username || "";
         document.getElementById("displayName").value = user.display_name || "";
         document.getElementById("email").value = user.email || "";
+        document.getElementById("password").value = "";
+        document.getElementById("password").placeholder = "Leave blank to keep current password";
         document.getElementById("role").value = user.role || "internal";
         document.getElementById("status").value = user.status || "active";
         renderPermissionGrid(user.allowed_menu || []);
@@ -287,6 +290,7 @@
       function newUser() {
         document.getElementById("userForm").reset();
         document.getElementById("userId").value = "";
+        document.getElementById("password").placeholder = "Required for new users";
         renderPermissionGrid(defaults.internal);
       }
 

@@ -46,6 +46,20 @@
         border-radius: 999px;
         background: #2f7d4b;
       }
+
+      .profile-id-chip {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 8px;
+        padding: 4px 8px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        background: #f8faf9;
+        font-size: 12px;
+        font-weight: 900;
+        vertical-align: middle;
+      }
     </style>
     <script>
       $(function () {
@@ -89,6 +103,7 @@
               >
                 No Candidate Loaded
               </div>
+              <span id="profileIdChip" class="profile-id-chip" style="display: none"></span>
               <div
                 id="profileSubHeader"
                 style="color: var(--muted); margin-top: 6px"
@@ -798,6 +813,8 @@
             `${profileData.profile.firstName} ${profileData.profile.lastName} — Profile Preview`;
           document.getElementById("profileHeader").innerText =
             `${profileData.profile.firstName} ${profileData.profile.lastName}`;
+          document.getElementById("profileIdChip").innerText = `Profile ID ${candidateId}`;
+          document.getElementById("profileIdChip").style.display = "inline-flex";
 
           document.getElementById("candidateCity").innerText =
             profileData.profile.city && profileData.profile.city.length > 0

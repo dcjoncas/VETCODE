@@ -23,7 +23,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-import os, shutil, traceback, json
+import os, shutil, traceback, json, base64, hashlib, hmac
 from typing import Optional
 from datetime import datetime
 
@@ -254,6 +254,31 @@ def _normalize_user_key(value: str) -> str:
     return (value or "").strip().lower()
 
 
+def _password_hash(password: str, salt: str = "") -> str:
+    password = password or ""
+    if not salt:
+        salt = base64.urlsafe_b64encode(os.urandom(16)).decode("ascii").rstrip("=")
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 150000)
+    return f"pbkdf2_sha256${salt}${base64.urlsafe_b64encode(digest).decode('ascii').rstrip('=')}"
+
+
+def _verify_password(password: str, stored_hash: str = "") -> bool:
+    try:
+        scheme, salt, expected = (stored_hash or "").split("$", 2)
+        if scheme != "pbkdf2_sha256":
+            return False
+        actual = _password_hash(password, salt).split("$", 2)[2]
+        return hmac.compare_digest(actual, expected)
+    except Exception:
+        return False
+
+
+def _default_menu_for_user(role: str, email: str = "") -> list[str]:
+    if role == "super_user" or _normalize_user_key(email).endswith("@devready.io"):
+        return SUPER_MENU
+    return DEFAULT_CANDIDATE_MENU if role == "candidate" else DEFAULT_INTERNAL_MENU
+
+
 def _seed_access_users() -> dict:
     users = _read_json_store(ACCESS_USERS_PATH, {})
     if users:
@@ -261,6 +286,7 @@ def _seed_access_users() -> dict:
     now = _now_utc()
     email = os.getenv("DEVREADY_ADMIN_EMAIL", "Darrin.Joncas@gmail.com")
     username = os.getenv("DEVREADY_ADMIN_USERNAME", "DJ")
+    password = os.getenv("DEVREADY_ADMIN_PASSWORD", "DevReady2026!")
     user_id = _safe_token("USR")
     users[user_id] = {
         "id": user_id,
@@ -270,6 +296,7 @@ def _seed_access_users() -> dict:
         "role": "super_user",
         "status": "active",
         "allowed_menu": SUPER_MENU,
+        "password_hash": _password_hash(password),
         "created_at": now,
         "updated_at": now,
     }
@@ -541,37 +568,67 @@ def access_menu():
 def access_login(
     username: str = Form(default=""),
     email: str = Form(default=""),
-    login_type: str = Form(default="internal"),
+    password: str = Form(default=""),
 ):
     users = _seed_access_users()
     username = (username or "").strip()
     email = (email or "").strip()
     if not username and not email:
         raise HTTPException(status_code=400, detail="Enter a username or email.")
+    if not password:
+        raise HTTPException(status_code=400, detail="Enter your password.")
 
     user = _find_access_user(users, username=username, email=email)
     now = _now_utc()
+    if not user:
+        raise HTTPException(status_code=404, detail="Account not found. Create an account first.")
     if user and user.get("status") == "blocked":
         raise HTTPException(status_code=403, detail="This user is blocked. Contact a DevReady admin.")
-    if not user:
-        user_id = _safe_token("USR")
-        role = "candidate" if login_type == "candidate" else "internal"
-        user = {
-            "id": user_id,
-            "username": username or email,
-            "display_name": username or email,
-            "email": email,
-            "role": role,
-            "status": "active",
-            "allowed_menu": DEFAULT_CANDIDATE_MENU if role == "candidate" else DEFAULT_INTERNAL_MENU,
-            "created_at": now,
-            "updated_at": now,
-        }
-        users[user_id] = user
+    if not _verify_password(password, user.get("password_hash", "")):
+        raise HTTPException(status_code=403, detail="Incorrect username/email or password.")
     user["last_login_at"] = now
     user["updated_at"] = now
     _write_json_store(ACCESS_USERS_PATH, users)
     return {"ok": True, "user": _public_user(user), "menu_items": MENU_ITEMS}
+
+
+@app.post("/api/access/register")
+def access_register(
+    username: str = Form(default=""),
+    display_name: str = Form(default=""),
+    email: str = Form(default=""),
+    password: str = Form(default=""),
+    login_type: str = Form(default="internal"),
+):
+    users = _seed_access_users()
+    username = (username or "").strip()
+    display_name = (display_name or "").strip()
+    email = (email or "").strip()
+    if not username and not email:
+        raise HTTPException(status_code=400, detail="Enter a username or email.")
+    if len(password or "") < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+    if _find_access_user(users, username=username, email=email):
+        raise HTTPException(status_code=409, detail="Account already exists. Use login or ask an admin to reset access.")
+
+    now = _now_utc()
+    role = "candidate" if login_type == "candidate" else "internal"
+    user_id = _safe_token("USR")
+    users[user_id] = {
+        "id": user_id,
+        "username": username or email,
+        "display_name": display_name or username or email,
+        "email": email,
+        "role": role,
+        "status": "active",
+        "allowed_menu": _default_menu_for_user(role, email),
+        "password_hash": _password_hash(password),
+        "created_at": now,
+        "updated_at": now,
+        "last_login_at": now,
+    }
+    _write_json_store(ACCESS_USERS_PATH, users)
+    return {"ok": True, "user": _public_user(users[user_id]), "menu_items": MENU_ITEMS}
 
 
 @app.get("/api/admin/users")
@@ -594,6 +651,7 @@ def admin_save_user(
     username: str = Form(default=""),
     display_name: str = Form(default=""),
     email: str = Form(default=""),
+    password: str = Form(default=""),
     role: str = Form(default="internal"),
     status: str = Form(default="active"),
     allowed_menu_json: str = Form(default="[]"),
@@ -610,11 +668,20 @@ def admin_save_user(
     allowed_menu = [key for key in allowed_menu if key in allowed_keys]
     if role == "super_user":
         allowed_menu = SUPER_MENU
+    elif _normalize_user_key(email).endswith("@devready.io") and set(allowed_menu) == set(DEFAULT_INTERNAL_MENU):
+        allowed_menu = SUPER_MENU
     elif not allowed_menu:
-        allowed_menu = DEFAULT_CANDIDATE_MENU if role == "candidate" else DEFAULT_INTERNAL_MENU
+        allowed_menu = _default_menu_for_user(role, email)
 
     user_id = user_id or _safe_token("USR")
     existing = users.get(user_id, {})
+    password_hash = existing.get("password_hash", "")
+    if password:
+        if len(password) < 8:
+            raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+        password_hash = _password_hash(password)
+    elif not password_hash:
+        raise HTTPException(status_code=400, detail="Set a password for this user.")
     users[user_id] = {
         "id": user_id,
         "username": username or existing.get("username", "") or email,
@@ -623,6 +690,7 @@ def admin_save_user(
         "role": role,
         "status": status,
         "allowed_menu": allowed_menu,
+        "password_hash": password_hash,
         "created_at": existing.get("created_at") or now,
         "updated_at": now,
         "last_login_at": existing.get("last_login_at", ""),
