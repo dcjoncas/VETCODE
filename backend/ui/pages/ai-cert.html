@@ -338,6 +338,7 @@
       const trackStage = document.getElementById("trackStage");
       const trackAttempts = document.getElementById("trackAttempts");
       const trackLastActivity = document.getElementById("trackLastActivity");
+      let alreadyAiCertified = false;
       const certAllowedOrigins = new Set([
         "https://aicert-production.up.railway.app",
         "http://127.0.0.1:8001",
@@ -484,10 +485,61 @@
         if (certOutboundLink) certOutboundLink.value = certUrl(true);
 
         const tracking = readCertTracking(candidate);
+        if (tracking.certifiedAt) alreadyAiCertified = true;
         trackCandidate.textContent = candidate.name || certRecipientEmail.value || "No candidate selected";
         trackStage.textContent = tracking.stage || (tracking.certifiedAt ? "Certified" : "Not sent");
         trackAttempts.textContent = tracking.outcome || tracking.attempts || "No attempt recorded";
         trackLastActivity.textContent = tracking.updatedAt || "None yet";
+        applyCertifiedLock();
+      }
+
+      function setSendButtonsDisabled(disabled) {
+        [copyCertLinkBtn, emailCertLinkBtn, markCertSentBtn].forEach((button) => {
+          button.disabled = disabled;
+          button.title = disabled ? "Candidate is already AI certified." : "";
+        });
+      }
+
+      function applyCertifiedLock() {
+        if (!alreadyAiCertified) {
+          setSendButtonsDisabled(false);
+          markCertifiedBtn.disabled = !selectedCertCandidateId && !selectedCandidate().name && !certRecipientEmail.value;
+          return;
+        }
+        setSendButtonsDisabled(true);
+        markCertifiedBtn.disabled = true;
+        certBadgeStatus.textContent = "Candidate is already AI certified. New certification links are disabled.";
+        certStatus.textContent = "Candidate is already AI certified.";
+      }
+
+      function aiCertIsComplete(badge) {
+        const status = String(badge?.status || "").toLowerCase();
+        return ["certified", "completed"].includes(status);
+      }
+
+      async function refreshCertificationState(candidate = selectedCandidate()) {
+        alreadyAiCertified = false;
+        const tracking = readCertTracking(candidate);
+        if (tracking.certifiedAt) alreadyAiCertified = true;
+        if (candidate.id) {
+          try {
+            const data = await api(`/api/profile/${candidate.id}/badges`);
+            const aiCert = data.badges && data.badges.aiCertification;
+            if (aiCertIsComplete(aiCert)) {
+              alreadyAiCertified = true;
+              writeCertTracking({
+                stage: "Certified",
+                outcome: `${aiCert.level || "AI Certified"}${aiCert.score ? ` - ${aiCert.score}` : ""}`,
+                attempts: "Certification already recorded",
+                certifiedAt: aiCert.updatedAt || new Date().toISOString(),
+              });
+              return;
+            }
+          } catch (error) {
+            console.warn("Could not refresh AI certification state.", error);
+          }
+        }
+        applyCertifiedLock();
       }
 
       function loadCert() {
@@ -495,7 +547,7 @@
         certFrame.src = certUrl();
       }
 
-      function loadSelectedCandidate() {
+      async function loadSelectedCandidate() {
         const candidate = selectedCandidate();
         selectedCertCandidateId = candidate.id;
 
@@ -504,6 +556,7 @@
           certBadgeStatus.textContent = "When certification is earned, DevReady will create the profile and attach the certificate.";
           markCertifiedBtn.disabled = false;
           renderCertHandoff();
+          await refreshCertificationState(candidate);
           return;
         }
 
@@ -511,9 +564,15 @@
         certBadgeStatus.textContent = "AI Cert will be linked to this profile.";
         markCertifiedBtn.disabled = false;
         renderCertHandoff();
+        await refreshCertificationState(candidate);
       }
 
       async function saveAiCertification(result = {}) {
+        if (alreadyAiCertified) {
+          certBadgeStatus.textContent = "Candidate is already AI certified. No new certification action is needed.";
+          applyCertifiedLock();
+          return;
+        }
         markCertifiedBtn.disabled = true;
         certBadgeStatus.textContent = "Saving AI certification badge...";
 
@@ -624,6 +683,7 @@
       }
 
       copyCertLinkBtn.addEventListener("click", async () => {
+        if (alreadyAiCertified) return applyCertifiedLock();
         renderCertHandoff();
         try {
           await navigator.clipboard.writeText(certOutboundLink.value);
@@ -636,6 +696,7 @@
       });
 
       emailCertLinkBtn.addEventListener("click", () => {
+        if (alreadyAiCertified) return applyCertifiedLock();
         renderCertHandoff();
         const candidate = selectedCandidate();
         const recipient = (certRecipientEmail.value || "").trim();
@@ -648,6 +709,7 @@
       });
 
       markCertSentBtn.addEventListener("click", () => {
+        if (alreadyAiCertified) return applyCertifiedLock();
         renderCertHandoff();
         writeCertTracking({
           stage: "Sent to candidate",

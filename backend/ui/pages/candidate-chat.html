@@ -238,6 +238,9 @@
       const candidateId = sessionStorage.getItem("candidateId");
       const currentDomain = sessionStorage.getItem("domain") || "dev";
       const chatWindow = document.getElementById("chatWindow");
+      const scheduleButton = document.getElementById("scheduleButton");
+      const sendButton = document.getElementById("sendButton");
+      let alreadyAiCertified = false;
       let chatTranscript = [];
       let chatURL = "";
 
@@ -246,6 +249,10 @@
         .forEach((a) => a.addEventListener("click", () => {}));
 
       async function scheduleAiChat() {
+        if (alreadyAiCertified) {
+          showAlreadyCertifiedMessage();
+          return;
+        }
         const fd = new FormData();
         fd.append("profileid", candidateId);
         fd.append("domain", currentDomain);
@@ -314,6 +321,10 @@
       }
 
       async function sendLink() {
+        if (alreadyAiCertified) {
+          showAlreadyCertifiedMessage();
+          return;
+        }
         if (chatURL && chatURL.length > 0) {
           const candidateEmail = await api(
             `/api/chat/getEmail/${candidateId}`,
@@ -325,7 +336,35 @@
         }
       }
 
-      document.addEventListener("DOMContentLoaded", function () {
+      function aiCertIsComplete(badge) {
+        const status = String(badge?.status || "").toLowerCase();
+        return ["certified", "completed"].includes(status);
+      }
+
+      function showAlreadyCertifiedMessage() {
+        document.getElementById("chatUrl").innerHTML =
+          "<strong>Candidate is already AI certified.</strong> Schedule AI Chat and Send Link to Candidate are disabled.";
+      }
+
+      async function applyCertificationLock() {
+        if (!candidateId) return;
+        try {
+          const data = await api(`/api/profile/${candidateId}/badges`);
+          if (!aiCertIsComplete(data.badges && data.badges.aiCertification)) return;
+          alreadyAiCertified = true;
+          scheduleButton.disabled = true;
+          sendButton.disabled = true;
+          scheduleButton.title = "Candidate is already AI certified.";
+          sendButton.title = "Candidate is already AI certified.";
+          scheduleButton.classList.add("secondary");
+          sendButton.classList.add("secondary");
+          showAlreadyCertifiedMessage();
+        } catch (error) {
+          console.warn("Could not check AI certification status.", error);
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", async function () {
         if (candidateName) {
           document.getElementById("candidateName").innerText =
             `${candidateName}`;
@@ -342,11 +381,10 @@
             "No Candidate Selected";
         }
 
-        document
-          .getElementById("scheduleButton")
-          .addEventListener("click", scheduleAiChat);
+        scheduleButton.addEventListener("click", scheduleAiChat);
 
-        getChatHistory();
+        await applyCertificationLock();
+        if (!alreadyAiCertified) getChatHistory();
       });
     </script>
   </body>
