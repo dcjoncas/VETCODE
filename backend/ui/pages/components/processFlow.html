@@ -1,3 +1,63 @@
+<style>
+  #processFlow .schedule-split-step {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-width: 210px;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid var(--border, rgba(20, 88, 55, 0.18));
+    background: rgba(255, 255, 255, 0.92);
+  }
+
+  #processFlow .schedule-split-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 8px 11px;
+    color: var(--text, #173328);
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  #processFlow .schedule-split-link + .schedule-split-link {
+    border-left: 1px solid var(--border, rgba(20, 88, 55, 0.18));
+  }
+
+  #processFlow .schedule-split-link:hover,
+  #processFlow .schedule-split-link.on {
+    background: var(--primary-soft, rgba(141, 202, 100, 0.18));
+    color: var(--primary, #145837);
+  }
+
+  #processFlow .map-node.schedule-map-node {
+    min-width: 220px;
+  }
+
+  #processFlow .map-split-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  #processFlow .map-split-actions span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 26px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.84);
+    color: var(--primary, #145837);
+    font-size: 11px;
+    font-weight: 800;
+  }
+</style>
+
 <div class="card process-flow-card">
   <div class="process-compact">
     <div class="process-title-line">
@@ -73,7 +133,10 @@
       <span class="flow-arrow" aria-hidden="true"></span>
       <a class="step" href="client-comm.html" data-hint="Prepare client-facing notes and candidate messaging.">5 - Client comms</a>
       <span class="flow-arrow" aria-hidden="true"></span>
-      <a class="step" href="schedule-interview.html" data-hint="Send the interview invite using Google or Outlook calendar.">6 - Schedule interview</a>
+      <div class="schedule-split-step" aria-label="Step 6 interview scheduling">
+        <a class="schedule-split-link" href="schedule-interview.html?interview=ready" data-hint="Schedule a Ready Interview for DevReady vetting, readiness, or community intake.">6A - Ready Interview</a>
+        <a class="schedule-split-link" href="schedule-interview.html?interview=client" data-hint="Schedule a Client Interview tied to client attendees and role status.">6B - Client Interview</a>
+      </div>
       <span class="flow-arrow" aria-hidden="true"></span>
       <a class="step" href="status-tracker.html" data-hint="Track sent messages, follow-ups, resends, and current status.">7 - Status</a>
     </div>
@@ -128,10 +191,14 @@
         <small>Prepare client-facing notes and outreach.</small>
       </a>
       <div class="map-arrow"></div>
-      <a class="map-node" data-map-path="schedule-interview.html" href="schedule-interview.html">
+      <a class="map-node schedule-map-node" data-map-path="schedule-interview.html" href="schedule-interview.html">
         <span>6</span>
-        <strong>Schedule Interview</strong>
-        <small>Send the invite. Tracking is saved automatically.</small>
+        <strong>Interview Scheduling</strong>
+        <small>Ready Interview or Client Interview. Tracking is saved automatically.</small>
+        <div class="map-split-actions" aria-hidden="true">
+          <span>Ready</span>
+          <span>Client</span>
+        </div>
       </a>
       <div class="map-arrow"></div>
       <a class="map-node" data-map-path="status-tracker.html" href="status-tracker.html">
@@ -150,9 +217,19 @@
   const processLinks = document.querySelectorAll("#processFlow a");
 
   processLinks.forEach((link) => {
+    if (link.classList.contains("schedule-split-link")) return;
     const linkPath = new URL(link.href).pathname.replace(/\/$/, "");
 
     if (currentProcessPath === linkPath) {
+      link.classList.add("on");
+    }
+  });
+
+  const processParams = new URLSearchParams(window.location.search);
+  const activeInterview = processParams.get("interview") || sessionStorage.getItem("scheduleInterviewType") || "";
+  document.querySelectorAll("#processFlow .schedule-split-link").forEach((link) => {
+    const linkUrl = new URL(link.href);
+    if (currentProcessPath === linkUrl.pathname.replace(/\/$/, "") && linkUrl.searchParams.get("interview") === activeInterview) {
       link.classList.add("on");
     }
   });

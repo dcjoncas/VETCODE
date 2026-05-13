@@ -1084,7 +1084,8 @@
       document.addEventListener("DOMContentLoaded", async () => {
         defaultTimeWindow();
         const params = new URLSearchParams(window.location.search);
-        selectInterviewType(sessionStorage.getItem("scheduleInterviewType") || "ready");
+        const requestedInterview = params.get("interview");
+        selectInterviewType(requestedInterview === "client" || requestedInterview === "ready" ? requestedInterview : sessionStorage.getItem("scheduleInterviewType") || "ready");
         if (params.get("connected")) {
           selectProvider(params.get("connected"));
           showResult(`${params.get("connected")} connected.`);
