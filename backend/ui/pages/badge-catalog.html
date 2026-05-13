@@ -123,8 +123,8 @@
 
       .badge-grid {
         display: grid;
-        grid-template-columns: repeat(10, minmax(96px, 1fr));
-        gap: 8px;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 12px;
         padding: 12px;
       }
 
@@ -133,7 +133,7 @@
         border-radius: 12px;
         background: linear-gradient(180deg, #fff, #f7faf8);
         padding: 10px;
-        min-height: 216px;
+        min-height: 0;
         text-align: left;
         transition:
           transform 0.16s ease,
@@ -276,18 +276,18 @@
 
       .exam-version-list {
         display: grid;
-        gap: 5px;
+        gap: 8px;
         margin-top: 9px;
       }
 
       .exam-version-row {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto auto;
-        gap: 5px;
+        grid-template-columns: minmax(120px, 1fr);
+        gap: 7px;
         align-items: center;
-        padding: 5px;
+        padding: 9px;
         border: 1px solid rgba(125, 143, 164, 0.22);
-        border-radius: 9px;
+        border-radius: 10px;
         background: rgba(255, 255, 255, 0.72);
       }
 
@@ -295,7 +295,10 @@
         font-size: 11px;
         font-weight: 900;
         color: var(--text);
-        overflow-wrap: anywhere;
+        overflow-wrap: normal;
+        word-break: normal;
+        white-space: normal;
+        min-width: 0;
       }
 
       .exam-version-row .exam-code {
@@ -309,10 +312,19 @@
       .exam-version-row .start-link,
       .exam-version-row .key-link {
         border-radius: 999px;
-        padding: 4px 7px;
+        padding: 6px 9px;
         text-decoration: none;
         font-size: 11px;
         font-weight: 900;
+        white-space: nowrap;
+        text-align: center;
+      }
+
+      .exam-actions {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        flex-wrap: wrap;
       }
 
       .exam-version-row .start-link {
@@ -328,7 +340,10 @@
       }
 
       @media (max-width: 1180px) {
-        .badge-grid,
+        .badge-grid {
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        }
+
         .progress-rail {
           grid-template-columns: repeat(5, minmax(110px, 1fr));
         }
@@ -345,7 +360,7 @@
 
         .badge-grid,
         .progress-rail {
-          grid-template-columns: repeat(2, minmax(120px, 1fr));
+          grid-template-columns: 1fr;
         }
       }
     </style>
@@ -507,8 +522,10 @@
                                 Exam ${examLabel}
                                 <small class="exam-code">${examCode}</small>
                               </span>
-                              <a class="start-link" href="ai-cert.html?${examParams(role, level, version).toString()}">Start ${examLabel}</a>
-                              <a class="key-link" href="${answerKeyUrl(role, level, version)}" target="_blank" rel="noopener">Answer key ${examLabel}</a>
+                              <div class="exam-actions">
+                                <a class="start-link" href="ai-cert.html?${examParams(role, level, version).toString()}">Start ${examLabel}</a>
+                                <a class="key-link" href="${answerKeyUrl(role, level, version)}" target="_blank" rel="noopener">Answer key ${examLabel}</a>
+                              </div>
                             </div>
                           `;
                         })
