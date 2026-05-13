@@ -1,5 +1,5 @@
 from openAI.client import getOpenAPIClient
-from azureUtils.storage.chatLogs import getQuestions, saveChat, getQuestion, upsertSurveyAnswer, getPersonId, getSurveyId
+from azureUtils.storage.chatLogs import getQuestions, saveChat, getQuestion, upsertSurveyAnswer, getPersonId, getSurveyId, isLocalChatUrl
 from openAI import engineeringSurvey
 import re
 
@@ -170,10 +170,14 @@ def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumb
 
         print(f'{candidateName} Corrected Answer: {questionAnswer}')
 
+    person_id = getPersonId(chatUrl)
     if engineeringSurvey.is_engineer_domain(domain):
-        engineeringSurvey.save_answer(getPersonId(chatUrl), questionNumber, questionAnswer)
+        if not isLocalChatUrl(chatUrl):
+            engineeringSurvey.save_answer(person_id, questionNumber, questionAnswer)
     else:
-        upsertSurveyAnswer(questionNumber-1, questionAnswer, getSurveyId(getPersonId(chatUrl)))
+        survey_id = None if isLocalChatUrl(chatUrl) else getSurveyId(person_id)
+        if survey_id:
+            upsertSurveyAnswer(questionNumber-1, questionAnswer, survey_id)
 
     transcript.append({"role":"assistant", "content":question})
 

@@ -12,13 +12,20 @@ router = APIRouter(
 @router.post("/scheduleChat")
 async def scheduleChats(profileid: str = Form(default=""), domain: str = Form(default="dev")):
     print(f"Scheduling for candidate: {profileid}")
-    candidate_domain = candidates.getCandidateDomain(profileid)
+    try:
+        candidate_domain = candidates.getCandidateDomain(profileid)
+    except Exception as exc:
+        print(f"Could not verify candidate domain for {profileid}; scheduling fallback-safe chat: {exc}")
+        candidate_domain = None
     if candidate_domain and candidate_domain != domain:
         raise HTTPException(status_code=403, detail="Candidate does not belong to this domain.")
     try:
-        return chatLogs.scheduleChat(profileid)
+        return chatLogs.scheduleChat(profileid, domain)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        print(f"Unexpected chat scheduling error for {profileid}: {exc}")
+        return chatLogs._create_fallback_chat(profileid, domain)
 
 @router.get("/getChat/{urlcode}")
 async def getChat(urlcode: str, domain: str = "dev"):
