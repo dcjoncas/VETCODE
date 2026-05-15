@@ -66,7 +66,7 @@
             <img id="candidateImage" class="imageBox" style="display: none" />
             <section
               id="editCandidateBasics"
-              style="display: flex; flex: 1; gap: 16px"
+              style="display: flex; flex: 1; gap: 16px; flex-wrap: wrap"
             >
               <div style="flex: 1; min-width: 260px">
                 <input
@@ -130,6 +130,15 @@
                 >
                   Save All
                 </button>
+                <button
+                  id="sendCandidateEditLinkBtn"
+                  class="btn secondary"
+                  type="button"
+                  style="height: min-content"
+                  title="Create and email a secure candidate-facing profile edit link"
+                >
+                  Send Edit Link
+                </button>
                 <a href="profile-preview.html"
                   ><button
                     class="btn secondary"
@@ -143,6 +152,11 @@
                   </button></a
                 >
               </div>
+              <div
+                id="profileEditStatus"
+                class="notice"
+                style="display: none; flex-basis: 100%; margin-top: 0"
+              ></div>
             </section>
           </div>
 
@@ -377,6 +391,34 @@
         }, 3500);
       }
 
+      function showProfileEditStatus(message, isError = false) {
+        const status = document.getElementById("profileEditStatus");
+        if (!status) return;
+        status.textContent = message;
+        status.style.display = "block";
+        status.style.borderColor = isError ? "rgba(198, 40, 50, 0.35)" : "";
+        status.style.background = isError ? "#fff4f5" : "";
+      }
+
+      function requireCandidateId() {
+        const candidateId = sessionStorage.getItem("candidateId");
+        if (!candidateId) {
+          throw new Error("No candidate ID found in session. Open this editor from a selected candidate profile.");
+        }
+        return candidateId;
+      }
+
+      async function assertFetchOk(response, label) {
+        if (response.ok) return response;
+        let detail = "";
+        try {
+          detail = await response.text();
+        } catch (error) {
+          detail = "";
+        }
+        throw new Error(`${label} failed: HTTP ${response.status}${detail ? ` ${detail}` : ""}`);
+      }
+
       function candidateDisplayName(profileData) {
         const profile = profileData?.profile || {};
         return [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "Candidate";
@@ -480,7 +522,12 @@
       async function copyCultureChatLink() {
         await getOrCreateCultureChatLink();
         if (!cultureChatUrl) return;
-        await navigator.clipboard.writeText(cultureChatUrl);
+        try {
+          await navigator.clipboard.writeText(cultureChatUrl);
+        } catch (error) {
+          console.warn("Could not copy candidate edit link.", error);
+        }
+        showProfileEditStatus(`Candidate edit link ready: ${cultureChatUrl}`);
         document.getElementById("copyCultureChatBtn").textContent = "Copied";
         setTimeout(() => {
           document.getElementById("copyCultureChatBtn").textContent = "Copy link";
@@ -491,13 +538,27 @@
         await getOrCreateCultureChatLink();
         if (!cultureChatUrl) return;
         const profile = loadedProfileData?.profile || {};
-        const email = profile.email || "";
+        const email = profile.email || sessionStorage.getItem("candidateEmail") || "";
         const name = candidateDisplayName(loadedProfileData);
-        const subject = encodeURIComponent("DevReady profile completion");
+        const subject = encodeURIComponent("Update your DevReady profile");
         const body = encodeURIComponent(
-          `Hi ${name},\n\nPlease complete your DevReady culture profile using this secure chat link:\n\n${cultureChatUrl}\n\nThis helps us complete your profile for the right domain and next steps.\n\nBest,\nDevReady Team`,
+          `Hi ${name},\n\nPlease review and update your DevReady profile using this secure candidate link:\n\n${cultureChatUrl}\n\nThis helps us keep your profile accurate for the right domain and next steps.\n\nBest,\nDevReady Team`,
         );
-        window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+        try {
+          await navigator.clipboard.writeText(cultureChatUrl);
+        } catch (error) {
+          console.warn("Could not copy candidate edit link.", error);
+        }
+        showProfileEditStatus(
+          email
+            ? `Candidate edit link copied and email ready for ${email}.`
+            : `Candidate edit link copied: ${cultureChatUrl}`,
+        );
+        if (email) {
+          window.location.href = `mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`;
+        } else {
+          alert(`No email is saved for this candidate. The edit link is copied:\n${cultureChatUrl}`);
+        }
       }
 
       document
@@ -505,23 +566,17 @@
         .forEach((a) => a.addEventListener("click", () => {}));
 
       async function saveProfileCore() {
-        const candidateId = sessionStorage.getItem("candidateId");
-
-        if (!candidateId) {
-          alert("No candidate ID found in session. Cannot save profile.");
-          return;
+        const candidateId = requireCandidateId();
+        const firstName = document.getElementById("profileFirstNameInput").value.trim();
+        const lastName = document.getElementById("profileLastNameInput").value.trim();
+        if (!firstName || !lastName) {
+          throw new Error("First name and last name are required before saving.");
         }
 
         const fd = new FormData();
         fd.append("personId", candidateId);
-        fd.append(
-          "first_name",
-          document.getElementById("profileFirstNameInput").value,
-        );
-        fd.append(
-          "last_name",
-          document.getElementById("profileLastNameInput").value,
-        );
+        fd.append("first_name", firstName);
+        fd.append("last_name", lastName);
         fd.append("city", document.getElementById("candidateCity").value);
         fd.append("state", document.getElementById("candidateState").value);
         fd.append("country", document.getElementById("candidateCountry").value);
@@ -542,12 +597,7 @@
       }
 
       async function saveProfileSkills() {
-        const candidateId = sessionStorage.getItem("candidateId");
-
-        if (!candidateId) {
-          alert("No candidate ID found in session. Cannot save profile.");
-          return;
-        }
+        const candidateId = requireCandidateId();
 
         const skillsToUpdate = [];
 
@@ -560,6 +610,7 @@
 
           const skillId = document.getElementById(`skillHidden${i}`).value;
           const skillYears = document.getElementById(`skill${i}`).value;
+          if (!skillId) continue;
 
           skillsToUpdate.push({
             skill: skillId,
@@ -578,7 +629,7 @@
           }),
         });
 
-        if (!result.ok) alert("Error updating skills.");
+        await assertFetchOk(result, "Saving skills");
       }
 
       async function addSkill() {
@@ -654,12 +705,7 @@
       }
 
       async function saveFeatures() {
-        const candidateId = sessionStorage.getItem("candidateId");
-
-        if (!candidateId) {
-          alert("No candidate ID found in session. Cannot save profile.");
-          return;
-        }
+        const candidateId = requireCandidateId();
 
         const featuresToUpdate = [];
         const culturalToUpdate = [];
@@ -719,7 +765,7 @@
           }),
         });
 
-        if (!result.ok) alert("Error updating features.");
+        await assertFetchOk(result, "Saving experience features");
       }
 
       function swapIsPresentCheckbox(portfolioId) {
@@ -828,11 +874,7 @@
 
       async function savePortfolio() {
         // Similar to saveProfileSkills and saveFeatures, gather all portfolio experience data and send to backend
-        const candidateId = sessionStorage.getItem("candidateId");
-        if (!candidateId) {
-          alert("No candidate ID found in session. Cannot save profile.");
-          return;
-        }
+        const candidateId = requireCandidateId();
 
         const portfolioData = [];
         for (let i = 0; i < portfolioCount; i++) {
@@ -844,28 +886,45 @@
               const skillElement = document.getElementById(
                 `job${i}SkillHidden${j}`,
               );
-              if (skillElement) skills.push(skillElement.value);
+              if (skillElement && skillElement.value) skills.push(skillElement.value);
             }
 
             for (let j = 0; j < (portfolioFeatureCounts[i] || 0); j++) {
               const featureElement = document.getElementById(
                 `job${i}Feature${j}`,
               );
-              if (featureElement) features.push(featureElement.value);
+              if (featureElement && featureElement.value.trim()) {
+                features.push(featureElement.value.trim());
+              }
+            }
+
+            const description = document.getElementById(`description${i}`).value.trim();
+            const mainRole = document.getElementById(`mainRole${i}`).value.trim();
+            const companyName = document.getElementById(`company${i}`).value.trim();
+            const startDate = document.getElementById(`startDate${i}`).value.trim();
+            const finishDate = document.getElementById(`finishDate${i}`).value.trim();
+            const isPresent = document.getElementById(`isPresent${i}`).checked;
+            const hasAnyPortfolioValue =
+              description ||
+              mainRole ||
+              companyName ||
+              startDate ||
+              finishDate ||
+              skills.length ||
+              features.length;
+
+            if (!hasAnyPortfolioValue) continue;
+            if (!startDate) {
+              throw new Error(`Portfolio row ${i + 1} needs a start year before it can be saved.`);
             }
 
             portfolioData.push({
-              description: document.getElementById(`description${i}`).value,
-              mainRole: document.getElementById(`mainRole${i}`).value,
-              companyName: document.getElementById(`company${i}`).value,
-              startDate: parseInt(
-                document.getElementById(`startDate${i}`).value,
-              ),
-              finishDate:
-                document.getElementById(`finishDate${i}`).value === ""
-                  ? null
-                  : parseInt(document.getElementById(`finishDate${i}`).value),
-              isPresent: document.getElementById(`isPresent${i}`).checked,
+              description,
+              mainRole,
+              companyName,
+              startDate: parseInt(startDate),
+              finishDate: finishDate === "" ? null : parseInt(finishDate),
+              isPresent,
               skills: skills,
               features: features,
             });
@@ -886,9 +945,40 @@
           }),
         });
 
-        console.log(await result.json());
+        await assertFetchOk(result, "Saving portfolio");
+      }
 
-        if (!result.ok) alert("Error updating portfolio.");
+      async function runSaveAction(label, saveAction, reloadAfterSave = false) {
+        showProfileEditStatus(`${label}...`);
+        try {
+          await saveAction();
+          showProfileEditStatus(`${label} complete.`);
+          if (reloadAfterSave) {
+            setTimeout(() => location.reload(), 700);
+          }
+        } catch (error) {
+          const message = error.message || String(error);
+          showProfileEditStatus(message, true);
+          alert(message);
+        }
+      }
+
+      async function saveEverything() {
+        const button = document.getElementById("saveAllBtn");
+        button.disabled = true;
+        button.textContent = "Saving...";
+        await runSaveAction(
+          "Saving profile",
+          async () => {
+            await saveProfileCore();
+            await saveProfileSkills();
+            await saveFeatures();
+            await savePortfolio();
+          },
+          true,
+        );
+        button.disabled = false;
+        button.textContent = "Save All";
       }
 
       document.addEventListener("DOMContentLoaded", async () => {
@@ -896,25 +986,19 @@
 
         document
           .getElementById("saveBtn")
-          .addEventListener("click", saveProfileCore);
+          .addEventListener("click", () => runSaveAction("Saving bio", saveProfileCore));
 
-        document.getElementById("saveAllBtn").addEventListener(
-          "click",
-          (saveAll = async () => {
-            await saveProfileCore();
-            await saveProfileSkills();
-            await saveFeatures();
-            await savePortfolio();
-            location.reload();
-          }),
-        );
+        document.getElementById("saveAllBtn").addEventListener("click", saveEverything);
+
+        document
+          .getElementById("sendCandidateEditLinkBtn")
+          .addEventListener("click", emailCultureChatLink);
 
         document
           .getElementById("saveSkillsBtn")
-          .addEventListener("click", () => {
-            saveProfileSkills();
-            location.reload();
-          });
+          .addEventListener("click", () =>
+            runSaveAction("Saving skills", saveProfileSkills, true),
+          );
 
         document
           .getElementById("newSkillBtn")
@@ -930,10 +1014,9 @@
 
         document
           .getElementById("saveExperienceBtn")
-          .addEventListener("click", () => {
-            saveFeatures();
-            location.reload();
-          });
+          .addEventListener("click", () =>
+            runSaveAction("Saving experience", saveFeatures, true),
+          );
 
         document
           .getElementById("newExperienceBtn")
@@ -953,10 +1036,9 @@
 
         document
           .getElementById("savePortfolioBtn")
-          .addEventListener("click", () => {
-            savePortfolio();
-            //location.reload();
-          });
+          .addEventListener("click", () =>
+            runSaveAction("Saving portfolio", savePortfolio),
+          );
 
         // Get session variables
         const candidateId = sessionStorage.getItem("candidateId");
