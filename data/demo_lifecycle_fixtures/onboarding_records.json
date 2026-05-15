@@ -1,0 +1,314 @@
+{
+  "ONB-DEMO-DEV-01": {
+    "account_last4": "2401",
+    "account_type": "Checking",
+    "bank_name": "Demo Credit Union",
+    "candidate_name": "Tom DevReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "dev",
+    "email": "tom.devready.demo01@seed.devready.example",
+    "home_address": "101 Demo Lane, Denver, CO",
+    "legal_name": "Tom DevReady",
+    "payroll_packet_confirmed": true,
+    "phone": "555-0301",
+    "preferred_name": "Tom",
+    "profile_id": "2345",
+    "recipient": "Heidi at DevReady",
+    "recipient_email": "heidi@devready.io",
+    "source_record": {
+      "demo": true,
+      "job_id": "54",
+      "stage": "A-Z complete"
+    },
+    "start_day": "2026-05-20",
+    "status": "paperwork_submitted",
+    "submitted_at": "2026-05-15T13:27:48Z",
+    "title": "AI Workflow Engineer",
+    "token": "ONB-DEMO-DEV-01",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  "ONB-DEMO-DEV-02": {
+    "candidate_name": "Tina DevReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "dev",
+    "email": "tina.devready.demo02@seed.devready.example",
+    "profile_id": "2346",
+    "recipient": "Heidi at DevReady",
+    "recipient_email": "heidi@devready.io",
+    "source_record": {
+      "demo": true,
+      "job_id": "55",
+      "stage": "Pending invite review"
+    },
+    "start_day": "2026-05-20",
+    "status": "hire_started",
+    "title": "AI Workflow Engineer",
+    "token": "ONB-DEMO-DEV-02",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  "ONB-DEMO-DEV-03": {
+    "candidate_name": "Taylor DevReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "dev",
+    "email": "taylor.devready.demo03@seed.devready.example",
+    "profile_id": "2347",
+    "recipient": "Heidi at DevReady",
+    "recipient_email": "heidi@devready.io",
+    "source_record": {
+      "demo": true,
+      "job_id": "56",
+      "stage": "Invite sent"
+    },
+    "start_day": "2026-05-20",
+    "status": "hire_started",
+    "title": "AI Workflow Engineer",
+    "token": "ONB-DEMO-DEV-03",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  "ONB-DEMO-DEV-04": {
+    "candidate_name": "Terry DevReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "dev",
+    "email": "terry.devready.demo04@seed.devready.example",
+    "profile_id": "2348",
+    "recipient": "Heidi at DevReady",
+    "recipient_email": "heidi@devready.io",
+    "source_record": {
+      "demo": true,
+      "job_id": "57",
+      "stage": "Onboarding pending"
+    },
+    "start_day": "2026-05-20",
+    "status": "hire_started",
+    "title": "AI Workflow Engineer",
+    "token": "ONB-DEMO-DEV-04",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  "ONB-DEMO-DEV-05": {
+    "candidate_name": "Jordan DevReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "dev",
+    "email": "jordan.devready.demo05@seed.devready.example",
+    "profile_id": "2349",
+    "recipient": "Heidi at DevReady",
+    "recipient_email": "heidi@devready.io",
+    "source_record": {
+      "demo": true,
+      "job_id": "58",
+      "stage": "Exam retry"
+    },
+    "start_day": "2026-05-20",
+    "status": "hire_started",
+    "title": "AI Workflow Engineer",
+    "token": "ONB-DEMO-DEV-05",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  "ONB-DEMO-ENGINEER-01": {
+    "account_last4": "2401",
+    "account_type": "Checking",
+    "bank_name": "Demo Credit Union",
+    "candidate_name": "Tom BuildReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "engineer",
+    "email": "tom.buildready.demo01@seed.buildready.example",
+    "home_address": "101 Demo Lane, Phoenix, AZ",
+    "legal_name": "Tom BuildReady",
+    "payroll_packet_confirmed": true,
+    "phone": "555-0301",
+    "preferred_name": "Tom",
+    "profile_id": "2350",
+    "recipient": "Heidi at DevReady",
+    "recipient_email": "heidi@devready.io",
+    "source_record": {
+      "demo": true,
+      "job_id": "59",
+      "stage": "A-Z complete"
+    },
+    "start_day": "2026-05-20",
+    "status": "paperwork_submitted",
+    "submitted_at": "2026-05-15T13:27:48Z",
+    "title": "Field Controls Engineer",
+    "token": "ONB-DEMO-ENGINEER-01",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  "ONB-DEMO-ENGINEER-02": {
+    "candidate_name": "Tina BuildReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "engineer",
+    "email": "tina.buildready.demo02@seed.buildready.example",
+    "profile_id": "2351",
+    "recipient": "Heidi at DevReady",
+    "recipient_email": "heidi@devready.io",
+    "source_record": {
+      "demo": true,
+      "job_id": "60",
+      "stage": "Pending invite review"
+    },
+    "start_day": "2026-05-20",
+    "status": "hire_started",
+    "title": "Field Controls Engineer",
+    "token": "ONB-DEMO-ENGINEER-02",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  "ONB-DEMO-ENGINEER-03": {
+    "candidate_name": "Taylor BuildReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "engineer",
+    "email": "taylor.buildready.demo03@seed.buildready.example",
+    "profile_id": "2352",
+    "recipient": "Heidi at DevReady",
+    "recipient_email": "heidi@devready.io",
+    "source_record": {
+      "demo": true,
+      "job_id": "61",
+      "stage": "Invite sent"
+    },
+    "start_day": "2026-05-20",
+    "status": "hire_started",
+    "title": "Field Controls Engineer",
+    "token": "ONB-DEMO-ENGINEER-03",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  "ONB-DEMO-ENGINEER-04": {
+    "candidate_name": "Terry BuildReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "engineer",
+    "email": "terry.buildready.demo04@seed.buildready.example",
+    "profile_id": "2353",
+    "recipient": "Heidi at DevReady",
+    "recipient_email": "heidi@devready.io",
+    "source_record": {
+      "demo": true,
+      "job_id": "62",
+      "stage": "Onboarding pending"
+    },
+    "start_day": "2026-05-20",
+    "status": "hire_started",
+    "title": "Field Controls Engineer",
+    "token": "ONB-DEMO-ENGINEER-04",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  "ONB-DEMO-ENGINEER-05": {
+    "candidate_name": "Jordan BuildReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "engineer",
+    "email": "jordan.buildready.demo05@seed.buildready.example",
+    "profile_id": "2354",
+    "recipient": "Heidi at DevReady",
+    "recipient_email": "heidi@devready.io",
+    "source_record": {
+      "demo": true,
+      "job_id": "63",
+      "stage": "Exam retry"
+    },
+    "start_day": "2026-05-20",
+    "status": "hire_started",
+    "title": "Field Controls Engineer",
+    "token": "ONB-DEMO-ENGINEER-05",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  "ONB-DEMO-LAW-01": {
+    "account_last4": "2401",
+    "account_type": "Checking",
+    "bank_name": "Demo Credit Union",
+    "candidate_name": "Tom LegalReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "law",
+    "email": "tom.legalready.demo01@seed.legalready.example",
+    "home_address": "101 Demo Lane, Chicago, IL",
+    "legal_name": "Tom LegalReady",
+    "payroll_packet_confirmed": true,
+    "phone": "555-0301",
+    "preferred_name": "Tom",
+    "profile_id": "2355",
+    "recipient": "Heidi at DevReady",
+    "recipient_email": "heidi@devready.io",
+    "source_record": {
+      "demo": true,
+      "job_id": "64",
+      "stage": "A-Z complete"
+    },
+    "start_day": "2026-05-20",
+    "status": "paperwork_submitted",
+    "submitted_at": "2026-05-15T13:27:48Z",
+    "title": "Legal Operations Analyst",
+    "token": "ONB-DEMO-LAW-01",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  "ONB-DEMO-LAW-02": {
+    "candidate_name": "Tina LegalReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "law",
+    "email": "tina.legalready.demo02@seed.legalready.example",
+    "profile_id": "2356",
+    "recipient": "Heidi at DevReady",
+    "recipient_email": "heidi@devready.io",
+    "source_record": {
+      "demo": true,
+      "job_id": "65",
+      "stage": "Pending invite review"
+    },
+    "start_day": "2026-05-20",
+    "status": "hire_started",
+    "title": "Legal Operations Analyst",
+    "token": "ONB-DEMO-LAW-02",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  "ONB-DEMO-LAW-03": {
+    "candidate_name": "Taylor LegalReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "law",
+    "email": "taylor.legalready.demo03@seed.legalready.example",
+    "profile_id": "2357",
+    "recipient": "Heidi at DevReady",
+    "recipient_email": "heidi@devready.io",
+    "source_record": {
+      "demo": true,
+      "job_id": "66",
+      "stage": "Invite sent"
+    },
+    "start_day": "2026-05-20",
+    "status": "hire_started",
+    "title": "Legal Operations Analyst",
+    "token": "ONB-DEMO-LAW-03",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  "ONB-DEMO-LAW-04": {
+    "candidate_name": "Terry LegalReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "law",
+    "email": "terry.legalready.demo04@seed.legalready.example",
+    "profile_id": "2358",
+    "recipient": "Heidi at DevReady",
+    "recipient_email": "heidi@devready.io",
+    "source_record": {
+      "demo": true,
+      "job_id": "67",
+      "stage": "Onboarding pending"
+    },
+    "start_day": "2026-05-20",
+    "status": "hire_started",
+    "title": "Legal Operations Analyst",
+    "token": "ONB-DEMO-LAW-04",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  "ONB-DEMO-LAW-05": {
+    "candidate_name": "Jordan LegalReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "law",
+    "email": "jordan.legalready.demo05@seed.legalready.example",
+    "profile_id": "2359",
+    "recipient": "Heidi at DevReady",
+    "recipient_email": "heidi@devready.io",
+    "source_record": {
+      "demo": true,
+      "job_id": "68",
+      "stage": "Exam retry"
+    },
+    "start_day": "2026-05-20",
+    "status": "hire_started",
+    "title": "Legal Operations Analyst",
+    "token": "ONB-DEMO-LAW-05",
+    "updated_at": "2026-05-15T13:27:48Z"
+  }
+}

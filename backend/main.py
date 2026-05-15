@@ -199,6 +199,7 @@ DB_PATH = DOMAIN_DB_PATHS["dev"]
 UPLOAD_DIR = "uploads"
 EXPORT_DIR = "exports"
 DATA_DIR = "data"
+DEMO_FIXTURE_DIR = os.path.join(os.path.dirname(BASE_DIR), "data", "demo_lifecycle_fixtures")
 PROFILE_BADGES_PATH = os.path.join(DATA_DIR, "profile_badges.json")
 ONBOARDING_RECORDS_PATH = os.path.join(DATA_DIR, "onboarding_records.json")
 TIME_ENTRIES_PATH = os.path.join(DATA_DIR, "time_entries.json")
@@ -319,6 +320,40 @@ def _write_json_store(path: str, data) -> None:
             os.remove(tmp_path)
         except OSError:
             pass
+
+
+def _read_demo_fixture(filename: str, fallback):
+    path = os.path.join(DEMO_FIXTURE_DIR, filename)
+    try:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data if isinstance(data, type(fallback)) else fallback
+    except Exception:
+        traceback.print_exc()
+    return fallback
+
+
+def _read_json_store_with_demo(path: str, fallback):
+    data = _read_json_store(path, fallback)
+    fixture = _read_demo_fixture(os.path.basename(path), fallback)
+    if isinstance(fallback, dict):
+        merged = {}
+        if isinstance(fixture, dict):
+            merged.update(fixture)
+        if isinstance(data, dict):
+            merged.update(data)
+        return merged
+    if isinstance(fallback, list):
+        merged = {}
+        for item in fixture if isinstance(fixture, list) else []:
+            if isinstance(item, dict):
+                merged[str(item.get("id") or item.get("token") or json.dumps(item, sort_keys=True))] = item
+        for item in data if isinstance(data, list) else []:
+            if isinstance(item, dict):
+                merged[str(item.get("id") or item.get("token") or json.dumps(item, sort_keys=True))] = item
+        return list(merged.values())
+    return data
 
 
 def _now_utc() -> str:
@@ -460,14 +495,16 @@ def _find_access_user(users: dict, username: str = "", email: str = "") -> dict 
 
 
 def _read_profile_badges() -> dict:
+    fixture = _read_demo_fixture(os.path.basename(PROFILE_BADGES_PATH), {})
     try:
         if os.path.exists(PROFILE_BADGES_PATH):
             with open(PROFILE_BADGES_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                return data if isinstance(data, dict) else {}
+                if isinstance(data, dict):
+                    return {**fixture, **data}
     except Exception:
         traceback.print_exc()
-    return {}
+    return fixture
 
 
 def _write_profile_badges(data: dict) -> None:
@@ -1895,7 +1932,7 @@ def list_interview_archive(
     record_id: str = "",
     limit: int = 50,
 ):
-    archive = _read_json_store(INTERVIEW_ARCHIVE_PATH, [])
+    archive = _read_json_store_with_demo(INTERVIEW_ARCHIVE_PATH, [])
     clean_domain = _domain_key(domain)
     rows = []
     for item in archive:
@@ -1911,7 +1948,7 @@ def list_interview_archive(
 
 @app.get("/api/crm/records")
 def list_crm_records(domain: str = "dev", limit: int = 200):
-    records = _read_json_store(CRM_RECORDS_PATH, [])
+    records = _read_json_store_with_demo(CRM_RECORDS_PATH, [])
     wanted_domain = _domain_key(domain)
     if not isinstance(records, list):
         records = []
@@ -1923,7 +1960,7 @@ def list_crm_records(domain: str = "dev", limit: int = 200):
 
 @app.get("/api/meetings/archive")
 def list_meeting_records(domain: str = "dev", profile_id: str = "", limit: int = 200):
-    records = _read_json_store(MEETING_RECORDS_PATH, [])
+    records = _read_json_store_with_demo(MEETING_RECORDS_PATH, [])
     wanted_domain = _domain_key(domain)
     if not isinstance(records, list):
         records = []
@@ -2004,11 +2041,12 @@ def start_onboarding(
 
 @app.get("/api/onboarding/admin")
 def get_onboarding_admin(domain: str = "all"):
-    records = _read_json_store(ONBOARDING_RECORDS_PATH, {})
+    records = _read_json_store_with_demo(ONBOARDING_RECORDS_PATH, {})
+    clean_domain = _domain_key(domain)
     people = []
     for token, record in records.items():
-        record_domain = record.get("domain", "dev")
-        if domain != "all" and record_domain != domain:
+        record_domain = _domain_key(record.get("domain", "dev"))
+        if clean_domain != "all" and record_domain != clean_domain:
             continue
         item = dict(record)
         item["token"] = token
@@ -2031,7 +2069,7 @@ def get_onboarding_admin(domain: str = "all"):
 
 @app.get("/api/onboarding/{token}")
 def get_onboarding(token: str):
-    records = _read_json_store(ONBOARDING_RECORDS_PATH, {})
+    records = _read_json_store_with_demo(ONBOARDING_RECORDS_PATH, {})
     record = records.get(token)
     if not record:
         raise HTTPException(status_code=404, detail="Onboarding record not found.")
@@ -2104,7 +2142,7 @@ def submit_time_entry(
     blockers: str = Form(default=""),
 ):
     entries = _read_json_store(TIME_ENTRIES_PATH, [])
-    onboarding = _read_json_store(ONBOARDING_RECORDS_PATH, {}).get(token, {}) if token else {}
+    onboarding = _read_json_store_with_demo(ONBOARDING_RECORDS_PATH, {}).get(token, {}) if token else {}
     now = _now_utc()
     person_profile_id = profile_id or onboarding.get("profile_id", "")
     person_name = candidate_name or onboarding.get("candidate_name", "") or onboarding.get("legal_name", "")
@@ -2197,10 +2235,11 @@ def get_time_entry_admin(
     week_start: str = "",
     status: str = "all",
 ):
-    entries = _read_json_store(TIME_ENTRIES_PATH, [])
+    entries = _read_json_store_with_demo(TIME_ENTRIES_PATH, [])
+    clean_domain = _domain_key(domain)
     domain_entries = [
         entry for entry in entries
-        if domain == "all" or entry.get("domain", "dev") == domain
+        if clean_domain == "all" or _domain_key(entry.get("domain", "dev")) == clean_domain
     ]
     filtered = []
     for entry in domain_entries:
@@ -2356,8 +2395,8 @@ def update_time_entry_status(
 
 @app.get("/api/time-entry/{token}")
 def get_time_entries(token: str):
-    entries = _read_json_store(TIME_ENTRIES_PATH, [])
-    onboarding = _read_json_store(ONBOARDING_RECORDS_PATH, {}).get(token, {}) if token else {}
+    entries = _read_json_store_with_demo(TIME_ENTRIES_PATH, [])
+    onboarding = _read_json_store_with_demo(ONBOARDING_RECORDS_PATH, {}).get(token, {}) if token else {}
     return {
         "token": token,
         "record": onboarding,

@@ -1,0 +1,287 @@
+[
+  {
+    "domain": "dev",
+    "email": "tom.devready.demo01@seed.devready.example",
+    "index": 1,
+    "job_id": "54",
+    "name": "Tom DevReady",
+    "profile_id": "2345",
+    "stage": {
+      "cert_level": "L3",
+      "cert_status": "certified",
+      "first": "Tom",
+      "interview_provider": "Google Calendar",
+      "interview_status": "Completed",
+      "next_action": "Demo complete. Use as the clean end-to-end success story.",
+      "onboarding_status": "paperwork_submitted",
+      "stage": "A-Z complete",
+      "time_status": "processed_for_payment"
+    }
+  },
+  {
+    "domain": "dev",
+    "email": "tina.devready.demo02@seed.devready.example",
+    "index": 2,
+    "job_id": "55",
+    "name": "Tina DevReady",
+    "profile_id": "2346",
+    "stage": {
+      "cert_level": "L1",
+      "cert_status": "started",
+      "first": "Tina",
+      "interview_provider": "Draft",
+      "interview_status": "Draft generated",
+      "next_action": "Review and send certification plus interview invite.",
+      "onboarding_status": "hire_started",
+      "stage": "Pending invite review",
+      "time_status": "submitted_to_devready"
+    }
+  },
+  {
+    "domain": "dev",
+    "email": "taylor.devready.demo03@seed.devready.example",
+    "index": 3,
+    "job_id": "56",
+    "name": "Taylor DevReady",
+    "profile_id": "2347",
+    "stage": {
+      "cert_level": "L1",
+      "cert_status": "certified",
+      "first": "Taylor",
+      "interview_provider": "Outlook Calendar",
+      "interview_status": "Calendar invite sent",
+      "next_action": "Confirm attendance and review time entry note.",
+      "onboarding_status": "hire_started",
+      "stage": "Invite sent",
+      "time_status": "needs_review"
+    }
+  },
+  {
+    "domain": "dev",
+    "email": "terry.devready.demo04@seed.devready.example",
+    "index": 4,
+    "job_id": "57",
+    "name": "Terry DevReady",
+    "profile_id": "2348",
+    "stage": {
+      "cert_level": "L2",
+      "cert_status": "completed",
+      "first": "Terry",
+      "interview_provider": "Microsoft Teams",
+      "interview_status": "Client follow-up needed",
+      "next_action": "Collect onboarding paperwork and send client follow-up.",
+      "onboarding_status": "hire_started",
+      "stage": "Onboarding pending",
+      "time_status": "approved_for_payment"
+    }
+  },
+  {
+    "domain": "dev",
+    "email": "jordan.devready.demo05@seed.devready.example",
+    "index": 5,
+    "job_id": "58",
+    "name": "Jordan DevReady",
+    "profile_id": "2349",
+    "stage": {
+      "cert_level": "L1",
+      "cert_status": "failed",
+      "first": "Jordan",
+      "interview_provider": "Calendly",
+      "interview_status": "Booking link opened",
+      "next_action": "Send exam retry link and keep time active.",
+      "onboarding_status": "hire_started",
+      "stage": "Exam retry",
+      "time_status": "submitted_to_devready"
+    }
+  },
+  {
+    "domain": "engineer",
+    "email": "tom.buildready.demo01@seed.buildready.example",
+    "index": 1,
+    "job_id": "59",
+    "name": "Tom BuildReady",
+    "profile_id": "2350",
+    "stage": {
+      "cert_level": "L3",
+      "cert_status": "certified",
+      "first": "Tom",
+      "interview_provider": "Google Calendar",
+      "interview_status": "Completed",
+      "next_action": "Demo complete. Use as the clean end-to-end success story.",
+      "onboarding_status": "paperwork_submitted",
+      "stage": "A-Z complete",
+      "time_status": "processed_for_payment"
+    }
+  },
+  {
+    "domain": "engineer",
+    "email": "tina.buildready.demo02@seed.buildready.example",
+    "index": 2,
+    "job_id": "60",
+    "name": "Tina BuildReady",
+    "profile_id": "2351",
+    "stage": {
+      "cert_level": "L1",
+      "cert_status": "started",
+      "first": "Tina",
+      "interview_provider": "Draft",
+      "interview_status": "Draft generated",
+      "next_action": "Review and send certification plus interview invite.",
+      "onboarding_status": "hire_started",
+      "stage": "Pending invite review",
+      "time_status": "submitted_to_devready"
+    }
+  },
+  {
+    "domain": "engineer",
+    "email": "taylor.buildready.demo03@seed.buildready.example",
+    "index": 3,
+    "job_id": "61",
+    "name": "Taylor BuildReady",
+    "profile_id": "2352",
+    "stage": {
+      "cert_level": "L1",
+      "cert_status": "certified",
+      "first": "Taylor",
+      "interview_provider": "Outlook Calendar",
+      "interview_status": "Calendar invite sent",
+      "next_action": "Confirm attendance and review time entry note.",
+      "onboarding_status": "hire_started",
+      "stage": "Invite sent",
+      "time_status": "needs_review"
+    }
+  },
+  {
+    "domain": "engineer",
+    "email": "terry.buildready.demo04@seed.buildready.example",
+    "index": 4,
+    "job_id": "62",
+    "name": "Terry BuildReady",
+    "profile_id": "2353",
+    "stage": {
+      "cert_level": "L2",
+      "cert_status": "completed",
+      "first": "Terry",
+      "interview_provider": "Microsoft Teams",
+      "interview_status": "Client follow-up needed",
+      "next_action": "Collect onboarding paperwork and send client follow-up.",
+      "onboarding_status": "hire_started",
+      "stage": "Onboarding pending",
+      "time_status": "approved_for_payment"
+    }
+  },
+  {
+    "domain": "engineer",
+    "email": "jordan.buildready.demo05@seed.buildready.example",
+    "index": 5,
+    "job_id": "63",
+    "name": "Jordan BuildReady",
+    "profile_id": "2354",
+    "stage": {
+      "cert_level": "L1",
+      "cert_status": "failed",
+      "first": "Jordan",
+      "interview_provider": "Calendly",
+      "interview_status": "Booking link opened",
+      "next_action": "Send exam retry link and keep time active.",
+      "onboarding_status": "hire_started",
+      "stage": "Exam retry",
+      "time_status": "submitted_to_devready"
+    }
+  },
+  {
+    "domain": "law",
+    "email": "tom.legalready.demo01@seed.legalready.example",
+    "index": 1,
+    "job_id": "64",
+    "name": "Tom LegalReady",
+    "profile_id": "2355",
+    "stage": {
+      "cert_level": "L3",
+      "cert_status": "certified",
+      "first": "Tom",
+      "interview_provider": "Google Calendar",
+      "interview_status": "Completed",
+      "next_action": "Demo complete. Use as the clean end-to-end success story.",
+      "onboarding_status": "paperwork_submitted",
+      "stage": "A-Z complete",
+      "time_status": "processed_for_payment"
+    }
+  },
+  {
+    "domain": "law",
+    "email": "tina.legalready.demo02@seed.legalready.example",
+    "index": 2,
+    "job_id": "65",
+    "name": "Tina LegalReady",
+    "profile_id": "2356",
+    "stage": {
+      "cert_level": "L1",
+      "cert_status": "started",
+      "first": "Tina",
+      "interview_provider": "Draft",
+      "interview_status": "Draft generated",
+      "next_action": "Review and send certification plus interview invite.",
+      "onboarding_status": "hire_started",
+      "stage": "Pending invite review",
+      "time_status": "submitted_to_devready"
+    }
+  },
+  {
+    "domain": "law",
+    "email": "taylor.legalready.demo03@seed.legalready.example",
+    "index": 3,
+    "job_id": "66",
+    "name": "Taylor LegalReady",
+    "profile_id": "2357",
+    "stage": {
+      "cert_level": "L1",
+      "cert_status": "certified",
+      "first": "Taylor",
+      "interview_provider": "Outlook Calendar",
+      "interview_status": "Calendar invite sent",
+      "next_action": "Confirm attendance and review time entry note.",
+      "onboarding_status": "hire_started",
+      "stage": "Invite sent",
+      "time_status": "needs_review"
+    }
+  },
+  {
+    "domain": "law",
+    "email": "terry.legalready.demo04@seed.legalready.example",
+    "index": 4,
+    "job_id": "67",
+    "name": "Terry LegalReady",
+    "profile_id": "2358",
+    "stage": {
+      "cert_level": "L2",
+      "cert_status": "completed",
+      "first": "Terry",
+      "interview_provider": "Microsoft Teams",
+      "interview_status": "Client follow-up needed",
+      "next_action": "Collect onboarding paperwork and send client follow-up.",
+      "onboarding_status": "hire_started",
+      "stage": "Onboarding pending",
+      "time_status": "approved_for_payment"
+    }
+  },
+  {
+    "domain": "law",
+    "email": "jordan.legalready.demo05@seed.legalready.example",
+    "index": 5,
+    "job_id": "68",
+    "name": "Jordan LegalReady",
+    "profile_id": "2359",
+    "stage": {
+      "cert_level": "L1",
+      "cert_status": "failed",
+      "first": "Jordan",
+      "interview_provider": "Calendly",
+      "interview_status": "Booking link opened",
+      "next_action": "Send exam retry link and keep time active.",
+      "onboarding_status": "hire_started",
+      "stage": "Exam retry",
+      "time_status": "submitted_to_devready"
+    }
+  }
+]

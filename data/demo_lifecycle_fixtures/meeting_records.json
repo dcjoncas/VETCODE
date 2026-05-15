@@ -1,0 +1,332 @@
+[
+  {
+    "actionItems": [
+      "Update status tracker",
+      "Review time entry",
+      "Ask Numa for next focus"
+    ],
+    "candidateId": "2345",
+    "candidateName": "Tom DevReady",
+    "clientCompany": "Atlas AI Health",
+    "createdAt": "2026-05-15T13:27:48Z",
+    "decisions": [
+      "Keep demo workflow moving",
+      "Demo complete. Use as the clean end-to-end success story."
+    ],
+    "domain": "dev",
+    "id": "MTG-DEMO-DEV-01",
+    "meetingAt": "2026-05-22T10:00:00Z",
+    "meetingUrl": "https://meet.devready.example/demo/dev/01",
+    "profileId": "2345",
+    "summary": "Demo meeting for Tom DevReady: A-Z complete.",
+    "updatedAt": "2026-05-15T13:27:48Z"
+  },
+  {
+    "actionItems": [
+      "Update status tracker",
+      "Review time entry",
+      "Ask Numa for next focus"
+    ],
+    "candidateId": "2346",
+    "candidateName": "Tina DevReady",
+    "clientCompany": "Atlas AI Health",
+    "createdAt": "2026-05-15T13:27:48Z",
+    "decisions": [
+      "Keep demo workflow moving",
+      "Review and send certification plus interview invite."
+    ],
+    "domain": "dev",
+    "id": "MTG-DEMO-DEV-02",
+    "meetingAt": "2026-05-22T10:00:00Z",
+    "meetingUrl": "https://meet.devready.example/demo/dev/02",
+    "profileId": "2346",
+    "summary": "Demo meeting for Tina DevReady: Pending invite review.",
+    "updatedAt": "2026-05-15T13:27:48Z"
+  },
+  {
+    "actionItems": [
+      "Update status tracker",
+      "Review time entry",
+      "Ask Numa for next focus"
+    ],
+    "candidateId": "2347",
+    "candidateName": "Taylor DevReady",
+    "clientCompany": "Atlas AI Health",
+    "createdAt": "2026-05-15T13:27:48Z",
+    "decisions": [
+      "Keep demo workflow moving",
+      "Confirm attendance and review time entry note."
+    ],
+    "domain": "dev",
+    "id": "MTG-DEMO-DEV-03",
+    "meetingAt": "2026-05-22T10:00:00Z",
+    "meetingUrl": "https://meet.devready.example/demo/dev/03",
+    "profileId": "2347",
+    "summary": "Demo meeting for Taylor DevReady: Invite sent.",
+    "updatedAt": "2026-05-15T13:27:48Z"
+  },
+  {
+    "actionItems": [
+      "Update status tracker",
+      "Review time entry",
+      "Ask Numa for next focus"
+    ],
+    "candidateId": "2348",
+    "candidateName": "Terry DevReady",
+    "clientCompany": "Atlas AI Health",
+    "createdAt": "2026-05-15T13:27:48Z",
+    "decisions": [
+      "Keep demo workflow moving",
+      "Collect onboarding paperwork and send client follow-up."
+    ],
+    "domain": "dev",
+    "id": "MTG-DEMO-DEV-04",
+    "meetingAt": "2026-05-22T10:00:00Z",
+    "meetingUrl": "https://meet.devready.example/demo/dev/04",
+    "profileId": "2348",
+    "summary": "Demo meeting for Terry DevReady: Onboarding pending.",
+    "updatedAt": "2026-05-15T13:27:48Z"
+  },
+  {
+    "actionItems": [
+      "Update status tracker",
+      "Review time entry",
+      "Ask Numa for next focus"
+    ],
+    "candidateId": "2349",
+    "candidateName": "Jordan DevReady",
+    "clientCompany": "Atlas AI Health",
+    "createdAt": "2026-05-15T13:27:48Z",
+    "decisions": [
+      "Keep demo workflow moving",
+      "Send exam retry link and keep time active."
+    ],
+    "domain": "dev",
+    "id": "MTG-DEMO-DEV-05",
+    "meetingAt": "2026-05-22T10:00:00Z",
+    "meetingUrl": "https://meet.devready.example/demo/dev/05",
+    "profileId": "2349",
+    "summary": "Demo meeting for Jordan DevReady: Exam retry.",
+    "updatedAt": "2026-05-15T13:27:48Z"
+  },
+  {
+    "actionItems": [
+      "Update status tracker",
+      "Review time entry",
+      "Ask Numa for next focus"
+    ],
+    "candidateId": "2350",
+    "candidateName": "Tom BuildReady",
+    "clientCompany": "Summit Grid Works",
+    "createdAt": "2026-05-15T13:27:48Z",
+    "decisions": [
+      "Keep demo workflow moving",
+      "Demo complete. Use as the clean end-to-end success story."
+    ],
+    "domain": "engineer",
+    "id": "MTG-DEMO-ENGINEER-01",
+    "meetingAt": "2026-05-22T10:00:00Z",
+    "meetingUrl": "https://meet.devready.example/demo/engineer/01",
+    "profileId": "2350",
+    "summary": "Demo meeting for Tom BuildReady: A-Z complete.",
+    "updatedAt": "2026-05-15T13:27:48Z"
+  },
+  {
+    "actionItems": [
+      "Update status tracker",
+      "Review time entry",
+      "Ask Numa for next focus"
+    ],
+    "candidateId": "2351",
+    "candidateName": "Tina BuildReady",
+    "clientCompany": "Summit Grid Works",
+    "createdAt": "2026-05-15T13:27:48Z",
+    "decisions": [
+      "Keep demo workflow moving",
+      "Review and send certification plus interview invite."
+    ],
+    "domain": "engineer",
+    "id": "MTG-DEMO-ENGINEER-02",
+    "meetingAt": "2026-05-22T10:00:00Z",
+    "meetingUrl": "https://meet.devready.example/demo/engineer/02",
+    "profileId": "2351",
+    "summary": "Demo meeting for Tina BuildReady: Pending invite review.",
+    "updatedAt": "2026-05-15T13:27:48Z"
+  },
+  {
+    "actionItems": [
+      "Update status tracker",
+      "Review time entry",
+      "Ask Numa for next focus"
+    ],
+    "candidateId": "2352",
+    "candidateName": "Taylor BuildReady",
+    "clientCompany": "Summit Grid Works",
+    "createdAt": "2026-05-15T13:27:48Z",
+    "decisions": [
+      "Keep demo workflow moving",
+      "Confirm attendance and review time entry note."
+    ],
+    "domain": "engineer",
+    "id": "MTG-DEMO-ENGINEER-03",
+    "meetingAt": "2026-05-22T10:00:00Z",
+    "meetingUrl": "https://meet.devready.example/demo/engineer/03",
+    "profileId": "2352",
+    "summary": "Demo meeting for Taylor BuildReady: Invite sent.",
+    "updatedAt": "2026-05-15T13:27:48Z"
+  },
+  {
+    "actionItems": [
+      "Update status tracker",
+      "Review time entry",
+      "Ask Numa for next focus"
+    ],
+    "candidateId": "2353",
+    "candidateName": "Terry BuildReady",
+    "clientCompany": "Summit Grid Works",
+    "createdAt": "2026-05-15T13:27:48Z",
+    "decisions": [
+      "Keep demo workflow moving",
+      "Collect onboarding paperwork and send client follow-up."
+    ],
+    "domain": "engineer",
+    "id": "MTG-DEMO-ENGINEER-04",
+    "meetingAt": "2026-05-22T10:00:00Z",
+    "meetingUrl": "https://meet.devready.example/demo/engineer/04",
+    "profileId": "2353",
+    "summary": "Demo meeting for Terry BuildReady: Onboarding pending.",
+    "updatedAt": "2026-05-15T13:27:48Z"
+  },
+  {
+    "actionItems": [
+      "Update status tracker",
+      "Review time entry",
+      "Ask Numa for next focus"
+    ],
+    "candidateId": "2354",
+    "candidateName": "Jordan BuildReady",
+    "clientCompany": "Summit Grid Works",
+    "createdAt": "2026-05-15T13:27:48Z",
+    "decisions": [
+      "Keep demo workflow moving",
+      "Send exam retry link and keep time active."
+    ],
+    "domain": "engineer",
+    "id": "MTG-DEMO-ENGINEER-05",
+    "meetingAt": "2026-05-22T10:00:00Z",
+    "meetingUrl": "https://meet.devready.example/demo/engineer/05",
+    "profileId": "2354",
+    "summary": "Demo meeting for Jordan BuildReady: Exam retry.",
+    "updatedAt": "2026-05-15T13:27:48Z"
+  },
+  {
+    "actionItems": [
+      "Update status tracker",
+      "Review time entry",
+      "Ask Numa for next focus"
+    ],
+    "candidateId": "2355",
+    "candidateName": "Tom LegalReady",
+    "clientCompany": "Civic Harbor Legal",
+    "createdAt": "2026-05-15T13:27:48Z",
+    "decisions": [
+      "Keep demo workflow moving",
+      "Demo complete. Use as the clean end-to-end success story."
+    ],
+    "domain": "law",
+    "id": "MTG-DEMO-LAW-01",
+    "meetingAt": "2026-05-22T10:00:00Z",
+    "meetingUrl": "https://meet.devready.example/demo/law/01",
+    "profileId": "2355",
+    "summary": "Demo meeting for Tom LegalReady: A-Z complete.",
+    "updatedAt": "2026-05-15T13:27:48Z"
+  },
+  {
+    "actionItems": [
+      "Update status tracker",
+      "Review time entry",
+      "Ask Numa for next focus"
+    ],
+    "candidateId": "2356",
+    "candidateName": "Tina LegalReady",
+    "clientCompany": "Civic Harbor Legal",
+    "createdAt": "2026-05-15T13:27:48Z",
+    "decisions": [
+      "Keep demo workflow moving",
+      "Review and send certification plus interview invite."
+    ],
+    "domain": "law",
+    "id": "MTG-DEMO-LAW-02",
+    "meetingAt": "2026-05-22T10:00:00Z",
+    "meetingUrl": "https://meet.devready.example/demo/law/02",
+    "profileId": "2356",
+    "summary": "Demo meeting for Tina LegalReady: Pending invite review.",
+    "updatedAt": "2026-05-15T13:27:48Z"
+  },
+  {
+    "actionItems": [
+      "Update status tracker",
+      "Review time entry",
+      "Ask Numa for next focus"
+    ],
+    "candidateId": "2357",
+    "candidateName": "Taylor LegalReady",
+    "clientCompany": "Civic Harbor Legal",
+    "createdAt": "2026-05-15T13:27:48Z",
+    "decisions": [
+      "Keep demo workflow moving",
+      "Confirm attendance and review time entry note."
+    ],
+    "domain": "law",
+    "id": "MTG-DEMO-LAW-03",
+    "meetingAt": "2026-05-22T10:00:00Z",
+    "meetingUrl": "https://meet.devready.example/demo/law/03",
+    "profileId": "2357",
+    "summary": "Demo meeting for Taylor LegalReady: Invite sent.",
+    "updatedAt": "2026-05-15T13:27:48Z"
+  },
+  {
+    "actionItems": [
+      "Update status tracker",
+      "Review time entry",
+      "Ask Numa for next focus"
+    ],
+    "candidateId": "2358",
+    "candidateName": "Terry LegalReady",
+    "clientCompany": "Civic Harbor Legal",
+    "createdAt": "2026-05-15T13:27:48Z",
+    "decisions": [
+      "Keep demo workflow moving",
+      "Collect onboarding paperwork and send client follow-up."
+    ],
+    "domain": "law",
+    "id": "MTG-DEMO-LAW-04",
+    "meetingAt": "2026-05-22T10:00:00Z",
+    "meetingUrl": "https://meet.devready.example/demo/law/04",
+    "profileId": "2358",
+    "summary": "Demo meeting for Terry LegalReady: Onboarding pending.",
+    "updatedAt": "2026-05-15T13:27:48Z"
+  },
+  {
+    "actionItems": [
+      "Update status tracker",
+      "Review time entry",
+      "Ask Numa for next focus"
+    ],
+    "candidateId": "2359",
+    "candidateName": "Jordan LegalReady",
+    "clientCompany": "Civic Harbor Legal",
+    "createdAt": "2026-05-15T13:27:48Z",
+    "decisions": [
+      "Keep demo workflow moving",
+      "Send exam retry link and keep time active."
+    ],
+    "domain": "law",
+    "id": "MTG-DEMO-LAW-05",
+    "meetingAt": "2026-05-22T10:00:00Z",
+    "meetingUrl": "https://meet.devready.example/demo/law/05",
+    "profileId": "2359",
+    "summary": "Demo meeting for Jordan LegalReady: Exam retry.",
+    "updatedAt": "2026-05-15T13:27:48Z"
+  }
+]

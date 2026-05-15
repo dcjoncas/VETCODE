@@ -1,0 +1,257 @@
+[
+  {
+    "candidate_name": "Tom DevReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "dev",
+    "email": "tom.devready.demo01@seed.devready.example",
+    "event_type": "demo_lifecycle",
+    "id": "EVT-DEMO-DEV-01",
+    "notes": "Demo complete. Use as the clean end-to-end success story.",
+    "payload": {
+      "cert_status": "certified",
+      "job_id": "54",
+      "onboarding_token": "ONB-DEMO-DEV-01"
+    },
+    "profile_id": "2345",
+    "status": "A-Z complete",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  {
+    "candidate_name": "Tina DevReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "dev",
+    "email": "tina.devready.demo02@seed.devready.example",
+    "event_type": "demo_lifecycle",
+    "id": "EVT-DEMO-DEV-02",
+    "notes": "Review and send certification plus interview invite.",
+    "payload": {
+      "cert_status": "started",
+      "job_id": "55",
+      "onboarding_token": "ONB-DEMO-DEV-02"
+    },
+    "profile_id": "2346",
+    "status": "Pending invite review",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  {
+    "candidate_name": "Taylor DevReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "dev",
+    "email": "taylor.devready.demo03@seed.devready.example",
+    "event_type": "demo_lifecycle",
+    "id": "EVT-DEMO-DEV-03",
+    "notes": "Confirm attendance and review time entry note.",
+    "payload": {
+      "cert_status": "certified",
+      "job_id": "56",
+      "onboarding_token": "ONB-DEMO-DEV-03"
+    },
+    "profile_id": "2347",
+    "status": "Invite sent",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  {
+    "candidate_name": "Terry DevReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "dev",
+    "email": "terry.devready.demo04@seed.devready.example",
+    "event_type": "demo_lifecycle",
+    "id": "EVT-DEMO-DEV-04",
+    "notes": "Collect onboarding paperwork and send client follow-up.",
+    "payload": {
+      "cert_status": "completed",
+      "job_id": "57",
+      "onboarding_token": "ONB-DEMO-DEV-04"
+    },
+    "profile_id": "2348",
+    "status": "Onboarding pending",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  {
+    "candidate_name": "Jordan DevReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "dev",
+    "email": "jordan.devready.demo05@seed.devready.example",
+    "event_type": "demo_lifecycle",
+    "id": "EVT-DEMO-DEV-05",
+    "notes": "Send exam retry link and keep time active.",
+    "payload": {
+      "cert_status": "failed",
+      "job_id": "58",
+      "onboarding_token": "ONB-DEMO-DEV-05"
+    },
+    "profile_id": "2349",
+    "status": "Exam retry",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  {
+    "candidate_name": "Tom BuildReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "engineer",
+    "email": "tom.buildready.demo01@seed.buildready.example",
+    "event_type": "demo_lifecycle",
+    "id": "EVT-DEMO-ENGINEER-01",
+    "notes": "Demo complete. Use as the clean end-to-end success story.",
+    "payload": {
+      "cert_status": "certified",
+      "job_id": "59",
+      "onboarding_token": "ONB-DEMO-ENGINEER-01"
+    },
+    "profile_id": "2350",
+    "status": "A-Z complete",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  {
+    "candidate_name": "Tina BuildReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "engineer",
+    "email": "tina.buildready.demo02@seed.buildready.example",
+    "event_type": "demo_lifecycle",
+    "id": "EVT-DEMO-ENGINEER-02",
+    "notes": "Review and send certification plus interview invite.",
+    "payload": {
+      "cert_status": "started",
+      "job_id": "60",
+      "onboarding_token": "ONB-DEMO-ENGINEER-02"
+    },
+    "profile_id": "2351",
+    "status": "Pending invite review",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  {
+    "candidate_name": "Taylor BuildReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "engineer",
+    "email": "taylor.buildready.demo03@seed.buildready.example",
+    "event_type": "demo_lifecycle",
+    "id": "EVT-DEMO-ENGINEER-03",
+    "notes": "Confirm attendance and review time entry note.",
+    "payload": {
+      "cert_status": "certified",
+      "job_id": "61",
+      "onboarding_token": "ONB-DEMO-ENGINEER-03"
+    },
+    "profile_id": "2352",
+    "status": "Invite sent",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  {
+    "candidate_name": "Terry BuildReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "engineer",
+    "email": "terry.buildready.demo04@seed.buildready.example",
+    "event_type": "demo_lifecycle",
+    "id": "EVT-DEMO-ENGINEER-04",
+    "notes": "Collect onboarding paperwork and send client follow-up.",
+    "payload": {
+      "cert_status": "completed",
+      "job_id": "62",
+      "onboarding_token": "ONB-DEMO-ENGINEER-04"
+    },
+    "profile_id": "2353",
+    "status": "Onboarding pending",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  {
+    "candidate_name": "Jordan BuildReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "engineer",
+    "email": "jordan.buildready.demo05@seed.buildready.example",
+    "event_type": "demo_lifecycle",
+    "id": "EVT-DEMO-ENGINEER-05",
+    "notes": "Send exam retry link and keep time active.",
+    "payload": {
+      "cert_status": "failed",
+      "job_id": "63",
+      "onboarding_token": "ONB-DEMO-ENGINEER-05"
+    },
+    "profile_id": "2354",
+    "status": "Exam retry",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  {
+    "candidate_name": "Tom LegalReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "law",
+    "email": "tom.legalready.demo01@seed.legalready.example",
+    "event_type": "demo_lifecycle",
+    "id": "EVT-DEMO-LAW-01",
+    "notes": "Demo complete. Use as the clean end-to-end success story.",
+    "payload": {
+      "cert_status": "certified",
+      "job_id": "64",
+      "onboarding_token": "ONB-DEMO-LAW-01"
+    },
+    "profile_id": "2355",
+    "status": "A-Z complete",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  {
+    "candidate_name": "Tina LegalReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "law",
+    "email": "tina.legalready.demo02@seed.legalready.example",
+    "event_type": "demo_lifecycle",
+    "id": "EVT-DEMO-LAW-02",
+    "notes": "Review and send certification plus interview invite.",
+    "payload": {
+      "cert_status": "started",
+      "job_id": "65",
+      "onboarding_token": "ONB-DEMO-LAW-02"
+    },
+    "profile_id": "2356",
+    "status": "Pending invite review",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  {
+    "candidate_name": "Taylor LegalReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "law",
+    "email": "taylor.legalready.demo03@seed.legalready.example",
+    "event_type": "demo_lifecycle",
+    "id": "EVT-DEMO-LAW-03",
+    "notes": "Confirm attendance and review time entry note.",
+    "payload": {
+      "cert_status": "certified",
+      "job_id": "66",
+      "onboarding_token": "ONB-DEMO-LAW-03"
+    },
+    "profile_id": "2357",
+    "status": "Invite sent",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  {
+    "candidate_name": "Terry LegalReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "law",
+    "email": "terry.legalready.demo04@seed.legalready.example",
+    "event_type": "demo_lifecycle",
+    "id": "EVT-DEMO-LAW-04",
+    "notes": "Collect onboarding paperwork and send client follow-up.",
+    "payload": {
+      "cert_status": "completed",
+      "job_id": "67",
+      "onboarding_token": "ONB-DEMO-LAW-04"
+    },
+    "profile_id": "2358",
+    "status": "Onboarding pending",
+    "updated_at": "2026-05-15T13:27:48Z"
+  },
+  {
+    "candidate_name": "Jordan LegalReady",
+    "created_at": "2026-05-15T13:27:48Z",
+    "domain": "law",
+    "email": "jordan.legalready.demo05@seed.legalready.example",
+    "event_type": "demo_lifecycle",
+    "id": "EVT-DEMO-LAW-05",
+    "notes": "Send exam retry link and keep time active.",
+    "payload": {
+      "cert_status": "failed",
+      "job_id": "68",
+      "onboarding_token": "ONB-DEMO-LAW-05"
+    },
+    "profile_id": "2359",
+    "status": "Exam retry",
+    "updated_at": "2026-05-15T13:27:48Z"
+  }
+]
