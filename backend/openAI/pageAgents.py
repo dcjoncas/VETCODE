@@ -264,9 +264,6 @@ def _json_from_model_text(text: str) -> dict[str, Any]:
 
 
 def _plan_actions(client, agent_key: str, message: str, context: dict[str, Any], agent: dict[str, Any]) -> list[dict[str, Any]]:
-    if not _numa_policy(context)["can_request_changes"]:
-        return []
-
     intent_words = {
         "create",
         "make",
@@ -277,6 +274,12 @@ def _plan_actions(client, agent_key: str, message: str, context: dict[str, Any],
         "change",
         "attach",
         "set",
+        "schedule",
+        "book",
+        "interview",
+        "invite",
+        "meet",
+        "meeting",
     }
     clean_message = (message or "").strip()
     if not any(word in clean_message.lower() for word in intent_words):
@@ -287,9 +290,10 @@ Return strict JSON:
 {
   "actions": [
     {
-      "type": "create_profile" | "update_profile_core",
+      "type": "create_profile" | "update_profile_core" | "schedule_interview_setup",
       "label": "short button label",
       "summary": "one sentence explaining the exact change",
+      "missing_fields": ["field name Numa still needs from the user"],
       "payload": {
         "profile_id": "existing profile id for updates only",
         "full_name": "candidate full name for create",
@@ -301,14 +305,36 @@ Return strict JSON:
         "state": "optional",
         "country": "optional",
         "description": "optional profile about/notes",
-        "skills": [{"title": "Python", "years": 5}]
+        "skills": [{"title": "Python", "years": 5}],
+        "candidate_name": "interview candidate name",
+        "candidate_email": "interview candidate email",
+        "interview_type": "ready or client",
+        "provider": "calendly, google, outlook, or ask",
+        "calendar_app": "calendly, google, outlook, or ask",
+        "role": "role/title for interview",
+        "company": "company/client",
+        "when": "natural language date/time if supplied",
+        "timezone": "IANA timezone if supplied",
+        "duration_minutes": 30,
+        "interviewer_name": "DevReady interviewer for candidate review",
+        "interviewer_email": "DevReady interviewer email",
+        "client_company": "client interview company",
+        "client_contact_name": "client interview contact",
+        "client_contact_email": "client interview email",
+        "talking_points": "optional talking points"
       }
     }
   ]
 }
-Only propose an action when the user clearly asks Numa to create, save, add, or update profile information.
+Only propose an action when the user clearly asks Numa to create, save, add, update, schedule, book, or set up app workflow information.
 Use create_profile for a brand new candidate profile.
 Use update_profile_core when the page/context has an existing candidate/profile id and the user is adding or changing profile facts.
+Use schedule_interview_setup when the user asks to set up, schedule, book, draft, or send an interview from the Interviews page or scheduling context.
+For schedule_interview_setup, include missing_fields for anything still needed, especially candidate email, role/title, calendar app/provider, date/time window, interviewer/contact, or client details.
+For schedule_interview_setup, default interview_type to "ready" for a candidate review. Only use "client" when the user explicitly says client interview/client-facing interview or provides client company/contact details.
+For candidate review interviews, interviewer_name and interviewer_email identify the DevReady person meeting the candidate.
+For client interviews, client_company, client_contact_name, and client_contact_email are required.
+Do not propose create_profile or update_profile_core unless can_request_changes is true in the safety policy.
 Do not propose actions for questions, analysis, ranking, salary, deal value, code changes, deletes, or uncertain instructions.
 Keep profile descriptions factual. Do not invent facts beyond the user's message or current app context.
 """
@@ -333,14 +359,34 @@ Keep profile descriptions factual. Do not invent facts beyond the user's message
         if not isinstance(action, dict):
             continue
         action_type = action.get("type")
-        if action_type not in {"create_profile", "update_profile_core"}:
+        if action_type in {"create_profile", "update_profile_core"} and not _numa_policy(context)["can_request_changes"]:
+            continue
+        if action_type not in {"create_profile", "update_profile_core", "schedule_interview_setup"}:
             continue
         payload = action.get("payload") if isinstance(action.get("payload"), dict) else {}
+        missing_fields = action.get("missing_fields") if isinstance(action.get("missing_fields"), list) else []
+        if action_type == "schedule_interview_setup":
+            interview_type = str(payload.get("interview_type") or "ready").strip().lower()
+            if interview_type != "client":
+                payload["interview_type"] = "ready"
+                missing_fields = [
+                    field
+                    for field in missing_fields
+                    if str(field).strip().lower() not in {"client_company", "client company", "client_contact_name", "client contact name", "client_contact_email", "client contact email"}
+                ]
         clean_actions.append(
             {
                 "type": action_type,
-                "label": str(action.get("label") or ("Create profile" if action_type == "create_profile" else "Update profile"))[:80],
+                "label": str(
+                    action.get("label")
+                    or (
+                        "Create profile"
+                        if action_type == "create_profile"
+                        else ("Set up interview" if action_type == "schedule_interview_setup" else "Update profile")
+                    )
+                )[:80],
                 "summary": str(action.get("summary") or "")[:500],
+                "missing_fields": missing_fields,
                 "payload": payload,
             }
         )

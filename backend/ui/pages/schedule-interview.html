@@ -1456,6 +1456,92 @@
         await createInvite();
       }
 
+      function setIfPresent(id, value) {
+        if (value === undefined || value === null || value === "") return;
+        const element = byId(id);
+        if (element) element.value = value;
+      }
+
+      function normalizeNumaProvider(value) {
+        const clean = String(value || "").trim().toLowerCase();
+        if (clean.includes("google")) return "google";
+        if (clean.includes("outlook") || clean.includes("microsoft") || clean.includes("teams")) return "outlook";
+        if (clean.includes("calendly")) return "calendly";
+        return "";
+      }
+
+      function numaMissingInterviewFields(payload, existingMissing = []) {
+        const missing = new Set((existingMissing || []).filter(Boolean));
+        const type = payload.interview_type === "client" ? "client" : "ready";
+        if (!byId("candidateNameInput").value.trim()) missing.add("candidate name");
+        if (!byId("candidateEmailInput").value.trim()) missing.add("candidate email");
+        if (!byId("roleInput").value.trim()) missing.add("role/title");
+        if (!normalizeNumaProvider(payload.provider || payload.calendar_app || selectedProvider)) missing.add("calendar app");
+        if (!payload.when && !payload.start && !byId("startInput").value) missing.add("date/time");
+        if (type === "ready") {
+          if (!byId("candidateInterviewerNameInput").value.trim()) missing.add("interviewer name");
+          if (!byId("candidateInterviewerEmailInput").value.trim()) missing.add("interviewer email");
+        } else {
+          if (!byId("clientCompanyInput").value.trim()) missing.add("client company");
+          if (!byId("clientContactNameInput").value.trim()) missing.add("client contact name");
+          if (!byId("clientContactEmailInput").value.trim()) missing.add("client contact email");
+        }
+        return Array.from(missing);
+      }
+
+      async function applyNumaInterviewSetup(action, agentContext = {}) {
+        if (!action || action.type !== "schedule_interview_setup") {
+          throw new Error("This page can only run interview setup actions.");
+        }
+        const payload = action.payload || {};
+        const context = agentContext || {};
+        const snapshot = (context.pageSnapshot && context.pageSnapshot.interview) || {};
+        const type = payload.interview_type === "client" ? "client" : "ready";
+        selectInterviewType(type);
+
+        setIfPresent("candidateNameInput", payload.candidate_name || context.candidateName || snapshot.candidateName);
+        setIfPresent("candidateEmailInput", payload.candidate_email || context.candidateEmail || snapshot.candidateEmail);
+        setIfPresent("roleInput", payload.role || context.jobTitle || snapshot.role);
+        setIfPresent("companyInput", payload.company || snapshot.company);
+        setIfPresent("timezoneInput", payload.timezone || snapshot.timezone);
+        setIfPresent("durationInput", payload.duration_minutes || snapshot.durationMinutes);
+        setIfPresent("locationInput", payload.location);
+        setIfPresent("talkingPointsInput", payload.talking_points);
+        setIfPresent("candidateInterviewerNameInput", payload.interviewer_name || snapshot.interviewerName);
+        setIfPresent("candidateInterviewerEmailInput", payload.interviewer_email || snapshot.interviewerEmail);
+        setIfPresent("clientCompanyInput", payload.client_company || payload.company || snapshot.clientCompany);
+        setIfPresent("clientContactNameInput", payload.client_contact_name || snapshot.clientContactName);
+        setIfPresent("clientContactEmailInput", payload.client_contact_email || snapshot.clientContactEmail);
+        if (payload.attendees) setIfPresent("attendeesInput", Array.isArray(payload.attendees) ? payload.attendees.join("\n") : payload.attendees);
+        if (payload.start) setIfPresent("startInput", payload.start);
+        if (payload.end) setIfPresent("endInput", payload.end);
+        if (payload.when) appendContextBlock("Numa requested interview time", payload.when);
+
+        const provider = normalizeNumaProvider(payload.provider || payload.calendar_app || selectedProvider);
+        if (provider) selectProvider(provider);
+        updateInterviewTypeUi();
+        updateCalendlyLink();
+
+        const missing = numaMissingInterviewFields(payload, action.missing_fields);
+        if (missing.length) {
+          const message = `I started the interview setup. I still need: ${missing.join(", ")}.`;
+          showResult(message, true);
+          return { ok: true, needsMore: true, message };
+        }
+
+        const draft = await generateDraft();
+        const providerLabel = selectedProvider === "google" ? "Google Calendar" : selectedProvider === "outlook" ? "Outlook Calendar" : "Calendly";
+        const message = draft
+          ? `I filled the interview setup and generated the email draft. Review it, then use ${providerLabel} to book/send when ready.`
+          : "I filled the interview setup. Review the fields before sending.";
+        showResult(message);
+        return { ok: true, message };
+      }
+
+      window.DevReadyNumaActions = {
+        execute: applyNumaInterviewSetup,
+      };
+
       document.addEventListener("DOMContentLoaded", async () => {
         defaultTimeWindow();
         const params = new URLSearchParams(window.location.search);

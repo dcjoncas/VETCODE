@@ -378,6 +378,31 @@
       };
     }
 
+    if (pageName() === "schedule-interview") {
+      snapshot.interview = {
+        interviewType: sessionStorage.getItem("scheduleInterviewType") || valueOf("#interviewTypeInput", 80) || "",
+        provider: sessionStorage.getItem("preferredCalendarProvider") || "",
+        candidateName: valueOf("#candidateNameInput", 180) || selectedCandidateName(),
+        candidateEmail: valueOf("#candidateEmailInput", 220) || selectedCandidateEmail(),
+        role: valueOf("#roleInput", 200) || sessionStorage.getItem("jobTitle") || "",
+        company: valueOf("#companyInput", 200),
+        readyPurpose: valueOf("#readyPurposeInput", 80),
+        interviewerName: valueOf("#candidateInterviewerNameInput", 180),
+        interviewerEmail: valueOf("#candidateInterviewerEmailInput", 220),
+        clientCompany: valueOf("#clientCompanyInput", 200),
+        clientContactName: valueOf("#clientContactNameInput", 180),
+        clientContactEmail: valueOf("#clientContactEmailInput", 220),
+        attendees: valueOf("#attendeesInput", 500),
+        timezone: valueOf("#timezoneInput", 120),
+        start: valueOf("#startInput", 120),
+        end: valueOf("#endInput", 120),
+        durationMinutes: valueOf("#durationInput", 40),
+        location: valueOf("#locationInput", 220),
+        talkingPoints: valueOf("#talkingPointsInput", 800),
+        draftSubject: valueOf("#subjectInput", 220),
+      };
+    }
+
     if (window.DevReadyPageContext && typeof window.DevReadyPageContext === "object") {
       snapshot.pageData = window.DevReadyPageContext;
     }
@@ -541,7 +566,12 @@
       summary.textContent = action.summary || "Numa can run this controlled update.";
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = action.type === "create_profile" ? "Create Profile" : "Apply Update";
+      button.textContent =
+        action.type === "create_profile"
+          ? "Create Profile"
+          : action.type === "schedule_interview_setup"
+            ? "Set Up Interview"
+            : "Apply Update";
       button.addEventListener("click", () => executeWidgetAction(button, action));
       card.appendChild(title);
       card.appendChild(summary);
@@ -556,6 +586,19 @@
     button.disabled = true;
     const originalText = button.textContent;
     button.textContent = "Working...";
+    if (window.DevReadyNumaActions && typeof window.DevReadyNumaActions.execute === "function") {
+      try {
+        const localResult = await window.DevReadyNumaActions.execute(action, agentContext());
+        appendWidgetMessage(localResult?.message || "Numa started that workflow on this page.", "assistant");
+        button.textContent = "Done";
+        return;
+      } catch (error) {
+        appendWidgetMessage(error.message || "Numa could not run that page workflow.", "assistant");
+        button.disabled = false;
+        button.textContent = originalText;
+        return;
+      }
+    }
     const form = new FormData();
     form.append("action_json", JSON.stringify(action));
     form.append("domain", currentDomain());
