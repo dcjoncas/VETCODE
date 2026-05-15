@@ -180,9 +180,25 @@
       }
 
       .agent-actions {
-        display: flex;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
-        flex-wrap: wrap;
+      }
+
+      .agent-actions .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        text-align: center;
+        line-height: 1.15;
+        white-space: normal;
+      }
+
+      .agent-actions .open-agent-page {
+        grid-column: 1 / -1;
       }
 
       .agent-top-controls {
@@ -470,7 +486,7 @@
                 <div class="agent-actions">
                   <button class="btn" type="button" onclick="activateAgent('${agent.key}')">${active?.key === agent.key ? "Activated" : "Activate"}</button>
                   <button class="btn secondary" type="button" onclick="selectAgent('${agent.key}')">Details</button>
-                  <a class="btn secondary" href="${window.DevReadyPageAgents.withDomain(agent.href)}">Open Page</a>
+                  <a class="btn secondary open-agent-page" href="${window.DevReadyPageAgents.withDomain(agent.href)}">Open Page</a>
                 </div>
               </article>
             `;
@@ -609,7 +625,7 @@
               </div>
               <div class="agent-actions" style="margin-top: 12px">
                 <button id="detailActivate" class="btn" type="button">Activate</button>
-                <a id="detailOpen" class="btn secondary" href="profile-preview.html">Open Page</a>
+                <a id="detailOpen" class="btn secondary open-agent-page" href="profile-preview.html">Open Page</a>
               </div>
             </div>
             <div>
