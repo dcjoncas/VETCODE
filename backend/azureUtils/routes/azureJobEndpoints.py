@@ -36,6 +36,16 @@ router = APIRouter(
     tags=["azure", "jobs"]
 )
 
+def _domain_key(domain: str = "dev") -> str:
+    value = (domain or "dev").strip().lower()
+    if value in {"technology", "tech", "devready", "dev"}:
+        return "dev"
+    if value in {"engineer", "engineering", "build", "buildready"}:
+        return "engineer"
+    if value in {"law", "legal", "legalready"}:
+        return "law"
+    return "dev"
+
 def _safe_list(value):
     if not value:
         return []
@@ -675,6 +685,7 @@ def _github_direct_search(search_query: str, search_terms: list[str], size: int 
     return enriched_rows
 
 def _get_job_skills(jd_id: str, domain: str = "dev"):
+    domain = _domain_key(domain)
     jd = jobs.getJob(jd_id, domain)
     if not jd:
         raise HTTPException(status_code=400, detail="No job description found for this domain.")
@@ -712,6 +723,7 @@ async def _extract_job_file_text(file: UploadFile) -> str:
 
 @router.post("/createJob")
 def jdCreate(company: str = Form(...), title: str = Form(...), jd_text: str = Form(...), domain: str = Form(default="dev")):
+    domain = _domain_key(domain)
     print(f"Uploading {title} at {company}")
     try:
         # Deprecated
@@ -736,6 +748,7 @@ async def jdUpload(
     title: str = Form(...),
     domain: str = Form(default="dev"),
 ):
+    domain = _domain_key(domain)
     print(f"Uploading job description file {file.filename} for {title} at {company}")
     try:
         jd_text = await _extract_job_file_text(file)
@@ -760,6 +773,7 @@ async def jdUpload(
 
 @router.post("/updateJob/{jobId}")
 def jdUpdate(jobId: str, company: str = Form(...), title: str = Form(...), jd_text: str = Form(...), domain: str = Form(default="dev")):
+    domain = _domain_key(domain)
     print(f"Updating {title} at {company}")
     try:
         flatSkills = list(set(normalize_all_skills(jd_text)))
@@ -781,14 +795,17 @@ def jdUpdate(jobId: str, company: str = Form(...), title: str = Form(...), jd_te
 
 @router.get("/list/{domain}/{amount}")
 def jd_list(domain: str = "dev", amount: int = 5):
+    domain = _domain_key(domain)
     return jobs.listJobs(domain, amount)
     
 @router.get("/list/search/{domain}/{query}/{amount}")
 def jd_list(domain: str = "dev", query: str = '', amount: int = 5):
+    domain = _domain_key(domain)
     return jobs.searchJobs(domain, query, amount)
 
 @router.get("/getJob/{jobId}")
 def jd_get(jobId: str, domain: str = "dev"):
+    domain = _domain_key(domain)
     jd = jobs.getJob(jobId, domain)
     if not jd:
         raise HTTPException(status_code=404, detail="Job not found for this domain.")
@@ -796,6 +813,7 @@ def jd_get(jobId: str, domain: str = "dev"):
 
 @router.delete("/deleteJob/{jobId}")
 def jd_delete(jobId: str, domain: str = "dev"):
+    domain = _domain_key(domain)
     try:
         deleted = jobs.deleteJob(jobId, domain)
         if not deleted.get("deleted"):
@@ -808,6 +826,7 @@ def jd_delete(jobId: str, domain: str = "dev"):
 
 @router.post("/match/run")
 def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k: int = Form(10), external_source: str = Form(default="none")):
+    domain = _domain_key(domain)
     # TODO: Set up job descriptions in the database
     jd = jobs.getJob(jd_id, domain)
 
@@ -860,10 +879,11 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
         averageDifference = -1
         percentageNum = -1
 
-        for personality in row['personality']:
+        for personality in row.get('personality') or []:
             # Get the stat that matches the current one
             matchingStat = next((i for i in jd['personalities'] if i['title'] == personality['title']),None)
-            personalityDifferences.append(abs(matchingStat['score']-personality['score']))
+            if matchingStat and matchingStat.get('score') is not None and personality.get('score') is not None:
+                personalityDifferences.append(abs(matchingStat['score']-personality['score']))
 
         if len(personalityDifferences)>0:
             averageDifference = sum(personalityDifferences)/len(personalityDifferences)
@@ -951,6 +971,7 @@ def external_candidate_search(
     source: str = Form(default="pdl"),
     top_k: int = Form(default=10),
 ):
+    domain = _domain_key(domain)
     top_k = _external_result_limit(top_k)
     jd, job_skills = _get_job_skills(jd_id, domain)
     search_skills = _searchable_job_skills(job_skills, 12)
@@ -997,6 +1018,7 @@ def external_candidate_search_direct(
     source: str = Form(default="pdl"),
     top_k: int = Form(default=10),
 ):
+    domain = _domain_key(domain)
     top_k = _external_result_limit(top_k)
     clean_query = (query or "").strip()
     if not clean_query:
@@ -1044,7 +1066,7 @@ def external_candidate_search_direct(
 
 @router.post("/external/import")
 def external_candidate_import(payload: dict = Body(...)):
-    domain = payload.get("domain") or "dev"
+    domain = _domain_key(payload.get("domain") or "dev")
     candidate = payload.get("candidate") or {}
     source = candidate.get("source") or payload.get("source") or "external"
 
@@ -1095,6 +1117,7 @@ def external_candidate_import(payload: dict = Body(...)):
 
 @router.get("/external/temp")
 def external_candidate_temp_profiles(domain: str = "dev", limit: int = 50):
+    domain = _domain_key(domain)
     return candidates.listTemporaryExternalProfiles(domain, limit)
 
 @router.post("/external/temp/{person_id}/make-permanent")
