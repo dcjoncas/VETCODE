@@ -1670,70 +1670,111 @@ def updateCandidateEmail(personId: str, email: str = ""):
     finally:
         conn.close()
 
+def _candidate_profile_id(cur, personId: str):
+    cur.execute(
+        """
+        SELECT profper.id
+        FROM professionalprofile profper
+        JOIN professional prof ON profper.professionalid = prof.id
+        WHERE prof.personid = %s
+        LIMIT 1
+        """,
+        (personId,),
+    )
+    row = cur.fetchone()
+    if row:
+        return row[0]
+
+    cur.execute("SELECT id FROM professional WHERE personid = %s LIMIT 1", (personId,))
+    professional_row = cur.fetchone()
+    if not professional_row:
+        raise HTTPException(status_code=404, detail=f"No professional profile exists for person {personId}.")
+
+    _sync_identity_sequence(cur, "professionalprofile")
+    cur.execute(
+        "INSERT INTO professionalprofile (professionalid) VALUES (%s) RETURNING id",
+        (professional_row[0],),
+    )
+    return cur.fetchone()[0]
+
+
+def _feature_level(value):
+    try:
+        level = int(value)
+    except (TypeError, ValueError):
+        level = 1
+    if level < 1:
+        return 1
+    if level > 3:
+        return 3
+    return level
+
+
+def _normalized_feature_items(items: list):
+    normalized = []
+    for item in items or []:
+        title = str((item or {}).get("title") or "").strip()
+        if not title:
+            continue
+        normalized.append({"title": title, "level": _feature_level((item or {}).get("level"))})
+    return normalized
+
+
 def updateCandidateSkills(personId: str, skills: list):
     conn = client.getConnection()
     cur = conn.cursor()
+    try:
+        profileId = _candidate_profile_id(cur, personId)
 
-    query = f"SELECT profper.id FROM professionalprofile profper JOIN professional prof ON profper.professionalid = prof.id WHERE prof.personid = {personId}"
-    cur.execute(query)
-    profileId = cur.fetchone()[0]
+        cur.execute("DELETE FROM professionalskill WHERE profileid = %s", (profileId,))
 
-    # Delete existing skills
-    query = f"DELETE FROM professionalskill WHERE profileid = {profileId}"
-    cur.execute(query)
+        for skill in skills or []:
+            skill_id = (skill or {}).get("skill")
+            if not skill_id:
+                continue
+            cur.execute(
+                "INSERT INTO professionalskill (profileid, skillid, years) VALUES (%s, %s, %s)",
+                (profileId, skill_id, (skill or {}).get("years") or 0),
+            )
 
-    for skill in skills:
-        # Associate skill with professional profile
-        query = "INSERT INTO professionalskill (profileid, skillid, years) VALUES (%s, %s, %s)"
-        cur.execute(query, (profileId, skill["skill"], skill['years']))
+        conn.commit()
+        return {"status": "success"}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
-    conn.commit()
-    conn.close()
-
-    return {"status": "success"}
 
 def updateCandidateFeatures(personId: str, features: list, cultural: list):
     conn = client.getConnection()
     cur = conn.cursor()
+    try:
+        profileId = _candidate_profile_id(cur, personId)
 
-    query = f"SELECT profper.id FROM professionalprofile profper JOIN professional prof ON profper.professionalid = prof.id WHERE prof.personid = {personId}"
-    cur.execute(query)
-    profileId = cur.fetchone()[0]
+        cur.execute("DELETE FROM professionalfeature WHERE profileid = %s", (profileId,))
 
-    # Delete existing features
-    query = f"DELETE FROM professionalfeature WHERE profileid = {profileId}"
-    cur.execute(query)
+        for feature in _normalized_feature_items(features):
+            cur.execute(
+                "INSERT INTO professionalfeature (profileid, title, level) VALUES (%s, %s, %s)",
+                (profileId, feature["title"], feature["level"]),
+            )
 
-    for feature in features:
-        feature["level"] = int(feature["level"])
+        cur.execute("DELETE FROM professionalculturalexperience WHERE profileid = %s", (profileId,))
 
-        if feature["level"] <1:
-            feature["level"] = 1
-        elif feature["level"] >3:
-            feature["level"] = 3
-        # Associate feature with professional profile
-        query = "INSERT INTO professionalfeature (profileid, title, level) VALUES (%s, %s, %s)"
-        cur.execute(query, (profileId, feature["title"], feature['level']))
+        for feature in _normalized_feature_items(cultural):
+            cur.execute(
+                "INSERT INTO professionalculturalexperience (profileid, title, level) VALUES (%s, %s, %s)",
+                (profileId, feature["title"], feature["level"]),
+            )
 
-    # Delete existing cultural experiences
-    query = f"DELETE FROM professionalculturalexperience WHERE profileid = {profileId}"
-    cur.execute(query)
-
-    for feature in cultural:
-        feature["level"] = int(feature["level"])
-
-        if feature["level"] <1:
-            feature["level"] = 1
-        elif feature["level"] >3:
-            feature["level"] = 3
-        # Associate cultural experience with professional profile
-        query = "INSERT INTO professionalculturalexperience (profileid, title, level) VALUES (%s, %s, %s)"
-        cur.execute(query, (profileId, feature["title"], feature['level']))
-
-    conn.commit()
-    conn.close()
-
-    return {"status": "success"}
+        conn.commit()
+        return {"status": "success"}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 class PortfolioExperience(BaseModel):
     description: str
@@ -1751,44 +1792,48 @@ class profilePortfolioUpdateRequest(BaseModel):
 def updateCandidatePortfolio(personId: str, portfolio: list[PortfolioExperience]):
     conn = client.getConnection()
     cur = conn.cursor()
+    try:
+        print(personId)
 
-    print(personId)
+        profileId = _candidate_profile_id(cur, personId)
 
-    query = f"SELECT profper.id FROM professionalprofile profper JOIN professional prof ON profper.professionalid = prof.id WHERE prof.personid = {personId}"
-    cur.execute(query)
-    profileId = cur.fetchone()[0]
+        print(profileId)
 
-    print(profileId)
+        cur.execute("DELETE FROM professionalexperience WHERE profileid = %s", (profileId,))
 
-    # Delete existing portfolio experience
-    query = f"DELETE FROM professionalexperience WHERE profileid = {profileId}"
-    cur.execute(query)
+        for experience in portfolio or []:
+            print(experience)
 
-    for experience in portfolio:
-        print(experience)
+            _sync_identity_sequence(cur, "professionalexperience")
+            if experience.finishDate is not None and experience.finishDate != "":
+                experience.finishDate = int(experience.finishDate)
+                query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, finishdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id"
+                cur.execute(query, (profileId, experience.description, experience.mainRole, experience.companyName, experience.startDate, experience.finishDate, experience.isPresent))
+            else:
+                query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id"
+                cur.execute(query, (profileId, experience.description, experience.mainRole, experience.companyName, experience.startDate, experience.isPresent))
+            experienceId = cur.fetchone()[0]
 
-        _sync_identity_sequence(cur, "professionalexperience")
-        if experience.finishDate is not None and experience.finishDate != "":
-            experience.finishDate = int(experience.finishDate)
-            query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, finishdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id"
-            cur.execute(query, (profileId, experience.description, experience.mainRole, experience.companyName, experience.startDate, experience.finishDate, experience.isPresent))
-        else:
-            query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id"
-            cur.execute(query, (profileId, experience.description, experience.mainRole, experience.companyName, experience.startDate, experience.isPresent))
-        experienceId = cur.fetchone()[0]
+            print(experienceId)
+            print(cur.statusmessage)
 
-        print(experienceId)
-        print(cur.statusmessage)
+            for skill in experience.skills:
+                if not skill:
+                    continue
+                query = "INSERT INTO portfolioskill (professionalexperienceid, skillid) VALUES (%s, %s)"
+                cur.execute(query, (experienceId, skill))
 
-        for skill in experience.skills:
-            query = "INSERT INTO portfolioskill (professionalexperienceid, skillid) VALUES (%s, %s)"
-            cur.execute(query, (experienceId, skill))
+            for feature in experience.features:
+                clean_feature = str(feature or "").strip()
+                if not clean_feature:
+                    continue
+                query = "INSERT INTO portfoliofeature (professionalexperienceid, title) VALUES (%s, %s)"
+                cur.execute(query, (experienceId, clean_feature))
 
-        for feature in experience.features:
-            query = "INSERT INTO portfoliofeature (professionalexperienceid, title) VALUES (%s, %s)"
-            cur.execute(query, (experienceId, feature))
-
-    conn.commit()
-    conn.close()
-
-    return {"status": "success"}
+        conn.commit()
+        return {"status": "success"}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
