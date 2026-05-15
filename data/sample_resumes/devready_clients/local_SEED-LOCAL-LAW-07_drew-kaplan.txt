@@ -1,0 +1,20 @@
+Drew Kaplan
+Insurance Claims Legal Analyst
+drew.kaplan.local.07@seed.legalready.example
+Hartford, CT
+
+SUMMARY
+Synthetic DevReady Law example for Insurance. Drew Kaplan has client-facing experience helping HarborSure Insurance with: Prioritize claim files and preserve litigation evidence.
+
+SKILLS
+Claims Review, Coverage Analysis, Excel, Legal Research, Litigation Holds, Matter Management
+
+EXPERIENCE
+Insurance Claims Legal Analyst | HarborSure Insurance | 2023 - Present
+Led insurance delivery work focused on prioritize claim files and preserve litigation evidence.
+
+CERTIFICATION
+AI / ML L2 - Foundations | certified | 93% | SEED-LOCAL-LAW-07-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

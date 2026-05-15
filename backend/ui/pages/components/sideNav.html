@@ -22,9 +22,12 @@
   #pageNavInner a.nav-jds,
   #pageNavInner a.crm-link,
   #pageNavInner a.recordings-link,
+  #pageNavInner a.interviews-link,
+  #pageNavInner a.time-link,
   #pageNavInner a.test-challenge-link,
   #pageNavInner a.ai-cert-link,
   #pageNavInner a.badge-catalog-link,
+  #pageNavInner a.agents-link,
   #pageNavInner a.meridian-link,
   #pageNavInner a.admin-link {
     display: flex;
@@ -50,9 +53,9 @@
   }
 
   #pageNavInner a.active {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-    box-shadow: inset 3px 0 0 var(--nav-accent);
+    background: rgba(255, 255, 255, 0.94);
+    color: #050505;
+    box-shadow: inset 3px 0 0 #fff;
     outline: 0;
   }
 
@@ -85,24 +88,20 @@
   #pageNavInner a.nav-jds,
   #pageNavInner a.crm-link,
   #pageNavInner a.recordings-link,
+  #pageNavInner a.interviews-link,
+  #pageNavInner a.time-link,
   #pageNavInner a.test-challenge-link,
   #pageNavInner a.ai-cert-link,
   #pageNavInner a.badge-catalog-link,
+  #pageNavInner a.agents-link,
   #pageNavInner a.meridian-link,
   #pageNavInner a.admin-link {
     --nav-accent: var(--primary-3);
   }
 
-  #pageNavInner a.admin-link {
-    background: rgba(255, 255, 255, 0.94);
-    color: #050505;
-  }
-
-  #pageNavInner a.admin-link:hover,
-  #pageNavInner a.admin-link.active {
-    background: #050505;
+  #pageNavInner a.admin-link:hover {
+    background: rgba(255, 255, 255, 0.075);
     color: #fff;
-    box-shadow: inset 3px 0 0 #fff;
   }
 
   .admin-unlock-backdrop {
@@ -194,24 +193,27 @@
     <symbol id="nav-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M3 12h18"></path></symbol>
     <symbol id="nav-crm" viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"></circle><circle cx="17" cy="9" r="2.5"></circle><path d="M3 19a5 5 0 0 1 10 0"></path><path d="M14 19a4 4 0 0 1 7 0"></path></symbol>
     <symbol id="nav-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path><path d="M8 21h8"></path></symbol>
+    <symbol id="nav-interview" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path><circle cx="9" cy="15" r="2"></circle><path d="M13 17a3 3 0 0 0-6 0"></path><path d="M14.5 14h3.5"></path><path d="M14.5 17h2.5"></path></symbol>
+    <symbol id="nav-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></symbol>
     <symbol id="nav-code" viewBox="0 0 24 24"><path d="m8 9-4 3 4 3"></path><path d="m16 9 4 3-4 3"></path><path d="m14 5-4 14"></path></symbol>
     <symbol id="nav-cert" viewBox="0 0 24 24"><path d="M8 3h8l4 4v14H4V3z"></path><path d="M16 3v5h4"></path><path d="M8 11h8"></path><path d="M8 15h5"></path></symbol>
     <symbol id="nav-badge" viewBox="0 0 24 24"><path d="M12 3 19 6v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path><path d="m9 12 2 2 4-5"></path></symbol>
+    <symbol id="nav-agents" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 3v3"></path><path d="M12 18v3"></path><path d="M3 12h3"></path><path d="M18 12h3"></path><path d="m5.6 5.6 2.1 2.1"></path><path d="m16.3 16.3 2.1 2.1"></path><path d="m18.4 5.6-2.1 2.1"></path><path d="m7.7 16.3-2.1 2.1"></path></symbol>
     <symbol id="nav-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="m15 9-2 6-4 2 2-6z"></path></symbol>
     <symbol id="nav-admin" viewBox="0 0 24 24"><path d="M12 3 20 6v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"></path><path d="M9 12h6"></path><path d="M12 9v6"></path></symbol>
   </svg>
-  <a href="find-candidate.html" class="nav-talent" data-menu-key="talent" data-hint="Start here to search profiles, upload resumes, load job descriptions, and scan profile groups."><svg class="nav-icon"><use href="#nav-home"></use></svg>Talent</a>
+  <a href="find-candidate.html" class="nav-talent" data-menu-key="talent" data-hint="Go to the main talent workspace. From there you can upload a resume, search existing profiles, pick a saved job description, and start a candidate shortlist in the current domain."><svg class="nav-icon"><use href="#nav-home"></use></svg>Talent</a>
+  <a href="job-descriptions.html" class="nav-jds" data-menu-key="job_descriptions" data-hint="Manage job descriptions for the active domain only. Saved jobs here are what matching uses when ranking candidates and showing missing skills."><svg class="nav-icon"><use href="#nav-briefcase"></use></svg>Job Descriptions</a>
   <div class="nav-group" aria-label="Candidate mining">
-    <a href="match-role.html" class="nav-find-in" data-menu-key="find_in" data-hint="Rank internal DevReady profiles against the selected job description."><svg class="nav-icon"><use href="#nav-user-search"></use></svg>Find Candidates (In)</a>
-    <a href="mine-candidate-external.html" class="nav-find-out" data-menu-key="find_out" data-hint="Search external sources only when internal candidates do not fit."><svg class="nav-icon"><use href="#nav-search-out"></use></svg>Find Candidates (Out)</a>
+    <a href="match-role.html" class="nav-find-in" data-menu-key="find_in" data-hint="Compare candidates already in this domain against the selected job description, then rank matches and build the shortlist without searching outside the database."><svg class="nav-icon"><use href="#nav-user-search"></use></svg>Find Candidates (In)</a>
+    <a href="mine-candidate-external.html" class="nav-find-out" data-menu-key="find_out" data-hint="Use the outside-search workflow when internal matches are weak. Results come in as temporary profiles so you can review them before adding anything permanent."><svg class="nav-icon"><use href="#nav-search-out"></use></svg>Find Candidates (Out)</a>
   </div>
-  <a href="profile-preview.html" class="nav-profiles" data-menu-key="profiles" data-hint="Open the selected candidate profile for review, edits, badges, and completion actions."><svg class="nav-icon"><use href="#nav-profile"></use></svg>Profiles</a>
-  <a href="job-descriptions.html" class="nav-jds" data-menu-key="job_descriptions" data-hint="Create, upload, load, review, or delete saved job descriptions by domain."><svg class="nav-icon"><use href="#nav-briefcase"></use></svg>Job Descriptions</a>
+  <a href="profile-preview.html" class="nav-profiles" data-menu-key="profiles" data-hint="Open the current candidate profile to inspect resume data, portfolio roles, personality results, badges, public profile status, and missing completion pieces."><svg class="nav-icon"><use href="#nav-profile"></use></svg>Profiles</a>
   <a
     href="crm.html"
     class="crm-link"
     data-menu-key="crm"
-    data-hint="Open the client CRM workspace for meetings, contacts, history, and follow-up."
+    data-hint="Open client and contact records, review interaction history, and prepare follow-up work tied to the current hiring relationship."
     ><svg class="nav-icon"><use href="#nav-crm"></use></svg>CRM</a
   >
   <a
@@ -219,14 +221,28 @@
     href="meet.html"
     class="recordings-link"
     data-menu-key="meet"
-    data-hint="Open meeting recording, notes, AI readouts, and CRM handoff."
+    data-hint="Upload or review meeting recordings, generate notes and summaries, then push the important follow-up details back into the CRM flow."
     ><svg class="nav-icon"><use href="#nav-mic"></use></svg>Meet</a
+  >
+  <a
+    href="schedule-interview.html?interview=ready"
+    class="interviews-link"
+    data-menu-key="interviews"
+    data-hint="Open the interview scheduling step. Start with Candidate Review before client outreach, or switch to Client Interview when the client meeting is ready."
+    ><svg class="nav-icon"><use href="#nav-interview"></use></svg>Interviews</a
+  >
+  <a
+    href="time-admin.html"
+    class="time-link"
+    data-menu-key="time_link"
+    data-hint="Review weekly time submitted through staff time-entry links, total hours by person, and mark entries ready for HR payment processing."
+    ><svg class="nav-icon"><use href="#nav-clock"></use></svg>Time</a
   >
   <a
     href="test-challenge.html"
     class="test-challenge-link"
     data-menu-key="test_challenge"
-    data-hint="Open the candidate technical challenge experience and profile badge flow."
+    data-hint="Send or review a candidate coding challenge, capture the result, and attach the outcome as evidence on the candidate profile."
     ><svg class="nav-icon"><use href="#nav-code"></use></svg>Test Challenge</a
   >
   <div class="nav-group cert-nav-group" aria-label="Certification badges">
@@ -234,31 +250,38 @@
       href="ai-cert.html"
       class="ai-cert-link"
       data-menu-key="ai_cert"
-      data-hint="Open AI certification testing and badge capture."
+      data-hint="Launch the AI certification test for the current domain and save the passed badge back to the candidate profile."
       ><svg class="nav-icon"><use href="#nav-cert"></use></svg>Get AI Certified</a
     >
     <a
       href="badge-catalog.html"
       class="badge-catalog-link"
       data-menu-key="badges"
-      data-hint="View role-based certification badge paths and pick the exact badge test."
+      data-hint="Browse the badge catalog by role and level, then choose the exact certification path the candidate should attempt."
       ><svg class="nav-icon"><use href="#nav-badge"></use></svg>View Badges</a
     >
   </div>
+  <a
+    href="agents.html"
+    class="agents-link"
+    data-menu-key="agents"
+    data-hint="Unlock protected Numa/page-agent administration with the Administrator password."
+    ><svg class="nav-icon"><use href="#nav-agents"></use></svg>Agents</a
+  >
   <a
     href="https://meridian-mvp-production.up.railway.app/"
     target="_blank"
     rel="noopener"
     class="meridian-link"
     data-menu-key="meridian"
-    data-hint="Open Meridian in a separate tab."
+    data-hint="Open the separate Meridian app in a new browser tab. This leaves VETCODE running and does not change the current candidate or job context."
     ><svg class="nav-icon"><use href="#nav-compass"></use></svg>Meridian</a
   >
   <a
     href="admin.html"
     class="admin-link"
     data-menu-key="admin"
-    data-hint="Manage users, candidate access, menu permissions, and login information."
+    data-hint="Create and edit user accounts, decide which menu items each user can see, block access, and manage candidate login details."
     ><svg class="nav-icon"><use href="#nav-admin"></use></svg>Admin</a
   >
 </nav>
@@ -364,6 +387,11 @@
   });
 
   document.querySelector("#pageNavInner .admin-link")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    unlockAdminFor(event.currentTarget.href);
+  });
+
+  document.querySelector("#pageNavInner .agents-link")?.addEventListener("click", (event) => {
     event.preventDefault();
     unlockAdminFor(event.currentTarget.href);
   });

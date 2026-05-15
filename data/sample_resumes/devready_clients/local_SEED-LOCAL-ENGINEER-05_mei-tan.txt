@@ -1,0 +1,20 @@
+Mei Tan
+Semiconductor Facilities Engineer
+mei.tan.local.05@seed.buildready.example
+Boise, ID
+
+SUMMARY
+Synthetic DevReady Engineering example for Semiconductor. Mei Tan has client-facing experience helping NanoFab Systems with: Coordinate fab utility expansion while maintaining uptime.
+
+SKILLS
+AutoCAD, Change Control, Cleanroom, HVAC, Quality controls, Safety, Tool Install, UPW
+
+EXPERIENCE
+Semiconductor Facilities Engineer | NanoFab Systems | 2021 - Present
+Led semiconductor delivery work focused on coordinate fab utility expansion while maintaining uptime.
+
+CERTIFICATION
+AI / ML L3 - Foundations | certified | 91% | SEED-LOCAL-ENGINEER-05-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

@@ -1,0 +1,20 @@
+Gabe Lin
+Process Improvement Engineer
+gabe.lin.local.10@seed.buildready.example
+Portland, OR
+
+SUMMARY
+Synthetic DevReady Engineering example for Food Manufacturing. Gabe Lin has client-facing experience helping HarborFoods Manufacturing with: Improve packaging throughput while preserving food safety controls.
+
+SKILLS
+CAPA, Lean, OEE, Packaging Lines, Process Validation, Quality controls, Safety, Six Sigma
+
+EXPERIENCE
+Process Improvement Engineer | HarborFoods Manufacturing | 2022 - Present
+Led food manufacturing delivery work focused on improve packaging throughput while preserving food safety controls.
+
+CERTIFICATION
+AI / ML L2 - Foundations | certified | 86% | SEED-LOCAL-ENGINEER-10-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

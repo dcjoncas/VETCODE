@@ -47,6 +47,8 @@
       profile.firstName + " " + profile.lastName,
     );
     sessionStorage.setItem("candidateStatus", profile.step);
+    sessionStorage.setItem("candidateEmail", profile.email || "");
+    sessionStorage.setItem("candidateDomain", sessionStorage.getItem("domain") || "dev");
 
     window.location.href = "profile-preview.html";
   }

@@ -1,0 +1,17 @@
+Riley Morgan
+Controls and Automation Engineer
+riley.morgan.sample@buildready.example
+Denver, CO
+
+SUMMARY
+Controls engineer focused on PLC upgrades, plant-floor reliability, commissioning, and practical operator adoption.
+
+SKILLS
+Azure IoT, Commissioning, FAT, Git, Ignition, Industrial APIs, MES integration, OEE analysis, OT network segmentation, PLC, Power BI, Process controls, Python, Rockwell, SAT, SCADA, SCADA trends, Structured Text
+
+EXPERIENCE
+Senior Controls Engineer | ForgeLine Fabrication | 2021-03 - Present
+Led controls modernization for three production lines, improving uptime and standardizing commissioning playbooks.
+
+NOTE
+Synthetic sample resume for VETCODE development/testing only.

@@ -1,0 +1,20 @@
+Elena Cruz
+Automotive Quality Engineer
+elena.cruz.local.07@seed.buildready.example
+Detroit, MI
+
+SUMMARY
+Synthetic DevReady Engineering example for Automotive. Elena Cruz has client-facing experience helping Velocity Motors with: Improve launch quality and supplier issue closure speed.
+
+SKILLS
+8D, APQP, IATF 16949, Metrology, PPAP, Quality controls, Safety, Supplier Quality
+
+EXPERIENCE
+Automotive Quality Engineer | Velocity Motors | 2023 - Present
+Led automotive delivery work focused on improve launch quality and supplier issue closure speed.
+
+CERTIFICATION
+AI / ML L2 - Foundations | certified | 93% | SEED-LOCAL-ENGINEER-07-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

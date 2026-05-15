@@ -1,0 +1,20 @@
+Jordan Ellis
+Litigation Support Specialist
+jordan.ellis.local.02@seed.legalready.example
+Washington, DC
+
+SUMMARY
+Synthetic DevReady Law example for Litigation. Jordan Ellis has client-facing experience helping Civic Rights Alliance with: Prepare review workflows for multi-party litigation.
+
+SKILLS
+Casepoint, Privilege Review, Production Logs, QC Sampling, Relativity, eDiscovery
+
+EXPERIENCE
+Litigation Support Specialist | Civic Rights Alliance | 2022 - Present
+Led litigation delivery work focused on prepare review workflows for multi-party litigation.
+
+CERTIFICATION
+AI / ML L3 - Foundations | certified | 88% | SEED-LOCAL-LAW-02-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

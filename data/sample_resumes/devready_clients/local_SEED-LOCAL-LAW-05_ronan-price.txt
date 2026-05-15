@@ -1,0 +1,20 @@
+Ronan Price
+FinTech Regulatory Analyst
+ronan.price.local.05@seed.legalready.example
+New York, NY
+
+SUMMARY
+Synthetic DevReady Law example for Financial Services. Ronan Price has client-facing experience helping LedgerPeak Bank with: Track regulatory obligations and testing evidence.
+
+SKILLS
+AML, Controls Testing, Issue Tracking, KYC, Regulatory Change, Reporting
+
+EXPERIENCE
+FinTech Regulatory Analyst | LedgerPeak Bank | 2021 - Present
+Led financial services delivery work focused on track regulatory obligations and testing evidence.
+
+CERTIFICATION
+AI / ML L3 - Foundations | certified | 91% | SEED-LOCAL-LAW-05-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

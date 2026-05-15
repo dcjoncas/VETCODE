@@ -1,0 +1,20 @@
+Iris Monroe
+Logistics Systems Analyst
+iris.monroe.local.05@seed.devready.example
+Memphis, TN
+
+SUMMARY
+Synthetic DevReady Technology example for Supply Chain. Iris Monroe has client-facing experience helping RouteForge Logistics with: Unify shipment exception signals across carrier systems.
+
+SKILLS
+API Integration, EDI, Power BI, Process Mining, Production readiness, Python, SQL, UAT
+
+EXPERIENCE
+Logistics Systems Analyst | RouteForge Logistics | 2021 - Present
+Led supply chain delivery work focused on unify shipment exception signals across carrier systems.
+
+CERTIFICATION
+AI / ML L3 - Foundations | certified | 91% | SEED-LOCAL-DEV-05-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

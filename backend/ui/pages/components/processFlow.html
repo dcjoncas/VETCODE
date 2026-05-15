@@ -33,6 +33,59 @@
     color: var(--primary, #145837);
   }
 
+  #processFlow .step.on,
+  #processFlow .split-step-link.on,
+  #processFlow .schedule-split-link.on,
+  #processFlow .split-step-branch.on {
+    border-color: var(--primary, #145837);
+    background: var(--primary, #145837);
+    color: #fff;
+    box-shadow: 0 6px 14px rgba(var(--primary-rgb, 20, 88, 55), 0.22);
+  }
+
+  #processFlow .step.on::after,
+  #processFlow .split-step-link.on::after,
+  #processFlow .schedule-split-link.on::after {
+    content: "Current";
+    margin-left: 7px;
+    border-radius: 999px;
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 900;
+  }
+
+  #processFlow .step.complete,
+  #processFlow .split-step-link.complete,
+  #processFlow .schedule-split-link.complete {
+    border-color: rgba(var(--primary-rgb, 20, 88, 55), 0.34);
+    background: rgba(var(--primary-rgb, 20, 88, 55), 0.09);
+    color: var(--primary, #145837);
+  }
+
+  #processFlow .step.complete::before,
+  #processFlow .split-step-link.complete::before,
+  #processFlow .schedule-split-link.complete::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    margin-right: 6px;
+    background: var(--primary, #145837);
+  }
+
+  #processFlow .split-step:has(.complete),
+  #processFlow .schedule-split-step:has(.complete) {
+    border-color: rgba(var(--primary-rgb, 20, 88, 55), 0.34);
+  }
+
+  #processFlow .split-step:has(.on),
+  #processFlow .schedule-split-step:has(.on) {
+    border-color: var(--primary, #145837);
+    box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb, 20, 88, 55), 0.12);
+  }
+
   #processFlow .map-node.schedule-map-node {
     min-width: 220px;
   }
@@ -56,6 +109,28 @@
     font-size: 11px;
     font-weight: 800;
   }
+
+  #processFlow .step.next:not(.on),
+  #processFlow .split-step-link.next:not(.on),
+  #processFlow .schedule-split-link.next:not(.on) {
+    border-color: var(--primary, #145837);
+    background: rgba(255, 255, 255, 0.96);
+    color: var(--primary, #145837);
+    box-shadow: inset 0 0 0 2px var(--primary-soft, rgba(141, 202, 100, 0.18));
+  }
+
+  #processFlow .step.next:not(.on)::after,
+  #processFlow .split-step-link.next:not(.on)::after,
+  #processFlow .schedule-split-link.next:not(.on)::after {
+    content: "Next";
+    margin-left: 7px;
+    border-radius: 999px;
+    padding: 2px 6px;
+    background: var(--primary-soft, rgba(141, 202, 100, 0.18));
+    color: var(--primary, #145837);
+    font-size: 10px;
+    font-weight: 900;
+  }
 </style>
 
 <div class="card process-flow-card">
@@ -66,7 +141,7 @@
         class="process-link-button"
         type="button"
         onclick="toggleProcessFlow()"
-        data-hint="Expand this only when you need to see the full workflow rail."
+        data-hint="Show or hide the full workflow map. Collapse it when you need more screen space; expand it when you want to jump between steps."
         title="Show or hide the workflow steps"
       >
         Process Flow
@@ -79,7 +154,7 @@
         id="domainSelect"
         class="process-domain-select"
         onchange="domainSwap()"
-        data-hint="Choose the active workspace domain. This clears the current process trail so data does not cross domains."
+        data-hint="Switch between DevReady, LegalReady, and BuildReady. The page reloads with that domain so candidates, jobs, resumes, and certifications do not bleed across workspaces."
       >
         <option value="dev">Technology Domain</option>
         <option value="engineer">Engineer Domain</option>
@@ -90,7 +165,7 @@
         class="process-hint-toggle hint-toggle"
         type="button"
         onclick="toggleGlobalHints()"
-        data-hint="Turn guidance notes and hover tips on or off across the workspace."
+        data-hint="Enable or disable the helper overlays. Turning this off hides hover explanations and guidance notes without changing any candidate or job data."
         title="Toggle guidance hints"
       >
         Hints On
@@ -99,7 +174,7 @@
         class="process-map-button"
         type="button"
         onclick="openProcessMap()"
-        data-hint="Open a larger you-are-here map of the full workflow."
+        data-hint="Open a larger workflow map that shows the current step, the selected candidate, the selected job, and where you are in the vetting process."
         title="Open the process map"
       >
         Map
@@ -108,7 +183,7 @@
         class="process-clear-button"
         type="button"
         onclick="clearProcessTrail()"
-        data-hint="Clear selected candidate, job, shortlist, and scheduling context for a fresh workflow."
+        data-hint="Reset the current workflow selections. This clears the candidate, job, shortlist, and scheduling context from the browser session but does not delete database records."
         title="Start the workflow over"
       >
         Start over
@@ -120,25 +195,25 @@
       Start in Talent. Use Find (Out) only when no internal candidate fits.
     </div>
     <div class="flow">
-      <a class="step" href="find-candidate.html" data-hint="Start here for resume upload, profile search, job descriptions, and discovery.">1 - Talent</a>
+      <a class="step" data-flow-step="talent" href="find-candidate.html" data-hint="Start a talent workflow: upload a resume, find an existing profile, choose a job description, or scan profile groups inside the current domain.">1 - Talent</a>
       <span class="flow-arrow" aria-hidden="true"></span>
       <div class="split-step" aria-label="Step 2 candidate search">
-        <a class="split-step-link split-step-main" href="match-role.html" data-hint="Use saved job descriptions to rank internal DevReady candidates.">2 - Find (In)</a>
-        <a class="split-step-link split-step-branch" href="mine-candidate-external.html" data-hint="Fallback branch: search external sources if no internal candidate fits." title="Use if no candidate found internally">2* - Find (Out)</a>
+        <a class="split-step-link split-step-main" data-flow-step="find-in" href="match-role.html" data-hint="Run the internal match workflow. It uses the selected job description to score saved profiles and identify fit gaps before shortlisting.">2 - Find (In)</a>
+        <a class="split-step-link split-step-branch" data-flow-step="find-out" href="mine-candidate-external.html" data-hint="Use outside sourcing only after internal matches are not enough. External results stay temporary until reviewed and accepted." title="Use if no candidate found internally">2* - Find (Out)</a>
       </div>
       <span class="flow-arrow" aria-hidden="true"></span>
-      <a class="step" href="profile-preview.html" data-hint="Review and shape the candidate profile before communication.">3 - Profile build</a>
+      <a class="step" data-flow-step="profile" href="profile-preview.html" data-hint="Review the selected profile, fill missing resume/personality/culture pieces, edit portfolio details, and confirm it is ready to share.">3 - Profile build</a>
       <span class="flow-arrow" aria-hidden="true"></span>
-      <a class="step" href="candidate-chat.html" data-hint="Send or review the AI chat used to complete candidate context.">4 - Candidate chat</a>
+      <a class="step" data-flow-step="candidate-chat" href="candidate-chat.html" data-hint="Create or review the candidate AI chat link. Answers from the chat complete personality context and update the candidate profile.">4 - Candidate chat</a>
       <span class="flow-arrow" aria-hidden="true"></span>
-      <a class="step" href="client-comm.html" data-hint="Prepare client-facing notes and candidate messaging.">5 - Client comms</a>
+      <a class="step" data-flow-step="shortlist" href="client-comm.html" data-hint="Manage the candidate shortlist for client review: first conduct the candidate review, then prepare the message, attach profile links, and send it when ready.">5 - Shortlist</a>
       <span class="flow-arrow" aria-hidden="true"></span>
       <div class="schedule-split-step" aria-label="Step 6 interview scheduling">
-        <a class="schedule-split-link" href="schedule-interview.html?interview=ready" data-hint="Schedule a Ready Interview for DevReady vetting, readiness, or community intake.">6A - Ready Interview</a>
-        <a class="schedule-split-link" href="schedule-interview.html?interview=client" data-hint="Schedule a Client Interview tied to client attendees and role status.">6B - Client Interview</a>
+        <a class="schedule-split-link" data-flow-step="candidate-review" href="schedule-interview.html?interview=ready" data-hint="Schedule a candidate review touch base before client outreach. Confirm interest in the job, activities, gaps, pay/timing, and next steps.">6A - Candidate Review</a>
+        <a class="schedule-split-link" data-flow-step="client-interview" href="schedule-interview.html?interview=client" data-hint="Schedule the client interview using the selected candidate, job, attendees, and role context so status tracking stays connected.">6B - Client Interview</a>
       </div>
       <span class="flow-arrow" aria-hidden="true"></span>
-      <a class="step" href="status-tracker.html" data-hint="Track sent messages, follow-ups, resends, and current status.">7 - Status</a>
+      <a class="step" data-flow-step="status" href="status-tracker.html" data-hint="Track where the candidate stands after outreach: messages sent, interview status, follow-ups, resends, and next action needed.">7 - Status</a>
     </div>
   </div>
 </div>
@@ -187,16 +262,16 @@
       <div class="map-arrow"></div>
       <a class="map-node" data-map-path="client-comm.html" href="client-comm.html">
         <span>5</span>
-        <strong>Client Comms</strong>
-        <small>Prepare client-facing notes and outreach.</small>
+        <strong>Shortlist</strong>
+        <small>Prepare the client email, attach profiles, and send the shortlist for review.</small>
       </a>
       <div class="map-arrow"></div>
       <a class="map-node schedule-map-node" data-map-path="schedule-interview.html" href="schedule-interview.html">
         <span>6</span>
         <strong>Interview Scheduling</strong>
-        <small>Ready Interview or Client Interview. Tracking is saved automatically.</small>
+        <small>Candidate Review or Client Interview. Tracking is saved automatically.</small>
         <div class="map-split-actions" aria-hidden="true">
-          <span>Ready</span>
+          <span>Review</span>
           <span>Client</span>
         </div>
       </a>
@@ -214,25 +289,120 @@
 
 <script>
   const currentProcessPath = window.location.pathname.replace(/\/$/, "");
-  const processLinks = document.querySelectorAll("#processFlow a");
-
-  processLinks.forEach((link) => {
-    if (link.classList.contains("schedule-split-link")) return;
-    const linkPath = new URL(link.href).pathname.replace(/\/$/, "");
-
-    if (currentProcessPath === linkPath) {
-      link.classList.add("on");
-    }
-  });
-
   const processParams = new URLSearchParams(window.location.search);
-  const activeInterview = processParams.get("interview") || sessionStorage.getItem("scheduleInterviewType") || "";
-  document.querySelectorAll("#processFlow .schedule-split-link").forEach((link) => {
-    const linkUrl = new URL(link.href);
-    if (currentProcessPath === linkUrl.pathname.replace(/\/$/, "") && linkUrl.searchParams.get("interview") === activeInterview) {
-      link.classList.add("on");
+  const isJobDescriptionsPage = currentProcessPath.endsWith("/job-descriptions.html");
+  const activeInterview = (
+    processParams.get("interview") ||
+    processParams.get("purpose") ||
+    sessionStorage.getItem("scheduleInterviewType") ||
+    ""
+  ).toLowerCase();
+  const flowOrder = [
+    "talent",
+    "job-descriptions",
+    "find-in",
+    "profile",
+    "candidate-chat",
+    "shortlist",
+    "candidate-review",
+    "client-interview",
+    "status",
+  ];
+  const flowNextByStep = {
+    talent: isJobDescriptionsPage ? "job-descriptions" : "find-in",
+    "job-descriptions": "",
+    "find-in": "profile",
+    "find-out": "profile",
+    profile: "candidate-chat",
+    "candidate-chat": "shortlist",
+    shortlist: "candidate-review",
+    "candidate-review": "client-interview",
+    "client-interview": "status",
+  };
+  const currentFlowStep = (() => {
+    if (currentProcessPath.endsWith("/find-candidate.html")) return "talent";
+    if (currentProcessPath.endsWith("/job-descriptions.html")) return "job-descriptions";
+    if (currentProcessPath.endsWith("/match-role.html")) return "find-in";
+    if (currentProcessPath.endsWith("/mine-candidate-external.html")) return "find-out";
+    if (currentProcessPath.endsWith("/profile-preview.html")) return "profile";
+    if (currentProcessPath.endsWith("/profile-preview-edit.html")) return "profile";
+    if (currentProcessPath.endsWith("/profile-public.html")) return "profile";
+    if (currentProcessPath.endsWith("/profile-search-results.html")) return "profile";
+    if (currentProcessPath.endsWith("/candidate-chat.html")) return "candidate-chat";
+    if (currentProcessPath.endsWith("/external-chat.html")) return "candidate-chat";
+    if (currentProcessPath.endsWith("/client-comm.html")) return "shortlist";
+    if (currentProcessPath.endsWith("/schedule-interview.html")) {
+      return activeInterview === "client" || activeInterview === "role" ? "client-interview" : "candidate-review";
     }
+    if (currentProcessPath.endsWith("/status-tracker.html")) return "status";
+    return "";
+  })();
+
+  function applyJobDescriptionFlowMode() {
+    if (!isJobDescriptionsPage) return;
+    const help = document.querySelector("#processExpanded .flow-help");
+    const flow = document.querySelector("#processExpanded .flow");
+    const mapSubtitle = document.querySelector("#processMapOverlay .process-map-subtitle");
+    const map = document.querySelector("#processMapOverlay .process-map");
+    if (help) {
+      help.textContent = "Use Talent to choose the domain and context, then manage job descriptions for that workspace.";
+    }
+    if (flow) {
+      flow.innerHTML = `
+        <a class="step complete" data-flow-step="talent" href="find-candidate.html" data-hint="Return to Talent to choose the domain, upload resumes, search profiles, or start a candidate workflow.">1 - Talent</a>
+        <span class="flow-arrow" aria-hidden="true"></span>
+        <a class="step on" data-flow-step="job-descriptions" href="job-descriptions.html" data-hint="Create, upload, normalize, edit, and select saved job descriptions for the active domain.">2 - Job Descriptions</a>
+      `;
+    }
+    if (mapSubtitle) {
+      mapSubtitle.textContent = "Job Descriptions is a setup step from Talent: save role requirements here, then return to matching when ready.";
+    }
+    if (map) {
+      map.innerHTML = `
+        <a class="map-node" data-map-path="find-candidate.html" href="find-candidate.html">
+          <span>1</span>
+          <strong>Talent</strong>
+          <small>Select the active domain, candidate context, or starting point.</small>
+        </a>
+        <div class="map-arrow"></div>
+        <a class="map-node here" data-map-path="job-descriptions.html" href="job-descriptions.html" aria-current="page">
+          <span>2</span>
+          <strong>Job Descriptions</strong>
+          <small>Save, edit, and select role descriptions without leaving the page margins.</small>
+        </a>
+      `;
+    }
+  }
+
+  applyJobDescriptionFlowMode();
+
+  function paintProcessStep(step, className) {
+    document.querySelectorAll(`#processFlow [data-flow-step="${step}"]`).forEach((link) => {
+      link.classList.add(className);
+      if (className === "on") {
+        link.setAttribute("aria-current", "step");
+      }
+    });
+  }
+
+  document.querySelectorAll("#processFlow [data-flow-step]").forEach((link) => {
+    link.classList.remove("on", "complete", "next");
+    link.removeAttribute("aria-current");
   });
+
+  if (currentFlowStep) {
+    const currentIndex = flowOrder.indexOf(currentFlowStep);
+    flowOrder.slice(0, Math.max(currentIndex, 0)).forEach((step) => paintProcessStep(step, "complete"));
+    if (currentFlowStep === "find-out") {
+      paintProcessStep("talent", "complete");
+    }
+    paintProcessStep(currentFlowStep, "on");
+  }
+
+  const nextFlowStep = flowNextByStep[currentFlowStep] || "";
+  if (nextFlowStep) {
+    paintProcessStep(nextFlowStep, "next");
+  }
 
   function openProcessMap() {
     document.getElementById("processMapOverlay").hidden = false;

@@ -1,0 +1,20 @@
+Ari Santos
+Energy Data Product Manager
+ari.santos.local.07@seed.devready.example
+Houston, TX
+
+SUMMARY
+Synthetic DevReady Technology example for Energy. Ari Santos has client-facing experience helping GridSpring Energy with: Prioritize analytics for field asset performance and outage prevention.
+
+SKILLS
+Agile, Azure, IoT Analytics, Power BI, Product Strategy, Production readiness, SQL, UAT
+
+EXPERIENCE
+Energy Data Product Manager | GridSpring Energy | 2023 - Present
+Led energy delivery work focused on prioritize analytics for field asset performance and outage prevention.
+
+CERTIFICATION
+AI / ML L2 - Foundations | certified | 93% | SEED-LOCAL-DEV-07-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

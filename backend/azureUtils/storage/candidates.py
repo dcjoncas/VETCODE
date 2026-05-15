@@ -1,20 +1,28 @@
 from pydantic import BaseModel
 from fastapi import HTTPException
+import time
 import azureUtils.storage.client as client
 import azureUtils.storage.processingFunctions as processing
 from azureUtils.storage.jobs import getJob
 from jd_match import azureJobMatch
 from openAI import engineeringSurvey
 
+_COUNT_CACHE_TTL_SECONDS = 30
+_count_candidates_all_cache = {}
+
 def _sync_identity_sequence(cur, table: str, column: str = "id"):
     allowed_tables = {
         "person",
         "address",
+        "skill",
         "professional",
         "professionalprofile",
         "professionalexperience",
+        "portfoliofeature",
         "platformactivity",
         "professionalculturalexperience",
+        "professionalskill",
+        "resumeskill",
     }
     if table not in allowed_tables:
         return
@@ -52,6 +60,199 @@ def getSkills():
         })
     
     return skills
+
+def _resolve_skill_id(cur, skill_title: str):
+    clean_title = (skill_title or "").strip()
+    if not clean_title:
+        return None
+    cur.execute(
+        """
+        SELECT id
+        FROM skill
+        WHERE title ILIKE %s
+        ORDER BY CASE WHEN LOWER(title) = LOWER(%s) THEN 0 ELSE 1 END, LENGTH(title)
+        LIMIT 1
+        """,
+        (f"%{clean_title}%", clean_title),
+    )
+    row = cur.fetchone()
+    if row:
+        return row[0]
+    _sync_identity_sequence(cur, "skill")
+    cur.execute(
+        "INSERT INTO skill (title, description, type, active) VALUES (%s, %s, %s, %s) RETURNING id",
+        (clean_title, clean_title, 1, True),
+    )
+    created = cur.fetchone()
+    return created[0] if created else None
+
+def _portfolio_bool(raw_value):
+    if isinstance(raw_value, bool):
+        return raw_value
+    return str(raw_value or "").strip().lower() in {"true", "yes", "1", "present", "current"}
+
+def _portfolio_int(raw_value):
+    if raw_value in (None, ""):
+        return None
+    try:
+        return int(raw_value)
+    except (TypeError, ValueError):
+        return None
+
+def _insert_portfolio_experience(cur, profile_id: int, experience: dict):
+    startDate = _portfolio_int(experience.get("startDate"))
+    finishDate = _portfolio_int(experience.get("finishDate"))
+    isPresent = _portfolio_bool(experience.get("isPresent"))
+
+    _sync_identity_sequence(cur, "professionalexperience")
+    if finishDate:
+        query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, finishdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id"
+        cur.execute(
+            query,
+            (
+                profile_id,
+                experience.get("description") or "",
+                experience.get("mainRole") or "",
+                experience.get("companyName") or "",
+                startDate,
+                finishDate,
+                isPresent,
+            ),
+        )
+    else:
+        query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id"
+        cur.execute(
+            query,
+            (
+                profile_id,
+                experience.get("description") or "",
+                experience.get("mainRole") or "",
+                experience.get("companyName") or "",
+                startDate,
+                isPresent,
+            ),
+        )
+    experienceId = cur.fetchone()[0]
+
+    inserted_skill_ids = set()
+    for skillTitle in experience.get("skills") or []:
+        skillId = _resolve_skill_id(cur, skillTitle)
+        if skillId and skillId not in inserted_skill_ids:
+            inserted_skill_ids.add(skillId)
+            cur.execute(
+                "INSERT INTO portfolioskill (professionalexperienceid, skillid) VALUES (%s, %s)",
+                (experienceId, skillId),
+            )
+
+    for feature in experience.get("features") or []:
+        featureTitle = str(feature or "").strip()
+        if featureTitle:
+            _sync_identity_sequence(cur, "portfoliofeature")
+            cur.execute(
+                "INSERT INTO portfoliofeature (professionalexperienceid, title) VALUES (%s, %s)",
+                (experienceId, featureTitle),
+            )
+
+def replaceCandidatePortfolio(personId: str, portfolio: list[dict]):
+    portfolio = portfolio or []
+    conn = client.getConnection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            SELECT profper.id
+            FROM professionalprofile profper
+            JOIN professional prof ON profper.professionalid = prof.id
+            WHERE prof.personid = %s
+            ORDER BY profper.id DESC
+            LIMIT 1
+            """,
+            (personId,),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise ValueError(f"No professional profile found for person {personId}")
+        profile_id = row[0]
+
+        cur.execute("SELECT id FROM professionalexperience WHERE profileid = %s", (profile_id,))
+        experience_ids = [item[0] for item in cur.fetchall()]
+        if experience_ids:
+            cur.execute("DELETE FROM portfolioskill WHERE professionalexperienceid = ANY(%s)", (experience_ids,))
+            cur.execute("DELETE FROM portfoliofeature WHERE professionalexperienceid = ANY(%s)", (experience_ids,))
+            cur.execute("DELETE FROM professionalexperience WHERE id = ANY(%s)", (experience_ids,))
+
+        for experience in portfolio:
+            if not isinstance(experience, dict):
+                continue
+            has_content = any(
+                str(experience.get(key) or "").strip()
+                for key in ("companyName", "mainRole", "description")
+            )
+            if has_content:
+                _insert_portfolio_experience(cur, profile_id, experience)
+
+        conn.commit()
+        return {"status": "success", "count": len(portfolio)}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+def replaceCandidateSkills(personId: str, skills: list[dict]):
+    skills = skills or []
+    conn = client.getConnection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            SELECT profper.id
+            FROM professionalprofile profper
+            JOIN professional prof ON profper.professionalid = prof.id
+            WHERE prof.personid = %s
+            ORDER BY profper.id DESC
+            LIMIT 1
+            """,
+            (personId,),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise ValueError(f"No professional profile found for person {personId}")
+        profile_id = row[0]
+
+        cur.execute("DELETE FROM resumeskill WHERE profileid = %s", (profile_id,))
+        cur.execute("DELETE FROM professionalskill WHERE profileid = %s", (profile_id,))
+
+        seen = set()
+        for skill in skills:
+            title = (skill.get("title") if isinstance(skill, dict) else skill) or ""
+            title = str(title).strip()
+            if not title or title.lower() in seen:
+                continue
+            seen.add(title.lower())
+            skill_id = _resolve_skill_id(cur, title)
+            if not skill_id:
+                continue
+            try:
+                years = int(skill.get("years") or 1) if isinstance(skill, dict) else 1
+            except (TypeError, ValueError):
+                years = 1
+            years = max(1, min(years, 40))
+            _sync_identity_sequence(cur, "resumeskill")
+            cur.execute("INSERT INTO resumeskill (profileid, skillid) VALUES (%s, %s)", (profile_id, skill_id))
+            _sync_identity_sequence(cur, "professionalskill")
+            cur.execute(
+                "INSERT INTO professionalskill (profileid, skillid, years) VALUES (%s, %s, %s)",
+                (profile_id, skill_id, years),
+            )
+
+        conn.commit()
+        return {"updated": True, "profileid": profile_id, "skills": len(seen)}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 def searchSkills(searchQuery: str):
     conn = client.getConnection()
@@ -150,29 +351,115 @@ def countCandidatesStatus(domain: str = 'all'):
     return resultsObject
 
 def countCandidatesAll(domain: str = 'all'):
-    totalCount = countCandidates(domain)
-    recentCount = countCandidatesRecent(domain)
-    statusCounts = countCandidatesStatus(domain)
-    profiles = listProfilesAlphabetical(domain)
-    completed_profiles = [profile for profile in profiles if profile.get("hasProfile")]
-    incomplete_profiles = [profile for profile in profiles if not profile.get("hasProfile")]
-    stack_counts = {}
-    title_counts = {}
-    for profile in completed_profiles:
-        stack = profile.get("primaryStack") or "Other"
-        title = profile.get("titleGroup") or "Title to be confirmed"
-        stack_counts[stack] = stack_counts.get(stack, 0) + 1
-        title_counts[title] = title_counts.get(title, 0) + 1
+    normalized_domain = domain or "all"
+    now = time.monotonic()
+    cached = _count_candidates_all_cache.get(normalized_domain)
+    if cached and now - cached["created_at"] < _COUNT_CACHE_TTL_SECONDS:
+        return cached["value"]
 
-    return {
-        "total": totalCount,
-        "recent": recentCount,
-        "completedProfiles": len(completed_profiles),
-        "incompleteProfiles": len(incomplete_profiles),
-        "statusCounts": statusCounts,
-        "stackCounts": stack_counts,
-        "titleCounts": title_counts,
-    }
+    conn = client.getConnection()
+    cur = conn.cursor()
+    try:
+        where_parts = []
+        params = []
+        if normalized_domain != "all":
+            where_parts.append("person.domain = %s")
+            params.append(normalized_domain)
+        where_sql = f"WHERE {' AND '.join(where_parts)}" if where_parts else ""
+
+        cur.execute(
+            f"""
+            SELECT
+                COUNT(DISTINCT person.id) AS total_count,
+                COUNT(DISTINCT person.id) FILTER (
+                    WHERE professional.modifieddate >= CURRENT_DATE - INTERVAL '7 days'
+                ) AS recent_count,
+                COUNT(DISTINCT person.id) FILTER (WHERE profper.id IS NOT NULL) AS completed_profiles,
+                COUNT(DISTINCT person.id) FILTER (WHERE profper.id IS NULL) AS incomplete_profiles
+            FROM person
+            LEFT JOIN professional ON person.id = professional.personid
+            LEFT JOIN professionalprofile profper ON professional.id = profper.professionalid
+            {where_sql}
+            """,
+            tuple(params),
+        )
+        total_count, recent_count, completed_profiles, incomplete_profiles = cur.fetchone()
+
+        cur.execute(
+            f"""
+            SELECT professional.status, COUNT(DISTINCT person.id) AS count
+            FROM person
+            JOIN professional ON person.id = professional.personid
+            {where_sql}
+            GROUP BY professional.status
+            """,
+            tuple(params),
+        )
+        status_counts = {
+            "Draft": 0,
+            "Pending": 0,
+            "Published": 0,
+            "Updated": 0,
+        }
+        for status, count in cur.fetchall():
+            if status == 1:
+                status_counts["Draft"] = count
+            elif status == 2:
+                status_counts["Pending"] = count
+            elif status == 3:
+                status_counts["Published"] = count
+            elif status == 4:
+                status_counts["Updated"] = count
+
+        completed_where = where_parts + ["profper.id IS NOT NULL"]
+        completed_where_sql = f"WHERE {' AND '.join(completed_where)}"
+        cur.execute(
+            f"""
+            SELECT
+                person.id,
+                professional.title,
+                COALESCE(sk.skills, ARRAY[]::text[]) AS skills
+            FROM person
+            JOIN professional ON person.id = professional.personid
+            LEFT JOIN professionalprofile profper ON professional.id = profper.professionalid
+            LEFT JOIN (
+                SELECT profileid, ARRAY_AGG(DISTINCT skill.title) AS skills
+                FROM (
+                    SELECT profileid, skillid FROM professionalskill
+                    UNION
+                    SELECT profileid, skillid FROM resumeskill
+                    UNION
+                    SELECT profileid, skillid FROM techskill
+                ) allskills
+                JOIN skill ON allskills.skillid = skill.id
+                GROUP BY profileid
+            ) sk ON sk.profileid = profper.id
+            {completed_where_sql}
+            """,
+            tuple(params),
+        )
+
+        stack_counts = {}
+        for _, title, skills in cur.fetchall():
+            clean_skills = [skill for skill in (skills or []) if skill]
+            stack = _primary_stack_from_skills(clean_skills, title or "")
+            stack_counts[stack] = stack_counts.get(stack, 0) + 1
+
+        value = {
+            "total": total_count or 0,
+            "recent": recent_count or 0,
+            "completedProfiles": completed_profiles or 0,
+            "incompleteProfiles": incomplete_profiles or 0,
+            "statusCounts": status_counts,
+            "stackCounts": stack_counts,
+        }
+        _count_candidates_all_cache[normalized_domain] = {
+            "created_at": now,
+            "value": value,
+        }
+        return value
+    finally:
+        conn.close()
 
 def _skill_family(skill_title: str):
     lower = (skill_title or "").lower()
@@ -573,17 +860,24 @@ def getProfilePublicUrl(profileId: str):
 def getSurveyId(personId: str):
     conn = client.getConnection()
     cur = conn.cursor()
-
-    # Search for user by firstname, lastname, goesbyname, or email using ILIKE for case-insensitive search
-    # Order by id descending to get the most recent matches first, and limit the number of results
-    query = f"SELECT profsur.id FROM person JOIN professional prof ON person.id = prof.personid JOIN professionalprofile profper ON prof.id = profper.professionalid JOIN professionalsurvey profsur ON profper.id = profsur.profileid WHERE person.id = {personId};"
-    
-    cur.execute(query)
-    result = cur.fetchone()
-
-    conn.close()
-    
-    return result[0]
+    try:
+        cur.execute(
+            """
+            SELECT profsur.id
+            FROM person
+            JOIN professional prof ON person.id = prof.personid
+            JOIN professionalprofile profper ON prof.id = profper.professionalid
+            JOIN professionalsurvey profsur ON profper.id = profsur.profileid
+            WHERE person.id = %s
+            ORDER BY profsur.id DESC
+            LIMIT 1
+            """,
+            (personId,),
+        )
+        result = cur.fetchone()
+        return result[0] if result else None
+    finally:
+        conn.close()
 
 def searchCandidatesByNameEmail(query: str, limit: int = 5, domain: str = 'all'):
     conn = client.getConnection()
@@ -870,6 +1164,8 @@ def getProfile(profileId: str):
     portfolioSkillArray = []
 
     for row in portfolioSkillResult:
+        if not any(row[i] is not None for i in range(0, 7)):
+            continue
         portfolioSkillInnerArray = []
 
         if len(row[7]) > 0:
@@ -951,7 +1247,10 @@ def getProfilePublic(profileUrl: str):
     result = cur.fetchone()
 
     if result:
-        return getProfile(result[0])
+        profile = getProfile(result[0])
+        if isinstance(profile, dict):
+            profile["domain"] = getCandidateDomain(result[0])
+        return profile
     else:
         raise Exception("Profile not found")
     
@@ -1021,14 +1320,22 @@ def getProfileShortScore(jobId: str, profileIds: list[str], domain: str = "dev")
             if row[1] in jobSkillIds:
                 skillArray.append(row[0])
 
-        score = round(len(list(set(skillArray))) / len(jobSkills) * 100)
+        matched_skills = list(set(skillArray))
+        matched_lookup = {str(skill).lower() for skill in matched_skills}
+        missing_skills = [
+            skill for skill in jobSkills
+            if str(skill).lower() not in matched_lookup
+        ]
+        score = round(len(matched_skills) / len(jobSkills) * 100)
 
         resultSet.append({
             'id': profile,
             'firstName': results[0],
             'lastName': results[1],
             'status':processing.stepProcessingOverall(results[2]),
-            'skills':skillArray,
+            'skills': matched_skills,
+            'missingSkills': missing_skills,
+            'requiredSkills': jobSkills,
             'score': score,
             'email': results[3]
         })
@@ -1046,7 +1353,7 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, domain
 
     fullName = " ".join((fullName or "Candidate").split()) or "Candidate"
     linkedInUrl = linkedInUrl or ""
-    email = email or ""
+    email = str(email or "").strip() or None
     candidateDescription = candidateDescription or "Resume generated profile."
     culturalExperiences = culturalExperiences or []
     portfolioExperiences = portfolioExperiences or []
@@ -1092,34 +1399,20 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, domain
     query = "INSERT INTO platformactivity (profileid, step, result, date) VALUES (%s, 1, 1, NOW()) RETURNING id"
     cur.execute(query, (professionalprofileId,))
 
-    def _resolve_skill_id(skill_title: str):
-        clean_title = (skill_title or "").strip()
-        if not clean_title:
-            return None
-        cur.execute(
-            """
-            SELECT id
-            FROM skill
-            WHERE title ILIKE %s
-            ORDER BY CASE WHEN LOWER(title) = LOWER(%s) THEN 0 ELSE 1 END, LENGTH(title)
-            LIMIT 1
-            """,
-            (f"%{clean_title}%", clean_title),
-        )
-        return cur.fetchone()[0] if cur.rowcount > 0 else None
-
     for skill in skills:
         # Check if skill already exists
-        skillId = _resolve_skill_id(skill.get("title"))
+        skillId = _resolve_skill_id(cur, skill.get("title"))
 
         if not skillId:
             continue
 
         # Associate skill with professional profile
         query = "INSERT INTO resumeskill (profileid, skillid) VALUES (%s, %s)"
+        _sync_identity_sequence(cur, "resumeskill")
         cur.execute(query, (professionalprofileId, skillId))
 
         query = "INSERT INTO professionalskill (profileid, skillid, years) VALUES (%s, %s, %s)"
+        _sync_identity_sequence(cur, "professionalskill")
         cur.execute(query, (professionalprofileId, skillId, skill['years']))
 
     for experience in culturalExperiences:
@@ -1128,54 +1421,7 @@ def uploadProfile(skills: list, fullName: str, candidateDescription: str, domain
         cur.execute(query, (professionalprofileId, experience["experience"], experience["level"]))
 
     for experience in portfolioExperiences:
-        startDate = experience.get("startDate")
-        finishDate = experience.get("finishDate")
-        raw_present = experience.get("isPresent")
-        isPresent = raw_present if isinstance(raw_present, bool) else str(raw_present or "").strip().lower() in {"true", "yes", "1", "present", "current"}
-        if not startDate:
-            continue
-
-        _sync_identity_sequence(cur, "professionalexperience")
-        if finishDate:
-            query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, finishdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id"
-            cur.execute(
-                query,
-                (
-                    professionalprofileId,
-                    experience.get("description") or "",
-                    experience.get("mainRole") or "",
-                    experience.get("companyName") or "",
-                    startDate,
-                    finishDate,
-                    isPresent,
-                ),
-            )
-        else:
-            query = "INSERT INTO professionalexperience (profileid, description, mainrole, companyname, startdate, ispresent) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id"
-            cur.execute(
-                query,
-                (
-                    professionalprofileId,
-                    experience.get("description") or "",
-                    experience.get("mainRole") or "",
-                    experience.get("companyName") or "",
-                    startDate,
-                    isPresent,
-                ),
-            )
-        experienceId = cur.fetchone()[0]
-
-        for skillTitle in experience.get("skills") or []:
-            skillId = _resolve_skill_id(skillTitle)
-            if skillId:
-                query = "INSERT INTO portfolioskill (professionalexperienceid, skillid) VALUES (%s, %s)"
-                cur.execute(query, (experienceId, skillId))
-
-        for feature in experience.get("features") or []:
-            featureTitle = str(feature or "").strip()
-            if featureTitle:
-                query = "INSERT INTO portfoliofeature (professionalexperienceid, title) VALUES (%s, %s)"
-                cur.execute(query, (experienceId, featureTitle))
+        _insert_portfolio_experience(cur, professionalprofileId, experience)
     
     conn.commit()
     conn.close()

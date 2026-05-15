@@ -1,0 +1,20 @@
+Noah Bennett
+Data Center MEP Coordinator
+noah.bennett.local.08@seed.buildready.example
+Dallas, TX
+
+SUMMARY
+Synthetic DevReady Engineering example for Data Centers. Noah Bennett has client-facing experience helping CoreVault Data Centers with: Coordinate MEP turnover for a hyperscale build.
+
+SKILLS
+BIM, Commissioning, Cooling, CxA Coordination, Electrical Systems, MEP, Quality controls, Safety
+
+EXPERIENCE
+Data Center MEP Coordinator | CoreVault Data Centers | 2020 - Present
+Led data centers delivery work focused on coordinate mep turnover for a hyperscale build.
+
+CERTIFICATION
+AI / ML L3 - Foundations | certified | 94% | SEED-LOCAL-ENGINEER-08-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

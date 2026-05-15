@@ -12,6 +12,17 @@
       type="image/svg+xml"
     />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <style>
       .main {
@@ -94,9 +105,10 @@
         align-items: center;
         gap: 6px;
         padding: 6px 9px;
+        border: 1px solid rgba(var(--primary-2-rgb), 0.2);
         border-radius: 999px;
-        background: rgba(23, 105, 224, 0.1);
-        color: #124d9f;
+        background: rgba(var(--primary-rgb), 0.12);
+        color: var(--primary-2);
         font-size: 12px;
         font-weight: 900;
       }
@@ -177,13 +189,26 @@
         gap: 8px;
       }
 
+      .cert-fixed-path {
+        display: inline-flex;
+        min-height: 34px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        padding: 7px 12px;
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
       .cert-next-panel {
         display: none;
         margin-top: 10px;
         padding: 10px;
-        border: 1px solid rgba(47, 143, 78, 0.28);
+        border: 1px solid rgba(var(--primary-2-rgb), 0.28);
         border-radius: 12px;
-        background: rgba(47, 143, 78, 0.08);
+        background: rgba(var(--primary-rgb), 0.08);
       }
 
       .cert-next-panel.show {
@@ -345,7 +370,7 @@
     </style>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html");
+        $("#siteSidebar").load("components/sidebar.html?v=20260515-jd-nav-flow");
         $("#processFlow").load("components/processFlow.html");
         $("#searchBar").load("components/searchBar.html");
       });
@@ -371,7 +396,7 @@
             <div>
               <h2>AI Cert workspace</h2>
               <p>
-                Launch AI certification inside DevReady and attach the completed result to the selected profile.
+                Create candidate-only certification links and attach completed results to the selected profile.
               </p>
               <div class="cert-candidate">
                 <span>Selected candidate:</span>
@@ -391,8 +416,9 @@
                 <div id="certCandidateResults" class="cert-candidate-results"></div>
                 <div class="cert-path-select">
                   <div>
-                    <label for="certPathSelect">Certification path</label>
-                    <select id="certPathSelect"></select>
+                    <label>Certification path</label>
+                    <input id="certPathSelect" type="hidden" />
+                    <span id="certPathLabel" class="cert-fixed-path"></span>
                   </div>
                   <div>
                     <label for="certStartLevel">Starting point</label>
@@ -459,27 +485,20 @@
             <div class="cert-actions">
               <a id="viewBadgesBtn" class="btn" href="badge-catalog.html">View Badges</a>
               <button id="markCertifiedBtn" class="btn" type="button" disabled>Mark AI Certified</button>
-              <button id="refreshCertBtn" class="btn secondary" type="button">Refresh AI Cert</button>
+              <button id="refreshCertBtn" class="btn secondary" type="button">Refresh Status</button>
               <a class="btn secondary" href="profile-preview.html">Open Profile</a>
             </div>
           </div>
         </section>
 
-        <section class="cert-frame-shell" aria-label="AI Certification embedded workspace">
+        <section class="cert-frame-shell" aria-label="Candidate-only certification handoff">
           <div class="cert-frame-toolbar">
             <div>
-              <strong>AI Certification</strong>
-              <span id="certStatus">Loading AI Cert workspace...</span>
+              <strong>Candidate-only certification</strong>
+              <span id="certStatus">Create and send the candidate link. The exam is not shown in the admin app.</span>
             </div>
-            <span>Candidate name, email, and profile id are passed into the certification app.</span>
+            <span>Candidate name, email, and profile id are passed only through the generated link.</span>
           </div>
-          <iframe
-            id="certFrame"
-            class="cert-frame"
-            title="AI Certification"
-            allow="clipboard-read; clipboard-write"
-            referrerpolicy="strict-origin-when-cross-origin"
-          ></iframe>
         </section>
       </main>
     </div>
@@ -504,7 +523,6 @@
         ["L9", "Architect"],
         ["L10", "Principal"],
       ];
-      const certFrame = document.getElementById("certFrame");
       const certStatus = document.getElementById("certStatus");
       const refreshCertBtn = document.getElementById("refreshCertBtn");
       const markCertifiedBtn = document.getElementById("markCertifiedBtn");
@@ -529,6 +547,7 @@
       const trackCandidateSearchBtn = document.getElementById("trackCandidateSearchBtn");
       const trackCandidateResults = document.getElementById("trackCandidateResults");
       const certPathSelect = document.getElementById("certPathSelect");
+      const certPathLabel = document.getElementById("certPathLabel");
       const certNextPanel = document.getElementById("certNextPanel");
       const certNextText = document.getElementById("certNextText");
       const certNextLink = document.getElementById("certNextLink");
@@ -554,7 +573,7 @@
       }
 
       function currentAssignedPath() {
-        return certPaths.find((path) => path.roleKey === certPathSelect.value) || pathForDomain();
+        return pathForDomain();
       }
 
       function levelIndexFromLevel(level) {
@@ -589,20 +608,14 @@
       function nextBadgeAfter(badge) {
         const currentIndex = levelIndexFromLevel(badge?.level || "L1");
         if (currentIndex >= certLevels.length - 1) return null;
-        const path = certPaths.find((item) => item.roleKey === badge?.roleKey) || currentAssignedPath();
+        const path = currentAssignedPath();
         return badgeForPath(path, currentIndex + 1, "A");
       }
 
       function renderPathOptions() {
-        const params = new URLSearchParams(window.location.search);
-        const requestedRoleKey = params.get("badgeRoleKey") || "";
-        const active = certPaths.find((path) => path.roleKey === requestedRoleKey) || pathForDomain();
-        certPathSelect.innerHTML = certPaths
-          .map(
-            (path) =>
-              `<option value="${escapeHtml(path.roleKey)}" ${path.roleKey === active.roleKey ? "selected" : ""}>${escapeHtml(path.domainName)} - ${escapeHtml(path.role)}</option>`,
-          )
-          .join("");
+        const active = pathForDomain();
+        certPathSelect.value = active.roleKey;
+        certPathLabel.textContent = `${active.domainName} - ${active.role}`;
       }
 
       function escapeHtml(value) {
@@ -619,10 +632,20 @@
         const profileId = params.get("profileId");
         const candidateName = params.get("candidate");
         const email = params.get("email");
+        const activeDomain = activeDomainKey();
+        const candidateDomain = params.get("domain") || sessionStorage.getItem("candidateDomain");
 
         if (profileId) sessionStorage.setItem("candidateId", profileId);
         if (candidateName) sessionStorage.setItem("candidateName", candidateName);
         if (email) sessionStorage.setItem("candidateEmail", email);
+        if (profileId || candidateName || email) sessionStorage.setItem("candidateDomain", activeDomain);
+
+        if (candidateDomain && candidateDomain !== activeDomain) {
+          ["candidateId", "candidateName", "candidateEmail", "candidateStatus", "candidateDomain"].forEach((key) =>
+            sessionStorage.removeItem(key),
+          );
+          selectedCertCandidateId = "";
+        }
 
         return {
           id: sessionStorage.getItem("candidateId") || "",
@@ -634,7 +657,8 @@
       function selectedBadge() {
         const params = new URLSearchParams(window.location.search);
         const firstBadge = firstBadgeForPath();
-        const roleKey = params.get("badgeRoleKey") || "";
+        const requestedRoleKey = params.get("badgeRoleKey") || "";
+        const roleKey = requestedRoleKey === firstBadge.roleKey ? requestedRoleKey : firstBadge.roleKey;
         const level = params.get("badgeLevel") || "";
         const rawCertificateId = params.get("certificateId") || "";
         const parsedVersion = (rawCertificateId.match(/-v([a-c])$/i) || [])[1] || "";
@@ -647,16 +671,16 @@
             ? `${roleKey}-${normalizedLevel}-exam-${normalizedVersion}`
             : "");
         const certificateId =
-          rawCertificateId && parsedVersion
+          roleKey === requestedRoleKey && rawCertificateId && parsedVersion
             ? rawCertificateId
             : roleKey && normalizedLevel && normalizedVersion
               ? `${roleKey}-${normalizedLevel}-v${normalizedVersion}`
               : rawCertificateId;
         return {
-          role: params.get("badgeRole") || firstBadge.role,
-          roleKey: roleKey || firstBadge.roleKey,
+          role: firstBadge.role,
+          roleKey: firstBadge.roleKey,
           level: level || firstBadge.level,
-          title: params.get("badgeTitle") || firstBadge.title,
+          title: roleKey === requestedRoleKey ? params.get("badgeTitle") || firstBadge.title : firstBadge.title,
           certificateId: certificateId || firstBadge.certificateId,
           examId: examId || firstBadge.examId,
           examVersion: examVersion || firstBadge.examVersion,
@@ -671,13 +695,14 @@
         const badge = selectedBadge();
         const candidate = selectedCandidate();
         const catalogParams = new URLSearchParams();
+        catalogParams.set("domain", activeDomainKey());
         if (candidate.id) catalogParams.set("profileId", candidate.id);
         if (candidate.name) catalogParams.set("candidate", candidate.name);
         if (candidate.email) catalogParams.set("email", candidate.email);
         viewBadgesBtn.href = `badge-catalog.html${catalogParams.toString() ? "?" + catalogParams.toString() : ""}`;
 
         certPath.innerHTML = `
-          <span class="path-badge">Assigned path: ${escapeHtml(outboundBadge().role)}</span>
+          <span class="path-badge">Assigned path: ${escapeHtml(currentAssignedPath().domainName)} - ${escapeHtml(outboundBadge().role)}</span>
           <span class="path-badge">Starts at ${escapeHtml(outboundBadge().level)} - Foundations</span>
           <span class="path-badge">Version ${escapeHtml(outboundBadge().examVersion)}</span>
           <span class="path-badge">Current view: ${escapeHtml(badge.title)}</span>
@@ -810,8 +835,8 @@
       }
 
       function loadCert() {
-        certStatus.textContent = "Loading AI Cert workspace...";
-        certFrame.src = certUrl(false, outboundBadge());
+        certStatus.textContent = "Candidate exam is ready as a private link only.";
+        renderCertHandoff();
       }
 
       function renderNextCertification() {
@@ -836,6 +861,7 @@
         sessionStorage.setItem("candidateId", profile.id || profile.profile_id || "");
         sessionStorage.setItem("candidateName", fullName);
         sessionStorage.setItem("candidateEmail", profile.email || "");
+        sessionStorage.setItem("candidateDomain", activeDomainKey());
         selectedCertCandidateId = profile.id || profile.profile_id || "";
         certRecipientEmail.value = profile.email || "";
         certCandidateResults.innerHTML = "";
@@ -844,7 +870,7 @@
         trackCandidateSearch.value = fullName;
         loadSelectedCandidate();
         renderSelectedBadge();
-        loadCert();
+        renderCertHandoff();
       }
 
       async function searchCertificationCandidates(sourceInput = certCandidateSearch, resultContainer = certCandidateResults) {
@@ -964,7 +990,7 @@
           form.append(
             "notes",
             result.notes ||
-              `AI certification completed through embedded AI Cert workspace. Exam: ${selected.examId || "not specified"}${selected.examVersion ? ` Version ${selected.examVersion}` : ""}`,
+              `AI certification completed through the candidate-only certification link. Exam: ${selected.examId || "not specified"}${selected.examVersion ? ` Version ${selected.examVersion}` : ""}`,
           );
           const endpoint = selectedCertCandidateId
             ? `/api/profile/${selectedCertCandidateId}/badges/ai-certification`
@@ -999,21 +1025,7 @@
       }
 
       function tryCaptureReturnedIframe() {
-        try {
-          const frameUrl = new URL(certFrame.contentWindow.location.href);
-          if (frameUrl.origin === window.location.origin && frameUrl.searchParams.get("certComplete")) {
-            saveAiCertification({
-              status: frameUrl.searchParams.get("status") || "certified",
-              candidate: frameUrl.searchParams.get("candidate") || "",
-              email: frameUrl.searchParams.get("email") || "",
-              level: frameUrl.searchParams.get("level") || "AI Certified",
-              score: frameUrl.searchParams.get("score") || "",
-              certificateId: frameUrl.searchParams.get("certificateId") || "",
-            });
-          }
-        } catch (e) {
-          // Cross-origin iframe URLs cannot be read until the cert app returns to this origin.
-        }
+        return false;
       }
 
       window.addEventListener("message", (event) => {
@@ -1084,11 +1096,6 @@
       });
 
       certRecipientEmail.addEventListener("input", renderCertHandoff);
-      certPathSelect.addEventListener("change", () => {
-        renderSelectedBadge();
-        renderCertHandoff();
-        loadCert();
-      });
       certCandidateSearchBtn.addEventListener("click", () => searchCertificationCandidates());
       certCandidateSearch.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
@@ -1116,17 +1123,14 @@
         );
         window.location.href = `mailto:${encodeURIComponent(recipient)}?subject=${subject}&body=${body}`;
       });
-      refreshCertBtn.addEventListener("click", loadCert);
+      refreshCertBtn.addEventListener("click", () => refreshCertificationState());
       markCertifiedBtn.addEventListener("click", () => saveAiCertification());
-      certFrame.addEventListener("load", () => {
-        certStatus.textContent = "AI Cert workspace is ready.";
-        tryCaptureReturnedIframe();
-      });
 
       renderPathOptions();
       loadSelectedCandidate();
       renderSelectedBadge();
-      if (!captureTopLevelReturn()) loadCert();
+      if (!captureTopLevelReturn()) renderCertHandoff();
     </script>
   </body>
 </html>
+

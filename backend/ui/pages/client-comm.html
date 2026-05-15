@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DevReady • Client Communication</title>
+    <title>DevReady - Shortlist</title>
     <link
       class="domainLogo"
       rel="icon"
@@ -12,14 +12,96 @@
       type="image/svg+xml"
     />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html");
+        $("#siteSidebar").load("components/sidebar.html?v=20260515-jd-nav-flow");
         $("#processFlow").load("components/processFlow.html");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
+    <style>
+      .shortlist-action-rail {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .shortlist-action-arrow {
+        color: var(--muted);
+        font-size: 18px;
+        font-weight: 900;
+        line-height: 1;
+      }
+
+      .candidate-review-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fbfcfb;
+        margin-bottom: 14px;
+        padding: 14px;
+      }
+
+      .candidate-review-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .candidate-review-head h3 {
+        margin: 0 0 5px;
+      }
+
+      .candidate-review-summary {
+        display: grid;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .candidate-review-row {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        padding: 10px;
+      }
+
+      .candidate-review-row strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .candidate-review-row .meta {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      @media (max-width: 700px) {
+        .shortlist-action-rail {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .shortlist-action-arrow {
+          align-self: center;
+          transform: rotate(90deg);
+        }
+      }
+    </style>
   </head>
   <body>
     <div class="container">
@@ -28,7 +110,7 @@
       <main class="main">
         <div class="topbar">
           <div>
-            <div class="page-title">Client Communication</div>
+            <div class="page-title">Shortlist</div>
             <div class="breadcrumb">Vetting Process • Client Review</div>
           </div>
           <div id="searchBar"></div>
@@ -37,27 +119,42 @@
         <div id="processFlow"></div>
 
         <section class="card">
-          <h2>Communicate to the end client (shortlist + rationale)</h2>
+          <h2>Shortlist for client review</h2>
           <p>
             Package the Top 10 shortlist into a clean client message, include
             evidence, and manage approvals and next steps.
           </p>
 
+          <div class="candidate-review-card">
+            <div class="candidate-review-head">
+              <div>
+                <h3>1. Conduct Candidate Review</h3>
+                <p style="margin: 0; color: var(--muted)">
+                  Before this shortlist goes to the client, confirm the candidate is comfortable with the job description, work activities, timing, and any skill gaps we need to explain or validate.
+                </p>
+              </div>
+              <button class="btn" type="button" onclick="conductCandidateReview()">
+                Go to Candidate Review
+              </button>
+            </div>
+            <div id="candidateReviewSummary" class="candidate-review-summary">
+              Load a job and shortlist to show review points.
+            </div>
+          </div>
+
           <div class="split">
             <div class="field">
               <label>Client message (draft)</label>
               <textarea id="emailArea"></textarea>
-              <div class="row-actions">
-                <button class="btn" type="button" onclick="sendEmail()">
-                  Send to Client
-                </button>
+              <div class="row-actions shortlist-action-rail">
                 <button
-                  class="btn secondary"
+                  class="btn"
                   type="button"
                   onclick="generateEmail()"
                 >
-                  Generate Email
+                  2. Generate Email
                 </button>
+                <span class="shortlist-action-arrow" aria-hidden="true">-&gt;</span>
                 <button class="btn secondary" type="button" hidden>
                   Generate variant
                 </button>
@@ -66,7 +163,11 @@
                   type="button"
                   onclick="attachProfileLinks()"
                 >
-                  Attach profiles
+                  3. Attach Profiles
+                </button>
+                <span class="shortlist-action-arrow" aria-hidden="true">-&gt;</span>
+                <button class="btn secondary" type="button" onclick="sendEmail()">
+                  4. Send to Client
                 </button>
               </div>
             </div>
@@ -160,6 +261,51 @@
         sessionStorage.setItem("shortlist", shortlistArray);
 
         document.getElementById("candidate" + profileId).remove();
+        renderCandidateReviewSummary();
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function renderCandidateReviewSummary() {
+        const target = document.getElementById("candidateReviewSummary");
+        if (!target) return;
+        if (!shortlistScores.length) {
+          target.innerHTML = `<div class="notice">Select a job description and shortlist candidates to calculate resume-to-job gaps before client outreach.</div>`;
+          return;
+        }
+        target.innerHTML = shortlistScores
+          .map((candidate) => {
+            const missing = candidate.missingSkills || [];
+            const matched = candidate.skills || [];
+            const missingText = missing.length
+              ? `Review gaps: ${missing.slice(0, 8).map(escapeHtml).join(", ")}`
+              : "No required skill gaps found from the saved job description.";
+            const matchedText = matched.length
+              ? `Matched: ${matched.slice(0, 8).map(escapeHtml).join(", ")}`
+              : "Matched skills not found yet.";
+            return `
+              <div class="candidate-review-row">
+                <strong>${escapeHtml(candidate.name || `${candidate.firstName || ""} ${candidate.lastName || ""}`.trim() || "Candidate")} - ${escapeHtml(candidate.score || "N/A")} match</strong>
+                <div class="meta">${missingText}</div>
+                <div class="meta">${matchedText}</div>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      function conductCandidateReview() {
+        const domain = sessionStorage.getItem("domain") || "dev";
+        sessionStorage.setItem("scheduleInterviewType", "ready");
+        sessionStorage.setItem("readyPurpose", "role");
+        window.location.href = `schedule-interview.html?domain=${encodeURIComponent(domain)}&interview=ready&purpose=role`;
       }
 
       async function generateEmail() {
@@ -300,6 +446,9 @@
                 id: candidate.id,
                 name: candidate.firstName + candidate.lastName,
                 score: candidate.score + "%",
+                skills: candidate.skills || [],
+                missingSkills: candidate.missingSkills || [],
+                requiredSkills: candidate.requiredSkills || [],
               });
 
               shortlistTable.insertAdjacentHTML(
@@ -341,10 +490,13 @@
                   "Complete profile",
                 );
               }
+              renderCandidateReviewSummary();
             });
           }
         }
+        renderCandidateReviewSummary();
       });
     </script>
   </body>
 </html>
+

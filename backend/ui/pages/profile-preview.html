@@ -12,6 +12,17 @@
       type="image/svg+xml"
     />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <style>
       .profile-badges {
@@ -60,10 +71,73 @@
         font-weight: 900;
         vertical-align: middle;
       }
+
+      .profile-title-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .profile-title-row #shortlistBtn {
+        min-height: 34px;
+        padding: 8px 14px;
+      }
+
+      .profile-time-panel {
+        flex: 1 1 360px;
+        min-width: 320px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fbfcfb;
+      }
+
+      .profile-time-panel h3 {
+        margin: 0;
+        font-size: 15px;
+      }
+
+      .profile-time-panel p {
+        margin: 4px 0 10px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .profile-time-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .profile-time-grid label {
+        display: grid;
+        gap: 4px;
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .profile-time-link {
+        display: none;
+        margin-top: 10px;
+        border-top: 1px solid var(--line);
+        padding-top: 10px;
+        overflow-wrap: anywhere;
+      }
+
+      .profile-time-link.show {
+        display: block;
+      }
+
+      @media (max-width: 820px) {
+        .profile-time-grid {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html");
+        $("#siteSidebar").load("components/sidebar.html?v=20260515-jd-nav-flow");
         $("#processFlow").load("components/processFlow.html");
         $("#searchBar").load("components/searchBar.html");
       });
@@ -97,13 +171,24 @@
             <div id="noImageFound" class="imageBox">No Image</div>
             <img id="candidateImage" class="imageBox" style="display: none" />
             <div style="flex: 1; min-width: 260px">
-              <div
-                id="profileHeader"
-                style="font-size: 22px; font-weight: 900; line-height: 1"
-              >
-                No Candidate Loaded
+              <div class="profile-title-row">
+                <div
+                  id="profileHeader"
+                  style="font-size: 22px; font-weight: 900; line-height: 1"
+                >
+                  No Candidate Loaded
+                </div>
+                <span id="profileIdChip" class="profile-id-chip" style="display: none"></span>
+                <button
+                  id="shortlistBtn"
+                  class="btn"
+                  type="button"
+                  onclick="shortlistCandidate()"
+                  disabled
+                >
+                  Shortlist
+                </button>
               </div>
-              <span id="profileIdChip" class="profile-id-chip" style="display: none"></span>
               <div
                 id="profileSubHeader"
                 style="color: var(--muted); margin-top: 6px"
@@ -140,7 +225,7 @@
                   id="loadKnownProfileBtn"
                   class="btn secondary"
                   type="button"
-                  data-hint="Open the alphabetical profile picker when you already know the right candidate."
+                  data-hint="Open a searchable alphabetical picker of saved profiles. Use this when you already know the candidate name and want to load that profile directly."
                 >
                   Load Known Profile
                 </button></a
@@ -150,7 +235,7 @@
                   id="viewTempProfilesBtn"
                   class="btn secondary"
                   type="button"
-                  data-hint="Open the TEMP profile review list for externally mined candidates."
+                  data-hint="Open temporary profiles created from outside sourcing. Review them here before deciding whether to promote them into the permanent domain database."
                 >
                   View TEMP Profiles
                 </button></a
@@ -160,15 +245,6 @@
                   Public Profile
                 </button></a
               >
-              <button
-                id="shortlistBtn"
-                class="btn"
-                type="button"
-                onclick="shortlistCandidate()"
-                disabled
-              >
-                Shortlist
-              </button>
               <button
                 id="deleteTempBtn"
                 class="btn remove"
@@ -216,6 +292,35 @@
                 Download Private (PDF)
               </button>-->
             </div>
+            <aside class="profile-time-panel">
+              <h3>Time</h3>
+              <p>Create this candidate's weekly time link, then copy or email it.</p>
+              <div class="profile-time-grid">
+                <label>
+                  Person name
+                  <input id="profileTimeName" type="text" placeholder="Candidate name" />
+                </label>
+                <label>
+                  Email
+                  <input id="profileTimeEmail" type="email" placeholder="candidate@email.com" />
+                </label>
+                <label>
+                  Role / title
+                  <input id="profileTimeTitle" type="text" placeholder="Consultant" />
+                </label>
+                <button class="btn" type="button" onclick="createProfileTimeLink()">Create time link</button>
+              </div>
+              <div id="profileTimeLinkPanel" class="profile-time-link">
+                <strong id="profileTimeLinkTitle">Time link ready</strong>
+                <div><a id="profileTimeLink" href="#" target="_blank" rel="noopener"></a></div>
+                <div class="row-actions" style="margin-top: 8px">
+                  <button class="btn secondary" type="button" onclick="copyProfileTimeLink()">Copy link</button>
+                  <button class="btn secondary" type="button" onclick="emailProfileTimeLink()">Email link</button>
+                  <a id="openProfileTimeLink" class="btn secondary" href="#" target="_blank" rel="noopener">Open link</a>
+                </div>
+              </div>
+              <div id="profileTimeStatus" class="notice" style="margin-top: 10px">Load a candidate to prefill this panel.</div>
+            </aside>
           </div>
 
           <div
@@ -537,7 +642,7 @@
       <h2>What happens on this screen</h2>
       <p>Profile workflow guidance.</p>
       <ul style="margin:0 0 14px 18px;color:var(--muted);line-height:1.4"><li>Public profile: client-safe summary, skills, portfolio excerpts.</li><li>Private profile: deeper notes, ratings, transcripts, risks.</li><li>Outcome: shortlist candidate(s) for client review.</li></ul>
-      <div class="row-actions"><a class="btn " href="client-comm.html" style="text-decoration:none;display:inline-block">Next: Client comms →</a><a class="btn secondary" href="candidate-chat.html" style="text-decoration:none;display:inline-block">Back: Candidate chat</a></div>
+      <div class="row-actions"><a class="btn " href="client-comm.html" style="text-decoration:none;display:inline-block">Next: Shortlist →</a><a class="btn secondary" href="candidate-chat.html" style="text-decoration:none;display:inline-block">Back: Candidate chat</a></div>
       <div class="notice" style="margin-top:14px">Profile updates and completion links are tied to saved candidate records.</div>
     
         </aside>
@@ -553,6 +658,88 @@
       document
         .querySelectorAll("a.step")
         .forEach((a) => a.addEventListener("click", () => {}));
+
+      let profileTimeEntryLink = "";
+
+      function profileDomain() {
+        return sessionStorage.getItem("candidateDomain") || sessionStorage.getItem("domain") || "dev";
+      }
+
+      function prefillProfileTimePanel(profileData = {}) {
+        const profile = profileData.profile || {};
+        const first = profile.firstName || "";
+        const last = profile.lastName || "";
+        const name = [first, last].filter(Boolean).join(" ") || sessionStorage.getItem("candidateName") || "";
+        const email = profile.email || sessionStorage.getItem("candidateEmail") || "";
+        const title = profile.title || sessionStorage.getItem("jobTitle") || "";
+        document.getElementById("profileTimeName").value = name;
+        document.getElementById("profileTimeEmail").value = email;
+        document.getElementById("profileTimeTitle").value = title;
+        document.getElementById("profileTimeStatus").textContent = name || email
+          ? "Ready to create this candidate's time link."
+          : "Load a candidate to prefill this panel.";
+      }
+
+      function setProfileTimeLink(link, name) {
+        profileTimeEntryLink = link || "";
+        document.getElementById("profileTimeLinkTitle").textContent = `Time link ready${name ? " for " + name : ""}`;
+        document.getElementById("profileTimeLink").href = profileTimeEntryLink;
+        document.getElementById("profileTimeLink").textContent = profileTimeEntryLink;
+        document.getElementById("openProfileTimeLink").href = profileTimeEntryLink;
+        document.getElementById("profileTimeLinkPanel").classList.toggle("show", Boolean(profileTimeEntryLink));
+      }
+
+      async function createProfileTimeLink() {
+        const name = document.getElementById("profileTimeName").value.trim();
+        const email = document.getElementById("profileTimeEmail").value.trim();
+        const title = document.getElementById("profileTimeTitle").value.trim();
+        const status = document.getElementById("profileTimeStatus");
+        if (!name && !email) {
+          status.textContent = "Add a candidate name or email before creating the time link.";
+          return;
+        }
+        status.textContent = "Creating time link...";
+        const payload = {
+          profile_id: sessionStorage.getItem("candidateId") || "",
+          candidate_name: name || email || "Staff member",
+          email,
+          title,
+          domain: profileDomain(),
+          source_record_json: JSON.stringify({ source: "profile-preview", profile_id: sessionStorage.getItem("candidateId") || "" }),
+        };
+        try {
+          const data = await apiPostForm("/api/onboarding/start", payload);
+          const absoluteTime = new URL(data.time_entry_link, window.location.origin).href;
+          const absoluteOnboarding = new URL(data.onboarding_link, window.location.origin).href;
+          setProfileTimeLink(absoluteTime, name || email);
+          sessionStorage.setItem("candidateName", name || sessionStorage.getItem("candidateName") || "");
+          sessionStorage.setItem("candidateEmail", email || sessionStorage.getItem("candidateEmail") || "");
+          sessionStorage.setItem("candidateTimeEntryLink", absoluteTime);
+          sessionStorage.setItem("candidateOnboardingLink", absoluteOnboarding);
+          status.textContent = "Time link created. Submitted hours will appear on the Time page.";
+        } catch (error) {
+          status.textContent = error.message || "Could not create time link.";
+        }
+      }
+
+      async function copyProfileTimeLink() {
+        if (!profileTimeEntryLink) return;
+        try {
+          await navigator.clipboard.writeText(profileTimeEntryLink);
+          document.getElementById("profileTimeStatus").textContent = "Time link copied.";
+        } catch {
+          document.getElementById("profileTimeStatus").textContent = "Copy failed. Select the link text and copy it manually.";
+        }
+      }
+
+      function emailProfileTimeLink() {
+        if (!profileTimeEntryLink) return;
+        const email = document.getElementById("profileTimeEmail").value.trim();
+        const name = document.getElementById("profileTimeName").value.trim() || "there";
+        const subject = "DevReady time link";
+        const body = `Hi ${name},\n\nPlease use this link to enter your weekly time:\n\n${profileTimeEntryLink}\n\nThank you,\nDevReady`;
+        window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      }
 
       function shortlistCandidate() {
         const candidateId = sessionStorage.getItem("candidateId");
@@ -699,8 +886,36 @@
         }
       }
 
+      async function loadProfileForActiveDomain(candidateId) {
+        const activeDomain = sessionStorage.getItem("domain") || "dev";
+        try {
+          return await api(`/api/azure/getProfile/${candidateId}?domain=${encodeURIComponent(activeDomain)}`);
+        } catch (error) {
+          const message = String(error && error.message ? error.message : error);
+          if (!message.includes("Candidate does not belong to this domain")) throw error;
+
+          const resolvedProfile = await api(`/api/azure/getProfile/${candidateId}?domain=all`);
+          const candidateDomain = resolvedProfile && resolvedProfile.domain;
+          if (candidateDomain && candidateDomain !== activeDomain) {
+            sessionStorage.setItem("domain", candidateDomain);
+            sessionStorage.setItem("candidateDomain", candidateDomain);
+            window.location.reload();
+            return null;
+          }
+          return resolvedProfile;
+        }
+      }
+
       document.addEventListener("DOMContentLoaded", async () => {
         // Get session variables
+        const params = new URLSearchParams(window.location.search);
+        const profileIdParam = params.get("profileId");
+        if (profileIdParam) {
+          sessionStorage.setItem("candidateId", profileIdParam);
+          if (params.get("candidate")) sessionStorage.setItem("candidateName", params.get("candidate"));
+          if (params.get("email")) sessionStorage.setItem("candidateEmail", params.get("email"));
+          if (params.get("domain")) sessionStorage.setItem("candidateDomain", params.get("domain"));
+        }
         const candidateId = sessionStorage.getItem("candidateId");
         const profileType = sessionStorage.getItem("candidateProfileType");
 
@@ -708,10 +923,23 @@
 
         if (candidateId) {
           document.getElementById("shortlistBtn").removeAttribute("disabled");
-          const domain = sessionStorage.getItem("domain") || "dev";
-          profileData = await api(`/api/azure/getProfile/${candidateId}?domain=${encodeURIComponent(domain)}`);
-          if (profileData && profileData.email) {
-            sessionStorage.setItem("candidateEmail", profileData.email);
+          profileData = await loadProfileForActiveDomain(candidateId);
+          if (!profileData) return;
+          const loadedProfile = profileData.profile || {};
+          const loadedName = [loadedProfile.firstName, loadedProfile.lastName]
+            .filter((part) => part && String(part).trim())
+            .join(" ");
+          if (loadedName) {
+            sessionStorage.setItem("candidateName", loadedName);
+          }
+          if (loadedProfile.email) {
+            sessionStorage.setItem("candidateEmail", loadedProfile.email);
+          }
+          sessionStorage.setItem("candidateId", candidateId);
+          if (typeof updateCandidate === "function") updateCandidate();
+          prefillProfileTimePanel(profileData);
+          if (profileData.domain) {
+            sessionStorage.setItem("candidateDomain", profileData.domain);
           }
           if (window.profileCompletion) {
             window.profileCompletion.renderProfileCompletionPanel(
@@ -749,8 +977,10 @@
           }
 
           if (profileData.profile.publicUrl) {
-            document.getElementById("publicBtnLink").href +=
-              `?user=${profileData.profile.publicUrl}`;
+            const publicParams = new URLSearchParams();
+            publicParams.set("user", profileData.profile.publicUrl);
+            publicParams.set("domain", profileData.domain || sessionStorage.getItem("domain") || "dev");
+            document.getElementById("publicBtnLink").href = `profile-public.html?${publicParams.toString()}`;
             document.getElementById("publicBtn").removeAttribute("disabled");
           }
 
@@ -914,8 +1144,9 @@
 
           // Personality bars
           profileData.personality.forEach((personality) => {
-            document.getElementById(personality.title + "Bar").style.width =
-              personality.score + "%";
+            const personalityBar = document.getElementById(personality.title + "Bar");
+            if (!personalityBar) return;
+            personalityBar.style.width = personality.score + "%";
           });
 
           profileData.portfolioExperience.forEach((experience) => {
@@ -972,8 +1203,11 @@
           } catch (error) {
             console.log("Could not fetch resume.");
           }
+        } else {
+          prefillProfileTimePanel();
         }
       });
     </script>
   </body>
 </html>
+

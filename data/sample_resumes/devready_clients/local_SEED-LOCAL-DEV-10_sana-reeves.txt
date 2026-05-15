@@ -1,0 +1,20 @@
+Sana Reeves
+Media Workflow Engineer
+sana.reeves.local.10@seed.devready.example
+Los Angeles, CA
+
+SUMMARY
+Synthetic DevReady Technology example for Media. Sana Reeves has client-facing experience helping FrameCloud Media with: Scale video processing workflows for live campaign launches.
+
+SKILLS
+AWS, FFmpeg, Node.js, Observability, Production readiness, Queue Workers, React, UAT
+
+EXPERIENCE
+Media Workflow Engineer | FrameCloud Media | 2022 - Present
+Led media delivery work focused on scale video processing workflows for live campaign launches.
+
+CERTIFICATION
+AI / ML L2 - Foundations | certified | 86% | SEED-LOCAL-DEV-10-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

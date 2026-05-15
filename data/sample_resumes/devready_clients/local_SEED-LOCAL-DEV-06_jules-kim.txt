@@ -1,0 +1,20 @@
+Jules Kim
+EdTech AI Engineer
+jules.kim.local.06@seed.devready.example
+Salt Lake City, UT
+
+SUMMARY
+Synthetic DevReady Technology example for Education. Jules Kim has client-facing experience helping LearnLoop with: Launch a tutor assistant with safe content review loops.
+
+SKILLS
+Accessibility, FastAPI, LLM Evaluation, PostgreSQL, Production readiness, Python, React, UAT
+
+EXPERIENCE
+EdTech AI Engineer | LearnLoop | 2022 - Present
+Led education delivery work focused on launch a tutor assistant with safe content review loops.
+
+CERTIFICATION
+AI / ML L1 - Foundations | certified | 92% | SEED-LOCAL-DEV-06-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

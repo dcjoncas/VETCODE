@@ -1,0 +1,50 @@
+[
+  {
+    "profile_id": "SAMPLE-ENG-001",
+    "domain": "engineer",
+    "name": "Riley Morgan",
+    "email": "riley.morgan.sample@buildready.example",
+    "resume": "data\\sample_resumes\\SAMPLE-ENG-001_Riley_Morgan.txt",
+    "db": "backend\\buildready.db"
+  },
+  {
+    "profile_id": "SAMPLE-ENG-002",
+    "domain": "engineer",
+    "name": "Camila Torres",
+    "email": "camila.torres.sample@buildready.example",
+    "resume": "data\\sample_resumes\\SAMPLE-ENG-002_Camila_Torres.txt",
+    "db": "backend\\buildready.db"
+  },
+  {
+    "profile_id": "SAMPLE-ENG-003",
+    "domain": "engineer",
+    "name": "Devon Price",
+    "email": "devon.price.sample@buildready.example",
+    "resume": "data\\sample_resumes\\SAMPLE-ENG-003_Devon_Price.txt",
+    "db": "backend\\buildready.db"
+  },
+  {
+    "profile_id": "SAMPLE-LAW-001",
+    "domain": "law",
+    "name": "Avery Caldwell",
+    "email": "avery.caldwell.sample@legalready.example",
+    "resume": "data\\sample_resumes\\SAMPLE-LAW-001_Avery_Caldwell.txt",
+    "db": "backend\\legalready.db"
+  },
+  {
+    "profile_id": "SAMPLE-LAW-002",
+    "domain": "law",
+    "name": "Jordan Ellis",
+    "email": "jordan.ellis.sample@legalready.example",
+    "resume": "data\\sample_resumes\\SAMPLE-LAW-002_Jordan_Ellis.txt",
+    "db": "backend\\legalready.db"
+  },
+  {
+    "profile_id": "SAMPLE-LAW-003",
+    "domain": "law",
+    "name": "Morgan Shah",
+    "email": "morgan.shah.sample@legalready.example",
+    "resume": "data\\sample_resumes\\SAMPLE-LAW-003_Morgan_Shah.txt",
+    "db": "backend\\legalready.db"
+  }
+]

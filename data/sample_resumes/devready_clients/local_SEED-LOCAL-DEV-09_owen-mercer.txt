@@ -1,0 +1,20 @@
+Owen Mercer
+Manufacturing Analytics Engineer
+owen.mercer.local.09@seed.devready.example
+Milwaukee, WI
+
+SUMMARY
+Synthetic DevReady Technology example for Manufacturing. Owen Mercer has client-facing experience helping ForgeSight with: Turn plant-floor telemetry into executive reliability dashboards.
+
+SKILLS
+ETL, OEE, Power BI, Production readiness, Python, SQL, Snowflake, UAT
+
+EXPERIENCE
+Manufacturing Analytics Engineer | ForgeSight | 2021 - Present
+Led manufacturing delivery work focused on turn plant-floor telemetry into executive reliability dashboards.
+
+CERTIFICATION
+AI / ML L1 - Foundations | certified | 95% | SEED-LOCAL-DEV-09-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

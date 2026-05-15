@@ -43,6 +43,13 @@ def _safe_list(value):
         return [str(item).strip() for item in value if str(item).strip()]
     return [str(value).strip()] if str(value).strip() else []
 
+def _external_result_limit(value, default: int = 10) -> int:
+    try:
+        limit = int(value)
+    except Exception:
+        limit = default
+    return max(1, min(limit, 50))
+
 def _searchable_job_skills(job_skills: list[str], limit: int = 10):
     preferred = []
     fallback = []
@@ -368,6 +375,7 @@ def _github_headers():
     return headers
 
 def _github_search(job_skills: list[str], scoring_skills: list[str], size: int = 5):
+    size = _external_result_limit(size)
     selected_skills = _safe_list(scoring_skills)[:8]
     seen_logins = set()
     search_queries = []
@@ -410,7 +418,7 @@ def _github_search(job_skills: list[str], scoring_skills: list[str], size: int =
         search_queries.append(query)
         search_response = requests.get(
             "https://api.github.com/search/users",
-            params={"q": query, "per_page": min(size * 3, 20)},
+            params={"q": query, "per_page": min(max(size * 3, size), 50)},
             headers=_github_headers(),
             timeout=12,
         )
@@ -532,6 +540,7 @@ def _github_search(job_skills: list[str], scoring_skills: list[str], size: int =
     return enriched_rows
 
 def _github_direct_search(search_query: str, search_terms: list[str], size: int = 5):
+    size = _external_result_limit(size)
     query = (search_query or "").strip()
     selected_skills = _safe_list(search_terms)[:8]
     seen_logins = set()
@@ -551,7 +560,7 @@ def _github_direct_search(search_query: str, search_terms: list[str], size: int 
         search_queries.append(direct_query)
         search_response = requests.get(
             "https://api.github.com/search/users",
-            params={"q": direct_query, "per_page": min(size * 3, 20)},
+            params={"q": direct_query, "per_page": min(max(size * 3, size), 50)},
             headers=_github_headers(),
             timeout=12,
         )
@@ -749,6 +758,27 @@ async def jdUpload(
     except Exception:
         return JSONResponse(status_code=500, content={"error": "Failed to upload job description file.", "trace": traceback.format_exc()})
 
+@router.post("/updateJob/{jobId}")
+def jdUpdate(jobId: str, company: str = Form(...), title: str = Form(...), jd_text: str = Form(...), domain: str = Form(default="dev")):
+    print(f"Updating {title} at {company}")
+    try:
+        flatSkills = list(set(normalize_all_skills(jd_text)))
+        updated = jobs.updateJob(jobId, company, title, domain, jd_text, flatSkills)
+        if not updated.get("updated"):
+            raise HTTPException(status_code=404, detail="Job not found for this domain.")
+        return {
+            "jd_id": updated.get("jd_id"),
+            "company": company,
+            "title": title,
+            "domain": domain,
+            "jd_skills": flatSkills,
+            "jd_text": jd_text,
+        }
+    except HTTPException:
+        raise
+    except Exception:
+        return JSONResponse(status_code=500, content={"error": "Failed to update job description.", "trace": traceback.format_exc()})
+
 @router.get("/list/{domain}/{amount}")
 def jd_list(domain: str = "dev", amount: int = 5):
     return jobs.listJobs(domain, amount)
@@ -921,6 +951,7 @@ def external_candidate_search(
     source: str = Form(default="pdl"),
     top_k: int = Form(default=10),
 ):
+    top_k = _external_result_limit(top_k)
     jd, job_skills = _get_job_skills(jd_id, domain)
     search_skills = _searchable_job_skills(job_skills, 12)
     selected_source = (source or "pdl").strip().lower()
@@ -966,6 +997,7 @@ def external_candidate_search_direct(
     source: str = Form(default="pdl"),
     top_k: int = Form(default=10),
 ):
+    top_k = _external_result_limit(top_k)
     clean_query = (query or "").strip()
     if not clean_query:
         raise HTTPException(status_code=400, detail="Enter a name, email, profile URL, or comma-separated skills.")

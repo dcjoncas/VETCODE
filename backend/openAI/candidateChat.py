@@ -1,20 +1,18 @@
 from openAI.client import getOpenAPIClient
-from azureUtils.storage.chatLogs import getQuestions, saveChat, getQuestion, upsertSurveyAnswer, getPersonId, getSurveyId, isLocalChatUrl
+from azureUtils.storage.chatLogs import getQuestions, saveChat, getQuestion, upsertSurveyAnswer, getPersonId, getSurveyId, ensureSurveyId
 from openAI import engineeringSurvey
 import re
 
-candidateQuestions = None
-totalQuestions = 0
+candidateQuestionsByDomain = {}
 
 def get_candidate_questions(domain: str = "dev"):
-    global candidateQuestions, totalQuestions
     if engineeringSurvey.is_engineer_domain(domain):
         questions = engineeringSurvey.get_questions()
         return questions
-    if candidateQuestions is None:
-        candidateQuestions = getQuestions(domain)
-        totalQuestions = len(candidateQuestions)
-    return candidateQuestions
+    normalized_domain = (domain or "dev").strip().lower()
+    if normalized_domain not in candidateQuestionsByDomain:
+        candidateQuestionsByDomain[normalized_domain] = getQuestions(normalized_domain)
+    return candidateQuestionsByDomain[normalized_domain]
 
 def askQuestions(transcript: list, candidateName: str, chatUrl: str):
     questions = get_candidate_questions()
@@ -91,6 +89,48 @@ def _next_question_message(question_number: int, domain: str = "dev") -> str:
 def _parse_scale_answer(user_response: str):
     match = re.search(r"\b([1-5])\b", str(user_response or ""))
     return int(match.group(1)) if match else None
+
+def _answered_questions_from_transcript(transcript: list):
+    answers = []
+    current_question = None
+    for item in transcript or []:
+        role = item.get("role")
+        content = str(item.get("content") or "")
+        if role == "assistant":
+            match = re.search(r"Question\s+(\d+)\s*:", content, re.IGNORECASE)
+            if match:
+                current_question = int(match.group(1))
+        elif role == "user" and current_question:
+            answer = None if "skip" in content.lower() else _parse_scale_answer(content)
+            if answer is not None:
+                answers.append((current_question, answer))
+            current_question = None
+    return answers
+
+def saveProgress(transcript: list, candidateName: str, chatUrl: str, domain: str = "dev"):
+    person_id = getPersonId(chatUrl)
+    saved = 0
+    answers = _answered_questions_from_transcript(transcript)
+
+    if person_id:
+        for question_number, answer in answers:
+            if engineeringSurvey.is_engineer_domain(domain):
+                engineeringSurvey.save_answer(person_id, question_number, answer)
+                saved += 1
+            else:
+                survey_id = getSurveyId(person_id) or ensureSurveyId(person_id, chatUrl)
+                if survey_id:
+                    upsertSurveyAnswer(question_number, answer, survey_id)
+                    saved += 1
+
+    saveChat(chatUrl, candidateName, transcript)
+    return {
+        "ok": True,
+        "savedAnswers": saved,
+        "answeredQuestions": len(answers),
+        "recentMessage": f"Saved {saved} personality answer{'s' if saved != 1 else ''} to the profile.",
+        "aiTranscript": transcript,
+    }
     
 def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumber: int, domain: str = "dev"):
     questions = get_candidate_questions(domain)
@@ -101,7 +141,7 @@ def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumb
         question = _next_question_message(1, domain)
         transcript.append({"role":"assistant", "content":question})
         saveChat(chatUrl,candidateName,transcript)
-        return {"aiTranscript": transcript, "recentMessage": question, "answered": True}
+        return {"aiTranscript": transcript, "recentMessage": question, "answered": False}
 
     if 'skip' in userResponse.lower():
         questionAnswer = None
@@ -121,7 +161,7 @@ def askQuestion(transcript: list, candidateName: str, chatUrl: str, questionNumb
         if engineeringSurvey.is_engineer_domain(domain):
             engineeringSurvey.save_answer(person_id, answered_question_number, questionAnswer)
         else:
-            survey_id = None if isLocalChatUrl(chatUrl) else getSurveyId(person_id)
+            survey_id = getSurveyId(person_id) or ensureSurveyId(person_id, chatUrl)
             if survey_id:
                 upsertSurveyAnswer(answered_question_number, questionAnswer, survey_id)
 

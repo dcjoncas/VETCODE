@@ -53,3 +53,9 @@ async def getChat(transcript: str = Form(...), candidateName: str = Form("Not Fo
     transcript_list = json.loads(transcript)
     print(f"Sending {questionNumber} chat for candidate: {candidateName}")
     return candidateChat.askQuestion(transcript_list, candidateName, chatUrl, questionNumber, domain)
+
+@router.post("/saveProgress")
+async def save_progress(transcript: str = Form(...), candidateName: str = Form("Not Found"), chatUrl: str = Form("Not Found"), domain: str = Form("dev")):
+    transcript_list = json.loads(transcript)
+    print(f"Saving chat progress for candidate: {candidateName}")
+    return candidateChat.saveProgress(transcript_list, candidateName, chatUrl, domain)

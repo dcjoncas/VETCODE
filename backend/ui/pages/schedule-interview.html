@@ -12,11 +12,22 @@
       type="image/svg+xml"
     />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
     <script src="https://assets.calendly.com/assets/external/widget.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html");
+        $("#siteSidebar").load("components/sidebar.html?v=20260515-jd-nav-flow");
         $("#processFlow").load("components/processFlow.html");
         $("#searchBar").load("components/searchBar.html");
       });
@@ -34,6 +45,68 @@
         border-radius: 14px;
         padding: 14px;
         background: #fff;
+      }
+
+      .schedule-panel.mode-panel {
+        border-color: rgba(var(--primary-rgb), 0.22);
+        transition:
+          background 160ms ease,
+          border-color 160ms ease,
+          box-shadow 160ms ease;
+      }
+
+      body.schedule-ready .schedule-panel.mode-panel {
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb), 0.12), rgba(var(--primary-rgb), 0.035)),
+          #fff;
+        box-shadow: inset 4px 0 0 rgba(var(--primary-rgb), 0.46);
+      }
+
+      body.schedule-client .schedule-panel.mode-panel {
+        background:
+          linear-gradient(135deg, rgba(47, 128, 237, 0.14), rgba(47, 128, 237, 0.04)),
+          #fff;
+        border-color: rgba(47, 128, 237, 0.28);
+        box-shadow: inset 4px 0 0 rgba(47, 128, 237, 0.52);
+      }
+
+      .mode-banner {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 10px;
+        align-items: center;
+        margin: 12px 0;
+        border: 1px solid rgba(var(--primary-rgb), 0.2);
+        border-radius: 12px;
+        padding: 11px 12px;
+        background: rgba(var(--primary-rgb), 0.08);
+      }
+
+      .mode-banner strong {
+        display: block;
+      }
+
+      .mode-banner span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .mode-chip {
+        border-radius: 999px;
+        padding: 6px 10px;
+        background: var(--primary);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 950;
+      }
+
+      body.schedule-client .mode-banner {
+        border-color: rgba(47, 128, 237, 0.24);
+        background: rgba(47, 128, 237, 0.08);
+      }
+
+      body.schedule-client .mode-chip {
+        background: #2f80ed;
       }
 
       .status-grid {
@@ -114,6 +187,20 @@
         box-shadow: inset 0 0 0 2px rgba(127, 191, 63, 0.18);
       }
 
+      #readyInterviewButton.selected {
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb), 0.15), rgba(var(--primary-rgb), 0.04)),
+          #fff;
+      }
+
+      #clientInterviewButton.selected {
+        border-color: rgba(47, 128, 237, 0.55);
+        background:
+          linear-gradient(135deg, rgba(47, 128, 237, 0.16), rgba(47, 128, 237, 0.045)),
+          #fff;
+        box-shadow: inset 0 0 0 2px rgba(47, 128, 237, 0.18);
+      }
+
       .interview-type-button strong {
         font-size: 14px;
       }
@@ -130,6 +217,33 @@
         gap: 12px;
       }
 
+      .contact-panel {
+        display: grid;
+        grid-column: 1 / -1;
+        gap: 10px;
+        margin-top: 12px;
+        border: 1px solid rgba(var(--primary-rgb), 0.16);
+        border-radius: 12px;
+        padding: 12px;
+        background: rgba(var(--primary-rgb), 0.055);
+      }
+
+      .contact-panel h3 {
+        margin: 0;
+        font-size: 14px;
+      }
+
+      .contact-panel p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      #clientContactPanel {
+        border-color: rgba(47, 128, 237, 0.2);
+        background: rgba(47, 128, 237, 0.06);
+      }
+
       .draft-output {
         white-space: pre-wrap;
         border: 1px solid var(--line);
@@ -143,6 +257,35 @@
 
       .result-link {
         word-break: break-word;
+      }
+
+      .history-links {
+        display: grid;
+        gap: 9px;
+        margin-top: 10px;
+      }
+
+      .history-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        background: #fbfcfb;
+      }
+
+      .history-row strong {
+        display: block;
+        font-size: 13px;
+      }
+
+      .history-row span {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 12px;
       }
 
       .calendly-frame {
@@ -194,8 +337,8 @@
               type="button"
               onclick="selectInterviewType('ready')"
             >
-              <strong>Ready Interview</strong>
-              <span>DevReady vetting, readiness, or community intake. JD is optional for community adds.</span>
+              <strong>Candidate Review</strong>
+              <span>Touch base with the community member before client outreach. Confirm job interest, activities, timing, and skill gaps.</span>
             </button>
             <button
               id="clientInterviewButton"
@@ -207,17 +350,24 @@
               <span>Client-facing interview tied to a role, client attendees, and scheduling status.</span>
             </button>
           </div>
+          <div id="modeBanner" class="mode-banner">
+            <div id="modeChip" class="mode-chip">Candidate Review</div>
+            <div>
+              <strong id="modeTitle">Candidate Review selected</strong>
+              <span id="modeHelp">Use this before client outreach. Add the DevReady interviewer who will meet with the candidate.</span>
+            </div>
+          </div>
 
           <div class="schedule-grid">
-            <div class="schedule-panel">
+            <div class="schedule-panel mode-panel">
               <h2>Current context</h2>
               <div class="notice" id="contextNotice">Loading workflow context...</div>
 
               <div class="compact-fields" style="margin-top: 12px">
                 <div class="field" id="readyPurposeField">
-                  <label>Ready interview purpose</label>
+                  <label>Candidate review purpose</label>
                   <select id="readyPurposeInput" onchange="updateInterviewTypeUi()">
-                    <option value="role">Ready interview for a role/JD</option>
+                    <option value="role">Candidate review for a role/JD</option>
                     <option value="community">Add to community / bench</option>
                   </select>
                 </div>
@@ -255,7 +405,7 @@
               </div>
             </div>
 
-            <div class="schedule-panel">
+            <div class="schedule-panel mode-panel">
               <h2>Calendar connection</h2>
               <div class="status-grid">
                 <div id="backendTile" class="status-tile status-warn">
@@ -273,10 +423,10 @@
               </div>
 
               <div class="provider-row" style="margin-top: 12px">
-                <div id="calendlyProvider" class="provider-card">
+                <div id="calendlyProvider" class="provider-card selected">
                   <h3>Calendly</h3>
                   <button class="btn" type="button" onclick="selectProvider('calendly')">
-                    Use Calendly
+                    Connect Calendly
                   </button>
                 </div>
                 <div id="googleProvider" class="provider-card">
@@ -288,7 +438,7 @@
                     Use connected Google
                   </button>
                 </div>
-                <div id="outlookProvider" class="provider-card selected">
+                <div id="outlookProvider" class="provider-card">
                   <h3>Outlook Calendar</h3>
                   <button id="outlookConnectButton" class="btn secondary" type="button" onclick="connectOutlook()">
                     Connect Outlook
@@ -300,9 +450,45 @@
               </div>
 
               <div class="compact-fields" style="margin-top: 12px">
+                <div id="candidateReviewerPanel" class="contact-panel">
+                  <div>
+                    <h3>Candidate review interviewer</h3>
+                    <p>Required for Candidate Review. This is the DevReady person conducting the touch base.</p>
+                  </div>
+                  <div class="compact-fields">
+                    <div class="field">
+                      <label>Interviewer name</label>
+                      <input id="candidateInterviewerNameInput" type="text" placeholder="DevReady interviewer" />
+                    </div>
+                    <div class="field">
+                      <label>Interviewer email</label>
+                      <input id="candidateInterviewerEmailInput" type="email" placeholder="reviewer@devready.io" />
+                    </div>
+                  </div>
+                </div>
+                <div id="clientContactPanel" class="contact-panel" hidden>
+                  <div>
+                    <h3>Client interview contact</h3>
+                    <p>Required for Client Interview. This identifies the client, client person, and invite email.</p>
+                  </div>
+                  <div class="compact-fields">
+                    <div class="field">
+                      <label>Client company</label>
+                      <input id="clientCompanyInput" type="text" placeholder="Client company" />
+                    </div>
+                    <div class="field">
+                      <label>Client contact name</label>
+                      <input id="clientContactNameInput" type="text" placeholder="Client contact" />
+                    </div>
+                    <div class="field">
+                      <label>Client contact email</label>
+                      <input id="clientContactEmailInput" type="email" placeholder="client@company.com" />
+                    </div>
+                  </div>
+                </div>
                 <div class="field">
-                  <label id="attendeesLabel">Interviewers / client emails</label>
-                  <textarea id="attendeesInput" placeholder="name@company.com"></textarea>
+                  <label id="attendeesLabel">Additional attendees</label>
+                  <textarea id="attendeesInput" placeholder="Optional: one email per line"></textarea>
                 </div>
                 <div class="field">
                   <label>Timezone</label>
@@ -363,6 +549,14 @@
             <div id="emailOutput" class="draft-output">Generate an email draft to preview it here.</div>
           </div>
 
+          <div class="schedule-panel" style="margin-top: 14px">
+            <h2>Interview archive</h2>
+            <p>Each interview draft, booking link, or sent invite is saved here. Use the links to open the full history.</p>
+            <div id="interviewHistoryLinks" class="history-links">
+              <div class="muted">No archived interview records yet.</div>
+            </div>
+          </div>
+
           <div id="calendlyPanel" class="schedule-panel" style="margin-top: 14px">
             <h2>Calendly booking</h2>
             <div class="row-actions">
@@ -410,12 +604,13 @@
     <script>
       const CALENDLY_BASE_URL =
         "https://calendly.com/mitch-blake-devready/discovery-call";
-      let selectedProvider = "outlook";
+      let selectedProvider = "calendly";
       let interviewType = sessionStorage.getItem("scheduleInterviewType") || "ready";
       let latestDraft = null;
       let latestHealth = null;
       let shortlistArray = [];
       let shortlistDetails = [];
+      let interviewArchiveRecords = [];
 
       function byId(id) {
         return document.getElementById(id);
@@ -436,16 +631,27 @@
       function selectInterviewType(type) {
         interviewType = type === "client" ? "client" : "ready";
         sessionStorage.setItem("scheduleInterviewType", interviewType);
+        latestDraft = null;
         updateInterviewTypeUi();
       }
 
       function updateInterviewTypeUi() {
         const isReady = interviewType === "ready";
         const readyPurpose = byId("readyPurposeInput") ? byId("readyPurposeInput").value : "role";
+        if (byId("readyPurposeInput")) sessionStorage.setItem("readyPurpose", readyPurpose);
         const communityAdd = isReady && readyPurpose === "community";
+        document.body.classList.toggle("schedule-ready", isReady);
+        document.body.classList.toggle("schedule-client", !isReady);
         byId("readyInterviewButton").classList.toggle("selected", isReady);
         byId("clientInterviewButton").classList.toggle("selected", !isReady);
         byId("readyPurposeField").hidden = !isReady;
+        byId("candidateReviewerPanel").hidden = !isReady;
+        byId("clientContactPanel").hidden = isReady;
+        byId("candidateInterviewerNameInput").required = isReady;
+        byId("candidateInterviewerEmailInput").required = isReady;
+        byId("clientCompanyInput").required = !isReady;
+        byId("clientContactNameInput").required = !isReady;
+        byId("clientContactEmailInput").required = !isReady;
         byId("jobDescriptionLabel").textContent = communityAdd
           ? "Community context (optional)"
           : "Job description / role context";
@@ -453,12 +659,29 @@
           ? "Optional notes on the candidate's target community, title, strengths, or readiness."
           : "Paste or load the role/JD context used for this interview.";
         byId("attendeesLabel").textContent = isReady
-          ? "DevReady interviewer emails"
-          : "Interviewers / client emails";
+          ? "Additional DevReady attendees"
+          : "Additional client / internal attendees";
         byId("attendeesInput").placeholder = isReady
-          ? "devready.teammate@company.com"
-          : "client@company.com";
-        byId("scheduleBreadcrumb").textContent = `${isReady ? "Ready Interview" : "Client Interview"} - ${byId("contextNotice").textContent || "Scheduling"}`;
+          ? "Optional: devready.teammate@company.com"
+          : "Optional: stakeholder@company.com";
+        byId("modeChip").textContent = isReady ? "Candidate Review" : "Client Interview";
+        byId("modeTitle").textContent = isReady
+          ? "Candidate Review selected"
+          : "Client Interview selected";
+        byId("modeHelp").textContent = isReady
+          ? "Use this before client outreach. Add the DevReady interviewer who will meet with the candidate."
+          : "Use this after the candidate review. Add the client company, client person, and client email for the invite.";
+        byId("scheduleBreadcrumb").textContent = `${isReady ? "Candidate Review" : "Client Interview"} - ${byId("contextNotice").textContent || "Scheduling"}`;
+        if (!isReady && byId("companyInput").value && !byId("clientCompanyInput").value) {
+          byId("clientCompanyInput").value = byId("companyInput").value;
+        }
+        const connected = latestHealth && latestHealth[selectedProvider] && latestHealth[selectedProvider].connected;
+        byId("scheduleActionButton").textContent =
+          selectedProvider === "calendly"
+            ? "Connect Calendly"
+            : connected
+              ? `Send ${isReady ? "Candidate Review" : "Client Interview"} invite`
+              : `Connect ${selectedProvider === "outlook" ? "Outlook" : "Google"}`;
       }
 
       function connectGoogle() {
@@ -481,9 +704,9 @@
         const connected = latestHealth && latestHealth[provider] && latestHealth[provider].connected;
         byId("scheduleActionButton").textContent =
           provider === "calendly"
-            ? "Book with Calendly"
+            ? "Connect Calendly"
             : connected
-              ? `Send ${interviewType === "ready" ? "Ready" : "Client"} invite`
+              ? `Send ${interviewType === "ready" ? "Candidate Review" : "Client"} invite`
               : `Connect ${provider === "outlook" ? "Outlook" : "Google"}`;
         byId("locationInput").value = {
           calendly: "Calendly booking",
@@ -501,12 +724,73 @@
         box.textContent = message;
       }
 
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function formatArchiveDate(value) {
+        if (!value) return "-";
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+      }
+
       function parseEmails(raw) {
         return String(raw || "")
           .split(/[\n,;]/)
           .map((row) => row.trim())
           .filter(Boolean)
           .map((email) => ({ email }));
+      }
+
+      function primaryAttendees() {
+        if (interviewType === "ready") {
+          const email = byId("candidateInterviewerEmailInput").value.trim();
+          const name = byId("candidateInterviewerNameInput").value.trim();
+          return email ? [{ email, name }] : [];
+        }
+        const email = byId("clientContactEmailInput").value.trim();
+        const name = byId("clientContactNameInput").value.trim();
+        return email ? [{ email, name }] : [];
+      }
+
+      function allInterviewAttendees() {
+        const seen = new Set();
+        return [...primaryAttendees(), ...parseEmails(byId("attendeesInput").value)]
+          .filter((row) => row.email)
+          .filter((row) => {
+            const key = String(row.email).toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+      }
+
+      function validateInterviewContacts() {
+        if (interviewType === "ready") {
+          const missing = [];
+          if (!byId("candidateInterviewerNameInput").value.trim()) missing.push("interviewer name");
+          if (!byId("candidateInterviewerEmailInput").value.trim()) missing.push("interviewer email");
+          if (missing.length) {
+            showResult(`Candidate Review needs ${missing.join(" and ")} before generating or sending the invite.`, true);
+            return false;
+          }
+          return true;
+        }
+
+        const missing = [];
+        if (!byId("clientCompanyInput").value.trim()) missing.push("client company");
+        if (!byId("clientContactNameInput").value.trim()) missing.push("client contact name");
+        if (!byId("clientContactEmailInput").value.trim()) missing.push("client contact email");
+        if (missing.length) {
+          showResult(`Client Interview needs ${missing.join(", ")} before generating or sending the invite.`, true);
+          return false;
+        }
+        return true;
       }
 
       function localDateValue(date) {
@@ -692,6 +976,9 @@
             const job = await api(`/api/azureJobs/getJob/${jobId}?domain=${encodeURIComponent(domain)}`);
             byId("roleInput").value = job.title || byId("roleInput").value;
             byId("companyInput").value = job.company || byId("companyInput").value;
+            if (job.company && !byId("clientCompanyInput").value) {
+              byId("clientCompanyInput").value = job.company;
+            }
             byId("jobDescriptionInput").value = job.description || "";
             if (!byId("talkingPointsInput").value && job.skills) {
               byId("talkingPointsInput").value = job.skills.slice(0, 8).join("\n");
@@ -905,63 +1192,44 @@
       function autoSelectConnectedProvider() {
         const params = new URLSearchParams(window.location.search);
         const connectedProvider = params.get("connected");
-        const preferredProvider = sessionStorage.getItem("preferredCalendarProvider");
 
         if (connectedProvider) {
           selectProvider(connectedProvider);
           return;
         }
 
-        if (
-          preferredProvider === "outlook" &&
-          latestHealth.outlook &&
-          latestHealth.outlook.connected
-        ) {
-          selectProvider("outlook");
-          return;
-        }
-
-        if (
-          preferredProvider === "google" &&
-          latestHealth.google &&
-          latestHealth.google.connected
-        ) {
-          selectProvider("google");
-          return;
-        }
-
-        if (latestHealth.outlook && latestHealth.outlook.connected) {
-          selectProvider("outlook");
-          return;
-        }
-
-        if (latestHealth.google && latestHealth.google.connected) {
-          selectProvider("google");
-          return;
-        }
-
-        selectProvider("outlook");
+        selectProvider(selectedProvider || "calendly");
       }
 
       function buildPayload() {
+        const contactContext = interviewType === "ready"
+          ? `Candidate Review interviewer: ${byId("candidateInterviewerNameInput").value.trim()} <${byId("candidateInterviewerEmailInput").value.trim()}>`
+          : `Client Interview contact: ${byId("clientCompanyInput").value.trim()} - ${byId("clientContactNameInput").value.trim()} <${byId("clientContactEmailInput").value.trim()}>`;
         return {
           candidate_name: byId("candidateNameInput").value.trim(),
           candidate_email: byId("candidateEmailInput").value.trim(),
           role: byId("roleInput").value.trim(),
-          company: byId("companyInput").value.trim(),
+          company: interviewType === "client"
+            ? byId("clientCompanyInput").value.trim() || byId("companyInput").value.trim()
+            : byId("companyInput").value.trim(),
           job_description: byId("jobDescriptionInput").value.trim(),
           interview_type: interviewType,
           ready_purpose: byId("readyPurposeInput") ? byId("readyPurposeInput").value : "",
-          ai_context: byId("aiContextInput").value.trim(),
+          ai_context: [contactContext, byId("aiContextInput").value.trim()].filter(Boolean).join("\n\n"),
           talking_points: byId("talkingPointsInput").value.trim(),
-          interviewers: parseEmails(byId("attendeesInput").value),
+          interviewers: allInterviewAttendees(),
+          candidate_interviewer_name: byId("candidateInterviewerNameInput").value.trim(),
+          candidate_interviewer_email: byId("candidateInterviewerEmailInput").value.trim(),
+          client_company: byId("clientCompanyInput").value.trim(),
+          client_contact_name: byId("clientContactNameInput").value.trim(),
+          client_contact_email: byId("clientContactEmailInput").value.trim(),
           duration_minutes: Number(byId("durationInput").value || 60),
           location: byId("locationInput").value.trim(),
         };
       }
 
       function trackingRecordBase() {
-        const attendees = parseEmails(byId("attendeesInput").value)
+        const attendees = allInterviewAttendees()
           .map((row) => row.email)
           .filter(Boolean);
         const candidateName = byId("candidateNameInput").value.trim();
@@ -980,12 +1248,107 @@
           provider: selectedProvider,
           interviewType,
           readyPurpose: byId("readyPurposeInput") ? byId("readyPurposeInput").value : "",
+          candidateInterviewerName: byId("candidateInterviewerNameInput").value.trim(),
+          candidateInterviewerEmail: byId("candidateInterviewerEmailInput").value.trim(),
+          clientCompany: byId("clientCompanyInput").value.trim(),
+          clientContactName: byId("clientContactNameInput").value.trim(),
+          clientContactEmail: byId("clientContactEmailInput").value.trim(),
           location: byId("locationInput").value.trim(),
           windowStart: byId("startInput").value,
           windowEnd: byId("endInput").value,
           createdAt: new Date().toISOString(),
           nextAction: "Follow up after the interview window",
         };
+      }
+
+      function persistLatestArchiveSelection(record) {
+        if (!record) return;
+        const domain = sessionStorage.getItem("domain") || "dev";
+        sessionStorage.setItem(`latestScheduleTracking:${domain}`, JSON.stringify(record));
+        sessionStorage.setItem("latestScheduleTracking", JSON.stringify(record));
+      }
+
+      function renderInterviewHistory() {
+        const container = byId("interviewHistoryLinks");
+        if (!container) return;
+        const domain = sessionStorage.getItem("domain") || "dev";
+        const rows = interviewArchiveRecords.slice(0, 8);
+        if (!rows.length) {
+          container.innerHTML = '<div class="muted">No archived interview records yet.</div>';
+          return;
+        }
+        container.innerHTML = rows
+          .map((record, index) => {
+            const label = [
+              record.interviewType === "client" ? "Client Interview" : "Candidate Review",
+              record.candidateName || record.candidateEmail || "Candidate",
+              record.role || "",
+            ].filter(Boolean).join(" - ");
+            const detail = [
+              record.status || "Recorded",
+              record.provider || "",
+              formatArchiveDate(record.scheduledStart || record.createdAt || record.archivedAt),
+            ].filter(Boolean).join(" - ");
+            const statusHref = `status-tracker.html?domain=${encodeURIComponent(domain)}&record=${encodeURIComponent(record.id || "")}`;
+            const eventLink = record.eventLink || record.meetingLink || "";
+            return `
+              <div class="history-row">
+                <div>
+                  <strong>${escapeHtml(label)}</strong>
+                  <span>${escapeHtml(detail)}</span>
+                </div>
+                <div class="row-actions">
+                  <a class="btn secondary" href="${statusHref}" onclick="selectArchivedInterview(${index})">History</a>
+                  ${eventLink ? `<a class="btn secondary" href="${escapeHtml(eventLink)}" target="_blank" rel="noopener">Event</a>` : ""}
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      function selectArchivedInterview(index) {
+        persistLatestArchiveSelection(interviewArchiveRecords[index]);
+      }
+
+      async function loadInterviewArchive() {
+        const domain = sessionStorage.getItem("domain") || "dev";
+        try {
+          const data = await api(`/api/interviews/archive?domain=${encodeURIComponent(domain)}&limit=50`);
+          interviewArchiveRecords = data.records || [];
+        } catch {
+          const storageKey = `scheduleTracking:${domain}`;
+          interviewArchiveRecords = JSON.parse(sessionStorage.getItem(storageKey) || sessionStorage.getItem("scheduleTracking") || "[]")
+            .filter((record) => !record.domain || record.domain === domain);
+        }
+        renderInterviewHistory();
+      }
+
+      async function archiveInterviewRecord(record) {
+        if (!record) return;
+        const domain = sessionStorage.getItem("domain") || "dev";
+        try {
+          const data = await api("/api/interviews/archive", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              domain,
+              record_json: JSON.stringify(record),
+            }).toString(),
+          });
+          const archived = data.record || record;
+          interviewArchiveRecords = [
+            archived,
+            ...interviewArchiveRecords.filter((item) => String(item.id) !== String(archived.id)),
+          ].slice(0, 50);
+          renderInterviewHistory();
+        } catch {
+          interviewArchiveRecords = [
+            record,
+            ...interviewArchiveRecords.filter((item) => String(item.id) !== String(record.id)),
+          ].slice(0, 50);
+          renderInterviewHistory();
+        }
       }
 
       function saveScheduleTracking(extra = {}) {
@@ -999,11 +1362,13 @@
         sessionStorage.setItem(latestKey, JSON.stringify(record));
         sessionStorage.setItem("scheduleTracking", JSON.stringify(records.slice(0, 25)));
         sessionStorage.setItem("latestScheduleTracking", JSON.stringify(record));
+        archiveInterviewRecord(record);
         return record;
       }
 
       async function generateDraft() {
         try {
+          if (!validateInterviewContacts()) return null;
           if (!byId("roleInput").value.trim()) {
             showResult("Add a title/role before generating the invite. Community adds do not need a JD, but they do need a title.", true);
             return null;
@@ -1016,6 +1381,13 @@
           });
           byId("subjectInput").value = latestDraft.email_subject || latestDraft.title || "";
           byId("emailOutput").textContent = latestDraft.email_body || "";
+          saveScheduleTracking({
+            provider: "Draft",
+            status: "Draft generated",
+            subject: latestDraft.email_subject || latestDraft.title || "",
+            message: latestDraft.email_body || "",
+            nextAction: "Review and send interview invite",
+          });
           showResult("Draft ready.");
           return latestDraft;
         } catch (error) {
@@ -1026,6 +1398,7 @@
 
       async function createInvite() {
         try {
+          if (!validateInterviewContacts()) return;
           const draft = latestDraft || (await generateDraft());
           if (!draft) return;
           showResult("Checking availability and creating the invite...");
@@ -1080,20 +1453,30 @@
         defaultTimeWindow();
         const params = new URLSearchParams(window.location.search);
         const requestedInterview = params.get("interview");
+        if (params.get("purpose") && byId("readyPurposeInput")) {
+          byId("readyPurposeInput").value = params.get("purpose");
+        } else if (sessionStorage.getItem("readyPurpose") && byId("readyPurposeInput")) {
+          byId("readyPurposeInput").value = sessionStorage.getItem("readyPurpose");
+        }
         selectInterviewType(requestedInterview === "client" || requestedInterview === "ready" ? requestedInterview : sessionStorage.getItem("scheduleInterviewType") || "ready");
         if (params.get("connected")) {
           selectProvider(params.get("connected"));
           showResult(`${params.get("connected")} connected.`);
         } else {
-          selectProvider(sessionStorage.getItem("preferredCalendarProvider") || "outlook");
+          selectProvider("calendly");
         }
         await loadWorkflowContext();
         await loadShortlist();
+        await loadInterviewArchive();
         loadClientCommunicationContext();
         await loadCandidateChatContext(sessionStorage.getItem("candidateId"));
+        byId("companyInput").addEventListener("input", () => {
+          if (interviewType === "client") byId("clientCompanyInput").value = byId("companyInput").value;
+        });
         updateCalendlyLink();
         await refreshHealth();
       });
     </script>
   </body>
 </html>
+

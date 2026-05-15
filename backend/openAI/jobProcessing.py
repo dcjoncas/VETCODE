@@ -2,6 +2,19 @@ from openAI.client import getOpenAPIClient
 import re
 import psycopg.cursor as cursorType
 
+def _sync_identity_sequence(azureCursor: cursorType.Cursor, table: str, column: str = "id"):
+    azureCursor.execute("SELECT pg_get_serial_sequence(%s, %s)", (table, column))
+    row = azureCursor.fetchone()
+    sequence_name = row[0] if row else None
+    if not sequence_name:
+        return
+    azureCursor.execute(f"SELECT COALESCE(MAX({column}), 0) FROM {table}")
+    max_id = azureCursor.fetchone()[0] or 0
+    if max_id > 0:
+        azureCursor.execute("SELECT setval(%s, %s, true)", (sequence_name, max_id))
+    else:
+        azureCursor.execute("SELECT setval(%s, 1, false)", (sequence_name,))
+
 # Get AI to determine which personality traits are most beneficial to the company
 def processPersonalities(jobId: int, jobDescription: str, azureCursor: cursorType.Cursor):
     systemInstructions = [{"role": "system",
@@ -39,6 +52,7 @@ def processPersonalities(jobId: int, jobDescription: str, azureCursor: cursorTyp
         elif score < 1:
             score = 1
 
+        _sync_identity_sequence(azureCursor, "jobpersonalities")
         query = f'INSERT INTO jobpersonalities (personalityid, jobid, score) VALUES ({personality[0]}, {jobId}, {score});'
         azureCursor.execute(query)
 

@@ -1,0 +1,1 @@
+We need a Senior AI Platform Engineer to build recruiting automation workflows using Python, FastAPI, PostgreSQL, Azure Blob Storage, OpenAI APIs, JavaScript, React, Docker, CI/CD, vector search, and prompt engineering. The role owns secure resume ingestion, candidate search, matching, and recruiter-facing workflow tools.

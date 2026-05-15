@@ -1,0 +1,20 @@
+Lena Watkins
+Controls Commissioning Engineer
+lena.watkins.local.01@seed.buildready.example
+Cleveland, OH
+
+SUMMARY
+Synthetic DevReady Engineering example for Industrial Automation. Lena Watkins has client-facing experience helping ForgeLine Fabrication with: Commission automated line upgrades without production disruption.
+
+SKILLS
+FAT, Ignition, PLC, Quality controls, Rockwell, SAT, SCADA, Safety
+
+EXPERIENCE
+Controls Commissioning Engineer | ForgeLine Fabrication | 2021 - Present
+Led industrial automation delivery work focused on commission automated line upgrades without production disruption.
+
+CERTIFICATION
+AI / ML L2 - Foundations | certified | 87% | SEED-LOCAL-ENGINEER-01-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

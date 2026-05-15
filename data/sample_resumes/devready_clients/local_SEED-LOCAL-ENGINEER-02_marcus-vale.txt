@@ -1,0 +1,20 @@
+Marcus Vale
+Civil Infrastructure PM
+marcus.vale.local.02@seed.buildready.example
+Phoenix, AZ
+
+SUMMARY
+Synthetic DevReady Engineering example for Water Infrastructure. Marcus Vale has client-facing experience helping Canyon Water Authority with: Recover schedule on pump station and stormwater improvements.
+
+SKILLS
+Bluebeam, Civil 3D, MS Project, Permitting, QA/QC, Quality controls, RFI Management, Safety
+
+EXPERIENCE
+Civil Infrastructure PM | Canyon Water Authority | 2022 - Present
+Led water infrastructure delivery work focused on recover schedule on pump station and stormwater improvements.
+
+CERTIFICATION
+AI / ML L3 - Foundations | certified | 88% | SEED-LOCAL-ENGINEER-02-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

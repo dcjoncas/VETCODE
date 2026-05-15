@@ -5,7 +5,7 @@ import os
 import traceback
 from azureUtils.storage import candidates, resumes
 from resumeProcessing.processing import ingest
-from deterministic_profile import build_profile_from_text
+from deterministic_profile import build_profile_from_text, extract_portfolio
 from resume_ai_profile import normalize_ai_resume_profile
 from openAI.candidateProcessing import candidateDescription, processGeneral, candidateCulturalExperience, processSkillYears
 
@@ -151,8 +151,10 @@ def _profile_completion_status(profile: dict):
 def get_profile(profileId: str = "", domain: str = None):
     print(f"Fetching profile {profileId}")
     _assert_candidate_domain(profileId, domain)
-
-    return candidates.getProfile(profileId)
+    profile = candidates.getProfile(profileId)
+    if isinstance(profile, dict):
+        profile["domain"] = candidates.getCandidateDomain(profileId)
+    return profile
 
 @router.get("/profile/completionStatus/{profileId}")
 def get_profile_completion_status(profileId: str = "", domain: str = None):
@@ -164,8 +166,11 @@ def get_profile_completion_status(profileId: str = "", domain: str = None):
 @router.get("/public/{profileUrl}")
 def get_profile_public(profileUrl: str = ""):
     print(f"Fetching public profile {profileUrl}")
-
-    return candidates.getProfilePublic(profileUrl)
+    profile = candidates.getProfilePublic(profileUrl)
+    profile_id = (profile.get("profile") or {}).get("id") if isinstance(profile, dict) else None
+    if isinstance(profile, dict) and profile_id:
+        profile["domain"] = candidates.getCandidateDomain(profile_id)
+    return profile
 
 @router.get("/public/getPublicUrl/{profileId}")
 def get_profile_public_url(profileId: str = ""):
@@ -300,6 +305,23 @@ def _normalize_ai_skills(ai_profile: dict) -> list[dict]:
         normalized.append({"title": title, "years": max(1, min(years, 40))})
     return normalized
 
+def _merge_resume_skills(ai_skills: list[dict], deterministic_skill_names: list[str]) -> list[dict]:
+    merged = []
+    seen = set()
+    for skill in ai_skills or []:
+        title = str(skill.get("title") or "").strip()
+        if not title or title.lower() in seen:
+            continue
+        seen.add(title.lower())
+        merged.append(skill)
+    for title in deterministic_skill_names or []:
+        clean_title = str(title or "").strip()
+        if not clean_title or clean_title.lower() in seen:
+            continue
+        seen.add(clean_title.lower())
+        merged.append({"title": clean_title, "years": 1})
+    return merged
+
 def _normalize_culture_items(value) -> list[dict]:
     if isinstance(value, str):
         items = [
@@ -366,6 +388,13 @@ def _normalize_portfolio_items(value) -> list[dict]:
         })
     return normalized[:12]
 
+def _resume_portfolio_items(raw: str, ai_profile: dict | None) -> list[dict]:
+    ai_items = _normalize_portfolio_items((ai_profile or {}).get("portfolio"))
+    fallback_items = _normalize_portfolio_items(extract_portfolio(raw or ""))
+    if ai_items and len(ai_items) >= len(fallback_items):
+        return ai_items
+    return fallback_items
+
 def _fallback_description(profile: dict) -> str:
     skills = _flatten_profile_skills(profile)
     name = (profile.get("contact") or {}).get("full_name") or "Candidate"
@@ -403,13 +432,6 @@ def _existing_profile_from_email(email: str, domain: str):
                     "name": name or clean_email,
                     "existing": True,
                 }
-        cross_domain_matches = candidates.searchCandidatesByNameEmail(clean_email, limit=5, domain="all")
-        for match in cross_domain_matches:
-            if (match.get("email") or "").strip().lower() == clean_email:
-                raise HTTPException(
-                    status_code=409,
-                    detail="This resume email already belongs to a profile in another domain. Switch to that domain or use a different email/profile.",
-                )
     except Exception as exc:
         if isinstance(exc, HTTPException):
             raise
@@ -450,15 +472,16 @@ async def upload_resume(
         country = ai_contact.get("country") or country
         flat_skill_names = _flatten_profile_skills(profile)
 
-        flatSkills = _normalize_ai_skills(ai_profile or {})
-        if not flatSkills and flat_skill_names:
+        aiSkills = _normalize_ai_skills(ai_profile or {})
+        if not aiSkills and flat_skill_names:
             with ThreadPoolExecutor(max_workers=5) as executor:
-                flatSkills = list(executor.map(process_skill, [raw] * len(flat_skill_names), flat_skill_names))
+                aiSkills = list(executor.map(process_skill, [raw] * len(flat_skill_names), flat_skill_names))
+        flatSkills = _merge_resume_skills(aiSkills, flat_skill_names)
 
         has_openai_key = bool(os.getenv("OPENAI_API_KEY"))
         description = (ai_profile or {}).get("summary") or _fallback_description(profile)
         culturalExperiences = _normalize_culture_items((ai_profile or {}).get("culture")) or _fallback_culture(profile)
-        portfolioExperiences = _normalize_portfolio_items((ai_profile or {}).get("portfolio"))
+        portfolioExperiences = _resume_portfolio_items(raw, ai_profile)
         candidateCity = city
         candidateState = state
         candidateCountry = country
@@ -466,6 +489,22 @@ async def upload_resume(
 
         existingProfile = _existing_profile_from_email(email, domain)
         if existingProfile:
+            if portfolioExperiences:
+                try:
+                    candidates.replaceCandidatePortfolio(existingProfile["personid"], portfolioExperiences)
+                    existingProfile["portfolio_updated"] = True
+                except Exception as exc:
+                    print(f"Portfolio update skipped for existing profile: {exc}")
+                    traceback.print_exc()
+                    existingProfile["portfolio_warning"] = f"Existing profile selected, but portfolio was not updated: {exc}"
+            if flatSkills:
+                try:
+                    candidates.replaceCandidateSkills(existingProfile["personid"], flatSkills)
+                    existingProfile["skills_updated"] = True
+                except Exception as exc:
+                    print(f"Skill update skipped for existing profile: {exc}")
+                    traceback.print_exc()
+                    existingProfile["skills_warning"] = f"Existing profile selected, but skills were not updated: {exc}"
             try:
                 from starlette.datastructures import UploadFile as StarletteUploadFile
                 from io import BytesIO

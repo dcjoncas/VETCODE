@@ -12,10 +12,21 @@
       type="image/svg+xml"
     />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html");
+        $("#siteSidebar").load("components/sidebar.html?v=20260515-jd-nav-flow");
         $("#processFlow").load("components/processFlow.html");
         $("#searchBar").load("components/searchBar.html");
       });
@@ -157,7 +168,7 @@
                 </tbody>
               </table>
               <div class="row-actions">
-                <a class="btn secondary" href="schedule-interview.html?interview=ready">Ready Interview</a>
+                <a class="btn secondary" href="schedule-interview.html?interview=ready">Candidate Review</a>
                 <a class="btn secondary" href="schedule-interview.html?interview=client">Client Interview</a>
                 <button class="btn secondary" type="button" onclick="clearTracking()">
                   Clear local tracking
@@ -222,16 +233,30 @@
         return date.toLocaleString();
       }
 
-      function loadRecords() {
+      async function loadRecords() {
         const domain = sessionStorage.getItem("domain") || "dev";
         const storageKey = `scheduleTracking:${domain}`;
         const latestKey = `latestScheduleTracking:${domain}`;
-        records = JSON.parse(sessionStorage.getItem(storageKey) || sessionStorage.getItem("scheduleTracking") || "[]")
+        const localRecords = JSON.parse(sessionStorage.getItem(storageKey) || sessionStorage.getItem("scheduleTracking") || "[]")
           .filter((record) => !record.domain || record.domain === domain);
+        records = localRecords;
+        try {
+          const params = new URLSearchParams({ domain, limit: "100" });
+          const requested = new URLSearchParams(window.location.search).get("record");
+          if (requested) params.set("record_id", requested);
+          const data = await fetch(`/api/interviews/archive?${params.toString()}`).then((response) => response.json());
+          const archived = data.records || [];
+          const byId = new Map([...archived, ...localRecords].map((record) => [String(record.id), record]));
+          records = Array.from(byId.values());
+        } catch {}
         selectedRecord =
           JSON.parse(sessionStorage.getItem(latestKey) || sessionStorage.getItem("latestScheduleTracking") || "null") ||
           records[0] ||
           null;
+        const requested = new URLSearchParams(window.location.search).get("record");
+        if (requested) {
+          selectedRecord = records.find((record) => String(record.id) === String(requested)) || selectedRecord;
+        }
         if (selectedRecord && selectedRecord.domain && selectedRecord.domain !== domain) selectedRecord = records[0] || null;
       }
 
@@ -252,6 +277,7 @@
         }
 
         records.forEach((record) => {
+          const statusHref = `status-tracker.html?domain=${encodeURIComponent(domain)}&record=${encodeURIComponent(record.id || "")}`;
           const row = document.createElement("tr");
           row.innerHTML = `
             <td>${escapeHtml(formatDate(record.createdAt))}</td>
@@ -260,17 +286,16 @@
             <td><span class="pill">${escapeHtml(record.status || "Recorded")}</span></td>
             <td>${escapeHtml(record.nextAction || "Follow up")}</td>
             <td>
-              <button class="btn secondary" type="button" style="padding: 8px 12px">
+              <a class="btn secondary" href="${statusHref}" style="padding: 8px 12px">
                 Open
-              </button>
+              </a>
             </td>
           `;
-          row.querySelector("button").addEventListener("click", () => {
+          row.querySelector("a").addEventListener("click", () => {
             selectedRecord = record;
             const domain = sessionStorage.getItem("domain") || "dev";
             sessionStorage.setItem(`latestScheduleTracking:${domain}`, JSON.stringify(record));
             sessionStorage.setItem("latestScheduleTracking", JSON.stringify(record));
-            renderDetail();
           });
           tbody.appendChild(row);
         });
@@ -336,9 +361,11 @@
           handoffPanel.classList.add("show");
           handoffPanel.innerHTML = `
             <strong>Hire handoff started.</strong>
-            <div>Send the onboarding link to the candidate. Time entries submitted from that link are recorded for Heidi at DevReady.</div>
+            <div>Send the onboarding link first. Use the time-entry link when the person needs to submit weekly hours; those entries are recorded for Heidi at DevReady.</div>
             <div class="row-actions" style="margin-top: 10px">
               <button class="btn secondary" type="button" onclick="copyOnboardingLink()">Copy onboarding link</button>
+              <button class="btn secondary" type="button" onclick="copyTimeEntryLink()">Copy time-entry link</button>
+              <button class="btn secondary" type="button" onclick="emailTimeEntryLink()">Email time-entry link</button>
               <a class="btn secondary" href="${escapeHtml(selectedRecord.timeEntryLink || "#")}" target="_blank" rel="noopener">Open time entry</a>
             </div>
           `;
@@ -452,6 +479,22 @@
         } catch {}
       }
 
+      async function copyTimeEntryLink() {
+        if (!selectedRecord?.timeEntryLink) return;
+        try {
+          await navigator.clipboard.writeText(selectedRecord.timeEntryLink);
+        } catch {}
+      }
+
+      function emailTimeEntryLink() {
+        if (!selectedRecord?.timeEntryLink) return;
+        const to = selectedRecord.candidateEmail || "";
+        const name = selectedRecord.candidateName || "there";
+        const subject = "DevReady time-entry link";
+        const body = `Hi ${name},\n\nPlease use this link to enter your weekly time:\n\n${selectedRecord.timeEntryLink}\n\nThank you,\nDevReady`;
+        window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      }
+
       function clearTracking() {
         const domain = sessionStorage.getItem("domain") || "dev";
         sessionStorage.removeItem(`scheduleTracking:${domain}`);
@@ -463,11 +506,12 @@
         renderDetail();
       }
 
-      document.addEventListener("DOMContentLoaded", () => {
-        loadRecords();
+      document.addEventListener("DOMContentLoaded", async () => {
+        await loadRecords();
         renderRows();
         renderDetail();
       });
     </script>
   </body>
 </html>
+

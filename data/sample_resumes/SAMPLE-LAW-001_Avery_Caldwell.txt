@@ -1,0 +1,17 @@
+Avery Caldwell
+Legal Operations Manager
+avery.caldwell.sample@legalready.example
+Chicago, IL
+
+SUMMARY
+Legal ops leader specializing in intake, contract lifecycle operations, outside counsel spend, and KPI reporting.
+
+SKILLS
+Access governance, CLM, CLM workflow configuration, DocuSign CLM, Ironclad, Legal operations, Matter analytics, Outside counsel management, Process design, SharePoint, Spend dashboards, UAT, Workflow validation
+
+EXPERIENCE
+Legal Operations Manager | BrightPath Legal Ops | 2018-05 - Present
+Redesigned contract intake, approval, and reporting flows across sales, procurement, and legal teams.
+
+NOTE
+Synthetic sample resume for VETCODE development/testing only.

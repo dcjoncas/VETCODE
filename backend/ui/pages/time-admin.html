@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Time</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html?v=20260515-jd-nav-flow");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+    <style>
+      .time-toolbar {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .filters {
+        display: flex;
+        gap: 10px;
+        align-items: end;
+        flex-wrap: wrap;
+      }
+      .filters label {
+        display: grid;
+        gap: 5px;
+        font-weight: 850;
+      }
+      .link-builder {
+        display: grid;
+        gap: 12px;
+      }
+      .link-builder-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        align-items: end;
+      }
+      .link-builder-grid label {
+        display: grid;
+        gap: 5px;
+        font-weight: 850;
+      }
+      .generated-link {
+        display: none;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fbfcfb;
+      }
+      .generated-link.show {
+        display: block;
+      }
+      .generated-link a {
+        overflow-wrap: anywhere;
+      }
+      .domain-switch {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .domain-switch label {
+        display: grid;
+        gap: 5px;
+        font-weight: 850;
+      }
+      .people-list {
+        display: grid;
+        gap: 10px;
+      }
+      .person-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fff;
+      }
+      .person-row h3 {
+        margin: 0;
+      }
+      .person-row .muted {
+        overflow-wrap: anywhere;
+      }
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .kpi {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fff;
+      }
+      .kpi strong {
+        display: block;
+        color: var(--green);
+        font-size: 24px;
+      }
+      .timesheet-list {
+        display: grid;
+        gap: 12px;
+        margin-top: 14px;
+      }
+      .timesheet-card {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+        overflow: hidden;
+      }
+      .timesheet-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 14px;
+        background: #fbfcfb;
+        border-bottom: 1px solid var(--line);
+      }
+      .status-pill {
+        display: inline-flex;
+        width: fit-content;
+        border-radius: 999px;
+        padding: 4px 9px;
+        font-size: 12px;
+        font-weight: 900;
+        background: rgba(47, 125, 75, 0.11);
+        color: var(--green);
+      }
+      .status-pill.needs_review {
+        background: #fff0d8;
+        color: #8a4b08;
+      }
+      .status-pill.processed_for_payment {
+        background: #eef3ff;
+        color: #2955a3;
+      }
+      .day-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .day-table th,
+      .day-table td {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+      .day-table th {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .row-actions.tight {
+        margin: 0;
+        justify-content: flex-end;
+      }
+      .processing-controls {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+        border: 1px solid rgba(var(--primary-rgb), 0.18);
+        border-radius: 12px;
+        padding: 12px;
+        background: rgba(var(--primary-rgb), 0.06);
+      }
+      .processing-controls label {
+        display: grid;
+        gap: 5px;
+        font-weight: 850;
+      }
+      .processed-meta {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .candidate-total-report {
+        margin-top: 14px;
+        border: 1px solid rgba(var(--primary-rgb), 0.16);
+        border-radius: 12px;
+        background: #fff;
+        overflow: hidden;
+      }
+      .candidate-total-report h3 {
+        margin: 0;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(var(--primary-rgb), 0.06);
+      }
+      .candidate-total-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .candidate-total-table th,
+      .candidate-total-table td {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+      .candidate-total-table th {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .candidate-total-table td.num,
+      .candidate-total-table th.num {
+        text-align: right;
+      }
+      @media (max-width: 820px) {
+        .kpi-grid,
+        .link-builder-grid,
+        .processing-controls,
+        .person-row,
+        .timesheet-head {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Time</div>
+            <div class="breadcrumb">Weekly staff time for HR and payment processing</div>
+          </div>
+          <div class="domain-switch">
+            <label>
+              Workspace
+              <select id="domainSelect" onchange="switchTimeDomain()">
+                <option value="dev">Technology Domain</option>
+                <option value="engineer">Engineer Domain</option>
+                <option value="law">Law Domain</option>
+              </select>
+            </label>
+            <div id="searchBar"></div>
+          </div>
+        </div>
+
+        <section class="card link-builder">
+          <div class="time-toolbar">
+            <div>
+              <h2>Send time-entry link</h2>
+              <p>Create the worker's weekly time link, then copy it or open an email draft from here.</p>
+            </div>
+            <span class="status-pill" id="linkDomain">Current workspace</span>
+          </div>
+          <div class="link-builder-grid">
+            <label>
+              Person name
+              <input id="linkPersonName" type="text" placeholder="Avery Johnson" />
+            </label>
+            <label>
+              Email
+              <input id="linkPersonEmail" type="email" placeholder="avery@email.com" />
+            </label>
+            <label>
+              Role / title
+              <input id="linkPersonTitle" type="text" placeholder="Engineer consultant" />
+            </label>
+            <button class="btn" type="button" onclick="createTimeEntryLink()">Create link</button>
+          </div>
+          <div id="generatedLinkPanel" class="generated-link">
+            <strong id="generatedLinkTitle">Time-entry link ready</strong>
+            <div style="margin-top: 6px">
+              <a id="generatedTimeLink" href="#" target="_blank" rel="noopener"></a>
+            </div>
+            <div class="row-actions" style="margin-top: 10px">
+              <button class="btn secondary" type="button" onclick="copyGeneratedTimeLink()">Copy link</button>
+              <button class="btn secondary" type="button" onclick="emailGeneratedTimeLink()">Email link</button>
+              <a id="openGeneratedTimeLink" class="btn secondary" href="#" target="_blank" rel="noopener">Open link</a>
+            </div>
+          </div>
+          <div id="linkBuilderStatus" class="notice">Enter the person and email, then create the time-entry link.</div>
+        </section>
+
+        <section class="card">
+          <div class="time-toolbar">
+            <div>
+              <h2>Onboarded people</h2>
+              <p>Every onboarded person in this workspace keeps their own time-entry link here.</p>
+            </div>
+            <button class="btn secondary" type="button" onclick="loadOnboardedPeople()">Refresh people</button>
+          </div>
+          <div id="onboardedStatus" class="notice" style="margin-top: 14px">Loading onboarded people...</div>
+          <div id="onboardedPeopleList" class="people-list"></div>
+        </section>
+
+        <section class="card">
+          <div class="time-toolbar">
+            <div>
+              <h2>Time overview</h2>
+              <p>Review time submitted through staff time-entry links, grouped by week and linked back to each profile.</p>
+            </div>
+            <div class="filters">
+              <label>
+                Week starting
+                <input id="weekFilter" type="date" />
+              </label>
+              <label>
+                Status
+                <select id="statusFilter">
+                  <option value="all">All</option>
+                  <option value="submitted_to_devready">Submitted</option>
+                  <option value="approved_for_payment">Approved</option>
+                  <option value="processed_for_payment">Processed</option>
+                  <option value="needs_review">Needs review</option>
+                </select>
+              </label>
+              <button class="btn" type="button" onclick="loadTime()">Refresh</button>
+            </div>
+          </div>
+
+          <div class="kpi-grid">
+            <div class="kpi">
+              <strong id="totalHours">0</strong>
+              <span>Total hours</span>
+            </div>
+            <div class="kpi">
+              <strong id="staffCount">0</strong>
+              <span>Staff/week rows</span>
+            </div>
+            <div class="kpi">
+              <strong id="domainName">Domain</strong>
+              <span>Current workspace</span>
+            </div>
+            <div class="kpi">
+              <strong id="processedHours">0</strong>
+              <span>Processed hours</span>
+            </div>
+          </div>
+
+          <div class="processing-controls" aria-label="Payment processing details">
+            <label>
+              Processed by
+              <input id="processedBy" type="text" placeholder="HR / payroll name" />
+            </label>
+            <label>
+              Payment batch / reference
+              <input id="processedReference" type="text" placeholder="Batch, invoice, or payroll ref" />
+            </label>
+            <label>
+              Processing note
+              <input id="processedNote" type="text" placeholder="Optional note for accounting" />
+            </label>
+          </div>
+
+          <div id="candidateTotalReport" class="candidate-total-report">
+            <h3>Candidate total time report</h3>
+            <div class="notice" style="margin: 12px">Loading candidate totals...</div>
+          </div>
+
+          <div id="timeStatus" class="notice" style="margin-top: 14px">Loading time entries...</div>
+          <div id="timesheetList" class="timesheet-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="JS/apiScripts.js"></script>
+    <script>
+      let latestGroups = [];
+      let generatedTimeEntryLink = "";
+      let onboardedPeople = [];
+
+      function escapeLocal(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function currentDomain() {
+        return document.getElementById("domainSelect")?.value || sessionStorage.getItem("domain") || "dev";
+      }
+
+      function domainLabel(domain) {
+        if (domain === "engineer") return "Engineer";
+        if (domain === "law") return "Law";
+        return "Technology";
+      }
+
+      function timeEntryLinkFor(person) {
+        if (!person?.time_entry_link) return "";
+        return new URL(person.time_entry_link, window.location.origin).href;
+      }
+
+      function onboardingLinkFor(person) {
+        if (!person?.onboarding_link) return "";
+        return new URL(person.onboarding_link, window.location.origin).href;
+      }
+
+      function switchTimeDomain() {
+        const domain = document.getElementById("domainSelect").value || "dev";
+        sessionStorage.setItem("domain", domain);
+        const url = new URL(window.location.href);
+        url.searchParams.set("domain", domain);
+        window.history.replaceState({}, "", url.toString());
+        if (typeof domainUpdate === "function") domainUpdate(domain);
+        prefillTimeLinkBuilder();
+        loadOnboardedPeople();
+        loadTime();
+      }
+
+      function prefillTimeLinkBuilder() {
+        const params = new URLSearchParams(window.location.search);
+        const domain = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        sessionStorage.setItem("domain", domain);
+        document.getElementById("domainSelect").value = domain;
+        document.getElementById("linkDomain").textContent = `${domainLabel(domain)} workspace`;
+        document.getElementById("linkPersonName").value = sessionStorage.getItem("candidateName") || "";
+        document.getElementById("linkPersonEmail").value = sessionStorage.getItem("candidateEmail") || "";
+        document.getElementById("linkPersonTitle").value = sessionStorage.getItem("jobTitle") || "";
+      }
+
+      async function createTimeEntryLink() {
+        const name = document.getElementById("linkPersonName").value.trim();
+        const email = document.getElementById("linkPersonEmail").value.trim();
+        const title = document.getElementById("linkPersonTitle").value.trim();
+        const status = document.getElementById("linkBuilderStatus");
+        if (!name && !email) {
+          status.textContent = "Add at least a person name or email before creating the link.";
+          return;
+        }
+        status.textContent = "Creating time-entry link...";
+        const payload = {
+          profile_id: sessionStorage.getItem("candidateId") || "",
+          candidate_name: name || email || "Staff member",
+          email,
+          title,
+          domain: currentDomain(),
+          source_record_json: JSON.stringify({ source: "time-admin", created_for: name || email }),
+        };
+        try {
+          const data = await apiPostForm("/api/onboarding/start", payload);
+          generatedTimeEntryLink = new URL(data.time_entry_link, window.location.origin).href;
+          document.getElementById("generatedLinkTitle").textContent = `Time-entry link ready${name ? " for " + name : ""}`;
+          document.getElementById("generatedTimeLink").href = generatedTimeEntryLink;
+          document.getElementById("generatedTimeLink").textContent = generatedTimeEntryLink;
+          document.getElementById("openGeneratedTimeLink").href = generatedTimeEntryLink;
+          document.getElementById("generatedLinkPanel").classList.add("show");
+          status.textContent = "Link created. Copy it or email it from the buttons above.";
+          sessionStorage.setItem("candidateName", name || sessionStorage.getItem("candidateName") || "");
+          sessionStorage.setItem("candidateEmail", email || sessionStorage.getItem("candidateEmail") || "");
+          await loadOnboardedPeople();
+        } catch (error) {
+          status.textContent = error.message || "Could not create time-entry link.";
+        }
+      }
+
+      async function copyGeneratedTimeLink() {
+        if (!generatedTimeEntryLink) return;
+        try {
+          await navigator.clipboard.writeText(generatedTimeEntryLink);
+          document.getElementById("linkBuilderStatus").textContent = "Time-entry link copied.";
+        } catch {
+          document.getElementById("linkBuilderStatus").textContent = "Copy failed. Select the link text and copy it manually.";
+        }
+      }
+
+      function emailGeneratedTimeLink() {
+        if (!generatedTimeEntryLink) return;
+        const email = document.getElementById("linkPersonEmail").value.trim();
+        const name = document.getElementById("linkPersonName").value.trim() || "there";
+        const subject = "DevReady time-entry link";
+        const body = `Hi ${name},\n\nPlease use this link to enter your weekly time:\n\n${generatedTimeEntryLink}\n\nThank you,\nDevReady`;
+        window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      }
+
+      async function copyPersonTimeLink(index) {
+        const link = timeEntryLinkFor(onboardedPeople[index]);
+        if (!link) return;
+        try {
+          await navigator.clipboard.writeText(link);
+          document.getElementById("onboardedStatus").textContent = "Time-entry link copied.";
+        } catch {
+          document.getElementById("onboardedStatus").textContent = "Copy failed. Open the link and copy it from the address bar.";
+        }
+      }
+
+      function emailPersonTimeLink(index) {
+        const person = onboardedPeople[index];
+        const link = timeEntryLinkFor(person);
+        if (!person || !link) return;
+        const email = person.email || "";
+        const name = person.candidate_name || person.legal_name || "there";
+        const subject = "DevReady time-entry link";
+        const body = `Hi ${name},\n\nPlease use this link to enter your weekly time:\n\n${link}\n\nThank you,\nDevReady`;
+        window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      }
+
+      function renderOnboardedPeople() {
+        const target = document.getElementById("onboardedPeopleList");
+        if (!onboardedPeople.length) {
+          target.innerHTML = "";
+          document.getElementById("onboardedStatus").textContent = "No onboarded people found for this workspace yet.";
+          return;
+        }
+        document.getElementById("onboardedStatus").textContent = `${onboardedPeople.length} onboarded person/people loaded for ${domainLabel(currentDomain())}.`;
+        target.innerHTML = onboardedPeople.map((person, index) => {
+          const name = person.candidate_name || person.legal_name || person.email || "Onboarded person";
+          const timeLink = timeEntryLinkFor(person);
+          const onboardingLink = onboardingLinkFor(person);
+          return `
+            <article class="person-row">
+              <div>
+                <h3>${escapeLocal(name)}</h3>
+                <div class="muted">${escapeLocal([person.email, person.title, statusLabel(person.status)].filter(Boolean).join(" - "))}</div>
+                <div class="muted">Time-entry link: <a href="${escapeLocal(timeLink)}" target="_blank" rel="noopener">${escapeLocal(timeLink)}</a></div>
+              </div>
+              <div class="row-actions tight">
+                ${person.profile_id ? `<a class="btn secondary" href="${profileLink(person.profile_id, person.domain)}" onclick="sessionStorage.setItem('domain','${escapeLocal(person.domain)}');sessionStorage.setItem('candidateId','${escapeLocal(person.profile_id)}');sessionStorage.setItem('candidateName','${escapeLocal(name)}');sessionStorage.setItem('candidateEmail','${escapeLocal(person.email || "")}')">Open profile</a>` : ""}
+                <button class="btn secondary" type="button" onclick="copyPersonTimeLink(${index})">Copy time link</button>
+                <button class="btn secondary" type="button" onclick="emailPersonTimeLink(${index})">Email time link</button>
+                <a class="btn secondary" href="${escapeLocal(timeLink)}" target="_blank" rel="noopener">Open time link</a>
+                <a class="btn secondary" href="${escapeLocal(onboardingLink)}" target="_blank" rel="noopener">Onboarding</a>
+              </div>
+            </article>
+          `;
+        }).join("");
+      }
+
+      async function loadOnboardedPeople() {
+        document.getElementById("onboardedStatus").textContent = "Loading onboarded people...";
+        try {
+          const params = new URLSearchParams({ domain: currentDomain() });
+          const data = await api(`/api/onboarding/admin?${params.toString()}`);
+          onboardedPeople = data.people || [];
+          renderOnboardedPeople();
+        } catch (error) {
+          document.getElementById("onboardedStatus").textContent = error.message || "Could not load onboarded people.";
+        }
+      }
+
+      function profileLink(profileId, domain) {
+        if (!profileId) return "";
+        return `profile-preview.html?domain=${encodeURIComponent(domain || currentDomain())}`;
+      }
+
+      function statusLabel(status) {
+        return String(status || "submitted_to_devready").replaceAll("_", " ");
+      }
+
+      function dayName(value) {
+        const parsed = new Date(`${value}T12:00:00`);
+        if (Number.isNaN(parsed.getTime())) return value || "";
+        return parsed.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+      }
+
+      function dateTimeLabel(value) {
+        if (!value) return "";
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return value;
+        return parsed.toLocaleString([], {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        });
+      }
+
+      function renderGroups() {
+        const target = document.getElementById("timesheetList");
+        if (!latestGroups.length) {
+          target.innerHTML = "";
+          document.getElementById("timeStatus").textContent = "No time entries found for this filter.";
+          return;
+        }
+        document.getElementById("timeStatus").textContent = `${latestGroups.length} staff/week row(s) loaded.`;
+        target.innerHTML = latestGroups.map((group, index) => `
+          <article class="timesheet-card">
+            <div class="timesheet-head">
+              <div>
+                <h2 style="margin:0">${escapeLocal(group.candidate_name)}</h2>
+                <div class="muted">
+                  Week of ${escapeLocal(group.week_start || "not set")} • ${escapeLocal(group.email || "No email")} • ${escapeLocal(domainLabel(group.domain))}
+                </div>
+                <div style="margin-top:8px">
+                  <span class="status-pill ${escapeLocal(group.status)}">${escapeLocal(statusLabel(group.status))}</span>
+                </div>
+                ${group.status === "processed_for_payment" ? `
+                  <div class="processed-meta">
+                    Processed ${escapeLocal(dateTimeLabel(group.processed_at) || "date not recorded")}
+                    ${group.processed_by ? ` by ${escapeLocal(group.processed_by)}` : ""}
+                    ${group.processed_reference ? ` | Ref: ${escapeLocal(group.processed_reference)}` : ""}
+                    ${group.processed_note ? `<br />Note: ${escapeLocal(group.processed_note)}` : ""}
+                  </div>
+                ` : ""}
+              </div>
+              <div>
+                <div style="font-size:26px;font-weight:950;color:var(--green);text-align:right">${escapeLocal(group.total_hours)} hours</div>
+                <div class="row-actions tight" style="margin-top:8px">
+                  ${group.profile_id ? `<a class="btn secondary" href="${profileLink(group.profile_id, group.domain)}" onclick="sessionStorage.setItem('domain','${escapeLocal(group.domain)}');sessionStorage.setItem('candidateId','${escapeLocal(group.profile_id)}');sessionStorage.setItem('candidateName','${escapeLocal(group.candidate_name)}');sessionStorage.setItem('candidateEmail','${escapeLocal(group.email)}')">Open profile</a>` : ""}
+                  <button class="btn secondary" type="button" onclick="setGroupStatus(${index}, 'needs_review')">Flag review</button>
+                  <button class="btn secondary" type="button" onclick="setGroupStatus(${index}, 'approved_for_payment')">Approve</button>
+                  <button class="btn" type="button" onclick="setGroupStatus(${index}, 'processed_for_payment')">Mark processed</button>
+                </div>
+              </div>
+            </div>
+            <table class="day-table">
+              <thead>
+                <tr>
+                  <th>Day</th>
+                  <th>Hours</th>
+                  <th>Description</th>
+                  <th>Client / Project</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${group.entries.map((entry) => `
+                  <tr>
+                    <td>${escapeLocal(dayName(entry.work_date))}</td>
+                    <td>${escapeLocal(entry.hours)}</td>
+                    <td>${escapeLocal(entry.summary || "")}${entry.blockers ? `<div class="muted">Notes: ${escapeLocal(entry.blockers)}</div>` : ""}</td>
+                    <td>${escapeLocal([entry.client, entry.project].filter(Boolean).join(" / "))}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </article>
+        `).join("");
+      }
+
+      function renderCandidateTotals(rows) {
+        const target = document.getElementById("candidateTotalReport");
+        const totals = rows || [];
+        if (!totals.length) {
+          target.innerHTML = `
+            <h3>Candidate total time report</h3>
+            <div class="notice" style="margin: 12px">No candidate time totals found for this workspace.</div>
+          `;
+          return;
+        }
+        target.innerHTML = `
+          <h3>Candidate total time report</h3>
+          <table class="candidate-total-table">
+            <thead>
+              <tr>
+                <th>Candidate</th>
+                <th>Email</th>
+                <th class="num">Total</th>
+                <th class="num">Processed</th>
+                <th class="num">Open</th>
+                <th class="num">Weeks</th>
+                <th>Latest week</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${totals.map((row) => `
+                <tr>
+                  <td><strong>${escapeLocal(row.candidate_name || "Staff member")}</strong></td>
+                  <td>${escapeLocal(row.email || "")}</td>
+                  <td class="num">${escapeLocal(row.total_hours || 0)}</td>
+                  <td class="num">${escapeLocal(row.processed_hours || 0)}</td>
+                  <td class="num">${escapeLocal(row.open_hours || 0)}</td>
+                  <td class="num">${escapeLocal(row.week_count || 0)}</td>
+                  <td>${escapeLocal(row.latest_week || "")}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        `;
+      }
+
+      async function setGroupStatus(index, status) {
+        const group = latestGroups[index];
+        if (!group) return;
+        const payload = { status };
+        if (status === "processed_for_payment") {
+          const processedBy = document.getElementById("processedBy").value.trim();
+          const processedReference = document.getElementById("processedReference").value.trim();
+          const processedNote = document.getElementById("processedNote").value.trim();
+          if (!processedBy && !processedReference && !confirm("Mark this time as processed without a processor name or payment reference?")) {
+            return;
+          }
+          payload.processed_by = processedBy || "HR";
+          payload.processed_reference = processedReference;
+          payload.processed_note = processedNote;
+        }
+        await Promise.all((group.entries || []).map((entry) => {
+          const form = new URLSearchParams(payload);
+          return api(`/api/time-entry/${encodeURIComponent(entry.id)}/status`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: form.toString(),
+          });
+        }));
+        document.getElementById("statusFilter").value = "all";
+        await loadTime();
+      }
+
+      async function loadTime() {
+        const domain = currentDomain();
+        document.getElementById("domainName").textContent = domainLabel(domain);
+        const params = new URLSearchParams({
+          domain,
+          status: document.getElementById("statusFilter").value || "all",
+        });
+        const week = document.getElementById("weekFilter").value;
+        if (week) params.set("week_start", week);
+        document.getElementById("timeStatus").textContent = "Loading time entries...";
+        try {
+          const data = await api(`/api/time-entry/admin?${params.toString()}`);
+          latestGroups = data.groups || [];
+          document.getElementById("totalHours").textContent = data.total_hours || 0;
+          document.getElementById("staffCount").textContent = data.staff_count || 0;
+          document.getElementById("processedHours").textContent = data.processed_hours || 0;
+          renderCandidateTotals(data.candidate_totals || []);
+          renderGroups();
+        } catch (error) {
+          document.getElementById("timeStatus").textContent = error.message || "Could not load time entries.";
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        prefillTimeLinkBuilder();
+        document.getElementById("statusFilter").addEventListener("change", loadTime);
+        document.getElementById("weekFilter").addEventListener("change", loadTime);
+        loadOnboardedPeople();
+        setTimeout(loadTime, 250);
+      });
+    </script>
+  </body>
+</html>
+

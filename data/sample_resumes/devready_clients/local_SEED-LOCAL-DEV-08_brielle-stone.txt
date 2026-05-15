@@ -1,0 +1,20 @@
+Brielle Stone
+GovTech Integration Consultant
+brielle.stone.local.08@seed.devready.example
+Arlington, VA
+
+SUMMARY
+Synthetic DevReady Technology example for Public Sector. Brielle Stone has client-facing experience helping CivicBridge with: Integrate citizen-service portals with legacy case systems.
+
+SKILLS
+Compliance, PostgreSQL, Production readiness, Python, REST APIs, SAML, UAT
+
+EXPERIENCE
+GovTech Integration Consultant | CivicBridge | 2020 - Present
+Led public sector delivery work focused on integrate citizen-service portals with legacy case systems.
+
+CERTIFICATION
+AI / ML L3 - Foundations | certified | 94% | SEED-LOCAL-DEV-08-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

@@ -104,7 +104,6 @@ Rules:
 
     response = client.chat.completions.create(
         model=RESUME_PROFILE_MODEL,
-        temperature=0,
         response_format={"type": "json_object"},
         messages=[
             {"role": "system", "content": system},

@@ -1,0 +1,20 @@
+Miles Chen
+Biotech IP Paralegal
+miles.chen.local.09@seed.legalready.example
+San Diego, CA
+
+SUMMARY
+Synthetic DevReady Law example for Biotech. Miles Chen has client-facing experience helping Genova BioLabs with: Organize invention disclosures and patent docket hygiene.
+
+SKILLS
+Document Control, IP Portfolio, Inventor Intake, Patent Docketing, Prior Art, USPTO
+
+EXPERIENCE
+Biotech IP Paralegal | Genova BioLabs | 2021 - Present
+Led biotech delivery work focused on organize invention disclosures and patent docket hygiene.
+
+CERTIFICATION
+AI / ML L1 - Foundations | certified | 95% | SEED-LOCAL-LAW-09-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Agents</title>
+    <link
+      class="domainLogo"
+      rel="icon"
+      href="../assets/devLogo.svg"
+      sizes="any"
+      type="image/svg+xml"
+    />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="JS/pageAgents.js?v=20260515-numa-inline-label"></script>
+    <style>
+      .agent-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 0.72fr);
+        gap: 14px;
+        align-items: stretch;
+        margin-bottom: 14px;
+      }
+
+      .agent-hero .card {
+        min-height: 190px;
+      }
+
+      .agent-orbit {
+        position: relative;
+        overflow: hidden;
+        min-height: 190px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb), 0.12), rgba(255, 255, 255, 0.88)),
+          #fff;
+      }
+
+      .agent-orbit-ball {
+        --agent-color: var(--primary-2);
+        position: absolute;
+        display: grid;
+        place-items: center;
+        width: 76px;
+        height: 76px;
+        border-radius: 999px;
+        background:
+          radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.98) 0 8%, rgba(255, 255, 255, 0.28) 9% 21%, transparent 22%),
+          radial-gradient(circle at 70% 74%, rgba(0, 0, 0, 0.24), transparent 38%),
+          radial-gradient(circle at 34% 32%, color-mix(in srgb, var(--agent-color), white 36%), var(--agent-color) 54%, color-mix(in srgb, var(--agent-color), black 35%) 100%);
+        box-shadow:
+          inset -14px -16px 24px rgba(0, 0, 0, 0.24),
+          inset 10px 9px 18px rgba(255, 255, 255, 0.22),
+          0 18px 36px color-mix(in srgb, var(--agent-color), transparent 62%);
+      }
+
+      .agent-orbit-ball svg,
+      .agent-ball svg {
+        position: relative;
+        z-index: 1;
+        width: 46%;
+        height: 46%;
+        fill: none;
+        stroke: #fff;
+        stroke-width: 2.35;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.28));
+      }
+
+      .agent-orbit-ball:nth-child(1) {
+        left: 11%;
+        top: 20%;
+      }
+
+      .agent-orbit-ball:nth-child(2) {
+        left: 39%;
+        top: 54%;
+        width: 54px;
+        height: 54px;
+      }
+
+      .agent-orbit-ball:nth-child(3) {
+        right: 10%;
+        top: 17%;
+        width: 92px;
+        height: 92px;
+      }
+
+      .agent-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 12px;
+      }
+
+      .agent-card {
+        display: grid;
+        gap: 11px;
+        align-content: start;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        padding: 13px;
+      }
+
+      .agent-card.active {
+        border-color: color-mix(in srgb, var(--agent-color), white 20%);
+        box-shadow: 0 14px 32px color-mix(in srgb, var(--agent-color), transparent 78%);
+      }
+
+      .agent-card-head {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 10px;
+        align-items: center;
+      }
+
+      .agent-ball {
+        --agent-color: var(--primary-2);
+        display: grid;
+        place-items: center;
+        width: 46px;
+        height: 46px;
+        border-radius: 999px;
+        background:
+          radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.98) 0 10%, rgba(255, 255, 255, 0.26) 11% 24%, transparent 25%),
+          radial-gradient(circle at 70% 74%, rgba(0, 0, 0, 0.24), transparent 40%),
+          radial-gradient(circle at 34% 32%, color-mix(in srgb, var(--agent-color), white 36%), var(--agent-color) 55%, color-mix(in srgb, var(--agent-color), black 34%) 100%);
+        box-shadow:
+          inset -9px -10px 16px rgba(0, 0, 0, 0.23),
+          inset 7px 7px 12px rgba(255, 255, 255, 0.24),
+          0 8px 18px color-mix(in srgb, var(--agent-color), transparent 64%);
+      }
+
+      .agent-card h2,
+      .agent-card p {
+        margin: 0;
+      }
+
+      .agent-card h2 {
+        font-size: 16px;
+        line-height: 1.15;
+      }
+
+      .agent-page {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .agent-list {
+        display: grid;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .agent-list li {
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 7px 8px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.3;
+        background: #f8faf9;
+      }
+
+      .agent-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .agent-top-controls {
+        display: grid;
+        gap: 7px;
+        justify-items: end;
+      }
+
+      .agent-status-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        width: fit-content;
+        border-radius: 999px;
+        padding: 5px 10px 5px 5px;
+        background: rgba(255, 255, 255, 0.92);
+        color: var(--text);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+        font-size: 12px;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+
+      .agent-status-chip .agent-ball {
+        width: 34px;
+        height: 34px;
+      }
+
+      .agent-detail-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 0.75fr) minmax(320px, 1.25fr);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .agent-detail-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .agent-detail-row {
+        display: grid;
+        grid-template-columns: 80px 1fr;
+        gap: 10px;
+        border-bottom: 1px solid var(--line);
+        padding: 8px 0;
+        font-size: 13px;
+      }
+
+      .agent-detail-row strong {
+        color: var(--muted);
+      }
+
+      .agent-prompt {
+        min-height: 260px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #f8faf9;
+        color: #1f2937;
+        font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .agent-unlock-form {
+        display: grid;
+        gap: 10px;
+      }
+
+      .agent-unlock-form label {
+        display: grid;
+        gap: 5px;
+        color: var(--text);
+        font-weight: 850;
+      }
+
+      .agent-unlock-form input {
+        min-height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 10px;
+        font: inherit;
+      }
+
+      @media (max-width: 900px) {
+        .agent-hero,
+        .agent-detail-layout {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html?v=20260515-jd-nav-flow");
+        ensureAgentsUnlocked().then((ok) => {
+          if (!ok) return;
+          renderOrbitBalls();
+          renderAgents();
+          renderNumaChangeMode();
+        });
+      });
+
+      function escapeAgent(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function currentUserCanAdmin() {
+        try {
+          const user = JSON.parse(sessionStorage.getItem("devreadyUser") || localStorage.getItem("devreadyUser") || "null");
+          return Boolean(user && String(user.username || "").trim().toLowerCase() === "administrator");
+        } catch {
+          return false;
+        }
+      }
+
+      function currentUserIsSuper() {
+        try {
+          const user = JSON.parse(sessionStorage.getItem("devreadyUser") || localStorage.getItem("devreadyUser") || "null") || {};
+          return Boolean(user.role === "super_user" && user.status !== "blocked");
+        } catch {
+          return false;
+        }
+      }
+
+      function adminUnlock() {
+        try {
+          return JSON.parse(sessionStorage.getItem("devreadyAdminUnlock") || "null");
+        } catch {
+          return null;
+        }
+      }
+
+      async function adminAccess(path, opts = {}) {
+        const response = await fetch(path, opts);
+        const text = await response.text();
+        let data = {};
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          data = { detail: text };
+        }
+        if (!response.ok) throw new Error(data.detail || data.message || "Administrator access failed.");
+        return data;
+      }
+
+      function renderAgentsLogin(message = "") {
+        document.querySelector("main.main").innerHTML = `
+          <section class="card" style="max-width: 520px">
+            <h2>Administrator Required</h2>
+            <p>Agents is restricted to Administrator or active Super user access.</p>
+            <form id="agentsUnlockPageForm" class="agent-unlock-form">
+              <label>
+                Username
+                <input name="username" value="Administrator" autocomplete="username" required />
+              </label>
+              <label>
+                Password
+                <input name="password" type="password" autocomplete="current-password" required />
+              </label>
+              <button class="btn primary" type="submit">Unlock Agents</button>
+              <div id="agentsUnlockPageStatus" class="muted">${escapeAgent(message)}</div>
+            </form>
+          </section>
+        `;
+        document.getElementById("agentsUnlockPageForm").addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const status = document.getElementById("agentsUnlockPageStatus");
+          status.textContent = "";
+          try {
+            const data = await adminAccess("/api/access/admin-login", {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: new URLSearchParams(new FormData(event.currentTarget)).toString(),
+            });
+            sessionStorage.setItem("devreadyAdminUnlock", JSON.stringify({
+              token: data.token,
+              user: data.user,
+              unlocked_at: new Date().toISOString(),
+            }));
+            sessionStorage.setItem("devreadyUser", JSON.stringify(data.user));
+            window.location.reload();
+          } catch (error) {
+            status.textContent = error.message || "Agents unlock failed.";
+          }
+        });
+      }
+
+      async function ensureAgentsUnlocked() {
+        if (currentUserIsSuper() && !currentUserCanAdmin()) {
+          return true;
+        }
+        if (!currentUserCanAdmin()) {
+          renderAgentsLogin("Use Administrator or a Super user account to continue.");
+          return false;
+        }
+        const token = adminUnlock()?.token || "";
+        if (!token) {
+          renderAgentsLogin("Enter the Administrator password to continue.");
+          return false;
+        }
+        try {
+          await adminAccess("/api/access/admin-check", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({ token }).toString(),
+          });
+          return true;
+        } catch {
+          sessionStorage.removeItem("devreadyAdminUnlock");
+          renderAgentsLogin("Admin session expired. Enter the Administrator password again.");
+          return false;
+        }
+      }
+
+      function renderOrbitBalls() {
+        const keys = ["talent", "profile", "crm"];
+        document.querySelectorAll(".agent-orbit-ball").forEach((ball, index) => {
+          ball.style.setProperty("--agent-color", window.DevReadyPageAgents.domainColor());
+          ball.innerHTML = window.DevReadyPageAgents.icon(keys[index] || "talent");
+        });
+      }
+
+      function renderAgents() {
+        const agents = window.DevReadyPageAgents.all;
+        const active = window.DevReadyPageAgents.active();
+        const domainColor = window.DevReadyPageAgents.domainColor();
+        const grid = document.getElementById("agentGrid");
+        grid.innerHTML = agents
+          .map((agent) => {
+            const activeClass = active?.key === agent.key ? " active" : "";
+            return `
+              <article class="agent-card${activeClass}" style="--agent-color: ${domainColor}">
+                <div class="agent-card-head">
+                  <i class="agent-ball" aria-hidden="true">${window.DevReadyPageAgents.icon(agent.key)}</i>
+                  <div>
+                    <h2>${escapeAgent(agent.name)}</h2>
+                    <div class="agent-page">${escapeAgent(agent.page)}</div>
+                  </div>
+                </div>
+                <p class="muted">${escapeAgent(agent.specialty)}</p>
+                <ul class="agent-list">
+                  ${agent.canDo.map((item) => `<li>${escapeAgent(item)}</li>`).join("")}
+                </ul>
+                <div class="agent-actions">
+                  <button class="btn" type="button" onclick="activateAgent('${agent.key}')">${active?.key === agent.key ? "Activated" : "Activate"}</button>
+                  <button class="btn secondary" type="button" onclick="selectAgent('${agent.key}')">Details</button>
+                  <a class="btn secondary" href="${window.DevReadyPageAgents.withDomain(agent.href)}">Open Page</a>
+                </div>
+              </article>
+            `;
+          })
+          .join("");
+        renderAgentStatus(active);
+        selectAgent(active?.key || "profile", false);
+      }
+
+      function activateAgent(key) {
+        const agent = window.DevReadyPageAgents.activate(key);
+        renderAgents();
+        selectAgent(agent.key, false);
+        renderAgentStatus(agent);
+      }
+
+      function renderAgentStatus(agent) {
+        const status = document.getElementById("agentStatus");
+        if (!status || !agent) return;
+        const ball = status.querySelector(".agent-status-ball");
+        const label = status.querySelector("span");
+        if (ball) {
+          ball.style.setProperty("--agent-color", window.DevReadyPageAgents.domainColor());
+          ball.innerHTML = window.DevReadyPageAgents.icon(agent.key);
+        }
+        if (label) label.textContent = "Ask Numa";
+      }
+
+      function currentAgentUser() {
+        try {
+          return JSON.parse(sessionStorage.getItem("devreadyUser") || localStorage.getItem("devreadyUser") || "null") || {};
+        } catch {
+          return {};
+        }
+      }
+
+      function hasNumaChangeAccess() {
+        const user = currentAgentUser();
+        const isSuper = user.role === "super_user" && user.status !== "blocked";
+        const isAdministrator = String(user.username || "").trim().toLowerCase() === "administrator";
+        let adminUnlocked = false;
+        try {
+          adminUnlocked = Boolean(JSON.parse(sessionStorage.getItem("devreadyAdminUnlock") || "null")?.token);
+        } catch {}
+        return Boolean(isSuper || isAdministrator || adminUnlocked);
+      }
+
+      function renderNumaChangeMode() {
+        const enabled = localStorage.getItem("devreadyNumaChangeMode") === "on";
+        const allowed = hasNumaChangeAccess();
+        const button = document.getElementById("agentChangeModeBtn");
+        const status = document.getElementById("agentChangeModeStatus");
+        if (!button || !status) return;
+        button.disabled = !allowed;
+        button.textContent = enabled ? "Disable Change Mode" : "Enable Change Mode";
+        status.textContent = allowed
+          ? `Numa change mode is ${enabled ? "on" : "off"}.`
+          : "Change mode requires Administrator unlock or Super user role.";
+      }
+
+      function toggleAgentChangeMode() {
+        if (!hasNumaChangeAccess()) {
+          renderNumaChangeMode();
+          return;
+        }
+        const enabled = localStorage.getItem("devreadyNumaChangeMode") === "on";
+        localStorage.setItem("devreadyNumaChangeMode", enabled ? "off" : "on");
+        renderNumaChangeMode();
+      }
+
+      function selectAgent(key, shouldScroll = true) {
+        const agent = window.DevReadyPageAgents.all.find((item) => item.key === key) || window.DevReadyPageAgents.all[0];
+        const detailBall = document.getElementById("detailBall");
+        detailBall.style.setProperty("--agent-color", window.DevReadyPageAgents.domainColor());
+        detailBall.innerHTML = window.DevReadyPageAgents.icon(agent.key);
+        document.getElementById("detailName").textContent = agent.name;
+        document.getElementById("detailPage").textContent = agent.page;
+        document.getElementById("detailSpecialty").textContent = agent.specialty;
+        document.getElementById("detailCanDo").innerHTML = agent.canDo.map((item) => `<li>${escapeAgent(item)}</li>`).join("");
+        document.getElementById("detailPrompt").textContent = agent.prompt;
+        document.getElementById("detailOpen").href = window.DevReadyPageAgents.withDomain(agent.href);
+        document.getElementById("detailActivate").onclick = () => activateAgent(agent.key);
+        if (shouldScroll) document.getElementById("agentDetail").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Agent Hub</div>
+            <div class="breadcrumb">Page experts - shared context - workflow guidance</div>
+          </div>
+          <div class="agent-top-controls">
+            <div id="agentStatus" class="agent-status-chip">
+              <i class="agent-ball agent-status-ball" aria-hidden="true"></i>
+              <span>Ask Numa</span>
+            </div>
+            <div class="row-actions" style="margin-top: 7px; justify-content: flex-end">
+              <button id="agentChangeModeBtn" class="btn secondary" type="button" onclick="toggleAgentChangeMode()">Enable Change Mode</button>
+              <span id="agentChangeModeStatus" class="muted">Checking Numa access...</span>
+            </div>
+          </div>
+        </div>
+
+        <section class="agent-hero">
+          <div class="card">
+            <h2>Page agents</h2>
+            <p>
+              Numa adapts to each part of the VETCODE process. Every ball matches the current domain color, while the icon inside the ball identifies the page specialty.
+            </p>
+            <p>
+              The backend now has a prompt structure for every agent, plus an `/api/agents/ask` route for live answers when `OPENAI_API_KEY` is configured.
+            </p>
+          </div>
+          <div class="agent-orbit" aria-hidden="true">
+            <i class="agent-orbit-ball" style="--agent-color: var(--primary-2)"></i>
+            <i class="agent-orbit-ball" style="--agent-color: var(--primary-2)"></i>
+            <i class="agent-orbit-ball" style="--agent-color: var(--primary-2)"></i>
+          </div>
+        </section>
+
+        <section id="agentGrid" class="agent-grid" aria-label="Page agents"></section>
+
+        <section id="agentDetail" class="card" style="margin-top: 14px">
+          <div class="agent-detail-layout">
+            <div>
+              <div class="agent-card-head">
+                <i id="detailBall" class="agent-ball" aria-hidden="true"></i>
+                <div>
+                  <h2 id="detailName" style="margin: 0">Numa</h2>
+                  <div id="detailPage" class="agent-page">Profiles</div>
+                </div>
+              </div>
+              <div class="agent-detail-list" style="margin-top: 12px">
+                <div class="agent-detail-row"><strong>Focus</strong><span id="detailSpecialty"></span></div>
+                <div class="agent-detail-row"><strong>Actions</strong><ul id="detailCanDo" class="agent-list"></ul></div>
+              </div>
+              <div class="agent-actions" style="margin-top: 12px">
+                <button id="detailActivate" class="btn" type="button">Activate</button>
+                <a id="detailOpen" class="btn secondary" href="profile-preview.html">Open Page</a>
+              </div>
+            </div>
+            <div>
+              <h2 style="margin-top: 0">Agent Prompt Structure</h2>
+              <div id="detailPrompt" class="agent-prompt"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

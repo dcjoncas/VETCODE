@@ -12,17 +12,38 @@
       type="image/svg+xml"
     />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
-      $(function () {
-        $("#siteSidebar").load("components/sidebar.html", function () {
-          document.addEventListener("change", (event) => {
-            if (event.target && event.target.id === "domainSelect") {
-              updateCounts();
-              loadExistingDescriptions();
-            }
-          });
+      function bindTalentDomainRefresh() {
+        if (window.talentDomainRefreshBound) return;
+        window.talentDomainRefreshBound = true;
+        document.addEventListener("change", (event) => {
+          if (event.target && event.target.id === "domainSelect") {
+            loadExistingDescriptions();
+            updateCountsAfterPaint();
+          }
         });
+      }
+
+      function loadTalentSidebar() {
+        $("#siteSidebar").load("components/sidebar.html?v=20260515-jd-nav-flow", bindTalentDomainRefresh);
+      }
+
+      $(function () {
+        if (!document.getElementById("siteSidebar")?.dataset.loaded) {
+          loadTalentSidebar();
+        }
         $("#processFlow").load("components/processFlow.html");
         $("#searchBar").load("components/searchBar.html");
       });
@@ -169,6 +190,10 @@
   <body>
     <div class="container">
       <div id="siteSidebar"></div>
+      <script>
+        document.getElementById("siteSidebar").dataset.loaded = "true";
+        loadTalentSidebar();
+      </script>
 
       <main class="main">
         <div class="topbar">
@@ -306,9 +331,9 @@
         <section id="allProfilesSection" class="card" style="margin-top: 18px; display: none">
           <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap">
             <div>
-              <h2 style="margin-bottom: 4px">All profiles by capability area</h2>
+              <h2 style="margin-bottom: 4px">All profiles A-Z</h2>
               <p id="allProfilesStatus" style="margin-top: 0">
-                Select a capability area, then drill into alphabetical names.
+                Select a letter, then choose the profile.
               </p>
             </div>
             <button id="hideProfilesBtn" class="btn secondary" type="button">
@@ -319,7 +344,7 @@
             <button id="allProfilesBackBtn" class="btn secondary" type="button" style="display: none">
               Back
             </button>
-            <span id="allProfilesPath" class="pill">Capability areas</span>
+            <span id="allProfilesPath" class="pill">A-Z profiles</span>
           </div>
           <div id="allProfilesLetters" class="profile-drill-grid"></div>
           <div id="allProfilesFamilies" class="profile-family-grid"></div>
@@ -372,30 +397,74 @@
         .querySelectorAll("a.step")
         .forEach((a) => a.addEventListener("click", () => {}));
 
-      async function updateCounts() {
-        let domain = sessionStorage.getItem("domain");
-        if (!domain) domain = "dev";
+      function talentCountCacheKey(domain) {
+        return `talentCounts:${domain || "dev"}`;
+      }
 
-        const responseTotal = await fetch(
-          `/api/azure/countCandidates/all?domain=${domain}`,
-        );
-        const totalCount = await responseTotal.json();
-
+      function renderCounts(totalCount) {
+        if (!totalCount) return;
         document.getElementById("totalCandidateCount").textContent =
-          totalCount.total;
+          totalCount.total ?? "N/A";
         document.getElementById("newThisWeekCount").textContent =
-          totalCount.completedProfiles ?? totalCount.recent;
+          totalCount.completedProfiles ?? totalCount.recent ?? "N/A";
         const stackCounts = totalCount.stackCounts || {};
         const topStack = Object.entries(stackCounts).sort((a, b) => b[1] - a[1])[0];
         document.getElementById("inInterviewCount").textContent =
           topStack ? `${topStack[0]} (${topStack[1]})` : "N/A";
 
-        sessionStorage.setItem("totalProfiles", totalCount.total);
-        sessionStorage.setItem("recentProfiles", totalCount.recent);
+        sessionStorage.setItem("totalProfiles", totalCount.total ?? "");
+        sessionStorage.setItem("recentProfiles", totalCount.recent ?? "");
         sessionStorage.setItem(
           "pipelineProfiles",
           topStack ? `${topStack[0]} (${topStack[1]})` : "",
         );
+      }
+
+      function cachedTalentCounts(domain) {
+        try {
+          const cached = JSON.parse(sessionStorage.getItem(talentCountCacheKey(domain)) || "null");
+          if (!cached || !cached.value) return null;
+          if (Date.now() - Number(cached.createdAt || 0) > 60000) return null;
+          return cached.value;
+        } catch {
+          return null;
+        }
+      }
+
+      async function updateCounts() {
+        let domain = sessionStorage.getItem("domain");
+        if (!domain) domain = "dev";
+
+        const cached = cachedTalentCounts(domain);
+        if (cached) renderCounts(cached);
+
+        try {
+          const responseTotal = await fetch(
+            `/api/azure/countCandidates/all?domain=${domain}`,
+          );
+          if (!responseTotal.ok) throw new Error(await responseTotal.text());
+          const totalCount = await responseTotal.json();
+          sessionStorage.setItem(
+            talentCountCacheKey(domain),
+            JSON.stringify({ createdAt: Date.now(), value: totalCount }),
+          );
+          renderCounts(totalCount);
+        } catch (error) {
+          console.warn("Could not refresh Talent counts.", error);
+          if (!cached) {
+            document.getElementById("totalCandidateCount").textContent = "N/A";
+            document.getElementById("newThisWeekCount").textContent = "N/A";
+            document.getElementById("inInterviewCount").textContent = "N/A";
+          }
+        }
+      }
+
+      function updateCountsAfterPaint() {
+        const domain = sessionStorage.getItem("domain") || "dev";
+        renderCounts(cachedTalentCounts(domain));
+        window.requestAnimationFrame(() => {
+          window.setTimeout(updateCounts, 250);
+        });
       }
 
       function resetVettingProcess() {
@@ -443,6 +512,7 @@
           profile.name || `${profile.firstName || ""} ${profile.lastName || ""}`.trim(),
         );
         sessionStorage.setItem("candidateEmail", profile.email || "");
+        sessionStorage.setItem("candidateDomain", sessionStorage.getItem("domain") || "dev");
         sessionStorage.setItem(
           "candidateStatus",
           sessionStorage.getItem("knownProfileSelection") === "1"
@@ -941,8 +1011,6 @@
 
       function renderAllProfilesDrilldown() {
         const profiles = window.allProfiles || [];
-        const completeProfiles = profiles.filter((profile) => profile.hasProfile !== false);
-        const incompleteProfiles = profiles.filter((profile) => profile.hasProfile === false);
         const titleTarget = document.getElementById("allProfilesLetters");
         const lettersTarget = document.getElementById("allProfilesFamilies");
         const body = document.getElementById("allProfilesBody");
@@ -950,89 +1018,43 @@
         const path = document.getElementById("allProfilesPath");
         const backBtn = document.getElementById("allProfilesBackBtn");
 
-        const areaGroups = orderedAreaGroups(completeProfiles);
-        window.profileAreaGroups = areaGroups;
-        const areaButtons = areaGroups
-          .map((group, index) => {
-            const count = completeProfiles.filter((profile) => profileAreaGroup(profile) === group).length;
-            const active = selectedProfileArea === group ? " active" : "";
-            return `<button class="btn secondary${active}" type="button" onclick="selectProfileAreaByIndex(${index})">${escapeHtml(profileGroupLabel(group))} <span class="pill">${count}</span></button>`;
-          })
-          .join("");
-        const incompleteButton = incompleteProfiles.length
-          ? `<button class="btn secondary${selectedProfileArea === incompleteProfileGroup ? " active" : ""}" type="button" onclick="selectProfileArea('${incompleteProfileGroup}')">Profile to be completed <span class="pill">${incompleteProfiles.length}</span></button>`
-          : "";
-        titleTarget.innerHTML = `${areaButtons}${incompleteButton ? `<div style="flex-basis: 100%"></div>${incompleteButton}` : ""}`;
-
-        backBtn.style.display = selectedProfileArea ? "inline-flex" : "none";
         lettersTarget.innerHTML = "";
         body.innerHTML = "";
+        backBtn.style.display = selectedProfileLetter ? "inline-flex" : "none";
 
-        if (!selectedProfileArea) {
-          status.textContent = `Showing ${completeProfiles.length} completed profiles. Pick a capability area, then drill into A-Z names.`;
-          path.textContent = "Capability areas";
-          return;
-        }
-
-        if (selectedProfileArea === incompleteProfileGroup) {
-          status.textContent = `${incompleteProfiles.length} profile${incompleteProfiles.length === 1 ? "" : "s"} need to be completed.`;
-          path.textContent = "Profile to be completed";
-          body.innerHTML = incompleteProfiles
-            .map((profile) => {
-              const index = profiles.indexOf(profile);
-              return `<div class="profile-drill-row">
-                <div>
-                  <button class="btn secondary" type="button" onclick="findSelect(allProfiles[${index}])">${escapeHtml(profile.name || "Unnamed profile")}</button>
-                  <div style="color: var(--muted); font-size: 13px">${escapeHtml(profile.title || "No title")}</div>
-                </div>
-                <div><span class="pill">Profile to be completed</span></div>
-                <div style="font-size: 13px">${escapeHtml(bestProfileSignal(profile))}</div>
-                <div class="row-actions" style="margin: 0">
-                  <a href="profile-preview.html" onclick="findSelect(allProfiles[${index}]); return false;">Open profile</a>
-                  <span id="allProfilesCompletion-${escapeHtml(profile.id)}"></span>
-                </div>
-              </div>`;
-            })
-            .join("");
-          incompleteProfiles.forEach((profile) => {
-            addCompletionActionIfNeeded(profile, `allProfilesCompletion-${profile.id}`);
-          });
-          return;
-        }
-
-        const areaRows = completeProfiles.filter((profile) => profileAreaGroup(profile) === selectedProfileArea);
-        const letters = Array.from(new Set(areaRows.map(profileLetter))).sort((a, b) => {
+        const letters = Array.from(new Set(profiles.map(profileLetter))).sort((a, b) => {
           if (a === "#") return 1;
           if (b === "#") return -1;
           return a.localeCompare(b);
         });
-        lettersTarget.innerHTML = letters
+        titleTarget.innerHTML = letters
           .map((letter) => {
-            const count = areaRows.filter((profile) => profileLetter(profile) === letter).length;
+            const count = profiles.filter((profile) => profileLetter(profile) === letter).length;
             const active = selectedProfileLetter === letter ? " active" : "";
             return `<button class="btn secondary${active}" type="button" onclick="selectProfileLetter('${letter}')">${letter} <span class="pill">${count}</span></button>`;
           })
           .join("");
 
         if (!selectedProfileLetter) {
-          status.textContent = `${areaRows.length} profile${areaRows.length === 1 ? "" : "s"} in ${profileGroupLabel(selectedProfileArea)}. Pick a letter.`;
-          path.textContent = `${profileGroupLabel(selectedProfileArea)} > A-Z`;
+          status.textContent = `Showing ${profiles.length} profile${profiles.length === 1 ? "" : "s"} grouped alphabetically. Pick a letter.`;
+          path.textContent = "A-Z profiles";
           return;
         }
 
-        const rows = areaRows.filter((profile) => profileLetter(profile) === selectedProfileLetter);
-        status.textContent = `${rows.length} profile${rows.length === 1 ? "" : "s"} under ${profileGroupLabel(selectedProfileArea)} / ${selectedProfileLetter}.`;
-        path.textContent = `${profileGroupLabel(selectedProfileArea)} > ${selectedProfileLetter}`;
+        const rows = profiles.filter((profile) => profileLetter(profile) === selectedProfileLetter);
+        status.textContent = `${rows.length} profile${rows.length === 1 ? "" : "s"} under ${selectedProfileLetter}.`;
+        path.textContent = `A-Z > ${selectedProfileLetter}`;
         body.innerHTML = rows
           .map((profile) => {
             const index = profiles.indexOf(profile);
             const skills = (profile.skills || []).slice(0, 4).map(escapeHtml).join(", ") || escapeHtml(bestProfileSignal(profile));
+            const profileStatus = profile.hasProfile === false ? "Profile to be completed" : profile.primaryStack || "Profile";
             return `<div class="profile-drill-row">
               <div>
                 <button class="btn secondary" type="button" onclick="findSelect(allProfiles[${index}])">${escapeHtml(profile.name || "Unnamed profile")}</button>
                 <div style="color: var(--muted); font-size: 13px">${escapeHtml(profile.title || "No title")}</div>
               </div>
-              <div><span class="pill">${escapeHtml(profile.primaryStack || "Other")}</span></div>
+              <div><span class="pill">${escapeHtml(profileStatus)}</span></div>
               <div style="font-size: 13px">${skills}</div>
               <div class="row-actions" style="margin: 0">
                 <a href="profile-preview.html" onclick="findSelect(allProfiles[${index}]); return false;">Open profile</a>
@@ -1106,6 +1128,7 @@
           sessionStorage.removeItem("externalCandidateSource");
           sessionStorage.removeItem("candidateTopMatches");
           sessionStorage.removeItem("totalProfiles");
+          sessionStorage.removeItem(talentCountCacheKey(sessionStorage.getItem("domain") || "dev"));
           document.getElementById("uploadStatus").textContent =
             "Profile generated. Opening Profile Preview...";
           window.location.href = "profile-preview.html";
@@ -1121,7 +1144,7 @@
 
       document.addEventListener("DOMContentLoaded", function () {
         const params = new URLSearchParams(window.location.search);
-        updateCounts();
+        updateCountsAfterPaint();
 
         document
           .getElementById("searchProfilesBtn")
@@ -1154,8 +1177,6 @@
           .addEventListener("click", () => {
             if (selectedProfileLetter) {
               selectedProfileLetter = "";
-            } else {
-              selectedProfileArea = "";
             }
             renderAllProfilesDrilldown();
           });
@@ -1182,10 +1203,10 @@
           sessionStorage.setItem("knownProfileSelection", "1");
           document.getElementById("allProfilesSection").style.display = "block";
           document.getElementById("allProfilesStatus").textContent =
-            "Loading known-profile picker. Select a capability area, drill into A-Z, then choose the person to make them the active candidate.";
+            "Loading known-profile picker. Select a letter, then choose the person to make them the active candidate.";
           listAllProfiles().then(() => {
             document.getElementById("allProfilesStatus").textContent =
-              "Known profile picker: select a capability area, drill into A-Z, then choose the person to make them the active candidate for this stage.";
+              "Known profile picker: select a letter, then choose the person to make them the active candidate for this stage.";
             document.getElementById("allProfilesSection").scrollIntoView({
               behavior: "smooth",
               block: "start",
@@ -1196,3 +1217,4 @@
     </script>
   </body>
 </html>
+

@@ -32,6 +32,7 @@
     </div>
   </div>
   <div id="pageNav"></div>
+  <div id="pageAgentDock"></div>
 
   <div class="footer">
     <a href="/ui/index.html">DevReady home</a><br />
@@ -136,6 +137,169 @@
     gap: 8px;
     padding: 14px 18px 18px;
   }
+
+  .agent-orb-button {
+    position: fixed;
+    top: 18px;
+    left: 50%;
+    z-index: 9000;
+    display: none;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    width: auto;
+    min-width: 0;
+    transform: translateX(-50%);
+    border: 1px solid rgba(255, 255, 255, 0.62);
+    border-radius: 999px;
+    padding: 7px 11px 7px 7px;
+    background: rgba(255, 255, 255, 0.92);
+    color: #101827;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .agent-orb-button.visible {
+    display: inline-flex;
+  }
+
+  .agent-orb {
+    --agent-color: var(--primary-2);
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background:
+      radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.96) 0 9%, rgba(255, 255, 255, 0.24) 10% 22%, transparent 23%),
+      radial-gradient(circle at 68% 72%, rgba(0, 0, 0, 0.24), transparent 38%),
+      radial-gradient(circle at 36% 34%, color-mix(in srgb, var(--agent-color), white 36%), var(--agent-color) 52%, color-mix(in srgb, var(--agent-color), black 35%) 100%);
+    box-shadow:
+      inset -8px -10px 16px rgba(0, 0, 0, 0.24),
+      inset 8px 8px 14px rgba(255, 255, 255, 0.26),
+      0 8px 20px color-mix(in srgb, var(--agent-color), transparent 65%);
+  }
+
+  .agent-orb svg {
+    position: relative;
+    z-index: 1;
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: #fff;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.28));
+  }
+
+  .agent-orb-button span {
+    display: inline-block;
+    flex: 0 0 auto;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 900;
+  }
+
+  .agent-chat-panel {
+    position: fixed;
+    top: 68px;
+    left: 50%;
+    z-index: 9001;
+    display: none;
+    width: min(390px, calc(100vw - 28px));
+    transform: translateX(-50%);
+    border: 1px solid var(--line, #dfe7e2);
+    border-radius: 14px;
+    background: #fff;
+    color: var(--text, #101827);
+    box-shadow: 0 22px 60px rgba(15, 23, 42, 0.22);
+    overflow: hidden;
+  }
+
+  .agent-chat-panel.open {
+    display: block;
+  }
+
+  .agent-chat-head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid var(--line, #dfe7e2);
+    background: linear-gradient(90deg, rgba(var(--primary-rgb, 47, 125, 75), 0.1), #fff);
+  }
+
+  .agent-chat-title strong {
+    display: block;
+    font-size: 14px;
+    line-height: 1.15;
+  }
+
+  .agent-chat-title span {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted, #5b6b62);
+    font-size: 12px;
+  }
+
+  .agent-chat-close {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--line, #dfe7e2);
+    border-radius: 999px;
+    background: #fff;
+    cursor: pointer;
+    font-weight: 900;
+  }
+
+  .agent-chat-log {
+    display: grid;
+    gap: 8px;
+    max-height: 310px;
+    overflow-y: auto;
+    padding: 12px;
+    background: #f8faf9;
+  }
+
+  .agent-msg {
+    max-width: 88%;
+    border-radius: 12px;
+    padding: 9px 10px;
+    background: #fff;
+    border: 1px solid var(--line, #dfe7e2);
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .agent-msg.user {
+    justify-self: end;
+    color: #fff;
+    background: var(--primary-2, #2f7d4b);
+    border-color: transparent;
+  }
+
+  .agent-chat-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 10px;
+    border-top: 1px solid var(--line, #dfe7e2);
+  }
+
+  .agent-chat-form input {
+    min-height: 38px;
+    border: 1px solid var(--line, #dfe7e2);
+    border-radius: 999px;
+    padding: 8px 11px;
+    font: inherit;
+  }
 </style>
 
 <script>
@@ -203,20 +367,23 @@
 
   $(function () {
     applyLoggedInUser();
-    $("#pageNav").load("components/sideNav.html?v=20260512-icons", function () {
-      applyMenuAccess();
-    });
-
     const params = new URLSearchParams(window.location.search);
     const domainFromUrl = params.get("domain");
     let activeDomain = domainFromUrl || sessionStorage.getItem("domain") || "dev";
+    activeDomain = activeDomain === "technology" ? "dev" : activeDomain;
 
     if (domainFromUrl) {
-      sessionStorage.setItem("domain", domainFromUrl);
+      sessionStorage.setItem("domain", activeDomain);
     }
 
     syncDomainSelect(activeDomain);
     domainUpdate(activeDomain);
+    initPageAgentDock();
+    loadPageAgentRuntime(renderActivePageAgent);
+    $("#pageNav").load("components/sideNav.html?v=20260515-jd-nav-flow", function () {
+      applyMenuAccess();
+      applyDomainToLocalLinks(sessionStorage.getItem("domain") || "dev");
+    });
     applyGlobalHints();
     initGlobalHints();
     environmentUpdate();
@@ -249,11 +416,19 @@
       return;
     }
     const isAdministrator = String(user.username || "").trim().toLowerCase() === "administrator";
+    const isSuperUser = user.role === "super_user";
     if (!isAdministrator) {
       document.querySelector('#pageNavInner [data-menu-key="admin"]')?.remove();
     }
-    if (user.role === "super_user") return;
+    if (!isAdministrator && !isSuperUser) {
+      document.querySelector('#pageNavInner [data-menu-key="agents"]')?.remove();
+    }
+    if (isSuperUser) return;
     const allowed = new Set(user.allowed_menu || []);
+    if (isAdministrator) {
+      allowed.add("admin");
+      allowed.add("agents");
+    }
     document.querySelectorAll("#pageNavInner [data-menu-key]").forEach((item) => {
       const key = item.dataset.menuKey;
       if (!allowed.has(key)) item.remove();
@@ -287,48 +462,202 @@
     return String(value || "").replace(/\s+/g, " ").trim();
   }
 
+  function weakHintFor(label, hint) {
+    const cleanLabel = normalizeHintLabel(label).toLowerCase();
+    const cleanHint = normalizeHintLabel(hint).toLowerCase();
+    if (!cleanLabel || !cleanHint) return false;
+    return (
+      cleanHint === cleanLabel ||
+      cleanHint === `use ${cleanLabel}.` ||
+      cleanHint === `open ${cleanLabel}.` ||
+      cleanHint === `select ${cleanLabel}.` ||
+      cleanHint === `click ${cleanLabel}.`
+    );
+  }
+
   function defaultHintFor(label, element) {
     const text = normalizeHintLabel(label).toLowerCase();
+    const id = String(element?.id || "").toLowerCase();
+    const onClick = String(element?.getAttribute?.("onclick") || "").toLowerCase();
+    const href = String(element?.getAttribute?.("href") || "").toLowerCase();
+
+    const byId = {
+      admindomainselect: "Switch the admin dashboard to another domain so the counts, users, jobs, time, and QA links stay scoped to that workspace.",
+      addselectedprofilesbtn: "Move the checked candidates into the shortlist for the selected job and active domain.",
+      allprofilesbackbtn: "Return from the full profile list to the normal candidate search results.",
+      boardmodebtn: "Show client relationships as large player cards for quick scanning and outreach planning.",
+      btnaddrankedselected: "Add the checked ranked candidates to the shortlist for the current job description.",
+      btncanceledit: "Leave job-description edit mode without applying the current form changes.",
+      btnclearjd: "Remove the selected job description from the current search context without deleting the saved job.",
+      btnimportselected: "Create temporary profiles from the selected outside-search results for review.",
+      btnloadjd: "Apply the selected saved job description so matching can score candidates against it.",
+      btnmine: "Run the outside-search workflow using the criteria entered on this page.",
+      btnrank: "Score candidates against the current job description and show the strongest matches first.",
+      btnsavejd: "Normalize the pasted job description, extract requirements, and save it to the active domain.",
+      btnsavejdfile: "Read the selected JD file and load its text into the job-description editor.",
+      btnviewtempprofiles: "Open temporary outside-sourcing profiles so you can decide what should become permanent.",
+      certcandidatesearchbtn: "Find the candidate who should receive the certification link.",
+      clearcrmformbtn: "Clear the client card form so you can enter a different account.",
+      clearcrmrecordsbtn: "Remove local demo/client CRM cards for this browser and domain.",
+      copycertlinkbtn: "Copy the candidate certification link for manual sending.",
+      copynextcertlinkbtn: "Copy the next certification level link after the candidate passes the current one.",
+      emailcertlinkbtn: "Open an email draft that contains the candidate certification link.",
+      emailnextcertlinkbtn: "Open an email draft for the candidate's next certification level.",
+      googleconnectbutton: "Connect Google Calendar so this scheduling step can create or prepare calendar events.",
+      googleusebutton: "Use Google Calendar for this interview scheduling workflow.",
+      hideprofilesbtn: "Close the full profile list and return to the search workflow.",
+      listmodebtn: "Show client relationships as a compact text list instead of cards.",
+      listprofilesbtn: "Load all profiles in the current domain so you can browse or pick a candidate directly.",
+      markcertifiedbtn: "Record the candidate as AI certified after a passing certification result is confirmed.",
+      markcertsentbtn: "Mark the certification link as sent so the profile status and follow-up trail stay current.",
+      markpassedbtn: "Attach a passed test-challenge result to the candidate profile.",
+      outlookconnectbutton: "Connect Outlook Calendar so this scheduling step can create or prepare calendar events.",
+      outlookusebutton: "Use Outlook Calendar for this interview scheduling workflow.",
+      publicbtn: "Open the shareable candidate profile page that clients can view.",
+      refreshcertbtn: "Check the latest certification attempt status for the selected candidate.",
+      refreshchallengebtn: "Reload the latest test-challenge result for the selected candidate.",
+      resetprocessbtn: "Clear the current workflow context and start a fresh candidate search.",
+      savecrmbtn: "Save the form as a client player card in the active domain CRM.",
+      saveprogressbtn: "Save the candidate's partial chat answers to the profile without requiring full completion.",
+      scancrmbtn: "Generate an AI-style relationship read for the client card from the notes and fields entered.",
+      searchprofilesbtn: "Search saved profiles in the current domain using the selected job or typed criteria.",
+      seedcrmbtn: "Add sample client player cards for local CRM testing.",
+      touchcrmbtn: "Record a fresh touchpoint on the current client card.",
+      trackcandidatesearchbtn: "Select the candidate to track certification progress for.",
+    };
+    if (id && byId[id]) return byId[id];
+
     const exact = {
-      search: "Search the current page or profile list using the text you entered.",
-      upload: "Upload the selected file and start the matching profile action.",
-      refresh: "Reload the latest data for this section.",
-      delete: "Remove this item. Use carefully because this may affect saved workflow data.",
-      remove: "Remove this row from the current editable section.",
-      save: "Save the changes in this section.",
-      "save all": "Save all editable sections on this page.",
-      "start over": "Clear the current candidate, job, shortlist, and process trail.",
-      "load jd": "Load the selected job description into the current workflow.",
-      "create chat link": "Create a secure candidate chat link for profile completion.",
+      "add checked candidates to shortlist": "Move checked candidates into the shortlist so they can be reviewed before client communication.",
+      "ai scan": "Rebuild the card's relationship read from the latest client notes and activity.",
+      "ai scan card": "Generate a relationship read for this client using the card fields and notes.",
+      "approve": "Mark this time group approved and ready for payment processing.",
+      "attach profiles": "Attach selected public profile links to the client message before sending.",
+      "block": "Prevent this user or candidate from accessing the app until they are unblocked.",
+      board: "Show CRM records as visual player cards for relationship review.",
+      cancel: "Close edit mode and keep the current saved values.",
+      "clear jd": "Remove the job description from the current workflow without deleting it from saved jobs.",
+      "clear local crm": "Remove local CRM cards stored in this browser for the active domain.",
+      "clear local workflow selection": "Clear selected candidate, job, shortlist, and scheduling context from this browser.",
+      close: "Close this panel and return to the page.",
       "copy link": "Copy this link so you can send it manually.",
+      "copy next link": "Copy the next certification link after this level is complete.",
+      "copy onboarding link": "Copy the onboarding link for the selected hire.",
+      "copy time-entry link": "Copy the staff time-entry link for manual sending.",
+      "copy time link": "Copy the staff time-entry link tied to this person.",
+      delete: "Remove this item after confirmation. Use carefully because saved workflow data may be affected.",
+      edit: "Open this record for editing so its saved values can be updated.",
+      "edit profile": "Open the profile editor to update resume, portfolio, skills, and completion data.",
       "email candidate": "Open an email draft addressed to the selected candidate.",
-      "view process map": "Open the full workflow map with the current step highlighted.",
+      "email link": "Open an email draft that includes the generated link.",
+      "email next link": "Open an email draft with the candidate's next certification link.",
+      "email time-entry link": "Open an email draft with the staff time-entry link.",
+      "email time link": "Open an email draft with this person's time-entry link.",
+      "export snapshot": "Download or copy the current admin operations summary for review outside the app.",
+      "flag review": "Mark this time group as needing review before approval or payment processing.",
+      "generate email": "Create the client communication draft from the selected job and shortlisted profiles.",
+      "generate invite": "Build the interview invite text from the selected candidate, client, attendees, and job context.",
+      "get ai certified": "Prepare a candidate-only certification link and track the result on the profile.",
+      "hide profiles": "Close the all-profiles browser and return to the candidate search area.",
+      "list all profiles": "Open a full list of saved profiles in the current domain.",
+      list: "Show CRM records in a compact row layout for faster scanning.",
+      "load demo cards": "Add sample CRM player cards for local testing.",
+      "load jd": "Apply the selected saved job description so matching can use its requirements.",
+      "load jd file": "Read the selected job-description file and place its text into the editor.",
+      "load known profile": "Open a searchable picker of saved profiles and load the selected candidate.",
+      "make permanent": "Promote this temporary outside-sourcing profile into the permanent domain profile database.",
       map: "Open the full workflow map with the current step highlighted.",
+      "mark ai certified": "Record the candidate as certified after a passing result is confirmed.",
+      "mark processed": "Mark approved time as processed for payment so HR can distinguish paid work from pending work.",
+      "mark sent": "Record that the link or message was sent so follow-up status stays accurate.",
+      "new skill": "Add another skill row to this profile or portfolio section.",
+      "new feature": "Add another feature or highlight row to this profile section.",
+      "new user": "Clear the user form so a new account can be created.",
+      "normalize & save": "Clean up the job description, extract structured requirements, and save it.",
+      "normalize & save jd": "Clean up the job description, extract structured requirements, and save it to this domain.",
+      "open domain qa links": "Open the standard local QA pages for the selected domain.",
+      "open profile": "Open the selected candidate profile so you can review or continue the workflow.",
+      "original resume": "Open the uploaded resume file used to build this profile.",
+      "public profile": "Open the shareable profile page intended for client viewing.",
+      refresh: "Reload the latest data for this section.",
+      "refresh challenge": "Check the latest test-challenge result for the selected candidate.",
+      "refresh meet": "Reload the embedded meeting workspace.",
+      "refresh people": "Reload onboarded people who can receive time-entry links.",
+      "refresh status": "Check the latest external result and update the status shown here.",
+      "refresh submitted time": "Reload submitted time entries for this staff member.",
+      remove: "Remove this row from the current editable section.",
+      "resend login": "Send the candidate's login information again using the saved account email.",
+      "save all": "Save all editable sections on this page.",
+      "save edit": "Save every field currently shown in the edit form and return to normal view.",
+      "save from file": "Save the job-description text that was loaded from the selected file.",
+      "save player card": "Save the form as a client relationship card in the CRM.",
+      "save user": "Save this user's role, account status, and menu access settings.",
+      search: "Search using the text or filters entered in this section.",
+      "search candidate": "Find a candidate account by name, email, or profile id so access can be managed.",
+      "search profiles": "Search saved profiles in this domain using the selected job or criteria.",
+      select: "Choose this record for the current workflow.",
+      "send email": "Send or prepare the generated client communication after the message and profile links are ready.",
+      "send login info": "Send login details to the selected user account.",
+      "send to client": "Move to the client communication step after shortlist review is ready.",
+      shortlist: "Add or open this candidate in the shortlist for client review.",
+      "start from scratch": "Clear the selected candidate and job context so you can begin a new search.",
+      "start over": "Clear the current candidate, job, shortlist, and process trail.",
+      "submit onboarding": "Submit the onboarding form and save the new hire details.",
+      "submit week": "Submit this week's time entries for review and payment processing.",
+      touch: "Record that a follow-up happened and refresh the relationship timing.",
+      "touch now": "Record a fresh client touchpoint using the current time.",
+      unblock: "Restore access for this blocked user or candidate.",
+      "unlock admin": "Verify the admin passcode and open protected account-management tools.",
+      upload: "Upload the selected file and start processing it.",
+      "use google calendar": "Use Google Calendar as the scheduling provider for this interview.",
+      "use outlook calendar": "Use Outlook Calendar as the scheduling provider for this interview.",
+      view: "Expand this record to review the saved details without changing the data.",
+      "view temp profiles": "Open temporary outside-sourcing profiles for review before promotion.",
+      "view process map": "Open the full workflow map with the current step highlighted.",
     };
     if (exact[text]) return exact[text];
-    if (text.includes("save")) return "Save the current changes.";
-    if (text.includes("upload")) return "Upload the selected file and process it.";
-    if (text.includes("load")) return "Load the selected item into this workflow.";
-    if (text.includes("refresh")) return "Refresh this section with the latest data.";
-    if (text.includes("delete")) return "Delete the selected item after confirmation.";
-    if (text.includes("open")) return "Open this workspace or record.";
-    if (text.includes("continue") || text.includes("next")) return "Continue to the next step in the workflow.";
-    if (text.includes("back") || text.includes("return")) return "Go back to the previous workspace.";
-    if (element?.tagName === "SELECT") return "Choose an option for this section.";
-    return label ? `Use ${label}.` : "";
+
+    if (onClick.includes("conductcandidatereview")) {
+      return "Start the candidate review touch base before sending the person to a client.";
+    }
+    if (onClick.includes("schedule") || href.includes("schedule-interview")) {
+      return "Open interview scheduling with the current candidate, job, and domain context carried forward.";
+    }
+    if (onClick.includes("copy")) return "Copy the generated link or text to the clipboard.";
+    if (onClick.includes("email")) return "Open an email draft with the right recipient and link filled in.";
+    if (onClick.includes("delete")) return "Remove this saved item after confirmation.";
+    if (onClick.includes("edit")) return "Open this item for editing so its saved fields can be updated.";
+    if (onClick.includes("touch")) return "Record a current follow-up on this relationship.";
+    if (onClick.includes("refresh") || onClick.includes("load")) return "Reload the latest saved data for this section.";
+
+    if (text.includes("save")) return "Persist the current form values to the active domain data.";
+    if (text.includes("upload")) return "Send the selected file into the profile or job-processing workflow.";
+    if (text.includes("load")) return "Bring the selected saved record into the current workflow context.";
+    if (text.includes("refresh")) return "Reload this section from the latest saved data.";
+    if (text.includes("delete")) return "Remove the selected item after confirmation.";
+    if (text.includes("remove")) return "Take this row out of the editable section.";
+    if (text.includes("search")) return "Find matching records using the text and filters currently entered.";
+    if (text.includes("select")) return "Choose this item and attach it to the current workflow step.";
+    if (text.includes("send")) return "Prepare or deliver the current message using the selected recipient context.";
+    if (text.includes("copy")) return "Copy the generated value so it can be pasted elsewhere.";
+    if (text.includes("email")) return "Open an email draft with the relevant link or message included.";
+    if (text.includes("open")) return "Open the related workspace, profile, or record for review.";
+    if (text.includes("continue") || text.includes("next")) return "Move forward using the current candidate and job context.";
+    if (text.includes("back") || text.includes("return")) return "Return to the previous workflow area.";
+    if (text.includes("block")) return "Disable access for this account until it is unblocked.";
+    if (text.includes("approve")) return "Mark this item approved for the next operations step.";
+    if (text.includes("process")) return "Mark this item as handled so it is separated from pending work.";
+    if (element?.tagName === "SELECT") return "Choose the value that controls what this section displays or updates.";
+    if (element?.tagName === "INPUT" && element?.type === "file") {
+      return "Choose a local file to upload into this workflow.";
+    }
+    return "Run this control for the current section. Check the nearby heading to confirm which record will change.";
   }
 
   function applyButtonHints(root = document) {
     root
       .querySelectorAll("button, a.btn, .nav a, select, input[type='file'], [data-hint]")
       .forEach((element) => {
-        if (element.dataset.hint) {
-          if (element.getAttribute("title")) {
-            element.dataset.nativeTitle = element.getAttribute("title");
-            element.removeAttribute("title");
-          }
-          return;
-        }
         const label =
           element.getAttribute("aria-label") ||
           element.getAttribute("title") ||
@@ -336,6 +665,13 @@
           element.getAttribute("placeholder") ||
           element.id ||
           "";
+        if (element.dataset.hint && !weakHintFor(label, element.dataset.hint)) {
+          if (element.getAttribute("title")) {
+            element.dataset.nativeTitle = element.getAttribute("title");
+            element.removeAttribute("title");
+          }
+          return;
+        }
         const hint = defaultHintFor(label, element);
         if (hint) element.dataset.hint = hint;
         if (element.getAttribute("title")) {
@@ -419,9 +755,8 @@
     sessionStorage.setItem("domain", currentDomain);
     const url = new URL(window.location);
     url.searchParams.set("domain", currentDomain);
-    window.history.replaceState({}, "", url);
 
-    domainUpdate(currentDomain);
+    window.location.href = url.toString();
   }
 
   function syncDomainSelect(currentDomain) {
@@ -446,7 +781,33 @@
 
     document.getElementById("domainCss").href =
       `../assets/${currentDomain}Styles.css`;
+    applyDomainToLocalLinks(currentDomain);
+    if (typeof renderActivePageAgent === "function") renderActivePageAgent();
     environmentUpdate();
+  }
+
+  function applyDomainToLocalLinks(currentDomain) {
+    document.querySelectorAll("a[href]").forEach((link) => {
+      const rawHref = link.getAttribute("href") || "";
+      if (
+        !rawHref ||
+        rawHref.startsWith("#") ||
+        rawHref.startsWith("mailto:") ||
+        rawHref.startsWith("http") ||
+        rawHref.includes("/ui/index.html")
+      ) {
+        return;
+      }
+      try {
+        const url = new URL(rawHref, window.location.href);
+        if (url.origin !== window.location.origin) return;
+        if (!url.pathname.endsWith(".html")) return;
+        url.searchParams.set("domain", currentDomain || "dev");
+        link.setAttribute("href", `${url.pathname.split("/").pop()}${url.search}${url.hash}`);
+      } catch {
+        return;
+      }
+    });
   }
 
   function clearDomainProcessTrail() {
@@ -552,4 +913,153 @@
   }
 
   setInterval(environmentUpdate, 60000);
+
+  function loadPageAgentRuntime(callback) {
+    let called = false;
+    const runCallback = () => {
+      if (called || !window.DevReadyPageAgents) return;
+      called = true;
+      document.dispatchEvent(new CustomEvent("devready-page-agents-ready"));
+      callback();
+    };
+    if (window.DevReadyPageAgents) {
+      runCallback();
+      return;
+    }
+    const existingScript = document.querySelector('script[data-page-agents-runtime="1"]');
+    if (existingScript) {
+      existingScript.addEventListener("load", runCallback, { once: true });
+      document.addEventListener("devready-page-agents-ready", runCallback, { once: true });
+      setTimeout(runCallback, 100);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "JS/pageAgents.js?v=20260515-numa-inline-label";
+    script.dataset.pageAgentsRuntime = "1";
+    script.onload = runCallback;
+    document.head.appendChild(script);
+  }
+
+  function initPageAgentDock() {
+    if (document.getElementById("agentOrbButton")) return;
+    const shell = document.createElement("div");
+    shell.innerHTML = `
+      <button id="agentOrbButton" class="agent-orb-button" type="button" aria-label="Ask Numa">
+        <i class="agent-orb" aria-hidden="true"></i>
+        <span id="agentOrbLabel">Ask Numa</span>
+      </button>
+      <section id="agentChatPanel" class="agent-chat-panel" aria-label="Ask Numa">
+        <div class="agent-chat-head">
+          <i id="agentPanelOrb" class="agent-orb" aria-hidden="true"></i>
+          <div class="agent-chat-title">
+            <strong id="agentPanelName">Numa</strong>
+            <span id="agentPanelPage">Ready</span>
+          </div>
+          <button id="agentChatClose" class="agent-chat-close" type="button" aria-label="Close agent">x</button>
+        </div>
+        <div id="agentChatLog" class="agent-chat-log"></div>
+        <form id="agentChatForm" class="agent-chat-form">
+          <input id="agentChatInput" autocomplete="off" placeholder="Ask Numa..." />
+          <button class="btn" type="submit">Ask</button>
+        </form>
+      </section>
+    `;
+    document.body.appendChild(shell);
+
+    document.getElementById("agentOrbButton").addEventListener("click", () => {
+      const panel = document.getElementById("agentChatPanel");
+      panel.classList.toggle("open");
+      if (panel.classList.contains("open")) document.getElementById("agentChatInput")?.focus();
+    });
+    document.getElementById("agentChatClose").addEventListener("click", () => {
+      document.getElementById("agentChatPanel").classList.remove("open");
+    });
+    document.getElementById("agentChatForm").addEventListener("submit", askActivePageAgent);
+    window.addEventListener("devready-agent-activated", renderActivePageAgent);
+    renderActivePageAgent();
+  }
+
+  function renderActivePageAgent() {
+    const agent = window.DevReadyPageAgents?.active();
+    const button = document.getElementById("agentOrbButton");
+    if (!button) return;
+    button.classList.toggle("visible", Boolean(agent));
+    if (!agent) return;
+    const agentColor = window.DevReadyPageAgents?.domainColor?.() || getComputedStyle(document.documentElement).getPropertyValue("--primary-2").trim() || agent.color;
+    const agentIcon = window.DevReadyPageAgents?.icon?.(agent.key) || fallbackAgentIconSvg();
+    document.querySelectorAll("#agentOrbButton .agent-orb, #agentPanelOrb").forEach((orb) => {
+      orb.style.setProperty("--agent-color", agentColor);
+      orb.innerHTML = agentIcon;
+    });
+    document.getElementById("agentOrbLabel").textContent = "Ask Numa";
+    document.getElementById("agentPanelName").textContent = "Numa";
+    document.getElementById("agentPanelPage").textContent = `${agent.page} specialist`;
+    const log = document.getElementById("agentChatLog");
+    if (log && !log.dataset.agentKey) {
+      log.dataset.agentKey = agent.key;
+      log.innerHTML = `<div class="agent-msg">Ask Numa.</div>`;
+    } else if (log && log.dataset.agentKey !== agent.key) {
+      log.dataset.agentKey = agent.key;
+      log.innerHTML = `<div class="agent-msg">Ask Numa.</div>`;
+    }
+  }
+
+  function fallbackAgentIconSvg() {
+    return `<svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="4"></circle>
+      <path d="M12 3v3"></path>
+      <path d="M12 18v3"></path>
+      <path d="M3 12h3"></path>
+      <path d="M18 12h3"></path>
+    </svg>`;
+  }
+
+  async function askActivePageAgent(event) {
+    event.preventDefault();
+    const agent = window.DevReadyPageAgents?.active();
+    const input = document.getElementById("agentChatInput");
+    const message = input.value.trim();
+    if (!agent || !message) return;
+    input.value = "";
+    appendAgentMessage(message, "user");
+    appendAgentMessage("Thinking through the page context...", "assistant", true);
+    const form = new FormData();
+    form.append("agent_key", agent.key);
+    form.append("message", message);
+    form.append("domain", sessionStorage.getItem("domain") || "dev");
+    form.append("context_json", JSON.stringify(window.DevReadyPageAgents.context()));
+    try {
+      form.append("admin_token", JSON.parse(sessionStorage.getItem("devreadyAdminUnlock") || "null")?.token || "");
+    } catch {
+      form.append("admin_token", "");
+    }
+    form.append("numa_change_mode", localStorage.getItem("devreadyNumaChangeMode") === "on" ? "on" : "off");
+    try {
+      const response = await fetch("/api/agents/ask", { method: "POST", body: form });
+      const data = await response.json();
+      replacePendingAgentMessage(data.answer || "I could not build an answer for that yet.");
+    } catch (error) {
+      replacePendingAgentMessage("The agent endpoint is not available yet. I am still activated on this page for when the backend is running.");
+    }
+  }
+
+  function appendAgentMessage(text, role, pending = false) {
+    const log = document.getElementById("agentChatLog");
+    const bubble = document.createElement("div");
+    bubble.className = `agent-msg${role === "user" ? " user" : ""}`;
+    if (pending) bubble.dataset.pending = "1";
+    bubble.textContent = text;
+    log.appendChild(bubble);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function replacePendingAgentMessage(text) {
+    const pending = document.querySelector('#agentChatLog [data-pending="1"]');
+    if (pending) {
+      pending.textContent = text;
+      pending.removeAttribute("data-pending");
+    } else {
+      appendAgentMessage(text, "assistant");
+    }
+  }
 </script>

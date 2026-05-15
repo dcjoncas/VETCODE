@@ -10,6 +10,22 @@ from openAI import engineeringSurvey
 
 FALLBACK_CHAT_PATH = os.path.join("data", "profile_completion_chats.json")
 
+def _sync_identity_sequence(cur, table: str, column: str = "id"):
+    allowed_tables = {"aichatlogs", "professionalprofile", "professionalsurvey", "professionalsurveyquestion"}
+    if table not in allowed_tables:
+        return
+    cur.execute("SELECT pg_get_serial_sequence(%s, %s)", (table, column))
+    row = cur.fetchone()
+    sequence_name = row[0] if row else None
+    if not sequence_name:
+        return
+    cur.execute(f"SELECT COALESCE(MAX({column}), 0) FROM {table}")
+    max_id = cur.fetchone()[0] or 0
+    if max_id > 0:
+        cur.execute("SELECT setval(%s, %s, true)", (sequence_name, max_id))
+    else:
+        cur.execute("SELECT setval(%s, 1, false)", (sequence_name,))
+
 def _read_fallback_chats():
     try:
         if os.path.exists(FALLBACK_CHAT_PATH):
@@ -144,6 +160,7 @@ def scheduleChat(profileid: str, domain: str = "dev"):
         cur = conn.cursor()
 
         # Count distinct candidates in the person table
+        _sync_identity_sequence(cur, "aichatlogs")
         query = "INSERT INTO aichatlogs (personid, enddate, urlCode) VALUES (%s, %s, %s)"
 
         cur.execute(query, (profileid, weekFromNow, random_string))
@@ -201,6 +218,7 @@ def ensureProfessionalProfileId(personId: str, cur = None):
             conn.close()
         return None
 
+    _sync_identity_sequence(cur, "professionalprofile")
     cur.execute(
         "INSERT INTO professionalprofile (professionalid) VALUES (%s) RETURNING id",
         (professional[0],),
@@ -221,10 +239,39 @@ def createSurvey(profprofileId: int, token: str, cur = None):
     # Count distinct candidates in the person table
     query = "INSERT INTO professionalsurvey (profileid, token) VALUES (%s, gen_random_uuid())"
     
+    _sync_identity_sequence(cur, "professionalsurvey")
     cur.execute(query, (profprofileId,))
 
     if owns_connection:
         conn.commit()
+        conn.close()
+
+def ensureSurveyId(personId: str, token: str = ""):
+    existing_id = getSurveyId(personId)
+    if existing_id:
+        return existing_id
+
+    conn = client.getConnection()
+    cur = conn.cursor()
+    try:
+        professional_profile_id = ensureProfessionalProfileId(personId, cur)
+        if not professional_profile_id:
+            conn.rollback()
+            return None
+
+        _sync_identity_sequence(cur, "professionalsurvey")
+        cur.execute(
+            "INSERT INTO professionalsurvey (profileid, token) VALUES (%s, gen_random_uuid()) RETURNING id",
+            (professional_profile_id,),
+        )
+        created = cur.fetchone()
+        conn.commit()
+        return created[0] if created else None
+    except Exception as e:
+        print(f"Failed to ensure survey for {personId}: {e}")
+        conn.rollback()
+        return None
+    finally:
         conn.close()
 
 def countQuestions(domain: str = "dev") -> int:
@@ -288,10 +335,27 @@ def upsertSurveyAnswer(questionId: int, surveyResponse: int, profId: int):
     cur = conn.cursor()
 
     try:
-        # Count distinct candidates in the person table
-        query = "INSERT INTO professionalsurveyquestion (professionalsurveyid, surveyquestionid, answer) VALUES (%s, %s, %s)"
-        
-        cur.execute(query, (profId, questionId, surveyResponse))
+        cur.execute(
+            """
+            SELECT id
+            FROM professionalsurveyquestion
+            WHERE professionalsurveyid = %s AND surveyquestionid = %s
+            LIMIT 1
+            """,
+            (profId, questionId),
+        )
+        existing = cur.fetchone()
+        if existing:
+            cur.execute(
+                "UPDATE professionalsurveyquestion SET answer = %s WHERE id = %s",
+                (surveyResponse, existing[0]),
+            )
+        else:
+            _sync_identity_sequence(cur, "professionalsurveyquestion")
+            cur.execute(
+                "INSERT INTO professionalsurveyquestion (professionalsurveyid, surveyquestionid, answer) VALUES (%s, %s, %s)",
+                (profId, questionId, surveyResponse),
+            )
 
     except Exception as e:
         print(f'Cannot insert candidate answers: {e}')

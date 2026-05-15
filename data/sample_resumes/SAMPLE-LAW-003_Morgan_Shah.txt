@@ -1,0 +1,17 @@
+Morgan Shah
+AI Policy and Privacy Counsel
+morgan.shah.sample@legalready.example
+San Francisco, CA
+
+SUMMARY
+Counsel focused on AI governance, privacy reviews, records retention, regulatory risk, and practical business policy rollout.
+
+SKILLS
+AI governance, Compliance, Control review, Data inventory, Microsoft Purview, OneTrust, Policy attestation, Policy control mapping, Policy drafting, Privacy, Privacy impact assessment, Records governance, Records retention, Risk scoring
+
+EXPERIENCE
+AI Policy and Privacy Counsel | Meridian Compliance Group | 2017-11 - Present
+Created AI usage, privacy review, and records governance frameworks for product and legal stakeholders.
+
+NOTE
+Synthetic sample resume for VETCODE development/testing only.

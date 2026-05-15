@@ -6,12 +6,13 @@
     <title>DevReady - Time Entry</title>
     <link rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
     <link rel="stylesheet" href="../assets/devStyles.css" />
+    <script src="JS/pageAgents.js?v=20260515-numa-inline-label"></script>
     <style>
       body {
         background: #eef3f1;
       }
       .public-shell {
-        max-width: 980px;
+        max-width: 1120px;
         margin: 0 auto;
         padding: 24px;
       }
@@ -31,13 +32,47 @@
         width: 42px;
         height: 42px;
       }
-      .form-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
+      .person-strip {
+        border: 1px solid #cfe2d5;
+        border-radius: 14px;
+        padding: 12px;
+        background: #f8fff8;
+        color: #125b36;
+        font-weight: 800;
       }
-      .form-grid .wide {
-        grid-column: 1 / -1;
+      .week-bar,
+      .entry-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: end;
+      }
+      .week-bar label {
+        min-width: 220px;
+      }
+      .day-grid {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .day-row {
+        display: grid;
+        grid-template-columns: 150px 120px minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fff;
+      }
+      .day-name {
+        font-weight: 950;
+        color: #111;
+      }
+      .day-date {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 12px;
       }
       label {
         display: grid;
@@ -46,7 +81,7 @@
         color: #244239;
       }
       textarea {
-        min-height: 100px;
+        min-height: 74px;
         resize: vertical;
       }
       .entry-list {
@@ -60,17 +95,14 @@
         padding: 12px;
         background: #fff;
       }
-      .status-strip {
-        border: 1px solid #cfe2d5;
-        border-radius: 14px;
-        padding: 12px;
-        background: #f8fff8;
-        color: #125b36;
-        font-weight: 800;
+      .week-total {
+        font-size: 22px;
+        font-weight: 950;
+        color: var(--green);
       }
       @media (max-width: 760px) {
-        .form-grid,
-        .public-head {
+        .public-head,
+        .day-row {
           grid-template-columns: 1fr;
           flex-direction: column;
           align-items: stretch;
@@ -84,49 +116,47 @@
         <div class="brand-lockup">
           <img src="../assets/devLogo.svg" alt="DevReady" />
           <div>
-            <div class="page-title">DevReady time entry</div>
-            <div class="breadcrumb">Submit hours for DevReady processing</div>
+            <div class="page-title">Time entry</div>
+            <div class="breadcrumb">Weekly hours for payroll processing</div>
           </div>
         </div>
         <a id="onboardingLink" class="btn secondary" href="onboarding.html">Onboarding</a>
       </header>
 
       <section class="card">
-        <div id="statusText" class="status-strip">Ready to record time.</div>
-        <form id="timeForm" class="form-grid" style="margin-top: 12px">
-          <label>
-            Work date
-            <input id="workDate" name="work_date" type="date" required />
-          </label>
-          <label>
-            Hours
-            <input id="hours" name="hours" type="number" min="0" step="0.25" required />
-          </label>
-          <label>
-            Client
-            <input id="client" name="client" />
-          </label>
-          <label>
-            Project
-            <input id="project" name="project" />
-          </label>
-          <label class="wide">
-            Work summary
-            <textarea id="summary" name="summary" required></textarea>
-          </label>
-          <label class="wide">
-            Blockers or notes
-            <textarea id="blockers" name="blockers"></textarea>
-          </label>
-          <div class="row-actions wide">
-            <button class="btn" type="submit">Submit time</button>
-            <button class="btn secondary" type="button" onclick="loadEntries()">Refresh entries</button>
+        <div id="personText" class="person-strip">Loading time-entry link...</div>
+        <form id="timeForm" style="margin-top: 14px">
+          <div class="week-bar">
+            <label>
+              Week starting
+              <input id="weekStart" name="week_start" type="date" required />
+            </label>
+            <label>
+              Client
+              <input id="client" name="client" placeholder="Client or internal team" />
+            </label>
+            <label>
+              Project
+              <input id="project" name="project" placeholder="Project or workstream" />
+            </label>
+            <div>
+              <div class="muted">Week total</div>
+              <div id="weekTotal" class="week-total">0 hours</div>
+            </div>
+          </div>
+
+          <div id="dayGrid" class="day-grid"></div>
+
+          <div class="entry-actions" style="margin-top: 14px">
+            <button class="btn" type="submit">Submit week</button>
+            <button class="btn secondary" type="button" onclick="loadEntries()">Refresh submitted time</button>
+            <span id="statusText" class="muted">Add hours and a short description under each day worked.</span>
           </div>
         </form>
       </section>
 
       <section class="card" style="margin-top: 14px">
-        <h2>Submitted entries</h2>
+        <h2>Submitted time</h2>
         <div id="entryList" class="entry-list">No entries loaded yet.</div>
       </section>
     </main>
@@ -135,6 +165,8 @@
     <script>
       const params = new URLSearchParams(window.location.search);
       const token = params.get("token") || "";
+      let onboardingRecord = {};
+      const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
       function escapeLocal(value) {
         return String(value || "")
@@ -145,9 +177,73 @@
           .replace(/'/g, "&#39;");
       }
 
-      function setDefaults() {
-        document.getElementById("onboardingLink").href = `onboarding.html?token=${encodeURIComponent(token)}`;
-        document.getElementById("workDate").valueAsDate = new Date();
+      function isoDate(date) {
+        const pad = (value) => String(value).padStart(2, "0");
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+      }
+
+      function mondayFor(date) {
+        const d = new Date(date);
+        const day = d.getDay() || 7;
+        d.setDate(d.getDate() - day + 1);
+        return d;
+      }
+
+      function dateLabel(value) {
+        const parsed = new Date(`${value}T12:00:00`);
+        if (Number.isNaN(parsed.getTime())) return value;
+        return parsed.toLocaleDateString([], { month: "short", day: "numeric" });
+      }
+
+      function renderDayRows() {
+        const start = new Date(`${document.getElementById("weekStart").value}T12:00:00`);
+        const grid = document.getElementById("dayGrid");
+        grid.innerHTML = dayNames.map((day, index) => {
+          const date = new Date(start);
+          date.setDate(start.getDate() + index);
+          const workDate = isoDate(date);
+          return `
+            <div class="day-row" data-work-date="${workDate}">
+              <div>
+                <div class="day-name">${day}</div>
+                <div class="day-date">${dateLabel(workDate)}</div>
+              </div>
+              <label>
+                Hours
+                <input class="day-hours" type="number" min="0" max="24" step="0.25" value="0" oninput="updateTotal()" />
+              </label>
+              <label>
+                Short description
+                <textarea class="day-summary" placeholder="What did you work on this day?"></textarea>
+              </label>
+            </div>
+          `;
+        }).join("");
+        updateTotal();
+      }
+
+      function updateTotal() {
+        const total = [...document.querySelectorAll(".day-hours")]
+          .reduce((sum, input) => sum + Number(input.value || 0), 0);
+        document.getElementById("weekTotal").textContent = `${Math.round(total * 100) / 100} hours`;
+      }
+
+      function readDailyEntries() {
+        return [...document.querySelectorAll(".day-row")].map((row) => ({
+          work_date: row.dataset.workDate,
+          hours: row.querySelector(".day-hours").value || "0",
+          summary: row.querySelector(".day-summary").value.trim(),
+        }));
+      }
+
+      function setPerson(record) {
+        const name = record.candidate_name || record.legal_name || "Staff member";
+        const title = record.title ? ` - ${record.title}` : "";
+        document.getElementById("personText").textContent = `${name}${title}`;
+        if (record.start_day) {
+          document.getElementById("weekStart").value = isoDate(mondayFor(`${record.start_day}T12:00:00`));
+          renderDayRows();
+        }
       }
 
       async function loadEntries() {
@@ -157,19 +253,34 @@
         }
         try {
           const data = await api(`/api/time-entry/${encodeURIComponent(token)}`);
+          onboardingRecord = data.record || onboardingRecord || {};
+          if (Object.keys(onboardingRecord).length) setPerson(onboardingRecord);
           const entries = data.entries || [];
           if (!entries.length) {
-            document.getElementById("entryList").textContent = "No time entries submitted yet.";
+            document.getElementById("entryList").textContent = "No time submitted yet.";
             return;
           }
-          document.getElementById("entryList").innerHTML = entries.map((entry) => `
-            <div class="entry-row">
-              <strong>${escapeLocal(entry.work_date || "Date pending")} - ${escapeLocal(entry.hours || "0")} hours</strong>
-              <div>${escapeLocal([entry.client, entry.project].filter(Boolean).join(" / "))}</div>
-              <div>${escapeLocal(entry.summary)}</div>
-              <small>${escapeLocal(entry.status)} - ${escapeLocal(entry.recipient)}</small>
-            </div>
-          `).join("");
+          const byWeek = new Map();
+          entries.forEach((entry) => {
+            const key = entry.week_start || "Week not set";
+            if (!byWeek.has(key)) byWeek.set(key, []);
+            byWeek.get(key).push(entry);
+          });
+          document.getElementById("entryList").innerHTML = [...byWeek.entries()].map(([week, rows]) => {
+            const total = rows.reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
+            return `
+              <div class="entry-row">
+                <strong>Week of ${escapeLocal(week)} - ${Math.round(total * 100) / 100} hours</strong>
+                ${rows.sort((a, b) => String(a.work_date).localeCompare(String(b.work_date))).map((entry) => `
+                  <div style="margin-top:8px">
+                    <strong>${escapeLocal(entry.work_date || "Date pending")}:</strong>
+                    ${escapeLocal(entry.hours || "0")} hours - ${escapeLocal(entry.summary || "")}
+                  </div>
+                `).join("")}
+                <small>${escapeLocal(rows[0].status)} - ${escapeLocal(rows[0].recipient)}</small>
+              </div>
+            `;
+          }).join("");
         } catch (error) {
           document.getElementById("entryList").textContent = error.message || "Could not load entries.";
         }
@@ -177,17 +288,26 @@
 
       document.getElementById("timeForm").addEventListener("submit", async (event) => {
         event.preventDefault();
-        const form = new URLSearchParams(new FormData(event.currentTarget));
+        const form = new URLSearchParams();
         form.set("token", token);
+        form.set("profile_id", onboardingRecord.profile_id || "");
+        form.set("candidate_name", onboardingRecord.candidate_name || onboardingRecord.legal_name || "");
+        form.set("email", onboardingRecord.email || "");
+        form.set("domain", onboardingRecord.domain || "dev");
+        form.set("week_start", document.getElementById("weekStart").value);
+        form.set("client", document.getElementById("client").value);
+        form.set("project", document.getElementById("project").value);
+        form.set("entries_json", JSON.stringify(readDailyEntries()));
         try {
           const data = await api("/api/time-entry", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: form.toString(),
           });
-          document.getElementById("statusText").textContent = data.message || "Time entry saved.";
-          event.currentTarget.reset();
-          setDefaults();
+          document.getElementById("statusText").textContent = data.message || "Time saved.";
+          [...document.querySelectorAll(".day-hours")].forEach((input) => (input.value = "0"));
+          [...document.querySelectorAll(".day-summary")].forEach((input) => (input.value = ""));
+          updateTotal();
           loadEntries();
         } catch (error) {
           document.getElementById("statusText").textContent = error.message || "Time entry failed.";
@@ -195,7 +315,10 @@
       });
 
       document.addEventListener("DOMContentLoaded", () => {
-        setDefaults();
+        document.getElementById("onboardingLink").href = `onboarding.html?token=${encodeURIComponent(token)}`;
+        document.getElementById("weekStart").value = isoDate(mondayFor(new Date()));
+        document.getElementById("weekStart").addEventListener("change", renderDayRows);
+        renderDayRows();
         loadEntries();
       });
     </script>

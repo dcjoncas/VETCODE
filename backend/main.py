@@ -25,7 +25,10 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 import os, shutil, traceback, json, base64, hashlib, hmac
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta
+from openAI import pageAgents
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # --- v2.5.0 helpers: scorecard + interview questions ---
 VERTICAL_KEYWORDS = {
@@ -180,7 +183,19 @@ import storage
 from renderers import profile_to_html, profile_to_docx, jd_to_html, jd_to_docx, match_report_to_html, match_report_to_docx
 
 VERSION = "v2.8.6"
-DB_PATH = os.getenv("DEVREADY_DB_PATH", "devready.db")
+def _local_db_path(env_name: str, filename: str) -> str:
+    configured = os.getenv(env_name, "").strip()
+    if configured:
+        return configured
+    return os.path.join(BASE_DIR, filename)
+
+
+DOMAIN_DB_PATHS = {
+    "dev": _local_db_path("DEVREADY_DB_PATH", "devready.db"),
+    "engineer": _local_db_path("BUILDREADY_DB_PATH", "buildready.db"),
+    "law": _local_db_path("LEGALREADY_DB_PATH", "legalready.db"),
+}
+DB_PATH = DOMAIN_DB_PATHS["dev"]
 UPLOAD_DIR = "uploads"
 EXPORT_DIR = "exports"
 DATA_DIR = "data"
@@ -188,6 +203,9 @@ PROFILE_BADGES_PATH = os.path.join(DATA_DIR, "profile_badges.json")
 ONBOARDING_RECORDS_PATH = os.path.join(DATA_DIR, "onboarding_records.json")
 TIME_ENTRIES_PATH = os.path.join(DATA_DIR, "time_entries.json")
 WORKFLOW_EVENTS_PATH = os.path.join(DATA_DIR, "workflow_events.json")
+INTERVIEW_ARCHIVE_PATH = os.path.join(DATA_DIR, "interview_archive.json")
+CRM_RECORDS_PATH = os.path.join(DATA_DIR, "crm_records.json")
+MEETING_RECORDS_PATH = os.path.join(DATA_DIR, "meeting_records.json")
 ACCESS_USERS_PATH = os.path.join(DATA_DIR, "access_users.json")
 ACCESS_CANDIDATES_PATH = os.path.join(DATA_DIR, "access_candidates.json")
 ADMIN_SESSION_TOKENS = {}
@@ -200,9 +218,12 @@ MENU_ITEMS = [
     {"key": "job_descriptions", "label": "Job Descriptions", "href": "job-descriptions.html"},
     {"key": "crm", "label": "CRM", "href": "crm.html"},
     {"key": "meet", "label": "Meet", "href": "meet.html"},
+    {"key": "interviews", "label": "Interviews", "href": "schedule-interview.html?interview=ready"},
+    {"key": "time_link", "label": "Time Link", "href": "time-admin.html"},
     {"key": "test_challenge", "label": "Test Challenge", "href": "test-challenge.html"},
     {"key": "ai_cert", "label": "Get AI Certified", "href": "ai-cert.html"},
     {"key": "badges", "label": "View Badges", "href": "badge-catalog.html"},
+    {"key": "agents", "label": "Agents", "href": "agents.html"},
     {"key": "meridian", "label": "Meridian", "href": "https://meridian-mvp-production.up.railway.app/"},
     {"key": "admin", "label": "Admin", "href": "admin.html"},
 ]
@@ -214,13 +235,63 @@ DEFAULT_INTERNAL_MENU = [
     "job_descriptions",
     "crm",
     "meet",
+    "interviews",
+    "time_link",
     "test_challenge",
     "ai_cert",
     "badges",
+    "agents",
     "meridian",
 ]
 DEFAULT_CANDIDATE_MENU = ["test_challenge", "ai_cert", "badges"]
 SUPER_MENU = [item["key"] for item in MENU_ITEMS]
+
+
+def _domain_key(domain: str = "dev") -> str:
+    value = (domain or "dev").strip().lower()
+    if value in {"all", "*"}:
+        return "all"
+    if value in {"technology", "tech", "devready", "dev"}:
+        return "dev"
+    if value in {"engineer", "engineering", "build", "buildready"}:
+        return "engineer"
+    if value in {"law", "legal", "legalready"}:
+        return "law"
+    return "dev"
+
+
+def _storage_domain(domain: str = "dev") -> str:
+    key = _domain_key(domain)
+    if key == "dev":
+        return "technology"
+    if key in {"engineer", "law"}:
+        return key
+    return ""
+
+
+def _domain_db_path(domain: str = "dev") -> str:
+    return DOMAIN_DB_PATHS.get(_domain_key(domain), DOMAIN_DB_PATHS["dev"])
+
+
+def _domain_db_items(domain: str = "dev"):
+    key = _domain_key(domain)
+    if key == "all":
+        return list(DOMAIN_DB_PATHS.items())
+    return [(key, DOMAIN_DB_PATHS.get(key, DOMAIN_DB_PATHS["dev"]))]
+
+
+def _profile_db_path(profile_id: str, domain: str = "") -> str:
+    for _, db_path in _domain_db_items(domain or "all"):
+        if storage.get_profile(db_path, profile_id):
+            return db_path
+    return _domain_db_path(domain or "dev")
+
+
+def _jd_db_path(jd_id: str, domain: str = "") -> str:
+    for _, db_path in _domain_db_items(domain or "all"):
+        if storage.get_jd(db_path, jd_id):
+            return db_path
+    return _domain_db_path(domain or "dev")
 
 
 def _read_json_store(path: str, fallback):
@@ -424,18 +495,41 @@ def _ensure_profile_for_certification(
     level: str = "",
     score: str = "",
     certificate_id: str = "",
+    domain: str = "dev",
 ) -> tuple[str, bool]:
     profile_id = (profile_id or "").strip()
     candidate_name = (candidate_name or "").strip()
     email = (email or "").strip()
     title = (title or "").strip() or _normalize_cert_title(level, certificate_id)
+    domain = (domain or "dev").strip() or "dev"
+
+    if profile_id:
+        try:
+            candidate_domain = candidates.getCandidateDomain(profile_id)
+            if candidate_domain and candidate_domain != domain:
+                raise HTTPException(status_code=403, detail="Candidate does not belong to this domain.")
+        except HTTPException:
+            raise
+        except Exception:
+            traceback.print_exc()
 
     if not profile_id:
         try:
-            existing_candidates = candidates.searchCandidatesByNameEmail(email, limit=1, domain="all") if email else []
+            existing_candidates = candidates.searchCandidatesByNameEmail(email, limit=1, domain=domain) if email else []
             for row in existing_candidates:
                 if (row.get("email") or "").strip().lower() == email.lower():
                     return str(row.get("id")), False
+            cross_domain_candidates = candidates.searchCandidatesByNameEmail(email, limit=5, domain="all") if email else []
+            for row in cross_domain_candidates:
+                if (row.get("email") or "").strip().lower() == email.lower():
+                    existing_domain = candidates.getCandidateDomain(row.get("id"))
+                    if existing_domain and existing_domain != domain:
+                        raise HTTPException(
+                            status_code=409,
+                            detail="This certification email belongs to a profile in another domain. Switch domains or use the matching profile.",
+                        )
+        except HTTPException:
+            raise
         except Exception:
             traceback.print_exc()
 
@@ -448,7 +542,7 @@ def _ensure_profile_for_certification(
                 skills=[],
                 fullName=candidate_name or email or "AI Certified Candidate",
                 candidateDescription=description,
-                domain=os.getenv("DEVREADY_CANDIDATE_DOMAIN", "dev"),
+                domain=domain,
                 email=email,
                 linkedInUrl="",
                 culturalExperiences=[],
@@ -460,9 +554,10 @@ def _ensure_profile_for_certification(
         except Exception:
             traceback.print_exc()
 
-    profile = storage.get_profile(DB_PATH, profile_id) if profile_id else None
+    cert_db_path = _domain_db_path(domain)
+    profile = storage.get_profile(_profile_db_path(profile_id, domain), profile_id) if profile_id else None
     if not profile and email:
-        profile = storage.get_profile_by_email(DB_PATH, email)
+        profile = storage.get_profile_by_email(cert_db_path, email)
         profile_id = (profile.get("meta", {}) or {}).get("profile_id", "") if profile else profile_id
 
     created = False
@@ -470,7 +565,7 @@ def _ensure_profile_for_certification(
     if not profile:
         profile = empty_devready_profile()
         profile.setdefault("meta", {})["profile_id"] = profile_id or new_id("DRP")
-        profile["meta"]["domain"] = "technology"
+        profile["meta"]["domain"] = _storage_domain(domain)
         profile["meta"]["source"] = "ai_certification"
         profile.setdefault("contact", {})["full_name"] = candidate_name or email or "AI Certified Candidate"
         profile["contact"]["email"] = email
@@ -480,7 +575,7 @@ def _ensure_profile_for_certification(
         )
         created = True
     else:
-        profile.setdefault("meta", {})["domain"] = profile.get("meta", {}).get("domain") or "technology"
+        profile.setdefault("meta", {})["domain"] = profile.get("meta", {}).get("domain") or _storage_domain(domain)
         profile.setdefault("contact", {})
         if candidate_name and not profile["contact"].get("full_name"):
             profile["contact"]["full_name"] = candidate_name
@@ -512,7 +607,7 @@ def _ensure_profile_for_certification(
     ]
     existing_certs.append(certification)
     profile["certifications"] = existing_certs
-    storage.upsert_profile(DB_PATH, profile)
+    storage.upsert_profile(cert_db_path, profile)
     return profile_id, created
 
 
@@ -539,7 +634,8 @@ app.add_middleware(NoCacheMiddleware)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(EXPORT_DIR, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
-storage.init_db(DB_PATH)
+for _db_path in DOMAIN_DB_PATHS.values():
+    storage.init_db(_db_path)
 
 app.mount("/ui", StaticFiles(directory="ui", html=True), name="ui")
 
@@ -547,18 +643,22 @@ app.mount("/ui", StaticFiles(directory="ui", html=True), name="ui")
 @app.get("/api/debug/dbinfo")
 def dbinfo():
     try:
-        jds_all = storage.list_jds(DB_PATH, domain=None)
-        jds_tech = storage.list_jds(DB_PATH, domain="technology")
-        profs_all = storage.list_profiles(DB_PATH, domain=None)
-        profs_tech = storage.list_profiles(DB_PATH, domain="technology")
+        domains = {}
+        for key, db_path in DOMAIN_DB_PATHS.items():
+            storage_name = _storage_domain(key)
+            jds = storage.list_jds(db_path, domain=storage_name)
+            profs = storage.list_profiles(db_path, domain=storage_name, limit=1000)
+            domains[key] = {
+                "db_path": db_path,
+                "storage_domain": storage_name,
+                "job_descriptions": len(jds),
+                "profiles": len(profs),
+                "jd_domains": sorted({(x.get("domain") or "") for x in jds}),
+                "profile_domains": sorted({(x.get("domain") or "") for x in profs}),
+            }
         return {
-            "db_path": DB_PATH,
-            "job_descriptions_all": len(jds_all),
-            "job_descriptions_technology": len(jds_tech),
-            "profiles_all": len(profs_all),
-            "profiles_technology": len(profs_tech),
-            "jd_domains": sorted(list({(x.get("domain") or "") for x in jds_all})),
-            "profile_domains": sorted(list({(x.get("domain") or "") for x in profs_all})),
+            "db_paths": DOMAIN_DB_PATHS,
+            "domain_databases": domains,
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e), "trace": traceback.format_exc()})
@@ -621,6 +721,65 @@ def access_menu():
         "default_candidate_menu": DEFAULT_CANDIDATE_MENU,
         "super_menu": SUPER_MENU,
     }
+
+
+@app.post("/api/agents/ask")
+def ask_agent(
+    agent_key: str = Form(default="talent"),
+    message: str = Form(default=""),
+    context_json: str = Form(default="{}"),
+    domain: str = Form(default="dev"),
+    admin_token: str = Form(default=""),
+    numa_change_mode: str = Form(default="off"),
+):
+    try:
+        context = json.loads(context_json or "{}")
+        if not isinstance(context, dict):
+            context = {}
+    except Exception:
+        context = {}
+    context["domain"] = _domain_key(context.get("domain") or domain)
+    users = _seed_access_users()
+    requested_user = context.get("user") if isinstance(context.get("user"), dict) else {}
+    user = None
+    user_id = str(requested_user.get("id") or "").strip()
+    if user_id and user_id in users:
+        user = users[user_id]
+    if not user:
+        user = _find_access_user(
+            users,
+            username=str(requested_user.get("username") or ""),
+            email=str(requested_user.get("email") or ""),
+        )
+    admin_unlocked = False
+    if admin_token:
+        try:
+            _require_admin_token(admin_token)
+            admin_unlocked = True
+        except Exception:
+            admin_unlocked = False
+    is_active_super = bool(user and user.get("status") == "active" and user.get("role") == "super_user")
+    can_admin = admin_unlocked or is_active_super
+    change_mode_enabled = can_admin and str(numa_change_mode or "").strip().lower() in {"on", "true", "1", "enabled"}
+    context["numa_access"] = {
+        "role": user.get("role", "anonymous") if user else "anonymous",
+        "status": user.get("status", "unknown") if user else "unknown",
+        "admin_unlocked": admin_unlocked,
+        "can_view_sensitive": can_admin,
+        "can_request_changes": change_mode_enabled,
+        "mode": "change-enabled" if change_mode_enabled else ("sensitive-view" if can_admin else "guide-only"),
+    }
+    try:
+        return pageAgents.ask_page_agent(agent_key, message, context)
+    except Exception as exc:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "ok": False,
+                "agent": pageAgents.get_agent(agent_key),
+                "answer": f"Agent response failed: {exc}",
+            },
+        )
 
 
 @app.post("/api/access/login")
@@ -736,6 +895,50 @@ def admin_users(x_devready_admin_token: str = Header(default="")):
         "super_menu": SUPER_MENU,
         "blocked_candidates": candidates_state,
     }
+
+
+@app.get("/api/admin/candidates/search")
+def admin_candidate_search(
+    query: str = "",
+    domain: str = "dev",
+    x_devready_admin_token: str = Header(default=""),
+):
+    _require_admin_token(x_devready_admin_token)
+    query = (query or "").strip()
+    domain = (domain or "dev").strip() or "dev"
+    if len(query) < 2:
+        return {"results": []}
+
+    users = _seed_access_users()
+    access_records = _read_json_store(ACCESS_CANDIDATES_PATH, {})
+    try:
+        matches = candidates.searchCandidatesByNameEmail(query, limit=12, domain=domain)
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Candidate search failed: {exc}")
+
+    results = []
+    for match in matches:
+        candidate_id = str(match.get("id") or "")
+        email = (match.get("email") or "").strip()
+        account = _find_access_user(users, email=email) if email else None
+        access_record = access_records.get(candidate_id) or access_records.get(email) or {}
+        results.append({
+            "candidate": {
+                "id": candidate_id,
+                "firstName": match.get("firstName") or "",
+                "lastName": match.get("lastName") or "",
+                "name": " ".join(part for part in [match.get("firstName"), match.get("lastName")] if part).strip(),
+                "email": email,
+                "step": match.get("step"),
+                "primaryStack": match.get("primaryStack") or "",
+                "skillMatches": match.get("skillMatches") or [],
+                "domain": domain,
+            },
+            "user": _public_user(account) if account else None,
+            "access": access_record,
+        })
+    return {"results": results}
 
 
 @app.post("/api/admin/users")
@@ -868,6 +1071,10 @@ def admin_candidate_access(
         raise HTTPException(status_code=400, detail="Enter a candidate id or email.")
     records = _read_json_store(ACCESS_CANDIDATES_PATH, {})
     now = _now_utc()
+    if action == "unblock":
+        removed = records.pop(key, None)
+        _write_json_store(ACCESS_CANDIDATES_PATH, records)
+        return {"ok": True, "candidate": removed or {"candidate_id": candidate_id, "candidate_email": candidate_email, "status": "active"}}
     records[key] = {
         "candidate_id": candidate_id,
         "candidate_email": candidate_email,
@@ -948,9 +1155,9 @@ async def upload_resume(
         if not (raw or "").strip():
             raise HTTPException(status_code=400, detail="Could not extract resume text. Please upload a text-based PDF or DOCX.")
         profile = build_profile_from_text(raw)
-        profile.setdefault("meta", {})["domain"] = domain
+        profile.setdefault("meta", {})["domain"] = _storage_domain(domain)
 
-        storage.upsert_profile(DB_PATH, profile)
+        storage.upsert_profile(_domain_db_path(domain), profile)
         pid = profile.get("meta", {}).get("profile_id", "")
 
         return JSONResponse({"profile_id": pid, "profile": profile})
@@ -962,33 +1169,33 @@ async def upload_resume(
 
 @app.get("/api/profiles")
 def list_profiles(domain: str = "technology"):
-    return storage.list_profiles(DB_PATH, domain=domain)
+    return storage.list_profiles(_domain_db_path(domain), domain=_storage_domain(domain))
 
 @app.post("/api/profiles/skillSearch")
 def search_profiles(domain: str = Form("technology"), skills: str = Form("")):
     skill_list = [s.strip() for s in skills.split(",") if s.strip()]
-    return storage.list_profiles(DB_PATH, domain=domain, skills_filter=skill_list)
+    return storage.list_profiles(_domain_db_path(domain), domain=_storage_domain(domain), skills_filter=skill_list)
 
 
 @app.get("/api/profiles/{profile_id}")
-def get_profile(profile_id: str):
-    p = storage.get_profile(DB_PATH, profile_id)
+def get_profile(profile_id: str, domain: str = ""):
+    p = storage.get_profile(_profile_db_path(profile_id, domain), profile_id)
     if not p:
         raise HTTPException(status_code=404, detail="Profile not found")
     return p
 
 
 @app.get("/api/profiles/{profile_id}/html", response_class=HTMLResponse)
-def get_profile_html(profile_id: str):
-    p = storage.get_profile(DB_PATH, profile_id)
+def get_profile_html(profile_id: str, domain: str = ""):
+    p = storage.get_profile(_profile_db_path(profile_id, domain), profile_id)
     if not p:
         raise HTTPException(status_code=404, detail="Profile not found")
     return HTMLResponse(profile_to_html(p))
 
 
 @app.get("/api/profiles/{profile_id}/docx")
-def get_profile_docx(profile_id: str):
-    p = storage.get_profile(DB_PATH, profile_id)
+def get_profile_docx(profile_id: str, domain: str = ""):
+    p = storage.get_profile(_profile_db_path(profile_id, domain), profile_id)
     if not p:
         raise HTTPException(status_code=404, detail="Profile not found")
     out = os.path.join(EXPORT_DIR, f"{profile_id}.docx")
@@ -1019,8 +1226,8 @@ async def bulk_upload_resumes(domain: str = Form("technology"), files: list[Uplo
                 raw = ingest(source_type, path)
                 profile = build_profile_from_text(raw)
                 # enforce domain
-                profile.setdefault("meta", {})["domain"] = domain
-                storage.upsert_profile(DB_PATH, profile)
+                profile.setdefault("meta", {})["domain"] = _storage_domain(domain)
+                storage.upsert_profile(_domain_db_path(domain), profile)
                 created.append({
                     "profile_id": profile.get("meta", {}).get("profile_id",""),
                     "full_name": profile.get("contact", {}).get("full_name",""),
@@ -1054,8 +1261,8 @@ def jd_upload(
         created_at = datetime.utcnow().isoformat() + "Z"
         skills = normalize_jd(jd_text)
 
-        storage.upsert_jd(DB_PATH, jd_id, company, title, domain, created_at, jd_text, skills)
-        return {"jd_id": jd_id, "company": company, "title": title, "domain": domain, "created_at": created_at, "jd_text": jd_text, "jd_skills": skills}
+        storage.upsert_jd(_domain_db_path(domain), jd_id, company, title, _storage_domain(domain), created_at, jd_text, skills)
+        return {"jd_id": jd_id, "company": company, "title": title, "domain": _storage_domain(domain), "created_at": created_at, "jd_text": jd_text, "jd_skills": skills}
     except HTTPException:
         raise
     except Exception as e:
@@ -1068,8 +1275,8 @@ async def jd_normalize(company: str = Form(...), title: str = Form(...), jd_text
         jd_id = new_id("JDD")
         skills = normalize_jd(jd_text)
         created_at = datetime.utcnow().isoformat() + "Z"
-        storage.upsert_jd(DB_PATH, jd_id, company, title, domain, created_at, jd_text, skills)
-        return {"jd_id": jd_id, "company": company, "title": title, "domain": domain, "created_at": created_at, "jd_skills": skills, "jd_text": jd_text}
+        storage.upsert_jd(_domain_db_path(domain), jd_id, company, title, _storage_domain(domain), created_at, jd_text, skills)
+        return {"jd_id": jd_id, "company": company, "title": title, "domain": _storage_domain(domain), "created_at": created_at, "jd_skills": skills, "jd_text": jd_text}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e), "trace": traceback.format_exc()})
 
@@ -1077,34 +1284,42 @@ async def jd_normalize(company: str = Form(...), title: str = Form(...), jd_text
 @app.get("/api/profile/list")
 def profile_list(domain: str = "technology"):
     if domain in ("all","*","",None):
-        return storage.list_profiles(DB_PATH, domain=None)
-    return storage.list_profiles(DB_PATH, domain=domain)
+        rows = []
+        for key, db_path in DOMAIN_DB_PATHS.items():
+            rows.extend(storage.list_profiles(db_path, domain=_storage_domain(key), limit=1000))
+        return rows
+    return storage.list_profiles(_domain_db_path(domain), domain=_storage_domain(domain))
 
 @app.get("/api/profile/count")
 def profile_count(domain: str = "technology"):
     if domain in ("all","*","",None):
-        return storage.count_profiles(DB_PATH, domain=None)
-    return storage.count_profiles(DB_PATH, domain=domain)
+        return sum(storage.count_profiles(db_path, domain=_storage_domain(key)) for key, db_path in DOMAIN_DB_PATHS.items())
+    return storage.count_profiles(_domain_db_path(domain), domain=_storage_domain(domain))
 
 @app.get("/api/profile/count/recent")
 def profile_count_recent(domain: str = "technology"):
     if domain in ("all","*","",None):
-        return storage.count_profiles_recent(DB_PATH, domain=None)
-    return storage.count_profiles_recent(DB_PATH, domain=domain)
+        return sum(storage.count_profiles_recent(db_path, domain=_storage_domain(key)) for key, db_path in DOMAIN_DB_PATHS.items())
+    return storage.count_profiles_recent(_domain_db_path(domain), domain=_storage_domain(domain))
 
 # Used to search for profiles with the search bar
 @app.post("/api/profile/search")
 def profile_search(domain: str = Form(default="technology"), search_string: str = Form(default="")):
     if domain in ("all","*","",None):
-        return storage.search_profiles(DB_PATH, domain=None, search_string=search_string, limit=5)
-    return storage.search_profiles(DB_PATH, domain=domain, search_string=search_string, limit=5)
+        rows = []
+        for key, db_path in DOMAIN_DB_PATHS.items():
+            rows.extend(storage.search_profiles(db_path, domain=_storage_domain(key), search_string=search_string, limit=5))
+        return rows[:15]
+    return storage.search_profiles(_domain_db_path(domain), domain=_storage_domain(domain), search_string=search_string, limit=5)
 
 @app.post("/api/profile/pageCount")
 def profile_page_count(domain: str = Form(default="technology"), search_string: str = Form(default=""), pageLimit: int = Form(default=10)):
     print(f"Calculating page count for domain='{domain}' with search_string='{search_string}'")
     if domain in ("all","*","",None):
-        return storage.search_profiles_page_count(DB_PATH, domain=None, search_string=search_string, pageLimit=pageLimit)
-    return storage.search_profiles_page_count(DB_PATH, domain=domain, search_string=search_string, pageLimit=pageLimit)
+        row_count = sum(storage.search_profiles_page_count(db_path, domain=_storage_domain(key), search_string=search_string, pageLimit=pageLimit)[0] for key, db_path in DOMAIN_DB_PATHS.items())
+        pages = (row_count // pageLimit) + (1 if row_count % pageLimit > 0 else 0)
+        return [row_count, pages]
+    return storage.search_profiles_page_count(_domain_db_path(domain), domain=_storage_domain(domain), search_string=search_string, pageLimit=pageLimit)
 
 @app.post("/api/profile/pageSearch")
 def profile_page_search(domain: str = Form(default="technology"), search_string: str = Form(default=""), currentPage: int = Form(default=0), pageLimit: int = Form(default=10)):
@@ -1113,12 +1328,16 @@ def profile_page_search(domain: str = Form(default="technology"), search_string:
     currentPage = currentPage - 1  # adjust for 0-based indexing in backend
 
     if domain in ("all","*","",None):
-        return storage.search_profiles_full(DB_PATH, domain=None, search_string=search_string, currentPage=currentPage, pageLimit=pageLimit)
-    return storage.search_profiles_full(DB_PATH, domain=domain, search_string=search_string, currentPage=currentPage, pageLimit=pageLimit)
+        rows = []
+        for key, db_path in DOMAIN_DB_PATHS.items():
+            rows.extend(storage.search_profiles_full(db_path, domain=_storage_domain(key), search_string=search_string, currentPage=0, pageLimit=pageLimit))
+        start = max(0, currentPage) * pageLimit
+        return rows[start:start + pageLimit]
+    return storage.search_profiles_full(_domain_db_path(domain), domain=_storage_domain(domain), search_string=search_string, currentPage=currentPage, pageLimit=pageLimit)
 
 @app.get("/api/profile/{profile_id}")
-def profile_get(profile_id: str):
-    p = storage.get_profile(DB_PATH, profile_id)
+def profile_get(profile_id: str, domain: str = ""):
+    p = storage.get_profile(_profile_db_path(profile_id, domain), profile_id)
     if not p:
         raise HTTPException(status_code=404, detail="Profile not found.")
     return p
@@ -1138,32 +1357,33 @@ def profile_docx(profile_id: str):
 
 @app.get("/api/jd/list")
 def jd_list(domain: str = "technology"):
-    # NOTE: storage.list_jds() already falls back to ALL if domain-filter yields empty,
-    # so your dropdown never goes blank just because domain changed.
     if domain in ("all","*","",None):
-        return storage.list_jds(DB_PATH, domain=None)
-    return storage.list_jds(DB_PATH, domain=domain)
+        rows = []
+        for key, db_path in DOMAIN_DB_PATHS.items():
+            rows.extend(storage.list_jds(db_path, domain=_storage_domain(key)))
+        return rows
+    return storage.list_jds(_domain_db_path(domain), domain=_storage_domain(domain))
 
 
 @app.get("/api/jd/{jd_id}")
-def jd_get(jd_id: str):
-    jd = storage.get_jd(DB_PATH, jd_id)
+def jd_get(jd_id: str, domain: str = ""):
+    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id)
     if not jd:
         raise HTTPException(status_code=404, detail="JD not found")
     return jd
 
 
 @app.get("/api/jd/{jd_id}/html", response_class=HTMLResponse)
-def jd_html(jd_id: str):
-    jd = storage.get_jd(DB_PATH, jd_id)
+def jd_html(jd_id: str, domain: str = ""):
+    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id)
     if not jd:
         raise HTTPException(status_code=404, detail="JD not found")
     return HTMLResponse(jd_to_html(jd))
 
 
 @app.get("/api/jd/{jd_id}/docx")
-def jd_docx(jd_id: str):
-    jd = storage.get_jd(DB_PATH, jd_id)
+def jd_docx(jd_id: str, domain: str = ""):
+    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id)
     if not jd:
         raise HTTPException(status_code=404, detail="JD not found")
     out = os.path.join(EXPORT_DIR, f"{jd_id}.docx")
@@ -1174,9 +1394,9 @@ def jd_docx(jd_id: str):
 
 @app.get("/api/jd/latest")
 def jd_latest(domain: str = "technology", jd_id: Optional[str] = None):
-    jd = storage.get_jd(DB_PATH, jd_id) if jd_id else storage.get_latest_jd(DB_PATH, domain=domain)
+    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id) if jd_id else storage.get_latest_jd(_domain_db_path(domain), domain=_storage_domain(domain))
     if not jd:
-        return {"jd_id": "", "company":"", "title": "", "domain": domain, "created_at": "", "jd_text": "", "jd_skills": {}}
+        return {"jd_id": "", "company":"", "title": "", "domain": _storage_domain(domain), "created_at": "", "jd_text": "", "jd_skills": {}}
     return jd
 
 from openAI import externalPeopleSearch
@@ -1186,7 +1406,7 @@ from azureUtils.storage import candidates
 @app.post("/api/match/run")
 def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: int = Form(10)):
     # TODO: Set up job descriptions in the database
-    jd = storage.get_jd(DB_PATH, jd_id) if jd_id else storage.get_latest_jd(DB_PATH, domain=domain)
+    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id) if jd_id else storage.get_latest_jd(_domain_db_path(domain), domain=_storage_domain(domain))
     if not jd or not jd.get("jd_skills"):
         raise HTTPException(status_code=400, detail="No job description loaded yet. Normalize a JD first.")
     jd_skills = jd["jd_skills"]
@@ -1201,7 +1421,7 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
         print(f'Extracted skills for external search: {peopleDataSkills}')
     else:
         peopleDataSkills = externalPeopleSearch.getPeopleSkills(jd["jd_text"])
-        storage.upsert_jd(DB_PATH, jd["jd_id"], jd.get("company",""), jd.get("title",""), jd.get("domain",""), jd.get("created_at",""), jd["jd_text"], {"ai_extracted_skills": peopleDataSkills})
+        storage.upsert_jd(_domain_db_path(domain), jd["jd_id"], jd.get("company",""), jd.get("title",""), _storage_domain(domain), jd.get("created_at",""), jd["jd_text"], {"ai_extracted_skills": peopleDataSkills})
     
     returnedExternalPeople = []
 
@@ -1279,11 +1499,11 @@ def match_scorecard(
     jd_id: str = Form(""),
 ):
     # Use selected JD if provided, else most recent JD in this domain
-    jd = storage.get_jd(DB_PATH, jd_id) if jd_id else storage.get_latest_jd(DB_PATH, domain=domain)
+    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id) if jd_id else storage.get_latest_jd(_domain_db_path(domain), domain=_storage_domain(domain))
     if not jd or not jd.get("jd_skills"):
         raise HTTPException(status_code=400, detail="No job description loaded yet. Normalize a JD first.")
 
-    p = storage.get_profile(DB_PATH, profile_id)
+    p = storage.get_profile(_profile_db_path(profile_id, domain), profile_id)
     if not p:
         raise HTTPException(status_code=404, detail="Profile not found")
 
@@ -1300,11 +1520,11 @@ def interview_questions(
     domain: str = Form("technology"),
     jd_id: str = Form(""),
 ):
-    jd = storage.get_jd(DB_PATH, jd_id) if jd_id else storage.get_latest_jd(DB_PATH, domain=domain)
+    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id) if jd_id else storage.get_latest_jd(_domain_db_path(domain), domain=_storage_domain(domain))
     if not jd or not jd.get("jd_skills"):
         raise HTTPException(status_code=400, detail="No job description loaded yet. Normalize a JD first.")
 
-    p = storage.get_profile(DB_PATH, profile_id)
+    p = storage.get_profile(_profile_db_path(profile_id, domain), profile_id)
     if not p:
         raise HTTPException(status_code=404, detail="Profile not found")
 
@@ -1315,10 +1535,10 @@ def interview_questions(
 
 @app.post("/api/match/explain")
 def explain(profile_id: str = Form(...), domain: str = Form("technology"), jd_id: str = Form("")):
-    jd = storage.get_jd(DB_PATH, jd_id) if jd_id else storage.get_latest_jd(DB_PATH, domain=domain)
+    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id) if jd_id else storage.get_latest_jd(_domain_db_path(domain), domain=_storage_domain(domain))
     if not jd or not jd.get("jd_skills"):
         raise HTTPException(status_code=400, detail="No job description loaded yet. Normalize a JD first.")
-    p = storage.get_profile(DB_PATH, profile_id)
+    p = storage.get_profile(_profile_db_path(profile_id, domain), profile_id)
     if not p:
         raise HTTPException(status_code=404, detail="Profile not found")
 
@@ -1354,10 +1574,10 @@ def explain(profile_id: str = Form(...), domain: str = Form("technology"), jd_id
 
 @app.get("/api/match/report/html", response_class=HTMLResponse)
 def match_report_html(profile_id: str, jd_id: str, domain: str = "technology"):
-    jd = storage.get_jd(DB_PATH, jd_id) if jd_id else storage.get_latest_jd(DB_PATH, domain=domain)
+    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id) if jd_id else storage.get_latest_jd(_domain_db_path(domain), domain=_storage_domain(domain))
     if not jd or not jd.get("jd_skills"):
         raise HTTPException(status_code=400, detail="No job description loaded yet. Normalize a JD first.")
-    p = storage.get_profile(DB_PATH, profile_id)
+    p = storage.get_profile(_profile_db_path(profile_id, domain), profile_id)
     if not p:
         raise HTTPException(status_code=404, detail="Profile not found")
 
@@ -1398,10 +1618,10 @@ def match_report_html(profile_id: str, jd_id: str, domain: str = "technology"):
 
 @app.get("/api/match/report/docx")
 def match_report_docx(profile_id: str, jd_id: str, domain: str = "technology"):
-    jd = storage.get_jd(DB_PATH, jd_id) if jd_id else storage.get_latest_jd(DB_PATH, domain=domain)
+    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id) if jd_id else storage.get_latest_jd(_domain_db_path(domain), domain=_storage_domain(domain))
     if not jd or not jd.get("jd_skills"):
         raise HTTPException(status_code=400, detail="No job description loaded yet. Normalize a JD first.")
-    p = storage.get_profile(DB_PATH, profile_id)
+    p = storage.get_profile(_profile_db_path(profile_id, domain), profile_id)
     if not p:
         raise HTTPException(status_code=404, detail="Profile not found")
 
@@ -1534,6 +1754,7 @@ def mark_ai_certification_badge(
     email: str = Form(default=""),
     title: str = Form(default=""),
     notes: str = Form(default=""),
+    domain: str = Form(default="dev"),
 ):
     normalized_status = (status or "certified").strip().lower()
     if normalized_status not in {"started", "completed", "certified", "failed"}:
@@ -1548,6 +1769,7 @@ def mark_ai_certification_badge(
         level=level,
         score=score,
         certificate_id=certificate_id,
+        domain=domain,
     )
     badges = _read_profile_badges()
     profile_entry = badges.setdefault(str(ensured_profile_id), {})
@@ -1580,6 +1802,7 @@ def mark_ai_certification_badge_without_profile(
     email: str = Form(default=""),
     title: str = Form(default=""),
     notes: str = Form(default=""),
+    domain: str = Form(default="dev"),
 ):
     return mark_ai_certification_badge(
         profile_id=profile_id,
@@ -1591,6 +1814,7 @@ def mark_ai_certification_badge_without_profile(
         email=email,
         title=title,
         notes=notes,
+        domain=domain,
     )
 
 
@@ -1636,6 +1860,79 @@ def get_workflow_events(profile_id: str):
         "profile_id": profile_id,
         "events": [event for event in events if str(event.get("profile_id", "")) == str(profile_id)],
     }
+
+
+@app.post("/api/interviews/archive")
+def save_interview_archive(
+    record_json: str = Form(default="{}"),
+    domain: str = Form(default="dev"),
+):
+    archive = _read_json_store(INTERVIEW_ARCHIVE_PATH, [])
+    now = _now_utc()
+    try:
+        record = json.loads(record_json or "{}")
+        if not isinstance(record, dict):
+            record = {"value": record}
+    except Exception:
+        record = {"raw": record_json}
+    record_id = str(record.get("id") or _safe_token("INT"))
+    record["id"] = record_id
+    record["domain"] = _domain_key(record.get("domain") or domain)
+    record["archivedAt"] = record.get("archivedAt") or now
+    record["updatedAt"] = now
+    record["archiveType"] = "interview"
+
+    kept = [item for item in archive if str(item.get("id")) != record_id]
+    kept.insert(0, record)
+    _write_json_store(INTERVIEW_ARCHIVE_PATH, kept[:1000])
+    return {"ok": True, "record": record}
+
+
+@app.get("/api/interviews/archive")
+def list_interview_archive(
+    domain: str = "dev",
+    profile_id: str = "",
+    record_id: str = "",
+    limit: int = 50,
+):
+    archive = _read_json_store(INTERVIEW_ARCHIVE_PATH, [])
+    clean_domain = _domain_key(domain)
+    rows = []
+    for item in archive:
+        if clean_domain != "all" and item.get("domain") not in {clean_domain, "", None}:
+            continue
+        if profile_id and str(item.get("candidateId") or item.get("profile_id") or "") != str(profile_id):
+            continue
+        if record_id and str(item.get("id") or "") != str(record_id):
+            continue
+        rows.append(item)
+    return {"ok": True, "records": rows[: max(1, min(limit, 250))]}
+
+
+@app.get("/api/crm/records")
+def list_crm_records(domain: str = "dev", limit: int = 200):
+    records = _read_json_store(CRM_RECORDS_PATH, [])
+    wanted_domain = _domain_key(domain)
+    if not isinstance(records, list):
+        records = []
+    if wanted_domain != "all":
+        records = [item for item in records if _domain_key(item.get("domain", "dev")) == wanted_domain]
+    records = sorted(records, key=lambda item: item.get("updatedAt") or item.get("createdAt") or "", reverse=True)
+    return {"ok": True, "records": records[: max(1, min(limit, 500))]}
+
+
+@app.get("/api/meetings/archive")
+def list_meeting_records(domain: str = "dev", profile_id: str = "", limit: int = 200):
+    records = _read_json_store(MEETING_RECORDS_PATH, [])
+    wanted_domain = _domain_key(domain)
+    if not isinstance(records, list):
+        records = []
+    if wanted_domain != "all":
+        records = [item for item in records if _domain_key(item.get("domain", "dev")) == wanted_domain]
+    if profile_id:
+        records = [item for item in records if str(item.get("profileId") or item.get("candidateId") or "") == str(profile_id)]
+    records = sorted(records, key=lambda item: item.get("updatedAt") or item.get("meetingAt") or item.get("createdAt") or "", reverse=True)
+    return {"ok": True, "records": records[: max(1, min(limit, 500))]}
 
 
 @app.post("/api/onboarding/start")
@@ -1705,6 +2002,33 @@ def start_onboarding(
     }
 
 
+@app.get("/api/onboarding/admin")
+def get_onboarding_admin(domain: str = "all"):
+    records = _read_json_store(ONBOARDING_RECORDS_PATH, {})
+    people = []
+    for token, record in records.items():
+        record_domain = record.get("domain", "dev")
+        if domain != "all" and record_domain != domain:
+            continue
+        item = dict(record)
+        item["token"] = token
+        item["onboarding_link"] = f"/ui/pages/onboarding.html?token={token}"
+        item["time_entry_link"] = f"/ui/pages/time-entry.html?token={token}"
+        people.append(item)
+    people.sort(
+        key=lambda item: (
+            item.get("updated_at") or item.get("created_at") or "",
+            item.get("candidate_name") or item.get("legal_name") or item.get("email") or "",
+        ),
+        reverse=True,
+    )
+    return {
+        "ok": True,
+        "people": people,
+        "count": len(people),
+    }
+
+
 @app.get("/api/onboarding/{token}")
 def get_onboarding(token: str):
     records = _read_json_store(ONBOARDING_RECORDS_PATH, {})
@@ -1769,6 +2093,9 @@ def submit_time_entry(
     profile_id: str = Form(default=""),
     candidate_name: str = Form(default=""),
     email: str = Form(default=""),
+    domain: str = Form(default=""),
+    week_start: str = Form(default=""),
+    entries_json: str = Form(default=""),
     work_date: str = Form(default=""),
     hours: str = Form(default=""),
     client: str = Form(default=""),
@@ -1779,37 +2106,261 @@ def submit_time_entry(
     entries = _read_json_store(TIME_ENTRIES_PATH, [])
     onboarding = _read_json_store(ONBOARDING_RECORDS_PATH, {}).get(token, {}) if token else {}
     now = _now_utc()
-    entry = {
-        "id": _safe_token("TIM"),
-        "token": token,
-        "profile_id": profile_id or onboarding.get("profile_id", ""),
-        "candidate_name": candidate_name or onboarding.get("candidate_name", "") or onboarding.get("legal_name", ""),
-        "email": email or onboarding.get("email", ""),
-        "work_date": work_date,
-        "hours": hours,
-        "client": client,
-        "project": project,
-        "summary": summary,
-        "blockers": blockers,
-        "status": "submitted_to_devready",
-        "recipient": os.getenv("HEIDI_NAME", "Heidi at DevReady"),
-        "recipient_email": os.getenv("HEIDI_EMAIL", "heidi@devready.io"),
-        "created_at": now,
-    }
-    entries.insert(0, entry)
+    person_profile_id = profile_id or onboarding.get("profile_id", "")
+    person_name = candidate_name or onboarding.get("candidate_name", "") or onboarding.get("legal_name", "")
+    person_email = email or onboarding.get("email", "")
+    entry_domain = domain or onboarding.get("domain", "dev")
+    recipient = os.getenv("HEIDI_NAME", "Heidi at DevReady")
+    recipient_email = os.getenv("HEIDI_EMAIL", "heidi@devready.io")
+
+    def clean_hours(value):
+        try:
+            parsed = float(value or 0)
+        except (TypeError, ValueError):
+            parsed = 0
+        return round(max(0, min(parsed, 24)), 2)
+
+    submitted_entries = []
+    if entries_json:
+        try:
+            daily_rows = json.loads(entries_json)
+        except Exception:
+            raise HTTPException(status_code=400, detail="entries_json must be valid JSON.")
+        if not isinstance(daily_rows, list):
+            raise HTTPException(status_code=400, detail="entries_json must be a list of daily entries.")
+        for row in daily_rows:
+            if not isinstance(row, dict):
+                continue
+            row_hours = clean_hours(row.get("hours"))
+            row_summary = str(row.get("summary") or "").strip()
+            row_date = str(row.get("work_date") or "").strip()
+            if row_hours <= 0 and not row_summary:
+                continue
+            submitted_entries.append({
+                "id": f"{_safe_token('TIM')}-{len(submitted_entries) + 1}",
+                "token": token,
+                "profile_id": person_profile_id,
+                "candidate_name": person_name,
+                "email": person_email,
+                "domain": entry_domain,
+                "week_start": week_start,
+                "work_date": row_date,
+                "hours": row_hours,
+                "client": client,
+                "project": project,
+                "summary": row_summary,
+                "blockers": str(row.get("blockers") or blockers or "").strip(),
+                "status": "submitted_to_devready",
+                "recipient": recipient,
+                "recipient_email": recipient_email,
+                "created_at": now,
+                "updated_at": now,
+            })
+    else:
+        submitted_entries.append({
+            "id": f"{_safe_token('TIM')}-1",
+            "token": token,
+            "profile_id": person_profile_id,
+            "candidate_name": person_name,
+            "email": person_email,
+            "domain": entry_domain,
+            "week_start": week_start,
+            "work_date": work_date,
+            "hours": clean_hours(hours),
+            "client": client,
+            "project": project,
+            "summary": summary,
+            "blockers": blockers,
+            "status": "submitted_to_devready",
+            "recipient": recipient,
+            "recipient_email": recipient_email,
+            "created_at": now,
+            "updated_at": now,
+        })
+
+    if not submitted_entries:
+        raise HTTPException(status_code=400, detail="Add hours or a short description for at least one day.")
+
+    entries = submitted_entries + entries
     _write_json_store(TIME_ENTRIES_PATH, entries[:2000])
     return {
         "ok": True,
-        "entry": entry,
-        "message": f"Time entry recorded for {entry['recipient']}.",
+        "entries": submitted_entries,
+        "entry": submitted_entries[0],
+        "message": f"Time entry recorded for {recipient}.",
     }
+
+
+@app.get("/api/time-entry/admin")
+def get_time_entry_admin(
+    domain: str = "all",
+    week_start: str = "",
+    status: str = "all",
+):
+    entries = _read_json_store(TIME_ENTRIES_PATH, [])
+    domain_entries = [
+        entry for entry in entries
+        if domain == "all" or entry.get("domain", "dev") == domain
+    ]
+    filtered = []
+    for entry in domain_entries:
+        if week_start and entry.get("week_start") != week_start:
+            continue
+        if status != "all" and entry.get("status", "") != status:
+            continue
+        filtered.append(entry)
+
+    groups = {}
+    for entry in filtered:
+        key = "|".join([
+            entry.get("week_start") or "",
+            entry.get("profile_id") or "",
+            entry.get("token") or "",
+            entry.get("email") or "",
+        ])
+        group = groups.setdefault(key, {
+            "week_start": entry.get("week_start") or "",
+            "profile_id": entry.get("profile_id") or "",
+            "token": entry.get("token") or "",
+            "candidate_name": entry.get("candidate_name") or "Staff member",
+            "email": entry.get("email") or "",
+            "domain": entry.get("domain", "dev"),
+            "client": entry.get("client") or "",
+            "project": entry.get("project") or "",
+            "status": entry.get("status") or "submitted_to_devready",
+            "processed_at": "",
+            "processed_by": "",
+            "processed_reference": "",
+            "processed_note": "",
+            "total_hours": 0,
+            "entries": [],
+        })
+        try:
+            group["total_hours"] += float(entry.get("hours") or 0)
+        except (TypeError, ValueError):
+            pass
+        group["entries"].append(entry)
+        if entry.get("status") == "processed_for_payment":
+            group["status"] = "processed_for_payment"
+        if entry.get("processed_at") and (
+            not group.get("processed_at") or str(entry.get("processed_at")) > str(group.get("processed_at"))
+        ):
+            group["processed_at"] = entry.get("processed_at")
+        if entry.get("processed_by"):
+            group["processed_by"] = entry.get("processed_by")
+        if entry.get("processed_reference"):
+            group["processed_reference"] = entry.get("processed_reference")
+        if entry.get("processed_note"):
+            group["processed_note"] = entry.get("processed_note")
+
+    grouped = list(groups.values())
+    for group in grouped:
+        group["total_hours"] = round(group["total_hours"], 2)
+        group["entries"].sort(key=lambda item: item.get("work_date") or "")
+    grouped.sort(key=lambda item: (item.get("week_start") or "", item.get("candidate_name") or ""), reverse=True)
+
+    candidate_totals = {}
+    for entry in domain_entries:
+        key = "|".join([
+            entry.get("profile_id") or "",
+            entry.get("token") or "",
+            entry.get("email") or "",
+            entry.get("candidate_name") or "Staff member",
+        ])
+        total = candidate_totals.setdefault(key, {
+            "profile_id": entry.get("profile_id") or "",
+            "token": entry.get("token") or "",
+            "candidate_name": entry.get("candidate_name") or "Staff member",
+            "email": entry.get("email") or "",
+            "domain": entry.get("domain", "dev"),
+            "total_hours": 0,
+            "processed_hours": 0,
+            "open_hours": 0,
+            "weeks": set(),
+            "latest_week": "",
+        })
+        try:
+            hours_value = float(entry.get("hours") or 0)
+        except (TypeError, ValueError):
+            hours_value = 0
+        total["total_hours"] += hours_value
+        if entry.get("status") == "processed_for_payment":
+            total["processed_hours"] += hours_value
+        else:
+            total["open_hours"] += hours_value
+        if entry.get("week_start"):
+            total["weeks"].add(entry.get("week_start"))
+            if str(entry.get("week_start")) > str(total.get("latest_week") or ""):
+                total["latest_week"] = entry.get("week_start")
+
+    candidate_total_rows = []
+    for row in candidate_totals.values():
+        row["total_hours"] = round(row["total_hours"], 2)
+        row["processed_hours"] = round(row["processed_hours"], 2)
+        row["open_hours"] = round(row["open_hours"], 2)
+        row["week_count"] = len(row["weeks"])
+        row.pop("weeks", None)
+        candidate_total_rows.append(row)
+    candidate_total_rows.sort(key=lambda item: (item.get("total_hours") or 0, item.get("candidate_name") or ""), reverse=True)
+
+    return {
+        "ok": True,
+        "groups": grouped,
+        "entries": filtered,
+        "total_hours": round(sum(group["total_hours"] for group in grouped), 2),
+        "processed_hours": round(
+            sum(group["total_hours"] for group in grouped if group.get("status") == "processed_for_payment"),
+            2,
+        ),
+        "staff_count": len(grouped),
+        "candidate_totals": candidate_total_rows,
+        "candidate_total_hours": round(sum(row["total_hours"] for row in candidate_total_rows), 2),
+    }
+
+
+@app.post("/api/time-entry/{entry_id}/status")
+def update_time_entry_status(
+    entry_id: str,
+    status: str = Form(default="processed_for_payment"),
+    processed_by: str = Form(default=""),
+    processed_reference: str = Form(default=""),
+    processed_note: str = Form(default=""),
+):
+    entries = _read_json_store(TIME_ENTRIES_PATH, [])
+    allowed = {"submitted_to_devready", "approved_for_payment", "processed_for_payment", "needs_review"}
+    if status not in allowed:
+        raise HTTPException(status_code=400, detail="Unsupported time entry status.")
+    updated = None
+    now = _now_utc()
+    for entry in entries:
+        if entry.get("id") == entry_id:
+            entry["status"] = status
+            entry["updated_at"] = now
+            if status == "processed_for_payment":
+                entry["processed_at"] = now
+                entry["processed_by"] = processed_by.strip() or entry.get("processed_by") or "HR"
+                entry["processed_reference"] = processed_reference.strip()
+                entry["processed_note"] = processed_note.strip()
+            elif status in {"submitted_to_devready", "approved_for_payment", "needs_review"}:
+                entry.pop("processed_at", None)
+                entry.pop("processed_by", None)
+                entry.pop("processed_reference", None)
+                entry.pop("processed_note", None)
+            updated = entry
+            break
+    if not updated:
+        raise HTTPException(status_code=404, detail="Time entry not found.")
+    _write_json_store(TIME_ENTRIES_PATH, entries)
+    return {"ok": True, "entry": updated}
 
 
 @app.get("/api/time-entry/{token}")
 def get_time_entries(token: str):
     entries = _read_json_store(TIME_ENTRIES_PATH, [])
+    onboarding = _read_json_store(ONBOARDING_RECORDS_PATH, {}).get(token, {}) if token else {}
     return {
         "token": token,
+        "record": onboarding,
         "entries": [entry for entry in entries if entry.get("token") == token],
     }
 

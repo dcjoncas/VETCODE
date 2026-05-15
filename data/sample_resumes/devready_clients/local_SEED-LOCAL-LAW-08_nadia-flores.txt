@@ -1,0 +1,20 @@
+Nadia Flores
+Government Contracts Specialist
+nadia.flores.local.08@seed.legalready.example
+Arlington, VA
+
+SUMMARY
+Synthetic DevReady Law example for Public Sector. Nadia Flores has client-facing experience helping CivicBridge with: Prepare compliant subcontract and proposal review packages.
+
+SKILLS
+Audit Support, DFARS, FAR, Proposal Compliance, Records, Subcontracts
+
+EXPERIENCE
+Government Contracts Specialist | CivicBridge | 2020 - Present
+Led public sector delivery work focused on prepare compliant subcontract and proposal review packages.
+
+CERTIFICATION
+AI / ML L3 - Foundations | certified | 94% | SEED-LOCAL-LAW-08-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

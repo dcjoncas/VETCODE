@@ -1,0 +1,17 @@
+Jordan Ellis
+Litigation Support Specialist
+jordan.ellis.sample@legalready.example
+Washington, DC
+
+SUMMARY
+Litigation support specialist with evidence review, eDiscovery coordination, privilege workflows, and case-team enablement experience.
+
+SKILLS
+Casepoint, Chain of custody, Confidentiality controls, DISCO, Evidence management, Litigation support, Privilege logs, Privilege review, Production logs, QC sampling, Relativity, Relativity workflows, Review metrics, eDiscovery
+
+EXPERIENCE
+Litigation Support Specialist | Civic Rights Alliance | 2020-09 - Present
+Built repeatable evidence review workflows and quality checks for multi-party litigation teams.
+
+NOTE
+Synthetic sample resume for VETCODE development/testing only.

@@ -1,0 +1,20 @@
+Simone Park
+SaaS Commercial Contracts Lead
+simone.park.local.06@seed.legalready.example
+Seattle, WA
+
+SUMMARY
+Synthetic DevReady Law example for SaaS. Simone Park has client-facing experience helping FrameCloud Media with: Speed up sales contract turnaround while reducing fallback risk.
+
+SKILLS
+Ironclad, MSA, Negotiation, Redlining, SaaS Agreements, Salesforce
+
+EXPERIENCE
+SaaS Commercial Contracts Lead | FrameCloud Media | 2022 - Present
+Led saas delivery work focused on speed up sales contract turnaround while reducing fallback risk.
+
+CERTIFICATION
+AI / ML L1 - Foundations | certified | 92% | SEED-LOCAL-LAW-06-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

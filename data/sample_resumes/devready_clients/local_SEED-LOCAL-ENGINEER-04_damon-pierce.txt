@@ -1,0 +1,20 @@
+Damon Pierce
+Aerospace Manufacturing Engineer
+damon.pierce.local.04@seed.buildready.example
+Huntsville, AL
+
+SUMMARY
+Synthetic DevReady Engineering example for Aerospace. Damon Pierce has client-facing experience helping OrbitalWorks with: Stabilize first-article production and supplier corrective actions.
+
+SKILLS
+AS9100, CATIA, GD&T, Lean Manufacturing, NPI, Quality controls, Root Cause Analysis, Safety
+
+EXPERIENCE
+Aerospace Manufacturing Engineer | OrbitalWorks | 2020 - Present
+Led aerospace delivery work focused on stabilize first-article production and supplier corrective actions.
+
+CERTIFICATION
+AI / ML L2 - Foundations | certified | 90% | SEED-LOCAL-ENGINEER-04-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

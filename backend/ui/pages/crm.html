@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DevReady - CRM</title>
+    <title>DevReady - Relationship CRM</title>
     <link
       class="domainLogo"
       rel="icon"
@@ -12,60 +12,910 @@
       type="image/svg+xml"
     />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <style>
-      .crm-grid {
+      :root {
+        --crm-ink: #17231d;
+        --crm-panel: #f8faf7;
+        --crm-hot: #2f7d4b;
+        --crm-active: #31708e;
+        --crm-watch: #a46a24;
+        --crm-cold: #575f66;
+        --crm-alert: #c33d32;
+        --domain-rgb: 47, 125, 75;
+        --domain-ink: #1b5f38;
+      }
+
+      .main {
+        background:
+          radial-gradient(circle at 22% 16%, rgba(127, 191, 63, 0.12), transparent 28%),
+          radial-gradient(circle at 82% 7%, rgba(49, 112, 142, 0.1), transparent 24%),
+          linear-gradient(180deg, #fbfcfb 0%, #eef3ef 100%);
+      }
+
+      .crm-command {
         display: grid;
-        grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: end;
+        padding: 18px;
+        border: 1px solid rgba(47, 125, 75, 0.16);
+        border-radius: 10px;
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(243, 249, 245, 0.88)),
+          #fff;
+        box-shadow: 0 18px 45px rgba(23, 35, 29, 0.08);
+      }
+
+      .crm-command h1 {
+        margin: 0;
+        color: var(--crm-ink);
+        font-size: clamp(28px, 4vw, 54px);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .crm-command p {
+        max-width: 760px;
+        margin: 8px 0 0;
+        color: #4b5d52;
+        font-size: 15px;
+      }
+
+      .crm-command-actions,
+      .crm-actions,
+      .crm-mode,
+      .card-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .crm-mode {
+        justify-content: flex-end;
+      }
+
+      .domain-lock {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        border: 1px solid rgba(var(--domain-rgb), 0.3);
+        border-radius: 999px;
+        padding: 6px 10px;
+        background: rgba(var(--domain-rgb), 0.1);
+        color: var(--domain-ink);
+        font-size: 12px;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      .crm-mode button {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.82);
+        color: var(--crm-ink);
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .crm-mode button.active {
+        border-color: rgba(47, 125, 75, 0.45);
+        background: rgba(127, 191, 63, 0.18);
+        color: var(--primary-2);
+      }
+
+      .crm-stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .crm-stat {
+        min-height: 84px;
+        border: 1px solid rgba(23, 35, 29, 0.1);
+        border-radius: 8px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.86);
+      }
+
+      .crm-stat strong {
+        display: block;
+        color: var(--crm-ink);
+        font-size: 26px;
+        line-height: 1;
+      }
+
+      .crm-stat span {
+        display: block;
+        margin-top: 6px;
+        color: #64746b;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .crm-workspace {
+        display: grid;
+        grid-template-columns: minmax(310px, 380px) minmax(0, 1fr);
         gap: 16px;
+        margin-top: 16px;
+        align-items: start;
+      }
+
+      .builder-panel,
+      .radar-panel {
+        border: 1px solid rgba(23, 35, 29, 0.12);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 16px 38px rgba(23, 35, 29, 0.07);
+      }
+
+      .builder-panel {
+        position: sticky;
+        top: 14px;
+        padding: 16px;
+      }
+
+      .builder-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .builder-head h2,
+      .radar-head h2 {
+        margin: 0;
+        color: var(--crm-ink);
+      }
+
+      .builder-head span,
+      .radar-head span {
+        color: #64746b;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
       }
 
       .crm-form-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
+        gap: 10px;
       }
 
       .crm-form-grid .full {
         grid-column: 1 / -1;
       }
 
-      .crm-record {
+      .range-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .range-value {
+        width: 40px;
         border: 1px solid var(--line);
         border-radius: 8px;
-        padding: 12px;
-        background: #fff;
-        margin-top: 10px;
+        padding: 7px 0;
+        background: var(--crm-panel);
+        color: var(--crm-ink);
+        text-align: center;
+        font-weight: 900;
       }
 
-      .crm-record h3 {
-        margin: 0 0 6px;
-        font-size: 16px;
+      .radar-panel {
+        padding: 14px;
       }
 
-      .crm-meta {
-        color: var(--muted);
+      .radar-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .relationship-board {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(420px, 460px));
+        gap: 18px;
+        align-items: start;
+        justify-content: start;
+        min-height: 360px;
+      }
+
+      .lane {
+        position: relative;
+        min-height: 520px;
+        border: 1px solid rgba(23, 35, 29, 0.1);
+        border-radius: 10px;
+        padding: 10px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(246, 249, 247, 0.86)),
+          var(--crm-panel);
+      }
+
+      .lane::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+        border-top: 4px solid var(--lane-color);
+        opacity: 0.8;
+      }
+
+      .lane-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: baseline;
+        margin-bottom: 10px;
+      }
+
+      .lane-head h3 {
+        margin: 0;
+        color: var(--crm-ink);
         font-size: 13px;
-        line-height: 1.4;
+        letter-spacing: 0;
+        text-transform: uppercase;
       }
 
-      .crm-actions {
+      .lane-head span {
+        color: #69766f;
+        font-weight: 900;
+      }
+
+      .lane.empty {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .empty-state {
+        display: grid;
+        min-height: 210px;
+        place-items: center;
+        border: 1px dashed rgba(23, 35, 29, 0.16);
+        border-radius: 8px;
+        color: #6c766f;
+        font-weight: 800;
+        text-align: center;
+      }
+
+      .player-card {
+        position: relative;
+        isolation: isolate;
+        width: min(100%, 460px);
+        height: auto;
+        min-height: 0;
+        border: 1px solid rgba(var(--card-rgb), 0.62);
+        border-radius: 8px;
+        padding: 0;
+        overflow: hidden;
+        color: #eef8f1;
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.34), transparent 18%, rgba(255, 255, 255, 0.08) 36%, transparent 58%),
+          radial-gradient(circle at 28% 8%, rgba(255, 255, 255, 0.26), transparent 28%),
+          linear-gradient(160deg, rgba(var(--card-rgb), 0.94), rgba(18, 33, 26, 0.98) 58%, rgba(var(--card-rgb), 0.84)),
+          #102119;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.34),
+          inset 0 -24px 42px rgba(0, 0, 0, 0.22),
+          0 10px 22px rgba(12, 25, 19, 0.24),
+          0 0 var(--glow-size) rgba(var(--card-rgb), var(--glow-alpha));
+        transform: none;
+        transition: box-shadow 180ms ease, border-color 180ms ease, filter 180ms ease;
+      }
+
+      .player-card.hot {
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.34),
+          inset 0 -24px 42px rgba(0, 0, 0, 0.22),
+          0 10px 22px rgba(12, 25, 19, 0.24),
+          0 0 18px rgba(var(--card-rgb), 0.36);
+      }
+
+      .player-card.attention {
+        border-color: rgba(255, 107, 96, 0.74);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.32),
+          0 10px 22px rgba(12, 25, 19, 0.24),
+          0 0 0 1px rgba(255, 107, 96, 0.28);
+      }
+
+      .attention-icon {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 4;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.38);
+        border-radius: 999px;
+        padding: 6px 9px;
+        background: linear-gradient(145deg, rgba(255, 184, 77, 0.96), rgba(220, 70, 54, 0.94));
+        color: #fff;
+        font-size: 11px;
+        font-weight: 950;
+        line-height: 1;
+        text-transform: uppercase;
+        box-shadow: 0 10px 22px rgba(80, 24, 18, 0.28);
+      }
+
+      .attention-icon svg {
+        width: 15px;
+        height: 15px;
+        flex: 0 0 auto;
+        stroke: currentColor;
+        stroke-width: 2.6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        fill: none;
+      }
+
+      .player-card.selected {
+        border-color: rgba(255, 255, 255, 0.86);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.4),
+          inset 0 -24px 42px rgba(0, 0, 0, 0.22),
+          0 0 0 3px rgba(var(--card-rgb), 0.28),
+          0 14px 30px rgba(12, 25, 19, 0.28);
+      }
+
+      .player-card.card-editing {
+        border-color: rgba(245, 188, 58, 0.98);
+        color: #211b08;
+        background:
+          linear-gradient(135deg, rgba(255, 247, 194, 0.96), rgba(255, 224, 112, 0.94)),
+          #ffe681;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.66),
+          0 0 0 3px rgba(245, 188, 58, 0.34),
+          0 16px 34px rgba(82, 57, 8, 0.22);
+      }
+
+      .player-card.card-editing::before,
+      .player-card.card-editing::after {
+        opacity: 0.12;
+      }
+
+      .player-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(115deg, transparent 0%, rgba(255, 255, 255, 0.34) 16%, rgba(255, 255, 255, 0.08) 27%, transparent 42%),
+          repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 14px);
+        opacity: var(--shine-alpha);
+        pointer-events: none;
+        z-index: -1;
+      }
+
+      .player-card::after {
+        content: "";
+        position: absolute;
+        inset: auto 0 0;
+        height: 7px;
+        background: rgb(var(--card-rgb));
+        opacity: 0.74;
+      }
+
+      .player-card:hover {
+        border-color: rgba(255, 255, 255, 0.72);
+      }
+
+      .card-edit-mode {
+        display: grid;
+        gap: 10px;
+        padding: 16px;
+        min-height: 100%;
+      }
+
+      .card-edit-mode h3 {
+        margin: 0;
+        color: #241a00;
+        font-size: 22px;
+      }
+
+      .card-edit-mode p {
+        margin: 0;
+        color: rgba(36, 26, 0, 0.72);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .card-edit-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .card-edit-grid label {
+        display: grid;
+        gap: 4px;
+        color: #241a00;
+        font-size: 11px;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      .card-edit-grid label.full {
+        grid-column: 1 / -1;
+      }
+
+      .card-edit-grid input,
+      .card-edit-grid textarea,
+      .card-edit-grid select {
+        width: 100%;
+        border: 1px solid rgba(106, 75, 0, 0.28);
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.78);
+        color: #221600;
+        font: inherit;
+        font-size: 13px;
+        padding: 7px 8px;
+      }
+
+      .card-edit-grid textarea {
+        min-height: 58px;
+        resize: vertical;
+      }
+
+      .card-edit-actions {
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
-        margin-top: 10px;
+        margin-top: 4px;
       }
 
-      @media (max-width: 980px) {
-        .crm-grid,
+      .card-edit-actions .btn {
+        box-shadow: none;
+      }
+
+      .player-top {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        min-height: 150px;
+        padding: 18px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.05)),
+          rgba(0, 0, 0, 0.18);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+      }
+
+      .company-name {
+        margin: 0;
+        color: #ffffff;
+        font-size: 28px;
+        line-height: 1.15;
+      }
+
+      .contact-line,
+      .card-small {
+        color: rgba(238, 248, 241, 0.76);
+        font-size: 15px;
+        line-height: 1.35;
+      }
+
+      .email-line {
+        display: block;
+        margin-top: 5px;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 900;
+        text-decoration: none;
+        word-break: break-word;
+      }
+
+      .email-line:hover {
+        text-decoration: underline;
+      }
+
+      .heat-badge {
+        min-width: 64px;
+        height: 64px;
+        border: 1px solid rgba(255, 255, 255, 0.38);
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: rgba(255, 255, 255, 0.18);
+        color: #fff;
+        font-size: 26px;
+        font-weight: 950;
+      }
+
+      .card-edition {
+        display: block;
+        margin-bottom: 8px;
+        color: rgba(238, 248, 241, 0.76);
+        font-size: 12px;
+        font-weight: 950;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      .card-domain {
+        display: inline-flex;
+        margin-bottom: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.18);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        margin-top: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        border-radius: 999px;
+        padding: 7px 11px;
+        background: rgba(255, 255, 255, 0.14);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      .player-body {
+        display: grid;
+        gap: 10px;
+        padding: 14px 18px 0;
+      }
+
+      .card-label {
+        display: block;
+        color: rgba(238, 248, 241, 0.62);
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .card-value {
+        display: block;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 1.25;
+      }
+
+      .card-bottom {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 9px;
+        margin: 14px 18px 0;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.14);
+      }
+
+      .business-stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 9px;
+        padding: 14px 18px 0;
+      }
+
+      .business-stat {
+        position: relative;
+        min-height: 74px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 7px;
+        padding: 10px;
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      .business-stat.hot-stat {
+        background: linear-gradient(145deg, rgba(56, 189, 118, 0.36), rgba(255, 255, 255, 0.1));
+        border-color: rgba(113, 245, 169, 0.4);
+      }
+
+      .business-stat.warm-stat {
+        background: linear-gradient(145deg, rgba(245, 158, 11, 0.34), rgba(255, 255, 255, 0.1));
+        border-color: rgba(252, 211, 77, 0.42);
+      }
+
+      .business-stat.cold-stat {
+        background: linear-gradient(145deg, rgba(239, 68, 68, 0.32), rgba(255, 255, 255, 0.09));
+        border-color: rgba(252, 165, 165, 0.42);
+      }
+
+      .business-stat.blue-stat {
+        background: linear-gradient(145deg, rgba(59, 130, 246, 0.34), rgba(255, 255, 255, 0.1));
+        border-color: rgba(147, 197, 253, 0.42);
+      }
+
+      .business-stat strong {
+        display: block;
+        color: #fff;
+        font-size: 25px;
+        line-height: 1;
+      }
+
+      .business-stat span {
+        display: block;
+        margin-top: 7px;
+        color: rgba(238, 248, 241, 0.62);
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .scouting-report {
+        position: relative;
+        margin: 14px 18px 0;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.12);
+      }
+
+      .scouting-report p {
+        margin: 6px 0 0;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 800;
+        line-height: 1.25;
+      }
+
+      .reference-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin: 12px 18px 0;
+      }
+
+      .reference-chip {
+        max-width: 100%;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 999px;
+        padding: 6px 10px;
+        background: rgba(255, 255, 255, 0.13);
+        color: rgba(238, 248, 241, 0.84);
+        font-size: 12px;
+        font-weight: 900;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .cool-factor {
+        position: relative;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 8px;
+        align-items: center;
+        margin: 14px 18px 0;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        padding: 11px;
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .cool-score {
+        width: 58px;
+        height: 58px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.18);
+        color: #fff;
+        font-weight: 950;
+      }
+
+      .cool-factor strong {
+        display: block;
+        color: #fff;
+        font-size: 16px;
+      }
+
+      .cool-factor span {
+        display: block;
+        color: rgba(238, 248, 241, 0.62);
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .mini-stat {
+        position: relative;
+        min-width: 0;
+        padding-right: 34px;
+      }
+
+      .mini-stat strong {
+        display: block;
+        color: #fff;
+        font-size: 15px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .card-actions {
+        margin: 14px 18px 28px;
+      }
+
+      .card-actions .btn {
+        padding: 7px 10px;
+        font-size: 13px;
+      }
+
+      .player-card > .card-small {
+        display: block;
+        margin: 10px 18px 0;
+      }
+
+      .attention-ribbon {
+        display: inline-flex;
+        margin: 12px 18px 0;
+        border: 1px solid rgba(195, 61, 50, 0.28);
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: rgba(195, 61, 50, 0.09);
+        color: #983028;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .list-view {
+        display: grid;
+        gap: 10px;
+      }
+
+      .crm-list-row {
+        display: grid;
+        grid-template-columns: minmax(180px, 1.15fr) minmax(140px, 0.9fr) 70px 110px minmax(180px, 1fr) minmax(180px, 1fr) 112px 190px;
+        gap: 10px;
+        align-items: center;
+        border: 1px solid rgba(var(--domain-rgb), 0.16);
+        border-radius: 8px;
+        padding: 10px;
+        background: rgba(255, 255, 255, 0.86);
+        color: var(--crm-ink);
+      }
+
+      .crm-list-row.header {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        border-color: rgba(var(--domain-rgb), 0.24);
+        background: rgba(var(--domain-rgb), 0.1);
+        color: var(--domain-ink);
+        font-size: 11px;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      .crm-list-title {
+        min-width: 0;
+      }
+
+      .crm-list-title strong,
+      .crm-list-cell strong {
+        display: block;
+        overflow: hidden;
+        color: var(--crm-ink);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .crm-list-title span,
+      .crm-list-cell {
+        min-width: 0;
+        overflow: hidden;
+        color: #64746b;
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .crm-list-score {
+        width: fit-content;
+        min-width: 34px;
+        border-radius: 999px;
+        padding: 5px 8px;
+        background: rgba(var(--domain-rgb), 0.12);
+        color: var(--domain-ink);
+        font-weight: 950;
+        text-align: center;
+      }
+
+      .crm-list-actions {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+
+      .crm-list-actions .btn {
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      @media (max-width: 1200px) {
+        .crm-workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .builder-panel {
+          position: static;
+        }
+
+        .relationship-board {
+          grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        }
+      }
+
+      @media (max-width: 760px) {
+        .crm-command,
+        .radar-head {
+          grid-template-columns: 1fr;
+          display: grid;
+        }
+
+        .crm-mode {
+          justify-content: flex-start;
+        }
+
+        .crm-stats,
+        .relationship-board,
+        .crm-list-row,
         .crm-form-grid {
           grid-template-columns: 1fr;
+        }
+
+        .crm-list-row.header {
+          display: none;
+        }
+
+        .builder-panel,
+        .radar-panel,
+        .crm-command {
+          border-radius: 8px;
+        }
+
+        .player-card {
+          transform: none;
+          width: 100%;
+          min-height: 0;
+        }
+
+        .player-card:hover {
+          transform: none;
         }
       }
     </style>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html");
+        $("#siteSidebar").load("components/sidebar.html?v=20260515-jd-nav-flow");
         $("#processFlow").load("components/processFlow.html");
         $("#searchBar").load("components/searchBar.html");
       });
@@ -79,44 +929,83 @@
         <div class="topbar">
           <div>
             <div class="page-title">CRM</div>
-            <div class="breadcrumb">Scoping calls - Customer history</div>
+            <div class="breadcrumb">Relationship radar - Client energy - Meeting handoff</div>
           </div>
           <div id="searchBar"></div>
         </div>
 
         <div id="processFlow"></div>
 
-        <section class="card">
-          <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap">
-            <div>
-              <h2 style="margin-bottom: 4px">Call intake</h2>
-              <p style="margin-top: 0">
-                Capture who, what, where, when, why, meeting URL, notes, contacts, and next steps after a scoping call.
-              </p>
+        <section class="crm-command">
+          <div>
+            <span class="breadcrumb">Bright = alive. Dark = drifting.</span>
+            <h1>Relationship radar</h1>
+            <p>
+              Build client player cards from scratch, move meeting intelligence into the card, and let neglected relationships visually decay.
+            </p>
+            <div id="domainLock" class="domain-lock" style="margin-top: 12px">
+              Domain locked: Technology / DevReady
             </div>
-            <a
-              class="btn secondary"
-              href="meet.html"
-            >
-              Open Meet
-            </a>
+          </div>
+          <div class="crm-command-actions">
+            <a class="btn secondary" href="meet.html">Open Meet</a>
+            <button id="seedCrmBtn" class="btn secondary" type="button">Load demo cards</button>
+            <button id="clearCrmRecordsBtn" class="btn secondary" type="button">Clear local CRM</button>
           </div>
         </section>
 
-        <div class="crm-grid" style="margin-top: 16px">
-          <section class="card">
-            <h2>Meeting detail</h2>
+        <section class="crm-stats" aria-label="Relationship energy summary">
+          <div class="crm-stat">
+            <strong id="crmRecordCount">0</strong>
+            <span>Player cards</span>
+          </div>
+          <div class="crm-stat">
+            <strong id="crmHotCount">0</strong>
+            <span>Alive now</span>
+          </div>
+          <div class="crm-stat">
+            <strong id="crmAttentionCount">0</strong>
+            <span>Need attention</span>
+          </div>
+          <div class="crm-stat">
+            <strong id="crmWeightedValue">$0</strong>
+            <span>Weighted gravity</span>
+          </div>
+        </section>
+
+        <div class="crm-workspace">
+          <section class="builder-panel" aria-label="Build client player card">
+            <div class="builder-head">
+              <div>
+                <span id="builderMode">Build from scratch</span>
+                <h2>Player card</h2>
+              </div>
+              <button id="clearCrmFormBtn" class="btn secondary" type="button">Reset</button>
+            </div>
+
             <div class="crm-form-grid">
               <div class="field">
-                <label>Customer / account</label>
+                <label>Company</label>
                 <input id="crmCustomer" placeholder="Acme Health" />
               </div>
               <div class="field">
-                <label>Primary contact</label>
-                <input id="crmContact" placeholder="Name, title, email" />
+                <label>Contact</label>
+                <input id="crmContact" placeholder="Avery Stone, VP Ops" />
+              </div>
+              <div class="field full">
+                <label>Email</label>
+                <input id="crmEmail" type="email" placeholder="avery@company.com" />
               </div>
               <div class="field">
-                <label>When</label>
+                <label>Account value</label>
+                <input id="crmValue" inputmode="decimal" placeholder="85000" />
+              </div>
+              <div class="field">
+                <label>Owner</label>
+                <input id="crmOwner" placeholder="Darrin" />
+              </div>
+              <div class="field">
+                <label>Last touched</label>
                 <input id="crmWhen" type="datetime-local" />
               </div>
               <div class="field">
@@ -124,16 +1013,27 @@
                 <input id="crmWhere" placeholder="Zoom, Teams, in person" />
               </div>
               <div class="field full">
+                <label>Relationship strength</label>
+                <div class="range-row">
+                  <input id="crmStrength" type="range" min="1" max="10" value="6" />
+                  <output id="crmStrengthValue" class="range-value">6</output>
+                </div>
+              </div>
+              <div class="field full">
+                <label>Current need</label>
+                <textarea id="crmWhat" placeholder="Role need, business pain, timeline, signal..."></textarea>
+              </div>
+              <div class="field full">
+                <label>Next action</label>
+                <input id="crmNextStep" placeholder="Send shortlist, schedule follow-up, prep SOW..." />
+              </div>
+              <div class="field full">
                 <label>Meeting URL</label>
                 <input id="crmMeetingUrl" placeholder="https://..." />
               </div>
               <div class="field full">
-                <label>What was discussed</label>
-                <textarea id="crmWhat" placeholder="Scope, role needs, constraints, timeline, budget, risks..."></textarea>
-              </div>
-              <div class="field full">
-                <label>Why this matters</label>
-                <textarea id="crmWhy" placeholder="Business driver, urgency, expected outcome..."></textarea>
+                <label>Buying reason</label>
+                <textarea id="crmWhy" placeholder="Business driver, urgency, emotional reason this matters..."></textarea>
               </div>
               <div class="field full">
                 <label>Contacts</label>
@@ -143,57 +1043,74 @@
                 <label>History / notes</label>
                 <textarea id="crmHistory" placeholder="Transcript summary, decisions, objections, follow-up notes..."></textarea>
               </div>
-              <div class="field full">
-                <label>Next step</label>
-                <input id="crmNextStep" placeholder="Send shortlist, schedule follow-up, prepare SOW..." />
-              </div>
             </div>
-            <div class="row-actions" style="margin-top: 14px">
-              <button id="saveCrmBtn" class="btn primary" type="button">Save CRM record</button>
-              <button id="clearCrmFormBtn" class="btn secondary" type="button">Clear form</button>
+
+            <div class="crm-actions" style="margin-top: 14px">
+              <button id="saveCrmBtn" class="btn primary" type="button">Save player card</button>
+              <button id="scanCrmBtn" class="btn secondary" type="button">AI scan card</button>
+              <button id="touchCrmBtn" class="btn secondary" type="button">Touch now</button>
             </div>
             <div id="crmStatus" class="notice" style="margin-top: 12px">
-              CRM records are stored locally until a backend CRM table/API is added.
+              Cards are stored locally by active domain; DevReady, BuildReady, and LegalReady samples do not cross-pollinate.
             </div>
           </section>
 
-          <aside class="card">
-            <h2>CRM summary</h2>
-            <div class="kpi">
-              <div class="k">
-                <div id="crmRecordCount" class="v">0</div>
-                <div class="l">Saved records</div>
+          <section class="radar-panel" aria-label="Client relationship radar">
+            <div class="radar-head">
+              <div>
+                <span>Business card wall</span>
+                <h2>Client player cards</h2>
               </div>
-              <div class="k">
-                <div id="crmOpenFollowups" class="v">0</div>
-                <div class="l">Open follow-ups</div>
+              <div class="crm-mode" aria-label="CRM view mode">
+                <button id="boardModeBtn" class="active" type="button">Board</button>
+                <button id="listModeBtn" type="button">List</button>
               </div>
             </div>
-            <div class="notice" style="margin-top: 12px">
-              Recordings can send data here by opening this page with URL fields such as
-              <code>?customer=&meetingUrl=&summary=</code>.
-            </div>
-          </aside>
+            <div id="relationshipBoard" class="relationship-board"></div>
+            <div id="relationshipList" class="list-view hidden"></div>
+          </section>
         </div>
-
-        <section class="card" style="margin-top: 16px">
-          <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap">
-            <div>
-              <h2 style="margin-bottom: 4px">History</h2>
-              <p style="margin-top: 0">Saved scoping calls and customer touchpoints.</p>
-            </div>
-            <button id="clearCrmRecordsBtn" class="btn secondary" type="button">Clear local CRM</button>
-          </div>
-          <div id="crmHistoryList"></div>
-        </section>
       </main>
     </div>
 
     <script src="JS/apiScripts.js"></script>
     <script src="JS/updateProcessFlow.js"></script>
     <script>
+      const lanes = [
+        { key: "hot", label: "Hot", color: "var(--crm-hot)", min: 7, rgb: "47, 125, 75" },
+        { key: "active", label: "Active", color: "var(--crm-active)", min: 4, rgb: "49, 112, 142" },
+        { key: "watch", label: "Watch", color: "var(--crm-watch)", min: 2, rgb: "164, 106, 36" },
+        { key: "lost", label: "Lost momentum", color: "var(--crm-cold)", min: 0, rgb: "87, 95, 102" },
+      ];
+
+      const domainPalettes = {
+        dev: { label: "Technology / DevReady", rgb: "47, 125, 75", ink: "#1b5f38" },
+        engineer: { label: "Engineer / BuildReady", rgb: "31, 91, 128", ink: "#1f5b80" },
+        law: { label: "Law / LegalReady", rgb: "63, 74, 88", ink: "#3f4a58" },
+      };
+
+      let editingCrmId = null;
+      let cardEditingId = null;
+      let crmViewMode = "board";
+
       function currentDomain() {
         return sessionStorage.getItem("domain") || "dev";
+      }
+
+      function domainPalette() {
+        return domainPalettes[currentDomain()] || domainPalettes.dev;
+      }
+
+      function domainLabel() {
+        return domainPalette().label;
+      }
+
+      function applyDomainLock() {
+        const palette = domainPalette();
+        document.documentElement.style.setProperty("--domain-rgb", palette.rgb);
+        document.documentElement.style.setProperty("--domain-ink", palette.ink);
+        const lock = document.getElementById("domainLock");
+        if (lock) lock.textContent = `Domain locked: ${palette.label} - samples and cards do not cross-pollinate`;
       }
 
       function crmStorageKey() {
@@ -204,8 +1121,12 @@
         return {
           customer: document.getElementById("crmCustomer"),
           contact: document.getElementById("crmContact"),
+          email: document.getElementById("crmEmail"),
+          value: document.getElementById("crmValue"),
+          owner: document.getElementById("crmOwner"),
           when: document.getElementById("crmWhen"),
           where: document.getElementById("crmWhere"),
+          strength: document.getElementById("crmStrength"),
           meetingUrl: document.getElementById("crmMeetingUrl"),
           what: document.getElementById("crmWhat"),
           why: document.getElementById("crmWhy"),
@@ -227,22 +1148,267 @@
         return crmFields()[key].value.trim();
       }
 
+      function crmNumberValue(key) {
+        return Number(crmValue(key).replace(/[$,\s]/g, "") || 0);
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function localDatetimeNow() {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        return now.toISOString().slice(0, 16);
+      }
+
+      function parseTouchDate(record) {
+        const raw = record.lastTouched || record.when || record.createdAt;
+        const parsed = raw ? new Date(raw) : new Date();
+        return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+      }
+
+      function daysSinceTouch(record) {
+        const elapsed = Date.now() - parseTouchDate(record).getTime();
+        return Math.max(0, Math.floor(elapsed / 86400000));
+      }
+
+      function decayPenalty(days) {
+        if (days <= 3) return 0;
+        if (days <= 7) return 1;
+        if (days <= 14) return 2;
+        if (days <= 30) return 4;
+        return 6;
+      }
+
+      function heatScore(record) {
+        if (record.heatOverride !== undefined && record.heatOverride !== null && record.heatOverride !== "") {
+          return Math.max(0, Math.min(10, Math.round(Number(record.heatOverride) || 0)));
+        }
+        const base = Number(record.strength || record.heatScore || 5);
+        const signalBoost = [record.meetingUrl, record.nextStep, record.what, record.why].filter(Boolean).length >= 3 ? 1 : 0;
+        return Math.max(0, Math.min(10, Math.round(base + signalBoost - decayPenalty(daysSinceTouch(record)))));
+      }
+
+      function laneFor(record) {
+        const heat = heatScore(record);
+        if (heat >= 7) return "hot";
+        if (heat >= 4) return "active";
+        if (heat >= 2) return "watch";
+        return "lost";
+      }
+
+      function laneLabel(record) {
+        const lane = lanes.find((item) => item.key === laneFor(record));
+        return lane ? lane.label : "Lost momentum";
+      }
+
+      function interactionCount(record) {
+        if (record.touchOverride !== undefined && record.touchOverride !== null && record.touchOverride !== "") {
+          return Math.max(0, Math.round(Number(record.touchOverride) || 0));
+        }
+        const signals = [record.meetingUrl, record.what, record.why, record.history, record.contacts].filter(Boolean).length;
+        const noteLines = String(record.history || "")
+          .split(/\r?\n/)
+          .filter((line) => line.trim()).length;
+        return Math.max(1, signals + Math.min(4, noteLines));
+      }
+
+      function buyingSignal(record) {
+        if (record.signalOverride) return record.signalOverride;
+        const text = `${record.what || ""} ${record.why || ""} ${record.nextStep || ""}`.toLowerCase();
+        if (/(urgent|immediate|deadline|budget|approved|board|executive|signed|sow)/.test(text)) return "Strong";
+        if (/(follow|interested|exploring|review|shortlist|schedule|timeline)/.test(text)) return "Building";
+        if (/(quiet|waiting|unclear|maybe|stalled|hold|procurement)/.test(text)) return "Soft";
+        return record.meetingUrl || record.history ? "New" : "Unknown";
+      }
+
+      function emailFor(record) {
+        const direct = String(record.email || "").trim();
+        if (direct) return direct;
+        const source = [record.contact, record.contacts, record.history, record.nextStep].filter(Boolean).join(" ");
+        const match = source.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+        return match ? match[0] : "";
+      }
+
+      function mailtoFor(record) {
+        const email = emailFor(record);
+        if (!email) return "";
+        const subject = `Follow up: ${record.customer || "VETCODE relationship"}`;
+        return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}`;
+      }
+
+      function heatStatClass(value) {
+        const score = Number(value || 0);
+        if (score >= 7) return "hot-stat";
+        if (score >= 4) return "warm-stat";
+        return "cold-stat";
+      }
+
+      function daysStatClass(days) {
+        if (days <= 3) return "hot-stat";
+        if (days <= 14) return "warm-stat";
+        return "cold-stat";
+      }
+
+      function signalStatClass(signal) {
+        if (signal === "Strong") return "hot-stat";
+        if (signal === "Building" || signal === "New") return "warm-stat";
+        return "cold-stat";
+      }
+
+      function cardSourceText(record) {
+        return [
+          record.customer,
+          record.contact,
+          record.email,
+          record.what,
+          record.why,
+          record.nextStep,
+          record.contacts,
+          record.history,
+          record.where,
+          document.querySelector(".breadcrumb")?.textContent || "",
+          document.querySelector(".page-title")?.textContent || "",
+        ]
+          .filter(Boolean)
+          .join("\n");
+      }
+
+      function keywordHits(text) {
+        const patterns = [
+          ["Budget", /budget|rate|cost|approved|procurement|sow/i],
+          ["Executive", /board|executive|vp|coo|cto|cio|director|partner/i],
+          ["Urgency", /urgent|immediate|deadline|asap|stalled|pressure|delayed/i],
+          ["Expansion", /rollout|modernization|migration|scale|growth|capacity/i],
+          ["Talent need", /shortlist|candidate|engineer|lead|developer|architect|consultant/i],
+          ["Relationship", /follow|meeting|call|touch|conversation|interested/i],
+        ];
+        return patterns.filter(([, regex]) => regex.test(text)).map(([label]) => label);
+      }
+
+      function coolFactor(record) {
+        const heat = heatScore(record);
+        const valueBoost = Math.min(2, Math.floor(Math.log10(Math.max(Number(record.value || 0), 1)) - 4));
+        const signalBoost = buyingSignal(record) === "Strong" ? 2 : buyingSignal(record) === "Building" ? 1 : 0;
+        const referenceBoost = Math.min(2, keywordHits(cardSourceText(record)).length / 2);
+        return Math.max(1, Math.min(10, Math.round(heat + valueBoost + signalBoost + referenceBoost - 1)));
+      }
+
+      function rarityLabel(record) {
+        const cool = coolFactor(record);
+        if (cool >= 9) return "Legendary account";
+        if (cool >= 7) return "All-star account";
+        if (cool >= 5) return "Starter account";
+        if (cool >= 3) return "Prospect account";
+        return "Recovery card";
+      }
+
+      function archetype(record) {
+        const text = cardSourceText(record).toLowerCase();
+        if (/urgent|immediate|deadline|stalled|pressure/.test(text)) return "Clutch closer";
+        if (/board|executive|vp|coo|cto|cio|partner/.test(text)) return "Executive channel";
+        if (/rollout|modernization|migration|scale|capacity/.test(text)) return "Growth engine";
+        if (/quiet|waiting|unclear|hold|procurement/.test(text)) return "Momentum save";
+        return "Relationship builder";
+      }
+
+      function referenceChips(record) {
+        const chips = keywordHits(cardSourceText(record));
+        if (record.what) chips.unshift(`Need: ${record.what}`);
+        if (record.why) chips.push(`Why: ${record.why}`);
+        if (record.nextStep) chips.push(`Next: ${record.nextStep}`);
+        if (record.meetingUrl) chips.push("Meeting linked");
+        return chips.slice(0, 5);
+      }
+
+      function scoutingReport(record) {
+        const signal = buyingSignal(record).toLowerCase();
+        const idle = daysSinceTouch(record);
+        const need = record.what || "No current need captured yet";
+        if (idle >= 15) return `${archetype(record)} with ${signal} signal. Relationship is aging, so the next action needs to re-open momentum around: ${need}`;
+        if (heatScore(record) >= 7) return `${archetype(record)} with ${signal} signal. Strong relationship energy and recent activity make this a priority play around: ${need}`;
+        return `${archetype(record)} with ${signal} signal. Keep the card warm by anchoring the next touch to: ${need}`;
+      }
+
+      function scanClientCard(record) {
+        return {
+          cool: coolFactor(record),
+          rarity: rarityLabel(record),
+          archetype: archetype(record),
+          report: scoutingReport(record),
+          references: referenceChips(record),
+        };
+      }
+
+      function aiScanRecord(id) {
+        const records = crmRecords();
+        const record = records.find((item) => item.id === id);
+        if (!record) return;
+        record.aiScan = scanClientCard(record);
+        record.updatedAt = new Date().toISOString();
+        setCrmRecords(records);
+        document.getElementById("crmStatus").textContent = `AI scan added: ${record.aiScan.rarity} / ${record.aiScan.archetype}.`;
+        renderCrm();
+      }
+
+      function scanCurrentForm() {
+        const record = recordFromForm();
+        const scan = scanClientCard(record);
+        const fields = crmFields();
+        const scanLine = `AI Scan: ${scan.rarity} - ${scan.archetype}. ${scan.report}`;
+        fields.history.value = [fields.history.value.trim(), scanLine].filter(Boolean).join("\n");
+        document.getElementById("crmStatus").textContent = `AI scan ready: ${scan.rarity} / ${scan.archetype}. Save the card to keep it.`;
+      }
+
+      function money(value) {
+        const numeric = Number(value || 0);
+        if (!numeric) return "$0";
+        return new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+          maximumFractionDigits: 0,
+        }).format(numeric);
+      }
+
+      function compactDate(record) {
+        const date = parseTouchDate(record);
+        return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      }
+
       function clearCrmForm() {
+        editingCrmId = null;
         Object.values(crmFields()).forEach((field) => {
-          field.value = "";
+          if (field.type === "range") field.value = "6";
+          else field.value = "";
         });
-        document.getElementById("crmWhen").value = new Date().toISOString().slice(0, 16);
+        document.getElementById("crmStrengthValue").textContent = "6";
+        document.getElementById("crmWhen").value = localDatetimeNow();
+        document.getElementById("builderMode").textContent = "Build from scratch";
+        document.getElementById("saveCrmBtn").textContent = "Save player card";
       }
 
       function recordFromForm() {
-        return {
-          id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+        const createdAt = new Date().toISOString();
+        const record = {
+          id: editingCrmId || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
           domain: currentDomain(),
-          createdAt: new Date().toISOString(),
+          createdAt,
+          updatedAt: createdAt,
           customer: crmValue("customer"),
           contact: crmValue("contact"),
+          email: crmValue("email"),
+          value: crmNumberValue("value"),
+          owner: crmValue("owner"),
+          lastTouched: crmValue("when"),
           when: crmValue("when"),
           where: crmValue("where"),
+          strength: Number(crmValue("strength") || 6),
           meetingUrl: crmValue("meetingUrl"),
           what: crmValue("what"),
           why: crmValue("why"),
@@ -250,21 +1416,31 @@
           history: crmValue("history"),
           nextStep: crmValue("nextStep"),
         };
+        record.email = record.email || emailFor(record);
+        record.aiScan = scanClientCard(record);
+        return record;
       }
 
       function saveCrmRecord() {
         const record = recordFromForm();
         if (!record.customer && !record.contact && !record.meetingUrl && !record.what) {
           document.getElementById("crmStatus").textContent =
-            "Add at least a customer, contact, meeting URL, or call detail before saving.";
+            "Add at least a company, contact, meeting URL, or current need before saving.";
           return;
         }
         const records = crmRecords();
-        records.unshift(record);
+        const existingIndex = records.findIndex((item) => item.id === record.id);
+        if (existingIndex >= 0) {
+          record.createdAt = records[existingIndex].createdAt || record.createdAt;
+          records.splice(existingIndex, 1, record);
+          document.getElementById("crmStatus").textContent = "Player card updated.";
+        } else {
+          records.unshift(record);
+          document.getElementById("crmStatus").textContent = "Player card saved.";
+        }
         setCrmRecords(records);
-        document.getElementById("crmStatus").textContent = "CRM record saved.";
         clearCrmForm();
-        renderCrmHistory();
+        renderCrm();
       }
 
       function hydrateFromUrl() {
@@ -274,107 +1450,606 @@
         const fields = crmFields();
         fields.customer.value = read("customer") || read("account") || "";
         fields.contact.value = read("contact") || read("who") || "";
+        fields.email.value = read("email") || "";
+        fields.value.value = read("value") || "";
+        fields.owner.value = read("owner") || "";
         fields.when.value = read("when") || "";
         fields.where.value = read("where") || "";
+        fields.strength.value = read("strength") || read("heat") || "6";
         fields.meetingUrl.value = read("meetingUrl") || read("meeting_url") || read("url") || "";
         fields.what.value = read("what") || read("summary") || "";
         fields.why.value = read("why") || "";
         fields.contacts.value = read("contacts") || "";
         fields.history.value = read("history") || read("transcript") || "";
         fields.nextStep.value = read("nextStep") || read("next_step") || "";
-        if (!fields.when.value) fields.when.value = new Date().toISOString().slice(0, 16);
+        if (!fields.when.value) fields.when.value = localDatetimeNow();
+        document.getElementById("crmStrengthValue").textContent = fields.strength.value;
       }
 
-      function useCrmRecord(index) {
-        const record = crmRecords()[index];
+      function useCrmRecord(id) {
+        const record = crmRecords().find((item) => item.id === id);
         if (!record) return;
         const fields = crmFields();
+        editingCrmId = record.id;
         fields.customer.value = record.customer || "";
         fields.contact.value = record.contact || "";
-        fields.when.value = record.when || "";
+        fields.email.value = record.email || emailFor(record) || "";
+        fields.value.value = record.value || "";
+        fields.owner.value = record.owner || "";
+        fields.when.value = (record.lastTouched || record.when || "").slice(0, 16);
         fields.where.value = record.where || "";
+        fields.strength.value = record.strength || record.heatScore || 6;
         fields.meetingUrl.value = record.meetingUrl || "";
         fields.what.value = record.what || "";
         fields.why.value = record.why || "";
         fields.contacts.value = record.contacts || "";
         fields.history.value = record.history || "";
         fields.nextStep.value = record.nextStep || "";
+        document.getElementById("crmStrengthValue").textContent = fields.strength.value;
+        document.getElementById("builderMode").textContent = "Editing player card";
+        document.getElementById("saveCrmBtn").textContent = "Update player card";
+        renderCrm();
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
 
-      function deleteCrmRecord(index) {
-        if (!confirm("Delete this local CRM record?")) return;
-        const records = crmRecords();
-        records.splice(index, 1);
-        setCrmRecords(records);
-        renderCrmHistory();
+      function deleteCrmRecord(id) {
+        if (!confirm("Delete this local CRM player card?")) return;
+        setCrmRecords(crmRecords().filter((record) => record.id !== id));
+        if (editingCrmId === id) clearCrmForm();
+        renderCrm();
       }
 
-      function renderCrmHistory() {
+      function touchCrmRecord(id) {
         const records = crmRecords();
-        document.getElementById("crmRecordCount").textContent = records.length;
-        document.getElementById("crmOpenFollowups").textContent =
-          records.filter((record) => record.nextStep).length;
+        const record = records.find((item) => item.id === id);
+        if (!record) return;
+        const now = localDatetimeNow();
+        record.lastTouched = now;
+        record.when = now;
+        record.updatedAt = new Date().toISOString();
+        record.strength = Math.min(10, Number(record.strength || 5) + 1);
+        setCrmRecords(records);
+        renderCrm();
+      }
 
-        const target = document.getElementById("crmHistoryList");
-        if (!records.length) {
-          target.innerHTML = '<div class="notice">No CRM records yet.</div>';
-          return;
-        }
+      function touchCurrentForm() {
+        crmFields().when.value = localDatetimeNow();
+        document.getElementById("crmStatus").textContent = "Last touch set to now.";
+      }
 
-        target.innerHTML = records
-          .map((record, index) => {
-            const link = record.meetingUrl
-              ? `<a href="${escapeHtml(record.meetingUrl)}" target="_blank" rel="noopener">Meeting URL</a>`
-              : "No meeting URL";
-            return `<div class="crm-record">
+      function localDatetimeDaysAgo(days) {
+        const date = new Date();
+        date.setDate(date.getDate() - Math.max(0, Number(days) || 0));
+        date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+        return date.toISOString().slice(0, 16);
+      }
+
+      function clampScore(value, fallback = 0) {
+        const numeric = Number(value);
+        if (Number.isNaN(numeric)) return fallback;
+        return Math.max(0, Math.min(10, Math.round(numeric)));
+      }
+
+      function startCrmCardEdit(id) {
+        cardEditingId = id;
+        renderCrm();
+      }
+
+      function cancelCrmCardEdit() {
+        cardEditingId = null;
+        renderCrm();
+      }
+
+      function numberFromText(value, fallback = 0) {
+        const parsed = Number(String(value || "").replace(/[$,\s]/g, ""));
+        return Number.isFinite(parsed) ? parsed : fallback;
+      }
+
+      function saveCrmCardEdit(event, id) {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const records = crmRecords();
+        const record = records.find((item) => item.id === id);
+        if (!record) return;
+        const fd = new FormData(form);
+        const scan = { ...scanClientCard(record), ...(record.aiScan || {}) };
+
+        record.customer = String(fd.get("customer") || "").trim();
+        record.contact = String(fd.get("contact") || "").trim();
+        record.email = String(fd.get("email") || "").trim();
+        record.value = Math.max(0, Math.round(numberFromText(fd.get("value"), record.value || 0)));
+        record.owner = String(fd.get("owner") || "").trim();
+        record.strength = clampScore(fd.get("strength"), Number(record.strength || record.heatScore || 6));
+        record.heatOverride = clampScore(fd.get("heat"), heatScore(record));
+        record.touchOverride = Math.max(0, Math.round(numberFromText(fd.get("touches"), interactionCount(record))));
+        record.signalOverride = String(fd.get("signal") || "").trim();
+        record.lastTouched = localDatetimeDaysAgo(fd.get("days"));
+        record.when = record.lastTouched;
+        record.where = String(fd.get("where") || "").trim();
+        record.meetingUrl = String(fd.get("meetingUrl") || "").trim();
+        record.what = String(fd.get("what") || "").trim();
+        record.nextStep = String(fd.get("nextStep") || "").trim();
+        record.why = String(fd.get("why") || "").trim();
+        record.contacts = String(fd.get("contacts") || "").trim();
+        record.history = String(fd.get("history") || "").trim();
+        scan.cool = Math.max(1, clampScore(fd.get("cool"), scan.cool || coolFactor(record)));
+        scan.archetype = String(fd.get("archetype") || "").trim() || scan.archetype;
+        scan.report = String(fd.get("report") || "").trim() || scan.report;
+        record.aiScan = scan;
+        record.updatedAt = new Date().toISOString();
+
+        setCrmRecords(records);
+        cardEditingId = null;
+        document.getElementById("crmStatus").textContent = "Player card edits saved.";
+        renderCrm();
+      }
+
+      function cardStyle(record, lane) {
+        const heat = heatScore(record);
+        const value = Number(record.value || 0);
+        const gravityScale = Math.min(1.03, 0.99 + Math.log10(Math.max(value, 1)) / 180);
+        const light = 0.68 + heat / 32;
+        const wash = 0.08 + heat / 80;
+        const glow = heat >= 7 ? 0.34 : heat >= 4 ? 0.12 : 0.02;
+        const shadow = heat >= 7 ? 0.16 : 0.08;
+        const glowSize = heat >= 7 ? "24px" : heat >= 4 ? "12px" : "0px";
+        const shine = heat >= 7 ? 1 : heat >= 4 ? 0.52 : 0.2;
+        return `--card-rgb:${domainPalette().rgb};--card-light:${light};--card-wash:${wash};--glow-alpha:${glow};--shadow-alpha:${shadow};--glow-size:${glowSize};--shine-alpha:${shine};--gravity-scale:${gravityScale};`;
+      }
+
+      function renderPlayerCardEditor(record, scan, heat, days, touches, signal) {
+        return `
+          <form class="card-edit-mode" onsubmit="saveCrmCardEdit(event, '${escapeHtml(record.id)}')">
+            <div>
+              <p>Editing player card</p>
               <h3>${escapeHtml(record.customer || "Untitled account")}</h3>
-              <div class="crm-meta">
-                <strong>Who:</strong> ${escapeHtml(record.contact || "Not captured")}<br />
-                <strong>When:</strong> ${escapeHtml(record.when || "Not captured")}<br />
-                <strong>Where:</strong> ${escapeHtml(record.where || "Not captured")} - ${link}<br />
-                <strong>What:</strong> ${escapeHtml(record.what || "Not captured")}<br />
-                <strong>Why:</strong> ${escapeHtml(record.why || "Not captured")}<br />
-                <strong>Next:</strong> ${escapeHtml(record.nextStep || "No next step")}
-              </div>
-              <div class="crm-actions">
-                <button class="btn secondary" type="button" onclick="useCrmRecord(${index})">Open</button>
-                <button class="btn secondary" type="button" onclick="deleteCrmRecord(${index})">Delete</button>
-              </div>
-            </div>`;
+            </div>
+            <div class="card-edit-grid">
+              <label>
+                Account
+                <input name="customer" value="${escapeHtml(record.customer || "")}" />
+              </label>
+              <label>
+                Contact
+                <input name="contact" value="${escapeHtml(record.contact || "")}" />
+              </label>
+              <label>
+                Email
+                <input name="email" type="email" value="${escapeHtml(emailFor(record))}" />
+              </label>
+              <label>
+                Value
+                <input name="value" inputmode="decimal" value="${escapeHtml(record.value || 0)}" />
+              </label>
+              <label>
+                Owner
+                <input name="owner" value="${escapeHtml(record.owner || "")}" />
+              </label>
+              <label>
+                Location
+                <input name="where" value="${escapeHtml(record.where || "")}" />
+              </label>
+              <label>
+                Heat
+                <input name="heat" type="number" min="0" max="10" value="${escapeHtml(heat)}" />
+              </label>
+              <label>
+                Strength
+                <input name="strength" type="number" min="0" max="10" value="${escapeHtml(record.strength || record.heatScore || 6)}" />
+              </label>
+              <label>
+                Days idle
+                <input name="days" type="number" min="0" value="${escapeHtml(days)}" />
+              </label>
+              <label>
+                Touches
+                <input name="touches" type="number" min="0" value="${escapeHtml(touches)}" />
+              </label>
+              <label>
+                Signal
+                <input name="signal" value="${escapeHtml(signal)}" />
+              </label>
+              <label>
+                Cool factor
+                <input name="cool" type="number" min="1" max="10" value="${escapeHtml(scan.cool || coolFactor(record))}" />
+              </label>
+              <label class="full">
+                Meeting link
+                <input name="meetingUrl" value="${escapeHtml(record.meetingUrl || "")}" />
+              </label>
+              <label class="full">
+                AI read
+                <input name="archetype" value="${escapeHtml(scan.archetype || archetype(record))}" />
+              </label>
+              <label class="full">
+                Current need
+                <textarea name="what">${escapeHtml(record.what || "")}</textarea>
+              </label>
+              <label class="full">
+                Next action
+                <textarea name="nextStep">${escapeHtml(record.nextStep || "")}</textarea>
+              </label>
+              <label class="full">
+                Why it matters
+                <textarea name="why">${escapeHtml(record.why || "")}</textarea>
+              </label>
+              <label class="full">
+                Contacts
+                <textarea name="contacts">${escapeHtml(record.contacts || "")}</textarea>
+              </label>
+              <label class="full">
+                History
+                <textarea name="history">${escapeHtml(record.history || "")}</textarea>
+              </label>
+              <label class="full">
+                Scouting report
+                <textarea name="report">${escapeHtml(scan.report || scoutingReport(record))}</textarea>
+              </label>
+            </div>
+            <div class="card-edit-actions">
+              <button class="btn primary" type="submit">Save Edit</button>
+              <button class="btn secondary" type="button" onclick="cancelCrmCardEdit()">Cancel</button>
+            </div>
+          </form>
+        `;
+      }
+
+      function renderPlayerCard(record) {
+        const lane = lanes.find((item) => item.key === laneFor(record)) || lanes[3];
+        const heat = heatScore(record);
+        const days = daysSinceTouch(record);
+        const attention = days >= 8 || !record.nextStep;
+        const hotClass = heat >= 7 ? "hot" : "";
+        const attentionClass = attention ? "attention" : "";
+        const selectedClass = editingCrmId === record.id ? "selected" : "";
+        const cardEditingClass = cardEditingId === record.id ? "card-editing" : "";
+        const strength = Number(record.strength || record.heatScore || 6);
+        const touches = interactionCount(record);
+        const signal = buyingSignal(record);
+        const email = emailFor(record);
+        const mailto = mailtoFor(record);
+        const scan = record.aiScan || scanClientCard(record);
+        const refs = (scan.references || referenceChips(record))
+          .map((item) => `<span class="reference-chip">${escapeHtml(item)}</span>`)
+          .join("");
+        const link = record.meetingUrl
+          ? `<a href="${escapeHtml(record.meetingUrl)}" target="_blank" rel="noopener">Meeting</a>`
+          : "No meeting";
+        const emailLine = email
+          ? `<a class="email-line" href="${escapeHtml(mailto)}">${escapeHtml(email)}</a>`
+          : '<span class="email-line">No email captured</span>';
+        const emailAction = email
+          ? `<a class="btn secondary" href="${escapeHtml(mailto)}">Email</a>`
+          : "";
+        const meetingAction = record.meetingUrl
+          ? `<a class="btn secondary" href="${escapeHtml(record.meetingUrl)}" target="_blank" rel="noopener">Meeting</a>`
+          : "";
+        if (cardEditingId === record.id) {
+          return `<article class="player-card ${cardEditingClass}" style="${cardStyle(record, lane)}">
+            ${renderPlayerCardEditor(record, scan, heat, days, touches, signal)}
+          </article>`;
+        }
+        return `<article class="player-card ${hotClass} ${attentionClass} ${selectedClass}" style="${cardStyle(record, lane)}">
+          ${attention ? `
+            <span class="attention-icon" title="Needs attention">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M10.3 4.2 2.5 18a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z"></path>
+                <path d="M12 9v4"></path>
+                <path d="M12 17h.01"></path>
+              </svg>
+              Attention
+            </span>
+          ` : ""}
+          <div class="player-top">
+            <div>
+              <span class="card-edition">VETCODE Business Card - ${escapeHtml(scan.rarity)}</span>
+              <span class="card-domain">${escapeHtml(domainLabel())}</span>
+              <h3 class="company-name">${escapeHtml(record.customer || "Untitled account")}</h3>
+              <div class="contact-line">${escapeHtml(record.contact || "No primary contact")}</div>
+              ${emailLine}
+              <span class="status-pill">${escapeHtml(laneLabel(record))}</span>
+            </div>
+            <div class="heat-badge editable-card-region" title="Relationship heat after decay">${heat}</div>
+          </div>
+          <div class="business-stats" aria-label="Business card stats">
+            <div class="business-stat ${heatStatClass(heat)}">
+              <strong>${heat}</strong>
+              <span>Heat</span>
+            </div>
+            <div class="business-stat ${heatStatClass(strength)}">
+              <strong>${strength}</strong>
+              <span>Strength</span>
+            </div>
+            <div class="business-stat ${daysStatClass(days)}">
+              <strong>${days}</strong>
+              <span>Days idle</span>
+            </div>
+            <div class="business-stat blue-stat">
+              <strong>${touches}</strong>
+              <span>Touches</span>
+            </div>
+            <div class="business-stat ${signalStatClass(signal)}">
+              <strong>${escapeHtml(signal)}</strong>
+              <span>Signal</span>
+            </div>
+            <div class="business-stat blue-stat">
+              <strong>${money(record.value).replace("$", "")}</strong>
+              <span>Value</span>
+            </div>
+          </div>
+          <div class="cool-factor">
+            <div class="cool-score">${scan.cool}</div>
+            <div>
+              <strong>${escapeHtml(scan.archetype)}</strong>
+              <span>Cool factor / AI read</span>
+            </div>
+          </div>
+          <div class="scouting-report">
+            <span class="card-label">Scouting report</span>
+            <p>${escapeHtml(scan.report)}</p>
+          </div>
+          <div class="reference-row">${refs || '<span class="reference-chip">No page references yet</span>'}</div>
+          <div class="player-body">
+            <div class="editable-card-region">
+              <span class="card-label">Current need</span>
+              <span class="card-value">${escapeHtml(record.what || "Need not captured")}</span>
+            </div>
+            <div class="editable-card-region">
+              <span class="card-label">Next action</span>
+              <span class="card-value">${escapeHtml(record.nextStep || "No next action")}</span>
+            </div>
+          </div>
+          <div class="card-bottom">
+            <div class="mini-stat">
+              <span class="card-label">Touched</span>
+              <strong>${compactDate(record)}</strong>
+            </div>
+            <div class="mini-stat">
+              <span class="card-label">Owner</span>
+              <strong>${escapeHtml(record.owner || "Unowned")}</strong>
+            </div>
+            <div class="mini-stat">
+              <span class="card-label">Value</span>
+              <strong>${money(record.value)}</strong>
+            </div>
+          </div>
+          ${attention ? `<span class="attention-ribbon">Attention required</span>` : ""}
+          <div class="card-small editable-card-region" style="margin-top: 8px">
+            ${escapeHtml(record.where || "No location")} - ${link}
+          </div>
+          <div class="card-actions">
+            <button class="btn secondary" type="button" onclick="startCrmCardEdit('${escapeHtml(record.id)}')">Edit</button>
+            ${emailAction}
+            ${meetingAction}
+            <button class="btn secondary" type="button" onclick="aiScanRecord('${escapeHtml(record.id)}')">AI Scan</button>
+            <button class="btn secondary" type="button" onclick="touchCrmRecord('${escapeHtml(record.id)}')">Touch</button>
+            <button class="btn secondary" type="button" onclick="deleteCrmRecord('${escapeHtml(record.id)}')">Delete</button>
+          </div>
+        </article>`;
+      }
+
+      function renderCrmList(enriched) {
+        if (!enriched.length) return '<div class="notice">No CRM player cards yet.</div>';
+
+        const header = `
+          <div class="crm-list-row header" aria-hidden="true">
+            <span>Account</span>
+            <span>Contact</span>
+            <span>Heat</span>
+            <span>Signal</span>
+            <span>Current need</span>
+            <span>Next action</span>
+            <span>Touched</span>
+            <span>Actions</span>
+          </div>
+        `;
+
+        const rows = enriched
+          .map((record) => {
+            const heat = heatScore(record);
+            const signal = buyingSignal(record);
+            const email = emailFor(record);
+            const mailto = mailtoFor(record);
+            const emailAction = email ? `<a class="btn secondary" href="${escapeHtml(mailto)}">Email</a>` : "";
+            const meetingAction = record.meetingUrl
+              ? `<a class="btn secondary" href="${escapeHtml(record.meetingUrl)}" target="_blank" rel="noopener">Meeting</a>`
+              : "";
+            return `
+              <article class="crm-list-row">
+                <div class="crm-list-title">
+                  <strong>${escapeHtml(record.customer || "Untitled account")}</strong>
+                  <span>${escapeHtml(money(record.value))} &bull; ${escapeHtml(record.owner || "Unowned")}</span>
+                </div>
+                <div class="crm-list-cell">
+                  <strong>${escapeHtml(record.contact || "No primary contact")}</strong>
+                  <span>${escapeHtml(email || "No email")}</span>
+                </div>
+                <div class="crm-list-score">${heat}</div>
+                <div class="crm-list-cell">${escapeHtml(signal)}</div>
+                <div class="crm-list-cell" title="${escapeHtml(record.what || "")}">${escapeHtml(record.what || "Need not captured")}</div>
+                <div class="crm-list-cell" title="${escapeHtml(record.nextStep || "")}">${escapeHtml(record.nextStep || "No next action")}</div>
+                <div class="crm-list-cell">${escapeHtml(compactDate(record))}</div>
+                <div class="crm-list-actions">
+                  <button class="btn secondary" type="button" onclick="useCrmRecord('${escapeHtml(record.id)}')">Edit</button>
+                  <button class="btn secondary" type="button" onclick="touchCrmRecord('${escapeHtml(record.id)}')">Touch</button>
+                  ${emailAction}
+                  ${meetingAction}
+                </div>
+              </article>
+            `;
           })
           .join("");
+
+        return header + rows;
+      }
+
+      function renderCrm() {
+        const records = crmRecords();
+        const enriched = records
+          .map((record) => ({ ...record, lane: laneFor(record), heat: heatScore(record) }))
+          .sort((a, b) => b.heat - a.heat || Number(b.value || 0) - Number(a.value || 0));
+
+        document.getElementById("crmRecordCount").textContent = records.length;
+        document.getElementById("crmHotCount").textContent = enriched.filter((record) => record.heat >= 7).length;
+        document.getElementById("crmAttentionCount").textContent = enriched.filter((record) => daysSinceTouch(record) >= 8 || !record.nextStep).length;
+        document.getElementById("crmWeightedValue").textContent = money(enriched.reduce((sum, record) => sum + Number(record.value || 0) * (record.heat / 10), 0));
+
+        const board = document.getElementById("relationshipBoard");
+        board.innerHTML = enriched.length
+          ? enriched.map(renderPlayerCard).join("")
+          : '<div class="notice">No CRM player cards yet.</div>';
+
+        document.getElementById("relationshipList").innerHTML = enriched.length
+          ? renderCrmList(enriched)
+          : '<div class="notice">No CRM player cards yet.</div>';
+      }
+
+      function setViewMode(mode) {
+        crmViewMode = mode;
+        document.getElementById("relationshipBoard").classList.toggle("hidden", mode !== "board");
+        document.getElementById("relationshipList").classList.toggle("hidden", mode !== "list");
+        document.getElementById("boardModeBtn").classList.toggle("active", mode === "board");
+        document.getElementById("listModeBtn").classList.toggle("active", mode === "list");
+      }
+
+      function saveCrmRecordFromMessage(data) {
+        const records = crmRecords();
+        const record = {
+          id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+          domain: currentDomain(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          customer: data.customer || data.account || "",
+          contact: data.contact || data.who || "",
+          email: data.email || emailFor(data) || "",
+          value: Number(data.value || 0),
+          owner: data.owner || "",
+          lastTouched: data.when || localDatetimeNow(),
+          when: data.when || localDatetimeNow(),
+          where: data.where || "DevMeet",
+          strength: Number(data.strength || data.heat || 7),
+          meetingUrl: data.meetingUrl || data.meeting_url || "",
+          what: data.what || data.summary || "",
+          why: data.why || "",
+          contacts: data.contacts || "",
+          history: data.history || data.transcript || "",
+          nextStep: data.nextStep || data.next_step || "",
+        };
+        record.aiScan = scanClientCard(record);
+        records.unshift(record);
+        setCrmRecords(records);
+      }
+
+      function seedDemoCards() {
+        const domain = currentDomain();
+        if (crmRecords().length && !confirm(`Add ${domain} sample player cards to the current local CRM?`)) return;
+        const now = new Date();
+        const daysAgo = (days) => {
+          const date = new Date(now);
+          date.setDate(date.getDate() - days);
+          date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+          return date.toISOString().slice(0, 16);
+        };
+        const sampleSets = {
+          dev: [
+            ["Northstar Health", "Maya Chen, COO", 180000, "Darrin", 1, 9, "Needs two senior integration leads for a claims modernization push.", "Board deadline is moving faster than internal hiring can support.", "Send vetted shortlist and schedule technical calibration.", "Teams"],
+            ["Summit Energy", "Jon Reyes, VP Data", 95000, "Alex", 6, 6, "Exploring data engineering capacity for a Q3 analytics rollout.", "Team is under pressure after delayed vendor delivery.", "Follow up with rate card and availability.", "Zoom"],
+            ["BluePeak Logistics", "Sam Carter, COO", 225000, "Darrin", 0, 8, "Needs immediate SAP delivery leadership for a stalled implementation.", "Executive sponsor wants a recovery plan before Friday.", "Schedule executive follow-up and prepare two-player shortlist.", "Teams"],
+          ],
+          engineer: [
+            ["ForgeLine Fabrication", "Elena Brooks, VP Engineering", 310000, "Darrin", 2, 8, "Needs plant modernization engineers for a controls upgrade and throughput study.", "Capital project is approved but internal bench is overloaded.", "Send BuildReady controls and process engineering shortlist.", "Teams"],
+            ["Canyon Water Authority", "Marcus Reed, Program Director", 140000, "Taylor", 9, 5, "Reviewing civil PM support for pump station remediation.", "Procurement is slow but regulatory pressure is increasing.", "Re-engage with compliance-focused project sample.", "Phone"],
+            ["Apex Grid Storage", "Priya Menon, Director EPC", 420000, "Alex", 1, 9, "Needs battery storage construction manager and QA lead for fast-track site work.", "Schedule slipped after vendor issue; board wants weekly recovery updates.", "Prepare two senior field leadership profiles.", "Zoom"],
+          ],
+          law: [
+            ["BrightPath Legal Ops", "Hannah Mills, General Counsel", 155000, "Darrin", 3, 8, "Needs contract lifecycle cleanup and outside counsel spend governance.", "Quarter-end audit flagged inconsistent intake and approval paths.", "Send LegalReady operations shortlist with CLM examples.", "Teams"],
+            ["Civic Rights Alliance", "Noah Patel, Managing Attorney", 68000, "Taylor", 14, 4, "Considering litigation support and evidence review process design.", "Grant funding is pending; relationship needs a helpful check-in.", "Share a light-weight discovery plan.", "Email"],
+            ["Meridian Compliance Group", "Olivia Chen, Chief Compliance Officer", 240000, "Alex", 0, 9, "Needs AI policy, privacy review, and records governance support.", "Executive team wants defensible AI usage standards before launch.", "Schedule policy workshop and send two senior legal ops profiles.", "Zoom"],
+          ],
+        };
+        const source = sampleSets[domain] || sampleSets.dev;
+        const sampleEmail = (company) =>
+          `${company.toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.|\.$/g, "")}@${domain === "law" ? "legalready" : domain === "engineer" ? "buildready" : "devready"}.example`;
+        const demo = source.map((item, index) => {
+          const record = {
+            id: crypto.randomUUID ? crypto.randomUUID() : `demo-${domain}-${index + 1}`,
+            domain,
+            createdAt: new Date().toISOString(),
+            customer: item[0],
+            contact: item[1],
+            email: sampleEmail(item[0]),
+            value: item[2],
+            owner: item[3],
+            lastTouched: daysAgo(item[4]),
+            when: daysAgo(item[4]),
+            where: item[9],
+            strength: item[5],
+            what: item[6],
+            why: item[7],
+            nextStep: item[8],
+            meetingUrl: "",
+            contacts: "",
+            history: `Sample ${domain} card created for dev testing.`,
+          };
+          record.aiScan = scanClientCard(record);
+          return record;
+        });
+        setCrmRecords([...demo, ...crmRecords()]);
+        renderCrm();
+      }
+
+      async function importSeededCrmRecords() {
+        try {
+          const response = await fetch(`/api/crm/records?domain=${encodeURIComponent(currentDomain())}&limit=100`, { cache: "no-store" });
+          if (!response.ok) return;
+          const data = await response.json();
+          const seeded = Array.isArray(data.records) ? data.records : [];
+          if (!seeded.length) return;
+          const records = crmRecords();
+          const existingIds = new Set(records.map((record) => record.id));
+          const incoming = seeded
+            .filter((record) => record && record.id && !existingIds.has(record.id))
+            .map((record) => ({ ...record, aiScan: record.aiScan || scanClientCard(record) }));
+          if (incoming.length) setCrmRecords([...incoming, ...records]);
+        } catch {}
       }
 
       window.addEventListener("message", (event) => {
         const data = event.data || {};
         if (!data || data.type !== "devready-crm") return;
-        const fields = crmFields();
-        fields.customer.value = data.customer || fields.customer.value;
-        fields.contact.value = data.contact || fields.contact.value;
-        fields.when.value = data.when || fields.when.value;
-        fields.where.value = data.where || fields.where.value;
-        fields.meetingUrl.value = data.meetingUrl || fields.meetingUrl.value;
-        fields.what.value = data.what || data.summary || fields.what.value;
-        fields.why.value = data.why || fields.why.value;
-        fields.contacts.value = data.contacts || fields.contacts.value;
-        fields.history.value = data.history || data.transcript || fields.history.value;
-        fields.nextStep.value = data.nextStep || fields.nextStep.value;
+        saveCrmRecordFromMessage(data);
+        hydrateFromUrl();
+        renderCrm();
         document.getElementById("crmStatus").textContent =
-          "Received CRM details from the recordings app. Review and save.";
+          "Meeting intelligence moved into CRM as a player card. Review and tune the relationship strength.";
       });
 
-      document.addEventListener("DOMContentLoaded", () => {
+      document.addEventListener("DOMContentLoaded", async () => {
+        applyDomainLock();
+        await importSeededCrmRecords();
         hydrateFromUrl();
-        renderCrmHistory();
+        renderCrm();
         document.getElementById("saveCrmBtn").addEventListener("click", saveCrmRecord);
-        document.getElementById("clearCrmFormBtn").addEventListener("click", clearCrmForm);
+        document.getElementById("scanCrmBtn").addEventListener("click", scanCurrentForm);
+        document.getElementById("touchCrmBtn").addEventListener("click", touchCurrentForm);
+        document.getElementById("clearCrmFormBtn").addEventListener("click", () => {
+          clearCrmForm();
+          renderCrm();
+        });
+        document.getElementById("seedCrmBtn").addEventListener("click", seedDemoCards);
+        document.getElementById("boardModeBtn").addEventListener("click", () => setViewMode("board"));
+        document.getElementById("listModeBtn").addEventListener("click", () => setViewMode("list"));
+        document.getElementById("crmStrength").addEventListener("input", (event) => {
+          document.getElementById("crmStrengthValue").textContent = event.target.value;
+        });
         document.getElementById("clearCrmRecordsBtn").addEventListener("click", () => {
-          if (!confirm("Clear all local CRM records?")) return;
+          if (!confirm("Clear all local CRM player cards?")) return;
           localStorage.removeItem(crmStorageKey());
-          renderCrmHistory();
+          clearCrmForm();
+          renderCrm();
         });
       });
     </script>
   </body>
 </html>
+

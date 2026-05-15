@@ -12,10 +12,21 @@
       type="image/svg+xml"
     />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html");
+        $("#siteSidebar").load("components/sidebar.html?v=20260515-jd-nav-flow");
         $("#processFlow").load("components/processFlow.html");
         $("#searchBar").load("components/searchBar.html");
       });
@@ -27,10 +38,10 @@
         gap: 16px;
         align-items: center;
         padding: 18px;
-        border: 1px solid var(--line);
+        border: 1px solid rgba(var(--primary-rgb), 0.24);
         border-radius: 16px;
         background:
-          linear-gradient(135deg, rgba(23, 105, 224, 0.1), rgba(45, 125, 70, 0.1)),
+          linear-gradient(135deg, rgba(var(--primary-rgb), 0.16), rgba(var(--primary-rgb), 0.06)),
           #fff;
       }
 
@@ -46,17 +57,25 @@
         color: var(--muted);
       }
 
-      .badge-filter {
+      .domain-pill {
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
         align-items: center;
       }
 
-      .badge-filter button.active {
+      .domain-pill span {
+        display: inline-flex;
+        align-items: center;
+        min-height: 32px;
+        border-radius: 999px;
+        padding: 8px 14px;
         background: var(--primary);
         color: #fff;
         border-color: var(--primary);
+        font-size: 12px;
+        font-weight: 900;
+        box-shadow: 0 10px 22px rgba(var(--primary-rgb), 0.18);
       }
 
       .badge-board {
@@ -66,7 +85,7 @@
       }
 
       .role-lane {
-        border: 1px solid var(--line);
+        border: 1px solid rgba(var(--primary-rgb), 0.18);
         border-radius: 16px;
         background: #fff;
         overflow: hidden;
@@ -79,7 +98,9 @@
         align-items: center;
         padding: 14px;
         border-bottom: 1px solid var(--line);
-        background: #f8faf9;
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb), 0.11), rgba(var(--primary-rgb), 0.035)),
+          #fff;
       }
 
       .role-name {
@@ -129,9 +150,9 @@
       }
 
       .badge-card {
-        border: 1px solid var(--line);
+        border: 1px solid rgba(var(--primary-rgb), 0.16);
         border-radius: 12px;
-        background: linear-gradient(180deg, #fff, #f7faf8);
+        background: linear-gradient(180deg, #fff, rgba(var(--primary-rgb), 0.045));
         padding: 10px;
         min-height: 0;
         text-align: left;
@@ -144,7 +165,7 @@
       .badge-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 14px 26px rgba(24, 37, 58, 0.13);
-        border-color: rgba(23, 105, 224, 0.42);
+        border-color: rgba(var(--primary-rgb), 0.42);
       }
 
       .badge-symbol {
@@ -189,7 +210,7 @@
       }
 
       .cert-icon .ribbon {
-        fill: #2f8f4e;
+        fill: var(--primary);
       }
 
       .badge-clock {
@@ -200,7 +221,7 @@
         height: 22px;
         border-radius: 999px;
         background: #fff;
-        border: 2px solid #d4af37;
+        border: 2px solid var(--primary-2);
         box-shadow: 0 5px 12px rgba(24, 37, 58, 0.14);
       }
 
@@ -213,7 +234,7 @@
         width: 2px;
         height: 8px;
         border-radius: 999px;
-        background: #2f5f4a;
+        background: var(--primary-2);
         transform-origin: bottom center;
       }
 
@@ -233,13 +254,13 @@
       .badge-tick {
         height: 6px;
         border-radius: 999px;
-        background: #e2b93b;
-        border: 1px solid rgba(98, 78, 21, 0.16);
+        background: rgba(var(--primary-rgb), 0.22);
+        border: 1px solid rgba(var(--primary-rgb), 0.16);
       }
 
       .badge-tick.complete {
-        background: #2f8f4e;
-        border-color: rgba(18, 91, 54, 0.28);
+        background: var(--primary);
+        border-color: rgba(var(--primary-rgb), 0.28);
       }
 
       .badge-card strong {
@@ -261,8 +282,8 @@
         margin-top: 8px;
         padding: 3px 7px;
         border-radius: 999px;
-        background: rgba(23, 105, 224, 0.1);
-        color: #124d9f;
+        background: rgba(var(--primary-rgb), 0.1);
+        color: var(--primary-2);
         font-size: 11px;
         font-weight: 900;
       }
@@ -328,15 +349,15 @@
       }
 
       .exam-version-row .start-link {
-        background: linear-gradient(180deg, rgba(47, 143, 78, 0.16), rgba(47, 143, 78, 0.08));
-        border: 1px solid rgba(47, 143, 78, 0.32);
-        color: #125b36;
+        background: linear-gradient(180deg, rgba(var(--primary-rgb), 0.16), rgba(var(--primary-rgb), 0.08));
+        border: 1px solid rgba(var(--primary-rgb), 0.32);
+        color: var(--primary-2);
       }
 
       .exam-version-row .key-link {
-        background: linear-gradient(180deg, rgba(242, 201, 76, 0.2), rgba(242, 201, 76, 0.1));
-        border: 1px solid rgba(184, 134, 11, 0.3);
-        color: #5f4700;
+        background: linear-gradient(180deg, rgba(var(--primary-rgb), 0.11), rgba(var(--primary-rgb), 0.05));
+        border: 1px solid rgba(var(--primary-rgb), 0.24);
+        color: var(--primary-2);
       }
 
       @media (max-width: 1180px) {
@@ -384,10 +405,10 @@
           <div>
             <h1>View Badges</h1>
             <p>
-              Pick a role path, then choose the badge level you want the candidate to attempt. Each path has 10 progressive badges and opens the AI certification test with that badge selected.
+              Pick a role path, then choose the badge level you want to prepare for the candidate. Each path has 10 progressive badges and opens the private certification handoff with that badge selected.
             </p>
           </div>
-          <div class="badge-filter" id="domainFilters" aria-label="Badge domain filters"></div>
+          <div class="domain-pill" id="activeDomainPill" aria-label="Active badge domain"></div>
         </section>
 
         <section id="badgeBoard" class="badge-board" aria-label="Badge role paths"></section>
@@ -409,21 +430,36 @@
       ];
 
       const badgeRoles = [
-        { domain: "Technology", key: "frontend", name: "Frontend", short: "FE", color: "#1769e0", focus: "UI, accessibility, design systems, and client-side AI." },
-        { domain: "Technology", key: "backend", name: "Backend", short: "BE", color: "#125b36", focus: "APIs, services, reliability, and AI-assisted server workflows." },
-        { domain: "Technology", key: "fullstack", name: "Full Stack", short: "FS", color: "#6f42c1", focus: "End-to-end delivery across UI, API, data, and deployment." },
-        { domain: "Technology", key: "data", name: "Data", short: "DA", color: "#0f766e", focus: "Data modeling, analysis, pipelines, and AI-ready datasets." },
-        { domain: "Technology", key: "ai", name: "AI / ML", short: "AI", color: "#b42318", focus: "Prompting, evaluation, model workflows, and responsible AI." },
-        { domain: "Technology", key: "devops", name: "Cloud / DevOps", short: "DO", color: "#475569", focus: "Cloud, CI/CD, observability, and operational readiness." },
-        { domain: "Technology", key: "qa", name: "QA / Testing", short: "QA", color: "#ca8a04", focus: "Test design, automation, verification, and quality controls." },
-        { domain: "Technology", key: "mobile", name: "Mobile", short: "MO", color: "#2563eb", focus: "Mobile delivery, app workflows, and device-ready AI patterns." },
-        { domain: "Technology", key: "product", name: "Product / PM", short: "PM", color: "#7c3aed", focus: "Discovery, requirements, roadmap thinking, and AI product operations." },
-        { domain: "Technology", key: "security", name: "Security", short: "SE", color: "#991b1b", focus: "Risk, privacy, secure delivery, and AI governance." },
-        { domain: "Engineer", key: "buildready-engineer", name: "BuildReady Engineer", short: "BR", color: "#1d4ed8", focus: "Engineering delivery, field workflows, systems, and build readiness." },
-        { domain: "Law", key: "lawready", name: "LawReady", short: "LR", color: "#334155", focus: "Legal operations, review workflows, evidence handling, and client readiness." },
+        { domain: "Technology", key: "frontend", name: "Frontend", short: "FE", focus: "UI, accessibility, design systems, and client-side AI." },
+        { domain: "Technology", key: "backend", name: "Backend", short: "BE", focus: "APIs, services, reliability, and AI-assisted server workflows." },
+        { domain: "Technology", key: "fullstack", name: "Full Stack", short: "FS", focus: "End-to-end delivery across UI, API, data, and deployment." },
+        { domain: "Technology", key: "data", name: "Data", short: "DA", focus: "Data modeling, analysis, pipelines, and AI-ready datasets." },
+        { domain: "Technology", key: "ai", name: "AI / ML", short: "AI", focus: "Prompting, evaluation, model workflows, and responsible AI." },
+        { domain: "Technology", key: "devops", name: "Cloud / DevOps", short: "DO", focus: "Cloud, CI/CD, observability, and operational readiness." },
+        { domain: "Technology", key: "qa", name: "QA / Testing", short: "QA", focus: "Test design, automation, verification, and quality controls." },
+        { domain: "Technology", key: "mobile", name: "Mobile", short: "MO", focus: "Mobile delivery, app workflows, and device-ready AI patterns." },
+        { domain: "Technology", key: "product", name: "Product / PM", short: "PM", focus: "Discovery, requirements, roadmap thinking, and AI product operations." },
+        { domain: "Technology", key: "security", name: "Security", short: "SE", focus: "Risk, privacy, secure delivery, and AI governance." },
+        { domain: "Engineer", key: "buildready-engineer", name: "BuildReady Engineer", short: "BR", focus: "Engineering delivery, field workflows, systems, and build readiness." },
+        { domain: "Law", key: "lawready", name: "LawReady", short: "LR", focus: "Legal operations, review workflows, evidence handling, and client readiness." },
       ];
 
-      let selectedDomain = "All";
+      const badgeDomainByWorkspace = {
+        dev: "Technology",
+        engineer: "Engineer",
+        law: "Law",
+      };
+
+      function currentWorkspaceDomain() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get("domain") || sessionStorage.getItem("domain") || "dev";
+      }
+
+      function allowedBadgeDomain() {
+        return badgeDomainByWorkspace[currentWorkspaceDomain()] || "Technology";
+      }
+
+      let selectedDomain = allowedBadgeDomain();
 
       function selectedCandidateParams() {
         const params = new URLSearchParams(window.location.search);
@@ -449,6 +485,7 @@
         if (candidate.profileId) params.set("profileId", candidate.profileId);
         if (candidate.candidate) params.set("candidate", candidate.candidate);
         if (candidate.email) params.set("email", candidate.email);
+        params.set("domain", currentWorkspaceDomain());
         params.set("badgeRole", role.name);
         params.set("badgeRoleKey", role.key);
         params.set("badgeLevel", level[0]);
@@ -471,29 +508,26 @@
         return `exam-answer-key.html?${examParams(role, level, version).toString()}`;
       }
 
-      function renderFilters() {
-        const domains = ["All", ...Array.from(new Set(badgeRoles.map((role) => role.domain)))];
-        document.getElementById("domainFilters").innerHTML = domains
-          .map(
-            (domain) =>
-              `<button class="btn secondary${domain === selectedDomain ? " active" : ""}" type="button" onclick="selectedDomain='${domain}'; renderFilters(); renderBadges();">${domain}</button>`,
-          )
-          .join("");
+      function renderActiveDomainPill() {
+        selectedDomain = allowedBadgeDomain();
+        document.getElementById("activeDomainPill").innerHTML = `<span>${selectedDomain}</span>`;
       }
 
       function renderBadges() {
-        const roles = badgeRoles.filter((role) => selectedDomain === "All" || role.domain === selectedDomain);
+        selectedDomain = allowedBadgeDomain();
+        const roles = badgeRoles.filter((role) => role.domain === selectedDomain);
         document.getElementById("badgeBoard").innerHTML = roles
           .map((role) => {
+            const roleColor = "var(--primary)";
             const rail = badgeLevels
-              .map((_, index) => `<span class="rail-step" style="background:${role.color}; opacity:${0.25 + index * 0.07}"></span>`)
+              .map((_, index) => `<span class="rail-step" style="background:${roleColor}; opacity:${0.25 + index * 0.07}"></span>`)
               .join("");
             const cards = badgeLevels
               .map(
                 (level, index) => `
-                  <article class="badge-card" data-hint="Choose Version A, B, or C for ${role.name} ${level[0]}.">
+                  <article class="badge-card" data-hint="Select this badge test version for ${role.name} ${level[0]}. The chosen version controls which exam link opens and which badge can be awarded after passing.">
                     <span class="badge-symbol" aria-hidden="true">
-                      <span class="badge-shield" style="background:${role.color}">
+                      <span class="badge-shield" style="background:${roleColor}">
                         <svg class="cert-icon" viewBox="0 0 48 48" role="img" aria-label="Certificate badge">
                           <path class="paper" d="M13 6h17l8 8v25H13z"></path>
                           <path class="paper" d="M30 6v8h8"></path>
@@ -523,7 +557,7 @@
                                 <small class="exam-code">${examCode}</small>
                               </span>
                               <div class="exam-actions">
-                                <a class="start-link" href="ai-cert.html?${examParams(role, level, version).toString()}">Start ${examLabel}</a>
+                                <a class="start-link" href="ai-cert.html?${examParams(role, level, version).toString()}">Prepare ${examLabel} Link</a>
                                 <a class="key-link" href="${answerKeyUrl(role, level, version)}" target="_blank" rel="noopener">Answer key ${examLabel}</a>
                               </div>
                             </div>
@@ -540,7 +574,7 @@
               <article class="role-lane">
                 <div class="role-lane-header">
                   <div class="role-name">
-                    <span class="role-mark" style="background:${role.color}">${role.short}</span>
+                    <span class="role-mark" style="background:${roleColor}">${role.short}</span>
                     <div>
                       <h2>${role.name}</h2>
                       <span>${role.domain} path - ${role.focus}</span>
@@ -555,8 +589,9 @@
           .join("");
       }
 
-      renderFilters();
+      renderActiveDomainPill();
       renderBadges();
     </script>
   </body>
 </html>
+

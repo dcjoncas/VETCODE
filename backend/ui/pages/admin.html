@@ -6,10 +6,21 @@
     <title>DevReady - Admin</title>
     <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html");
+        $("#siteSidebar").load("components/sidebar.html?v=20260515-jd-nav-flow");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -66,14 +77,175 @@
       }
       .candidate-access {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: minmax(260px, 0.7fr) auto;
         gap: 10px;
+        align-items: end;
+      }
+      .candidate-results {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .candidate-result {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px;
+        background: #fff;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+      }
+      .candidate-result.blocked {
+        border-color: rgba(190, 38, 51, 0.38);
+        background: #fff7f7;
+      }
+      .candidate-pill {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        border-radius: 999px;
+        padding: 3px 8px;
+        background: rgba(47, 125, 75, 0.1);
+        color: #125b36;
+        font-size: 11px;
+        font-weight: 900;
+      }
+      .candidate-pill.warning {
+        background: rgba(242, 201, 76, 0.18);
+        color: #6f5200;
+      }
+      .candidate-pill.danger {
+        background: rgba(190, 38, 51, 0.12);
+        color: #9f1d2c;
+      }
+      .ops-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .ops-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .ops-actions select {
+        min-height: 40px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--text);
+        font-weight: 850;
+        padding: 0 12px;
+      }
+      .ops-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .ops-tile,
+      .ops-panel {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(var(--primary-rgb), 0.04);
+        padding: 12px;
+      }
+      .ops-tile strong {
+        display: block;
+        font-size: 24px;
+        line-height: 1.1;
+        color: var(--text);
+      }
+      .ops-tile span,
+      .ops-panel .muted {
+        color: var(--muted);
+      }
+      .ops-panel-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .ops-panel h3 {
+        margin: 0 0 7px;
+        font-size: 14px;
+      }
+      .ops-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: #fff;
+        padding: 5px 9px;
+        font-weight: 900;
+        width: fit-content;
+      }
+      .ops-status::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        border-radius: 99px;
+        background: #999;
+      }
+      .ops-status.ok::before {
+        background: #2f9d59;
+      }
+      .ops-status.warn::before {
+        background: #d49a00;
+      }
+      .ops-status.bad::before {
+        background: #c62832;
+      }
+      .ops-links {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .ops-local-list {
+        display: grid;
+        gap: 4px;
+        margin-top: 8px;
+        color: var(--muted);
+      }
+      .ops-json-note {
+        border: 1px dashed rgba(var(--primary-2-rgb), 0.35);
+        background: rgba(var(--primary-rgb), 0.08);
+        border-radius: 12px;
+        padding: 9px 10px;
+        color: var(--primary-2);
+        font-weight: 800;
+      }
+      .numa-policy-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .numa-policy-item {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        padding: 12px;
+      }
+      .numa-policy-item strong {
+        display: block;
+        margin-bottom: 5px;
+        color: var(--text);
       }
       @media (max-width: 980px) {
         .admin-grid,
         .admin-form,
         .permission-grid,
-        .candidate-access {
+        .candidate-access,
+        .ops-grid,
+        .ops-panel-grid,
+        .numa-policy-grid {
           grid-template-columns: 1fr;
         }
       }
@@ -90,6 +262,87 @@
           </div>
           <div id="searchBar"></div>
         </div>
+
+        <section class="card">
+          <div class="ops-toolbar">
+            <div>
+              <h2>Application operations</h2>
+              <p>Check local/dev health, domain data separation, calendar readiness, onboarding, and payment processing queues.</p>
+            </div>
+            <div class="ops-actions">
+              <select id="adminDomainSelect" onchange="changeAdminDomain(this.value)" aria-label="Admin domain">
+                <option value="dev">Technology Domain</option>
+                <option value="engineer">Engineer Domain</option>
+                <option value="law">Law Domain</option>
+              </select>
+              <button class="btn secondary" type="button" onclick="loadOperations()">Refresh</button>
+              <button class="btn secondary" type="button" onclick="exportOperationsSnapshot()">Export snapshot</button>
+            </div>
+          </div>
+          <div id="opsStats" class="ops-grid">
+            <div class="ops-tile"><strong>--</strong><span>Profiles</span></div>
+            <div class="ops-tile"><strong>--</strong><span>Job descriptions</span></div>
+            <div class="ops-tile"><strong>--</strong><span>Open time hours</span></div>
+            <div class="ops-tile"><strong>--</strong><span>Onboarding records</span></div>
+          </div>
+          <div class="ops-panel-grid">
+            <div class="ops-panel">
+              <h3>System health</h3>
+              <div id="opsSystemStatus" class="ops-status warn">Checking</div>
+              <div id="opsSystemDetail" class="muted" style="margin-top: 8px">Waiting for backend response.</div>
+            </div>
+            <div class="ops-panel">
+              <h3>Calendar setup</h3>
+              <div id="opsCalendarStatus" class="ops-status warn">Checking</div>
+              <div id="opsCalendarDetail" class="muted" style="margin-top: 8px">Google, Outlook, and AI drafting readiness.</div>
+            </div>
+            <div class="ops-panel">
+              <h3>Domain isolation</h3>
+              <div id="opsDomainStatus" class="ops-status warn">Checking</div>
+              <div id="opsDomainDetail" class="muted" style="margin-top: 8px">Verifies the selected domain only sees its own data store.</div>
+            </div>
+          </div>
+          <div class="ops-panel" style="margin-top: 10px">
+            <h3>Admin shortcuts</h3>
+            <div id="opsLinks" class="ops-links"></div>
+            <div class="ops-json-note" style="margin-top: 12px">
+              Local workflow cleanup only clears this browser's selected candidate, job, shortlist, and process-flow state. It does not delete profiles, JDs, time, or accounts.
+            </div>
+            <div class="row-actions" style="margin-top: 10px">
+              <button class="btn secondary" type="button" onclick="clearLocalWorkflowState()">Clear local workflow selection</button>
+              <button class="btn secondary" type="button" onclick="openDomainSmokeLinks()">Open domain QA links</button>
+            </div>
+            <div id="opsLocalState" class="ops-local-list"></div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top: 14px">
+          <h2>Numa AI safety</h2>
+          <p>
+            Numa is guide-first. Numa can help users correct errors, spot missing context, and choose the next action. Numa cannot change code, rewrite names, mutate database records, or reveal private money, deal, salary, compensation, budget, margin, or contract details unless the user is Administrator-unlocked or has the Super user role.
+          </p>
+          <div class="numa-policy-grid">
+            <div class="numa-policy-item">
+              <strong>Default users</strong>
+              <span class="muted">Guide-only. Sensitive financial and CRM deal details are redacted. Numa recommends app actions instead of changing records.</span>
+            </div>
+            <div class="numa-policy-item">
+              <strong>Super users</strong>
+              <span class="muted">Change-enabled. Assign the Super user role below to allow Numa to discuss sensitive operational details and propose controlled updates.</span>
+            </div>
+            <div class="numa-policy-item">
+              <strong>CRM focus</strong>
+              <span class="muted">On CRM, Numa prioritizes which relationships or deals need attention by urgency, risk, stalled follow-up, next meeting, and relationship health.</span>
+            </div>
+          </div>
+          <div class="ops-json-note" style="margin-top: 12px">
+            To activate full Numa privileges for a person, edit that user and set Role to Super user. Administrator access also unlocks full Numa privileges after the Admin password check.
+          </div>
+          <div class="row-actions" style="margin-top: 10px">
+            <button id="numaChangeModeBtn" class="btn secondary" type="button" onclick="toggleNumaChangeMode()">Enable Numa change mode</button>
+            <span id="numaChangeModeStatus" class="muted">Numa change mode is off.</span>
+          </div>
+        </section>
 
         <section class="card">
           <h2>Access controls</h2>
@@ -124,7 +377,7 @@
                 <select id="role" name="role" onchange="syncRolePermissions()">
                   <option value="internal">Internal</option>
                   <option value="candidate">Candidate</option>
-                  <option value="super_user">Super user</option>
+                  <option value="super_user">Super user - Numa full access</option>
                 </select>
               </label>
               <label>
@@ -155,33 +408,18 @@
         <section class="card" style="margin-top: 14px">
           <h2>Candidate access</h2>
           <p>
-            Block or mark candidate access deleted by profile id or email. This protects the workflow while we wire deeper source-system deletion per domain.
+            Search by candidate name or email, then edit the login account, resend login info, block access, or delete the access record.
           </p>
-          <form id="candidateAccessForm" class="candidate-access">
+          <form id="candidateSearchForm" class="candidate-access">
             <label>
-              Candidate profile id
-              <input id="candidateId" name="candidate_id" />
+              Candidate search
+              <input id="candidateSearchQuery" name="query" placeholder="Name or email" autocomplete="off" />
             </label>
-            <label>
-              Candidate email
-              <input id="candidateEmail" name="candidate_email" type="email" />
-            </label>
-            <label>
-              Action
-              <select id="candidateAction" name="action">
-                <option value="block">Block candidate</option>
-                <option value="delete">Delete candidate access</option>
-              </select>
-            </label>
-            <label>
-              Notes
-              <input id="candidateNotes" name="notes" />
-            </label>
-            <div class="row-actions" style="grid-column: 1 / -1">
-              <button class="btn danger" type="submit">Apply candidate action</button>
-            </div>
+            <button class="btn" type="submit">Search candidate</button>
           </form>
-          <div id="candidateAccessList" class="muted" style="margin-top: 10px"></div>
+          <div id="candidateSearchStatus" class="muted" style="margin-top: 10px">Search for a candidate to manage their login account.</div>
+          <div id="candidateSearchResults" class="candidate-results"></div>
+          <div id="candidateAccessList" class="muted" style="margin-top: 12px"></div>
         </section>
       </main>
     </div>
@@ -191,6 +429,20 @@
       let menuItems = [];
       let users = [];
       let defaults = { internal: [], candidate: [], super: [] };
+      let candidateSearchResults = [];
+      let operationsSnapshot = {};
+
+      const ADMIN_DOMAINS = {
+        dev: "Technology",
+        engineer: "Engineer",
+        law: "Law",
+      };
+
+      function normalizeAdminDomain(value) {
+        const clean = String(value || "").trim().toLowerCase();
+        if (clean === "technology") return "dev";
+        return ["dev", "engineer", "law"].includes(clean) ? clean : "dev";
+      }
 
       function escapeLocal(value) {
         return String(value || "")
@@ -210,12 +462,50 @@
         }
       }
 
+      function currentAdminUser() {
+        try {
+          return JSON.parse(sessionStorage.getItem("devreadyUser") || localStorage.getItem("devreadyUser") || "null") || {};
+        } catch {
+          return {};
+        }
+      }
+
       function adminUnlock() {
         try {
           return JSON.parse(sessionStorage.getItem("devreadyAdminUnlock") || "null");
         } catch {
           return null;
         }
+      }
+
+      function canUseNumaChangeMode() {
+        const user = currentAdminUser();
+        const isSuper = user.role === "super_user" && user.status !== "blocked";
+        const isAdministrator = String(user.username || "").trim().toLowerCase() === "administrator";
+        return Boolean(isSuper || isAdministrator || adminUnlock()?.token);
+      }
+
+      function renderNumaChangeMode() {
+        const enabled = localStorage.getItem("devreadyNumaChangeMode") === "on";
+        const allowed = canUseNumaChangeMode();
+        const button = document.getElementById("numaChangeModeBtn");
+        const status = document.getElementById("numaChangeModeStatus");
+        if (!button || !status) return;
+        button.disabled = !allowed;
+        button.textContent = enabled ? "Disable Numa change mode" : "Enable Numa change mode";
+        status.textContent = allowed
+          ? `Numa change mode is ${enabled ? "on" : "off"}. Sensitive viewing is controlled by Administrator unlock or Super user role.`
+          : "Only Administrator or Super user can enable Numa change mode.";
+      }
+
+      function toggleNumaChangeMode() {
+        if (!canUseNumaChangeMode()) {
+          renderNumaChangeMode();
+          return;
+        }
+        const enabled = localStorage.getItem("devreadyNumaChangeMode") === "on";
+        localStorage.setItem("devreadyNumaChangeMode", enabled ? "off" : "on");
+        renderNumaChangeMode();
       }
 
       async function adminApi(path, opts = {}) {
@@ -312,6 +602,211 @@
         if (role === "candidate") renderPermissionGrid(defaults.candidate);
       }
 
+      function currentAdminDomain() {
+        const params = new URLSearchParams(window.location.search);
+        const domain = normalizeAdminDomain(params.get("domain") || sessionStorage.getItem("domain") || "dev");
+        sessionStorage.setItem("domain", domain);
+        return domain;
+      }
+
+      function setOpsStatus(elementId, label, mode) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        el.className = `ops-status ${mode || "warn"}`;
+        el.textContent = label;
+      }
+
+      function asCount(value) {
+        const num = Number(value || 0);
+        return Number.isFinite(num) ? num.toLocaleString() : "0";
+      }
+
+      function asHours(value) {
+        const num = Number(value || 0);
+        return Number.isFinite(num) ? `${num.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "0";
+      }
+
+      async function opsFetch(path, fallback = null) {
+        try {
+          return await api(path);
+        } catch (error) {
+          return { ok: false, error: error.message || String(error), fallback };
+        }
+      }
+
+      function renderOpsLinks(domain) {
+        const links = [
+          ["Talent", "find-candidate.html"],
+          ["Profiles", "profile-preview.html"],
+          ["Job descriptions", "job-descriptions.html"],
+          ["Client Comms Shortlist", "client-comm.html"],
+          ["Schedule", "schedule-interview.html"],
+          ["Time Link", "time-admin.html"],
+          ["Badges", "badge-catalog.html"],
+          ["CRM", "crm.html"],
+        ];
+        document.getElementById("opsLinks").innerHTML = links.map(([label, href]) => {
+          const url = `${href}?domain=${encodeURIComponent(domain)}&cachebust=${Date.now()}`;
+          return `<a class="btn secondary" href="${url}">${escapeLocal(label)}</a>`;
+        }).join("");
+      }
+
+      function renderLocalWorkflowState() {
+        const keys = [
+          "domain",
+          "selectedProfileId",
+          "selectedCandidateName",
+          "selectedJdId",
+          "selectedJobTitle",
+          "shortlistProfileIds",
+          "clientCommDraft",
+        ];
+        const rows = keys.map((key) => {
+          const value = sessionStorage.getItem(key) || localStorage.getItem(key) || "";
+          return `<div><strong>${escapeLocal(key)}:</strong> ${escapeLocal(value || "empty")}</div>`;
+        });
+        document.getElementById("opsLocalState").innerHTML = rows.join("");
+      }
+
+      function clearLocalWorkflowState() {
+        [
+          "selectedProfileId",
+          "selectedCandidateName",
+          "selectedCandidateEmail",
+          "selectedJdId",
+          "selectedJobTitle",
+          "shortlistProfileIds",
+          "shortlistProfiles",
+          "clientCommDraft",
+          "processFlowState",
+        ].forEach((key) => {
+          sessionStorage.removeItem(key);
+          localStorage.removeItem(key);
+        });
+        renderLocalWorkflowState();
+        document.getElementById("opsSystemDetail").textContent = "Local workflow selection cleared for this browser only.";
+      }
+
+      function changeAdminDomain(value) {
+        const domain = normalizeAdminDomain(value);
+        sessionStorage.setItem("domain", domain);
+        const params = new URLSearchParams(window.location.search);
+        params.set("domain", domain);
+        params.set("cachebust", Date.now());
+        window.location.search = params.toString();
+      }
+
+      function openDomainSmokeLinks() {
+        const domain = currentAdminDomain();
+        ["find-candidate.html", "job-descriptions.html", "client-comm.html", "time-admin.html"].forEach((page) => {
+          window.open(`${page}?domain=${encodeURIComponent(domain)}&cachebust=${Date.now()}`, "_blank", "noopener");
+        });
+      }
+
+      function exportOperationsSnapshot() {
+        const snapshot = {
+          exported_at: new Date().toISOString(),
+          domain: currentAdminDomain(),
+          operations: operationsSnapshot,
+        };
+        const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `vetcode-admin-${currentAdminDomain()}-${new Date().toISOString().slice(0, 10)}.json`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+      }
+
+      async function loadOperations() {
+        const domain = currentAdminDomain();
+        const select = document.getElementById("adminDomainSelect");
+        if (select) select.value = domain;
+        renderOpsLinks(domain);
+        renderLocalWorkflowState();
+        setOpsStatus("opsSystemStatus", "Checking", "warn");
+        setOpsStatus("opsCalendarStatus", "Checking", "warn");
+        setOpsStatus("opsDomainStatus", "Checking", "warn");
+
+        const [
+          health,
+          environment,
+          calendar,
+          dbInfo,
+          profileCount,
+          recentProfiles,
+          jobs,
+          onboarding,
+          time,
+          tempProfiles,
+        ] = await Promise.all([
+          opsFetch("/api/health"),
+          opsFetch("/api/environment"),
+          opsFetch("/api/calendar/health"),
+          opsFetch("/api/debug/dbinfo"),
+          opsFetch(`/api/profile/count?domain=${encodeURIComponent(domain)}`),
+          opsFetch(`/api/profile/count/recent?domain=${encodeURIComponent(domain)}`),
+          opsFetch(`/api/azureJobs/list/${encodeURIComponent(domain)}/200`),
+          opsFetch(`/api/onboarding/admin?domain=${encodeURIComponent(domain)}`),
+          opsFetch(`/api/time-entry/admin?domain=${encodeURIComponent(domain)}&status=all`),
+          opsFetch(`/api/azureJobs/external/temp?domain=${encodeURIComponent(domain)}&limit=100`),
+        ]);
+
+        const jobRows = Array.isArray(jobs) ? jobs : (jobs?.jobs || []);
+        const tempRows = Array.isArray(tempProfiles) ? tempProfiles : (tempProfiles?.people || tempProfiles?.profiles || []);
+        const openHours = Math.max(Number(time?.candidate_total_hours || 0) - Number(time?.processed_hours || 0), 0);
+        operationsSnapshot = { health, environment, calendar, dbInfo, profileCount, recentProfiles, jobs: jobRows, onboarding, time, tempProfiles: tempRows };
+
+        document.getElementById("opsStats").innerHTML = `
+          <div class="ops-tile"><strong>${asCount(profileCount)}</strong><span>Profiles (${asCount(recentProfiles)} recent)</span></div>
+          <div class="ops-tile"><strong>${asCount(jobRows.length)}</strong><span>Job descriptions</span></div>
+          <div class="ops-tile"><strong>${asHours(openHours)}</strong><span>Open time hours</span></div>
+          <div class="ops-tile"><strong>${asCount(onboarding?.count)}</strong><span>Onboarding records</span></div>
+          <div class="ops-tile"><strong>${asHours(time?.processed_hours)}</strong><span>Processed time hours</span></div>
+          <div class="ops-tile"><strong>${asCount(time?.staff_count)}</strong><span>Staff/week rows</span></div>
+          <div class="ops-tile"><strong>${asCount(tempRows.length)}</strong><span>Temporary profiles</span></div>
+          <div class="ops-tile"><strong>${escapeLocal(ADMIN_DOMAINS[domain])}</strong><span>Current workspace</span></div>
+        `;
+
+        if (health?.status === "ok" && environment?.status === "ok") {
+          setOpsStatus("opsSystemStatus", "Online", "ok");
+          document.getElementById("opsSystemDetail").textContent =
+            `${environment.environment || "Local"} - ${environment.database_name || "local"} - v${health.version || "unknown"}`;
+        } else {
+          setOpsStatus("opsSystemStatus", "Review", "bad");
+          document.getElementById("opsSystemDetail").textContent = health?.error || environment?.error || "Backend health check failed.";
+        }
+
+        if (calendar?.ok) {
+          const googleReady = Boolean(calendar.google_secret_found);
+          const outlookReady = Boolean(calendar.outlook?.client_configured) && !calendar.outlook?.secret_value_needed;
+          const aiReady = Boolean(calendar.openai_key_found);
+          const allReady = googleReady && outlookReady && aiReady;
+          setOpsStatus("opsCalendarStatus", allReady ? "Ready" : "Needs setup", allReady ? "ok" : "warn");
+          document.getElementById("opsCalendarDetail").textContent =
+            `Google ${googleReady ? "configured" : "missing"} - Outlook ${outlookReady ? "configured" : "missing"} - AI ${aiReady ? "configured" : "missing"}`;
+        } else {
+          setOpsStatus("opsCalendarStatus", "Review", "bad");
+          document.getElementById("opsCalendarDetail").textContent = calendar?.error || "Calendar health check failed.";
+        }
+
+        const dbDomain = dbInfo?.domain_databases?.[domain] || {};
+        const storageDomain = dbDomain.storage_domain || domain;
+        const jdDomains = dbDomain.jd_domains || [];
+        const profileDomains = dbDomain.profile_domains || [];
+        const allowed = new Set([storageDomain, "", null]);
+        const mixedJds = jdDomains.some((item) => !allowed.has(item));
+        const mixedProfiles = profileDomains.some((item) => !allowed.has(item));
+        if (dbInfo?.domain_databases && !mixedJds && !mixedProfiles) {
+          setOpsStatus("opsDomainStatus", "Clean", "ok");
+          document.getElementById("opsDomainDetail").textContent =
+            `${ADMIN_DOMAINS[domain]} maps to ${storageDomain}. JD domains: ${jdDomains.join(", ") || "none"}. Profile domains: ${profileDomains.join(", ") || "none"}.`;
+        } else {
+          setOpsStatus("opsDomainStatus", "Review", "bad");
+          document.getElementById("opsDomainDetail").textContent =
+            dbInfo?.error || `Mixed domain markers found. JD domains: ${jdDomains.join(", ") || "none"}. Profile domains: ${profileDomains.join(", ") || "none"}.`;
+        }
+      }
+
       function renderUsers() {
         const container = document.getElementById("userList");
         if (!users.length) {
@@ -336,12 +831,146 @@
       function renderCandidateAccess(records) {
         const values = Object.values(records || {});
         document.getElementById("candidateAccessList").innerHTML = values.length
-          ? values.map((record) => `${escapeLocal(record.status)}: ${escapeLocal(record.candidate_id || record.candidate_email)} - ${escapeLocal(record.notes)}`).join("<br>")
+          ? `<strong>Access blocks/deletions</strong><br>${values.map((record) => `${escapeLocal(record.status)}: ${escapeLocal(record.candidate_id || record.candidate_email)} - ${escapeLocal(record.notes)}`).join("<br>")}`
           : "No candidate access blocks recorded.";
+      }
+
+      function candidateName(candidate) {
+        return candidate.name || [candidate.firstName, candidate.lastName].filter(Boolean).join(" ") || "Unnamed candidate";
+      }
+
+      function renderCandidateSearchResults() {
+        const container = document.getElementById("candidateSearchResults");
+        if (!candidateSearchResults.length) {
+          container.innerHTML = "";
+          return;
+        }
+        container.innerHTML = candidateSearchResults.map((row, index) => {
+          const candidate = row.candidate || {};
+          const user = row.user;
+          const access = row.access || {};
+          const status = user ? `${user.role} - ${user.status}` : "No login account";
+          const blocked = user?.status === "blocked" || access.status === "blocked" || access.status === "deleted";
+          const canUnblock = user?.status === "blocked" || access.status === "blocked";
+          const statusClass = access.status === "deleted" ? "danger" : user ? "" : "warning";
+          return `
+            <div class="candidate-result ${blocked ? "blocked" : ""}">
+              <div>
+                <strong>${escapeLocal(candidateName(candidate))}</strong>
+                <div class="muted">Profile ${escapeLocal(candidate.id)} - ${escapeLocal(candidate.email || "No email")} - ${escapeLocal(currentAdminDomain())}</div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:7px;">
+                  <span class="candidate-pill ${statusClass}">${escapeLocal(status)}</span>
+                  ${access.status ? `<span class="candidate-pill danger">Access ${escapeLocal(access.status)}</span>` : ""}
+                </div>
+              </div>
+              <div class="row-actions">
+                <button class="btn secondary" type="button" onclick="editCandidateAccount(${index})">Edit</button>
+                <button class="btn secondary" type="button" onclick="resendCandidateLogin(${index})">Resend login</button>
+                <button class="btn danger" type="button" onclick="blockCandidateAccess(${index})">${canUnblock ? "Unblock" : "Block"}</button>
+                <button class="btn danger" type="button" onclick="deleteCandidateAccess(${index})">Delete</button>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      async function searchCandidateAccounts() {
+        const query = document.getElementById("candidateSearchQuery").value.trim();
+        const status = document.getElementById("candidateSearchStatus");
+        if (query.length < 2) {
+          status.textContent = "Enter at least 2 characters.";
+          candidateSearchResults = [];
+          renderCandidateSearchResults();
+          return;
+        }
+        status.textContent = "Searching candidate accounts...";
+        const params = new URLSearchParams({ query, domain: currentAdminDomain() });
+        const data = await adminApi(`/api/admin/candidates/search?${params.toString()}`);
+        candidateSearchResults = data.results || [];
+        status.textContent = candidateSearchResults.length
+          ? `${candidateSearchResults.length} candidate result${candidateSearchResults.length === 1 ? "" : "s"} found.`
+          : "No candidates found in this domain.";
+        renderCandidateSearchResults();
+      }
+
+      function editCandidateAccount(index) {
+        const row = candidateSearchResults[index];
+        if (!row) return;
+        const candidate = row.candidate || {};
+        if (row.user) {
+          editUser(row.user.id);
+          return;
+        }
+        newUser();
+        document.getElementById("username").value = candidate.email || candidateName(candidate);
+        document.getElementById("displayName").value = candidateName(candidate);
+        document.getElementById("email").value = candidate.email || "";
+        document.getElementById("role").value = "candidate";
+        document.getElementById("status").value = "active";
+        renderPermissionGrid(defaults.candidate);
+        document.getElementById("password").placeholder = "Set password before saving";
+        document.getElementById("passwordConfirm").placeholder = "Confirm password before saving";
+        document.getElementById("adminStatus").textContent = `Prepared a candidate login account for ${candidateName(candidate)}. Set a password and save.`;
+      }
+
+      async function resendCandidateLogin(index) {
+        const row = candidateSearchResults[index];
+        if (!row?.user) {
+          editCandidateAccount(index);
+          document.getElementById("adminStatus").textContent = "Create and save this candidate account before resending login info.";
+          return;
+        }
+        await sendLogin(row.user.id);
+      }
+
+      async function blockCandidateAccess(index) {
+        const row = candidateSearchResults[index];
+        if (!row) return;
+        const candidate = row.candidate || {};
+        const access = row.access || {};
+        const shouldUnblock = row.user?.status === "blocked" || access.status === "blocked";
+        if (row.user) {
+          await toggleBlock(row.user.id, shouldUnblock ? "false" : "true");
+        }
+        await adminApi("/api/admin/candidates/access", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            candidate_id: candidate.id || "",
+            candidate_email: candidate.email || "",
+            action: shouldUnblock ? "unblock" : "block",
+            notes: shouldUnblock ? "Unblocked from Admin candidate search." : "Blocked from Admin candidate search.",
+          }).toString(),
+        });
+        await loadAdmin();
+        await searchCandidateAccounts();
+      }
+
+      async function deleteCandidateAccess(index) {
+        const row = candidateSearchResults[index];
+        if (!row) return;
+        const candidate = row.candidate || {};
+        if (!confirm(`Delete access for ${candidateName(candidate)}? This removes the login account if one exists and marks candidate access deleted.`)) return;
+        if (row.user) {
+          await adminApi(`/api/admin/users/${encodeURIComponent(row.user.id)}`, { method: "DELETE" });
+        }
+        await adminApi("/api/admin/candidates/access", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            candidate_id: candidate.id || "",
+            candidate_email: candidate.email || "",
+            action: "delete",
+            notes: "Deleted from Admin candidate search.",
+          }).toString(),
+        });
+        await loadAdmin();
+        await searchCandidateAccounts();
       }
 
       async function loadAdmin() {
         if (!(await ensureAdminUnlocked())) return;
+        await loadOperations();
         const data = await adminApi("/api/admin/users");
         users = data.users || [];
         menuItems = data.menu_items || [];
@@ -353,6 +982,7 @@
         renderPermissionGrid(defaults.internal);
         renderUsers();
         renderCandidateAccess(data.blocked_candidates || {});
+        renderNumaChangeMode();
       }
 
       function editUser(id) {
@@ -420,19 +1050,13 @@
         document.getElementById("adminStatus").textContent = `Login information prepared for ${data.user.display_name || data.user.username}. Link copied: ${link}`;
       }
 
-      document.getElementById("candidateAccessForm").addEventListener("submit", async (event) => {
+      document.getElementById("candidateSearchForm").addEventListener("submit", async (event) => {
         event.preventDefault();
-        const body = new URLSearchParams(new FormData(event.currentTarget));
-        await adminApi("/api/admin/candidates/access", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: body.toString(),
-        });
-        event.currentTarget.reset();
-        await loadAdmin();
+        await searchCandidateAccounts();
       });
 
       document.addEventListener("DOMContentLoaded", loadAdmin);
     </script>
   </body>
 </html>
+

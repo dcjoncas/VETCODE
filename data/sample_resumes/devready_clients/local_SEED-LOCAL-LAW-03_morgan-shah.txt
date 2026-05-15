@@ -1,0 +1,20 @@
+Morgan Shah
+AI Policy and Privacy Counsel
+morgan.shah.local.03@seed.legalready.example
+San Francisco, CA
+
+SUMMARY
+Synthetic DevReady Law example for AI Governance. Morgan Shah has client-facing experience helping Meridian Compliance Group with: Create defensible AI usage and privacy review practices.
+
+SKILLS
+AI Governance, OneTrust, Policy Drafting, Privacy, Records Retention, Risk Scoring
+
+EXPERIENCE
+AI Policy and Privacy Counsel | Meridian Compliance Group | 2023 - Present
+Led ai governance delivery work focused on create defensible ai usage and privacy review practices.
+
+CERTIFICATION
+AI / ML L1 - Foundations | certified | 89% | SEED-LOCAL-LAW-03-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

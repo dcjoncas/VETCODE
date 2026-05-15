@@ -1,0 +1,20 @@
+Theo Grant
+FinTech Data Engineer
+theo.grant.local.02@seed.devready.example
+Charlotte, NC
+
+SUMMARY
+Synthetic DevReady Technology example for Financial Services. Theo Grant has client-facing experience helping LedgerPeak Bank with: Modernize merchant risk pipelines and analytics governance.
+
+SKILLS
+Azure Data Factory, Data Quality, Databricks, Production readiness, Python, Spark, UAT, dbt
+
+EXPERIENCE
+FinTech Data Engineer | LedgerPeak Bank | 2022 - Present
+Led financial services delivery work focused on modernize merchant risk pipelines and analytics governance.
+
+CERTIFICATION
+AI / ML L3 - Foundations | certified | 88% | SEED-LOCAL-DEV-02-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

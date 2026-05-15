@@ -1,0 +1,20 @@
+Caleb Brooks
+Cybersecurity Cloud Engineer
+caleb.brooks.local.04@seed.devready.example
+Tampa, FL
+
+SUMMARY
+Synthetic DevReady Technology example for Cybersecurity. Caleb Brooks has client-facing experience helping SentinelWorks with: Harden a managed detection platform for enterprise clients.
+
+SKILLS
+AWS, Incident Response, Production readiness, Python, SIEM, Terraform, UAT, Zero Trust
+
+EXPERIENCE
+Cybersecurity Cloud Engineer | SentinelWorks | 2020 - Present
+Led cybersecurity delivery work focused on harden a managed detection platform for enterprise clients.
+
+CERTIFICATION
+AI / ML L2 - Foundations | certified | 90% | SEED-LOCAL-DEV-04-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

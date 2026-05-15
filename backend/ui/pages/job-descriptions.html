@@ -12,15 +12,25 @@
       type="image/svg+xml"
     />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html", function () {
-          document
-            .getElementById("domainSelect")
-            .addEventListener("change", loadJobDescriptions);
+        $("#siteSidebar").load("components/sidebar.html?v=20260515-jd-nav-flow", function () {
+          const domainSelect = document.getElementById("domainSelect");
+          if (domainSelect) domainSelect.addEventListener("change", loadJobDescriptions);
         });
-        $("#processFlow").load("components/processFlow.html");
+        $("#processFlow").load("components/processFlow.html?v=20260515-jd-flow");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -35,29 +45,56 @@
 
       .jd-summary {
         display: flex;
-        gap: 10px;
+        gap: 8px;
         flex-wrap: wrap;
       }
 
       .jd-kpi {
-        min-width: 140px;
+        min-width: 112px;
         border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 10px 12px;
-        background: #fff;
+        border-radius: 999px;
+        padding: 7px 11px;
+        background: rgba(var(--primary-rgb), 0.06);
+        display: inline-flex;
+        align-items: baseline;
+        gap: 7px;
       }
 
       .jd-kpi strong {
-        display: block;
-        font-size: 20px;
-        color: var(--green);
+        display: inline-block;
+        font-size: 18px;
+        color: var(--primary-2);
+      }
+
+      .jd-kpi span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .jd-library-card {
+        padding-bottom: 10px;
+      }
+
+      #jdGroups {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+        gap: 12px;
+        align-items: start;
+        max-width: 100%;
+        overflow-x: hidden;
+        overflow-y: visible;
+        padding: 10px 2px 14px;
       }
 
       .client-group {
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        background: #fff;
-        margin-top: 14px;
+        min-width: 0;
+        border: 1px solid rgba(var(--primary-rgb), 0.2);
+        border-radius: 8px;
+        background:
+          linear-gradient(180deg, rgba(var(--primary-rgb), 0.075), rgba(var(--primary-rgb), 0.018)),
+          #fff;
+        margin-top: 0;
         overflow: hidden;
       }
 
@@ -66,88 +103,188 @@
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        padding: 14px 16px;
-        background: #fff8ef;
-        border-bottom: 1px solid rgba(242, 140, 40, 0.28);
+        padding: 9px 12px;
+        border-bottom: 1px solid rgba(var(--primary-rgb), 0.16);
+        background:
+          linear-gradient(90deg, rgba(var(--primary-rgb), 0.1), rgba(255, 255, 255, 0.68)),
+          #fff;
       }
 
       .client-header h3 {
         margin: 0;
-        font-size: 17px;
+        font-size: 15px;
+        overflow-wrap: anywhere;
       }
 
       .client-header .count {
-        color: #8a4b08;
+        flex: 0 0 auto;
+        color: var(--primary-2);
         font-weight: 800;
+        font-size: 12px;
+      }
+
+      .jd-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 205px), 1fr));
+        gap: 8px;
+        padding: 10px;
+        max-width: 100%;
+        overflow-x: hidden;
+        overflow-y: visible;
       }
 
       .jd-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 14px;
-        padding: 14px 16px;
-        border-top: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+        min-height: 172px;
+        padding: 10px;
+        border: 1px solid rgba(var(--primary-rgb), 0.18);
+        border-radius: 8px;
+        background:
+          linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(var(--primary-rgb), 0.08)),
+          #fff;
+        box-shadow: 0 8px 16px rgba(16, 32, 24, 0.055);
+        cursor: pointer;
+        transition:
+          border-color 160ms ease,
+          box-shadow 160ms ease,
+          transform 160ms ease;
       }
 
-      .jd-row:first-of-type {
-        border-top: 0;
+      .jd-row:hover,
+      .jd-row.editing {
+        border-color: rgba(var(--primary-rgb), 0.46);
+        box-shadow: 0 12px 24px rgba(16, 32, 24, 0.1);
+        transform: translateY(-1px);
+      }
+
+      .jd-row.expanded {
+        grid-column: 1 / -1;
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .jd-card-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+        min-width: 0;
       }
 
       .jd-title {
-        margin: 0 0 5px;
-        font-size: 16px;
+        margin: 0 0 4px;
+        font-size: 15px;
+        line-height: 1.18;
+        overflow-wrap: anywhere;
       }
 
       .jd-meta {
         color: var(--muted);
-        font-size: 13px;
+        font-size: 12px;
         line-height: 1.4;
+        overflow-wrap: anywhere;
+      }
+
+      .jd-card-id {
+        flex: 0 0 auto;
+        border-radius: 999px;
+        padding: 3px 7px;
+        background: rgba(var(--primary-rgb), 0.1);
+        color: var(--primary-2);
+        font-size: 10px;
+        font-weight: 950;
+        border: 1px solid rgba(var(--primary-rgb), 0.2);
+      }
+
+      .jd-card-metrics {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .jd-metric {
+        border: 1px solid rgba(var(--primary-rgb), 0.16);
+        border-radius: 8px;
+        padding: 7px 8px;
+        background: rgba(var(--primary-rgb), 0.045);
+        min-width: 0;
+      }
+
+      .jd-metric strong {
+        display: block;
+        font-size: 14px;
+        line-height: 1;
+        color: var(--text);
+      }
+
+      .jd-metric span {
+        display: block;
+        margin-top: 3px;
+        font-size: 9px;
+        color: var(--muted);
+        font-weight: 900;
+        text-transform: uppercase;
       }
 
       .jd-skills {
         display: flex;
         gap: 6px;
         flex-wrap: wrap;
-        margin-top: 9px;
+        margin-top: 2px;
       }
 
       .skill-pill {
-        border: 1px solid rgba(18, 91, 54, 0.16);
+        border: 1px solid rgba(var(--primary-rgb), 0.18);
         border-radius: 999px;
-        padding: 4px 8px;
-        background: #f6fbf7;
-        font-size: 12px;
+        padding: 3px 7px;
+        background: rgba(var(--primary-rgb), 0.08);
+        font-size: 11px;
         font-weight: 700;
-        color: var(--green);
+        color: var(--primary-2);
       }
 
       .jd-details {
-        grid-column: 1 / -1;
         display: none;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 12px;
-        background: #fbfcfb;
+        min-width: 0;
+        border-top: 1px solid rgba(var(--primary-rgb), 0.14);
+        padding-top: 10px;
       }
 
       .jd-details.open {
-        display: block;
+        display: grid;
+        grid-template-columns: minmax(180px, 0.35fr) minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+        max-width: 100%;
+      }
+
+      .jd-details.open .jd-skills {
+        max-height: 230px;
+        overflow: auto;
+        align-content: start;
       }
 
       .jd-text {
         white-space: pre-wrap;
-        max-height: 360px;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        min-width: 0;
+        max-width: 100%;
+        max-height: 230px;
         overflow: auto;
         line-height: 1.45;
         font-size: 13px;
       }
 
       .empty-state {
-        border: 1px dashed rgba(18, 91, 54, 0.28);
+        border: 1px dashed rgba(var(--primary-rgb), 0.28);
         border-radius: 12px;
         padding: 18px;
-        background: #f7fbf6;
-        color: var(--green);
+        background: rgba(var(--primary-rgb), 0.07);
+        color: var(--primary-2);
         font-weight: 800;
       }
 
@@ -182,9 +319,68 @@
         background: #fdebe7;
       }
 
+      .edit-mode-note {
+        display: none;
+        margin-top: 10px;
+        border: 1px solid rgba(var(--primary-rgb), 0.22);
+        border-radius: 8px;
+        padding: 9px 11px;
+        background: rgba(var(--primary-rgb), 0.08);
+        color: var(--primary-2);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .edit-mode-note.on {
+        display: block;
+      }
+
+      .jd-library-intro {
+        display: grid;
+        gap: 8px;
+      }
+
+      .jd-library-intro p {
+        margin: 0;
+      }
+
+      .jd-card-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: auto;
+      }
+
+      .jd-card-actions .btn {
+        min-height: 32px;
+        padding: 7px 10px;
+      }
+
       @media (max-width: 760px) {
-        .jd-row {
+        #jdGroups {
+          overflow-x: visible;
+        }
+
+        .jd-card-grid {
+          display: grid;
           grid-template-columns: 1fr;
+          overflow-x: visible;
+        }
+
+        .jd-row.expanded {
+          grid-column: auto;
+        }
+
+        .jd-details.open {
+          grid-template-columns: 1fr;
+        }
+
+        .jd-summary {
+          width: 100%;
+        }
+
+        .jd-kpi {
+          flex: 1 1 140px;
         }
       }
     </style>
@@ -207,13 +403,14 @@
         <section class="card">
           <div class="jd-toolbar">
             <div>
-              <h2>Create job description</h2>
+              <h2 id="jdFormTitle">Create job description</h2>
               <p>
                 Add a new role reference here first. Talent, Find Candidates
                 (In), and Find Candidates (Out) only load saved job descriptions.
               </p>
             </div>
           </div>
+          <div id="jdEditNote" class="edit-mode-note"></div>
 
           <div class="split">
             <div class="field">
@@ -246,21 +443,20 @@
             <button class="btn" type="button" id="btnSaveJd">
               Normalize &amp; Save JD
             </button>
+            <button class="btn secondary" type="button" id="btnCancelEdit" hidden>
+              Cancel edit
+            </button>
             <span id="jdCreateStatus" style="color: var(--muted); font-size: 13px">
               Saved JDs appear below by client.
             </span>
           </div>
         </section>
 
-        <section class="card">
+        <section class="card jd-library-card">
           <div class="jd-toolbar">
-            <div>
+            <div class="jd-library-intro">
               <h2>Loaded job descriptions</h2>
-              <p>
-                Review saved job descriptions for the selected domain. Clients
-                can have multiple roles, and each role can be expanded to see
-                its extracted skills and source text.
-              </p>
+              <p>Saved roles for the selected domain, grouped by client.</p>
             </div>
             <button class="btn" type="button" onclick="loadJobDescriptions()">
               Refresh
@@ -292,6 +488,7 @@
     <script>
       const expandedDetails = new Map();
       const jdById = new Map();
+      let editingJdId = "";
 
       function currentDomain() {
         return (
@@ -322,6 +519,20 @@
           month: "short",
           day: "numeric",
         });
+      }
+
+      function compactDate(value) {
+        if (!value) return "Not set";
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return "Saved";
+        return parsed.toLocaleDateString([], { month: "short", day: "numeric" });
+      }
+
+      function wordCount(value) {
+        return String(value || "")
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean).length;
       }
 
       function flattenSkills(skills) {
@@ -358,6 +569,7 @@
         const status = document.getElementById("jdStatus");
         const groupsEl = document.getElementById("jdGroups");
         document.getElementById("domainName").textContent = domainLabel(domain);
+        status.className = "notice";
         status.style.display = "block";
         status.textContent = "Loading job descriptions...";
         groupsEl.innerHTML = "";
@@ -403,19 +615,25 @@
         fd.append("domain", currentDomain());
 
         button.disabled = true;
-        status.textContent = "Saving job description...";
+        status.textContent = editingJdId ? "Updating job description..." : "Saving job description...";
         try {
-          const created = await api("/api/azureJobs/createJob", {
+          const endpoint = editingJdId
+            ? `/api/azureJobs/updateJob/${encodeURIComponent(editingJdId)}`
+            : "/api/azureJobs/createJob";
+          await api(endpoint, {
             method: "POST",
             body: fd,
           });
-          status.textContent = `Saved ${company} - ${title}.`;
+          status.textContent = editingJdId
+            ? `Updated ${company} - ${title}.`
+            : `Saved ${company} - ${title}.`;
           document.getElementById("jdCompany").value = "";
           document.getElementById("jdTitle").value = "";
           document.getElementById("jdText").value = "";
+          clearEditMode(false);
           await loadJobDescriptions();
         } catch (error) {
-          status.textContent = `JD save failed: ${error.message || error}`;
+          status.textContent = `JD ${editingJdId ? "update" : "save"} failed: ${error.message || error}`;
         } finally {
           button.disabled = false;
         }
@@ -474,23 +692,55 @@
               <h3>${escapeHtml(group.client)}</h3>
               <span class="count">${group.items.length} job description${group.items.length === 1 ? "" : "s"}</span>
             </div>
-            ${group.items.map(renderJdRow).join("")}
+            <div class="jd-card-grid">
+              ${group.items.map(renderJdRow).join("")}
+            </div>
           </div>
         `;
       }
 
       function renderJdRow(jd) {
         const id = jd.jd_id;
+        const skills = flattenSkills(jd.skills || jd.jd_skills);
+        const skillPreview = skills
+          .slice(0, 4)
+          .map((item) => `<span class="skill-pill">${escapeHtml(item.skill)}</span>`)
+          .join("");
+        const text = jd.description || jd.jd_text || "";
+        const words = wordCount(text);
+        const updated = jd.updated_at || jd.created_at || jd.createdAt;
         return `
-          <div class="jd-row" id="jd-row-${escapeHtml(id)}">
-            <div>
-              <h4 class="jd-title">${escapeHtml(jd.title || "Role title to be confirmed")}</h4>
-              <div class="jd-meta">
-                Client: ${escapeHtml(clientName(jd))} | Domain: ${escapeHtml(jd.domain || "")} | Updated: ${escapeHtml(formatDate(jd.updated_at || jd.created_at))}
+          <article class="jd-row" id="jd-row-${escapeHtml(id)}" onclick="editJd('${escapeHtml(id)}')">
+            <div class="jd-card-head">
+              <div>
+                <h4 class="jd-title">${escapeHtml(jd.title || "Role title to be confirmed")}</h4>
+                <div class="jd-meta">
+                  ${escapeHtml(clientName(jd))} &bull; ${escapeHtml(domainLabel(jd.domain || currentDomain()))}
+                </div>
               </div>
-              <div class="jd-skills" id="jd-skills-${escapeHtml(id)}"></div>
+              <span class="jd-card-id">JD ${escapeHtml(id)}</span>
             </div>
-            <div class="row-actions">
+            <div class="jd-card-metrics">
+              <div class="jd-metric">
+                <strong>${escapeHtml(skills.length || 0)}</strong>
+                <span>Skills</span>
+              </div>
+              <div class="jd-metric">
+                <strong>${escapeHtml(words || 0)}</strong>
+                <span>Words</span>
+              </div>
+              <div class="jd-metric">
+                <strong>${escapeHtml(compactDate(updated))}</strong>
+                <span>Updated</span>
+              </div>
+            </div>
+            <div class="jd-skills" id="jd-skills-${escapeHtml(id)}">
+              ${skillPreview || `<span class="skill-pill">Skills pending</span>`}
+            </div>
+            <div class="jd-card-actions" onclick="event.stopPropagation()">
+              <button class="btn secondary" type="button" onclick="editJd('${escapeHtml(id)}')">
+                Edit
+              </button>
               <button class="btn secondary" type="button" onclick="toggleJd('${escapeHtml(id)}')">
                 View
               </button>
@@ -501,19 +751,22 @@
             <div class="jd-details" id="jd-details-${escapeHtml(id)}">
               <div class="jd-meta">Loading details...</div>
             </div>
-          </div>
+          </article>
         `;
       }
 
       async function toggleJd(jdId) {
         const details = document.getElementById(`jd-details-${jdId}`);
+        const card = document.getElementById(`jd-row-${jdId}`);
         if (!details) return;
 
         if (details.classList.contains("open")) {
           details.classList.remove("open");
+          card?.classList.remove("expanded");
           return;
         }
 
+        card?.classList.add("expanded");
         details.classList.add("open");
         if (expandedDetails.has(jdId)) {
           details.innerHTML = expandedDetails.get(jdId);
@@ -539,6 +792,47 @@
           details.innerHTML = html;
         } catch (error) {
           details.innerHTML = `<div class="empty-state">Could not load this job description: ${escapeHtml(error.message || error)}</div>`;
+        }
+      }
+
+      async function editJd(jdId) {
+        const status = document.getElementById("jdCreateStatus");
+        status.textContent = "Loading job description for edit...";
+
+        try {
+          const jd = await api(
+            `/api/azureJobs/getJob/${encodeURIComponent(jdId)}?domain=${encodeURIComponent(currentDomain())}`,
+          );
+          editingJdId = jdId;
+          document.getElementById("jdCompany").value = jd.company || "";
+          document.getElementById("jdTitle").value = jd.title || "";
+          document.getElementById("jdText").value = jd.description || jd.jd_text || "";
+          document.getElementById("jdFormTitle").textContent = "Edit job description";
+          document.getElementById("btnSaveJd").textContent = "Update JD";
+          document.getElementById("btnCancelEdit").hidden = false;
+          const editNote = document.getElementById("jdEditNote");
+          editNote.textContent = `Editing JD ${jdId}: ${jd.title || "role title"} for ${jd.company || "client"}.`;
+          editNote.classList.add("on");
+          document.querySelectorAll(".jd-row.editing").forEach((row) => row.classList.remove("editing"));
+          document.getElementById(`jd-row-${jdId}`)?.classList.add("editing");
+          status.textContent = "Make changes, then update this JD.";
+          document.getElementById("jdFormTitle").scrollIntoView({ behavior: "smooth", block: "start" });
+        } catch (error) {
+          status.textContent = `Could not load JD for editing: ${error.message || error}`;
+        }
+      }
+
+      function clearEditMode(resetStatus = true) {
+        editingJdId = "";
+        document.getElementById("jdFormTitle").textContent = "Create job description";
+        document.getElementById("btnSaveJd").textContent = "Normalize & Save JD";
+        document.getElementById("btnCancelEdit").hidden = true;
+        const editNote = document.getElementById("jdEditNote");
+        editNote.textContent = "";
+        editNote.classList.remove("on");
+        document.querySelectorAll(".jd-row.editing").forEach((row) => row.classList.remove("editing"));
+        if (resetStatus) {
+          document.getElementById("jdCreateStatus").textContent = "Saved JDs appear below by client.";
         }
       }
 
@@ -590,6 +884,12 @@
 
       document.addEventListener("DOMContentLoaded", function () {
         document.getElementById("btnSaveJd").addEventListener("click", saveJobDescription);
+        document.getElementById("btnCancelEdit").addEventListener("click", function () {
+          document.getElementById("jdCompany").value = "";
+          document.getElementById("jdTitle").value = "";
+          document.getElementById("jdText").value = "";
+          clearEditMode();
+        });
         document.getElementById("btnSaveJdFile").addEventListener("click", saveJobDescriptionFromFile);
         document.getElementById("jdFile").addEventListener("change", updateJdFileName);
         setTimeout(loadJobDescriptions, 250);
@@ -597,3 +897,4 @@
     </script>
   </body>
 </html>
+

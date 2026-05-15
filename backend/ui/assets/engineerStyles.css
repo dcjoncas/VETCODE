@@ -23,6 +23,38 @@
     "Apple Color Emoji", "Segoe UI Emoji";
 }
 
+.process-actions .process-domain-select,
+.process-actions .process-hint-toggle,
+.process-actions .process-map-button,
+.process-actions .process-clear-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 31px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 7px 12px;
+  box-shadow: none;
+  text-decoration: none;
+}
+
+.process-actions .process-domain-select {
+  padding: 0 28px 0 12px;
+}
+
+.process-actions .process-hint-toggle:hover,
+.process-actions .process-map-button:hover,
+.process-actions .process-clear-button:hover {
+  background: var(--primary-soft, rgba(var(--primary-rgb), 0.12));
+  color: var(--text);
+  text-decoration: none;
+}
+
 .muted {
   color: var(--muted);
   font-size: 13px;
@@ -1396,4 +1428,36 @@ input[type="checkbox"] {
     rgba(var(--primary-rgb), 0.24),
     rgba(var(--primary-2-rgb), 0.18)
   );
+}
+
+.process-actions .process-domain-select,
+.process-actions .process-hint-toggle,
+.process-actions .process-map-button,
+.process-actions .process-clear-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 31px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 7px 12px;
+  box-shadow: none;
+  text-decoration: none;
+}
+
+.process-actions .process-domain-select {
+  padding: 0 28px 0 12px;
+}
+
+.process-actions .process-hint-toggle:hover,
+.process-actions .process-map-button:hover,
+.process-actions .process-clear-button:hover {
+  background: var(--primary-soft, rgba(var(--primary-rgb), 0.12));
+  color: var(--text);
+  text-decoration: none;
 }

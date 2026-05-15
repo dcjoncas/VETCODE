@@ -1,0 +1,20 @@
+Hannah Ortiz
+Employment Law HR Advisor
+hannah.ortiz.local.10@seed.legalready.example
+Minneapolis, MN
+
+SUMMARY
+Synthetic DevReady Law example for Workforce. Hannah Ortiz has client-facing experience helping PeopleFirst Services with: Support policy rollout and sensitive workplace investigations.
+
+SKILLS
+ADA, Employee Relations, Employment Law, Investigations, Policy Updates, Training
+
+EXPERIENCE
+Employment Law HR Advisor | PeopleFirst Services | 2022 - Present
+Led workforce delivery work focused on support policy rollout and sensitive workplace investigations.
+
+CERTIFICATION
+AI / ML L2 - Foundations | certified | 86% | SEED-LOCAL-LAW-10-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

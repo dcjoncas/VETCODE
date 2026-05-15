@@ -1,0 +1,20 @@
+Elise Brennan
+Healthcare Compliance Counsel
+elise.brennan.local.04@seed.legalready.example
+Boston, MA
+
+SUMMARY
+Synthetic DevReady Law example for Healthcare. Elise Brennan has client-facing experience helping CareBridge Health with: Support audit remediation and training rollout.
+
+SKILLS
+Compliance Audits, HIPAA, Investigations, Policy Review, Risk Assessment, Training
+
+EXPERIENCE
+Healthcare Compliance Counsel | CareBridge Health | 2020 - Present
+Led healthcare delivery work focused on support audit remediation and training rollout.
+
+CERTIFICATION
+AI / ML L2 - Foundations | certified | 90% | SEED-LOCAL-LAW-04-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

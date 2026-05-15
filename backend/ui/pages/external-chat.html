@@ -11,6 +11,18 @@
       type="image/svg+xml"
     />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
+    <script src="JS/pageAgents.js?v=20260515-numa-inline-label"></script>
   </head>
   <body>
     <div class="container">
@@ -47,8 +59,40 @@
 
         <div class="chat">
           <div class="head">
-            <div style="font-weight: 900">DevReady AI</div>
-            <small>Private + Public profile build</small>
+            <div>
+              <div style="font-weight: 900">DevReady AI</div>
+              <small id="chatSubhead">Private + Public profile build</small>
+            </div>
+            <div
+              id="questionProgress"
+              style="
+                margin-left: auto;
+                text-align: right;
+                font-size: 12px;
+                font-weight: 900;
+                color: var(--muted);
+              "
+            >
+              Loading questions...
+            </div>
+          </div>
+          <div
+            style="
+              height: 8px;
+              background: rgba(0, 0, 0, 0.08);
+              border-radius: 999px;
+              overflow: hidden;
+            "
+          >
+            <div
+              id="questionProgressBar"
+              style="
+                width: 0%;
+                height: 100%;
+                background: var(--primary);
+                transition: width 0.2s ease;
+              "
+            ></div>
           </div>
           <div id="chatWindow" class="msgs"></div>
           <form class="send">
@@ -61,6 +105,9 @@
             />
             <button id="sendBtn" class="btn" type="submit" disabled>
               Send
+            </button>
+            <button id="saveProgressBtn" class="btn secondary" type="button" disabled>
+              Save progress
             </button>
           </form>
         </div>
@@ -91,6 +138,7 @@
       let questionNumber = 1;
       let maxQuestions = 100;
       let isSending = false;
+      let chatComplete = false;
 
       // Add new messages to the chat
       function appendMessage(sender, message) {
@@ -103,6 +151,77 @@
         chatMsg.innerHTML = `<strong>${sender}:</strong> ${message}`;
 
         chatWindow.appendChild(chatMsg);
+      }
+
+      function latestQuestionNumber() {
+        let latest = 0;
+        chatTranscript.forEach((row) => {
+          if (row.role !== "assistant") return;
+          const match = String(row.content || "").match(/Question\s+(\d+)\s*:/i);
+          if (match) latest = Math.max(latest, Number(match[1]) || 0);
+        });
+        return latest;
+      }
+
+      function lastMessageIsCompletion() {
+        const last = chatTranscript[chatTranscript.length - 1];
+        return (
+          last &&
+          last.role === "assistant" &&
+          /profile chat is complete/i.test(String(last.content || ""))
+        );
+      }
+
+      function answeredCount() {
+        const total = maxQuestions || 0;
+        if (lastMessageIsCompletion()) return total;
+
+        const latest = latestQuestionNumber();
+        if (!latest) return 0;
+
+        const last = chatTranscript[chatTranscript.length - 1];
+        const answered = last && last.role === "user" ? latest : latest - 1;
+        return Math.min(Math.max(answered, 0), total);
+      }
+
+      function nextQuestionNumber() {
+        return latestQuestionNumber() + 1 || 1;
+      }
+
+      function updateProgress() {
+        const progress = document.getElementById("questionProgress");
+        const bar = document.getElementById("questionProgressBar");
+        const subhead = document.getElementById("chatSubhead");
+        const sendButton = document.getElementById("sendBtn");
+        const saveButton = document.getElementById("saveProgressBtn");
+        const input = document.getElementById("msgInput");
+        const total = maxQuestions || 0;
+        const answered = answeredCount();
+        const remaining = Math.max(total - answered, 0);
+        const percent = total ? Math.round((answered / total) * 100) : 0;
+
+        chatComplete = total > 0 && answered >= total;
+        if (progress) {
+          progress.textContent = chatComplete
+            ? `Complete • ${answered}/${total}`
+            : `Question ${Math.min(answered + 1, total)}/${total} • ${remaining} left`;
+        }
+        if (bar) bar.style.width = `${percent}%`;
+        if (subhead) {
+          subhead.textContent = chatComplete
+            ? "Profile chat complete"
+            : `${remaining} question${remaining === 1 ? "" : "s"} remaining`;
+        }
+        if (chatComplete) {
+          if (input) {
+            input.value = "";
+            input.disabled = true;
+            input.placeholder = "This profile chat is complete.";
+          }
+          if (sendButton) sendButton.disabled = true;
+          if (saveButton) saveButton.disabled = false;
+        }
+        if (!chatComplete && saveButton) saveButton.disabled = answered <= 0;
       }
 
       async function getChatHistory() {
@@ -125,13 +244,39 @@
           else appendMessage(userName, row.content);
         });
 
-        questionNumber = Math.ceil(chatTranscript.length / 2);
+        questionNumber = nextQuestionNumber();
+        updateProgress();
 
-        document.getElementById("sendBtn").disabled = false;
+        document.getElementById("sendBtn").disabled = chatComplete;
+      }
+
+      async function saveProgress() {
+        const saveButton = document.getElementById("saveProgressBtn");
+        saveButton.disabled = true;
+        const fd = new FormData();
+        fd.append("transcript", JSON.stringify(chatTranscript));
+        fd.append("candidateName", userName);
+        fd.append("chatUrl", candidate);
+        fd.append("domain", currentDomain);
+
+        try {
+          const result = await api("/api/chat/saveProgress", {
+            method: "POST",
+            body: fd,
+          });
+          appendMessage("DevReady AI", result.recentMessage || "Progress saved to your profile.");
+          chatTranscript = result.aiTranscript || chatTranscript;
+          updateProgress();
+        } catch (error) {
+          appendMessage("DevReady AI", "Sorry, I could not save progress. Please wait a moment and try again.");
+          console.error(error);
+        } finally {
+          saveButton.disabled = answeredCount() <= 0;
+        }
       }
 
       async function sendMessage() {
-        if (isSending) return;
+        if (isSending || chatComplete) return;
         const input = document.getElementById("msgInput");
         const sendButton = document.getElementById("sendBtn");
         const userMsg = input.value.trim();
@@ -161,17 +306,19 @@
               body: fd,
             });
           } else {
-            aiResponse = await api(`/api/chat/sendChat`, {
-              method: "POST",
-              body: fd,
-            });
+            aiResponse = {
+              answered: false,
+              recentMessage:
+                "Thanks, your DevReady profile chat is complete. Our team will review the completed profile and follow up with next steps.",
+              aiTranscript: chatTranscript,
+            };
           }
-
-          if (aiResponse.answered) questionNumber++;
 
           // Add AI response and replace old transcript
           appendMessage("DevReady AI", aiResponse.recentMessage);
           chatTranscript = aiResponse.aiTranscript;
+          questionNumber = nextQuestionNumber();
+          updateProgress();
         } catch (error) {
           appendMessage(
             "DevReady AI",
@@ -180,9 +327,11 @@
           console.error(error);
         } finally {
           isSending = false;
-          input.disabled = false;
-          sendButton.disabled = false;
-          input.focus();
+          if (!chatComplete) {
+            input.disabled = false;
+            sendButton.disabled = false;
+            input.focus();
+          }
         }
       }
 
@@ -193,8 +342,12 @@
             event.preventDefault();
             await sendMessage();
           });
+        document
+          .getElementById("saveProgressBtn")
+          .addEventListener("click", saveProgress);
         getChatHistory();
       });
     </script>
   </body>
 </html>
+

@@ -1,0 +1,20 @@
+Priya Shah
+Battery Storage Construction Manager
+priya.shah.local.03@seed.buildready.example
+Reno, NV
+
+SUMMARY
+Synthetic DevReady Engineering example for Renewables. Priya Shah has client-facing experience helping Apex Grid Storage with: Lead fast-track BESS field execution and quality gates.
+
+SKILLS
+Battery Storage, Commissioning, EPC, Primavera P6, Quality controls, Safety, Subcontractor Management
+
+EXPERIENCE
+Battery Storage Construction Manager | Apex Grid Storage | 2023 - Present
+Led renewables delivery work focused on lead fast-track bess field execution and quality gates.
+
+CERTIFICATION
+AI / ML L1 - Foundations | certified | 89% | SEED-LOCAL-ENGINEER-03-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

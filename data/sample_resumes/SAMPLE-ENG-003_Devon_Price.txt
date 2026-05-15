@@ -1,0 +1,17 @@
+Devon Price
+Battery Storage Construction Manager
+devon.price.sample@buildready.example
+Phoenix, AZ
+
+SUMMARY
+Field leader for renewable energy and battery storage projects with safety, quality, schedule recovery, and vendor management strength.
+
+SKILLS
+Battery storage, Construction management, EPC, Earned value, Primavera P6, Procore, QA documentation, Quality assurance, Renewables, Schedule analytics, Site acceptance, Site safety
+
+EXPERIENCE
+Construction Manager | Apex Grid Storage | 2020-01 - Present
+Recovered schedule on a 120MW storage site by resequencing subcontractor work and tightening QA gates.
+
+NOTE
+Synthetic sample resume for VETCODE development/testing only.

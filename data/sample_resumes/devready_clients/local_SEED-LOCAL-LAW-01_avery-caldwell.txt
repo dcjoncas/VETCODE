@@ -1,0 +1,20 @@
+Avery Caldwell
+Legal Operations Manager
+avery.caldwell.local.01@seed.legalready.example
+Chicago, IL
+
+SUMMARY
+Synthetic DevReady Law example for Legal Operations. Avery Caldwell has client-facing experience helping BrightPath Legal Ops with: Clean up contract intake, approval paths, and reporting.
+
+SKILLS
+CLM, DocuSign CLM, Matter Analytics, Outside Counsel, UAT, Workflow Design
+
+EXPERIENCE
+Legal Operations Manager | BrightPath Legal Ops | 2021 - Present
+Led legal operations delivery work focused on clean up contract intake, approval paths, and reporting.
+
+CERTIFICATION
+AI / ML L2 - Foundations | certified | 87% | SEED-LOCAL-LAW-01-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

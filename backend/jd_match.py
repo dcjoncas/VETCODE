@@ -28,8 +28,15 @@ def normalize_all_skills(text: str):
     foundSkills = []
     t = _norm(text)
     allSkills = get_all_skills()
+    noisy_short_terms = {"c", "r", "j", "da", "ci", "mp", "sid", "orm", "pos", "ect", "xp"}
     for sk in allSkills:
-        if _norm(sk) in t:
+        normalized = _norm(sk)
+        if not normalized or normalized in noisy_short_terms:
+            continue
+        if len(normalized) <= 2 and normalized not in {"c#", "c++", "go"}:
+            continue
+        escaped = re.escape(normalized).replace("\\ ", r"\s+")
+        if re.search(rf"(?<![a-z0-9+#]){escaped}(?![a-z0-9+#])", t):
             foundSkills.append(sk)
     return sorted(foundSkills)
 
