@@ -380,7 +380,7 @@
     domainUpdate(activeDomain);
     initPageAgentDock();
     loadPageAgentRuntime(renderActivePageAgent);
-    $("#pageNav").load("components/sideNav.html?v=20260515-jd-nav-flow", function () {
+    $("#pageNav").load("components/sideNav.html?v=20260515-status-nav", function () {
       applyMenuAccess();
       applyDomainToLocalLinks(sessionStorage.getItem("domain") || "dev");
     });
@@ -428,6 +428,9 @@
     if (isAdministrator) {
       allowed.add("admin");
       allowed.add("agents");
+    }
+    if (allowed.has("interviews")) {
+      allowed.add("status");
     }
     document.querySelectorAll("#pageNavInner [data-menu-key]").forEach((item) => {
       const key = item.dataset.menuKey;
