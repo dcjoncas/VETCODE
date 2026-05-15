@@ -1289,6 +1289,12 @@
               record.provider || "",
               formatArchiveDate(record.scheduledStart || record.createdAt || record.archivedAt),
             ].filter(Boolean).join(" - ");
+            const dataLine = [
+              record.clientCompany || record.company || "",
+              record.clientContactName || "",
+              record.location || "",
+              record.nextAction || "",
+            ].filter(Boolean).join(" - ");
             const statusHref = `status-tracker.html?domain=${encodeURIComponent(domain)}&record=${encodeURIComponent(record.id || "")}`;
             const eventLink = record.eventLink || record.meetingLink || "";
             return `
@@ -1296,6 +1302,7 @@
                 <div>
                   <strong>${escapeHtml(label)}</strong>
                   <span>${escapeHtml(detail)}</span>
+                  ${dataLine ? `<span>${escapeHtml(dataLine)}</span>` : ""}
                 </div>
                 <div class="row-actions">
                   <a class="btn secondary" href="${statusHref}" onclick="selectArchivedInterview(${index})">History</a>

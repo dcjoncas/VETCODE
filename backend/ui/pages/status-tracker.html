@@ -266,9 +266,21 @@
           .join(" - ");
       }
 
+      function recordCompany(record) {
+        return record.clientCompany || record.company || "-";
+      }
+
+      function recordContact(record) {
+        return [
+          record.clientContactName,
+          record.clientContactEmail,
+        ].filter(Boolean).join(" - ");
+      }
+
       function renderRows() {
         const tbody = document.getElementById("trackingBody");
         tbody.innerHTML = "";
+        const domain = sessionStorage.getItem("domain") || "dev";
 
         if (!records.length) {
           tbody.innerHTML =
@@ -334,15 +346,22 @@
 
         detailList.innerHTML = `
           <dt>Candidate</dt><dd>${escapeHtml(candidateLabel(selectedRecord) || "-")}</dd>
+          <dt>Candidate ID</dt><dd>${escapeHtml(selectedRecord.candidateId || selectedRecord.profile_id || "-")}</dd>
+          <dt>Type</dt><dd>${escapeHtml(selectedRecord.interviewType || selectedRecord.readyPurpose || "-")}</dd>
           <dt>Role</dt><dd>${escapeHtml(selectedRecord.role || "-")}</dd>
-          <dt>Company</dt><dd>${escapeHtml(selectedRecord.company || "-")}</dd>
+          <dt>Company</dt><dd>${escapeHtml(recordCompany(selectedRecord))}</dd>
+          <dt>Client contact</dt><dd>${escapeHtml(recordContact(selectedRecord) || "-")}</dd>
+          <dt>Interviewer</dt><dd>${escapeHtml([selectedRecord.candidateInterviewerName, selectedRecord.candidateInterviewerEmail].filter(Boolean).join(" - ") || "-")}</dd>
           <dt>Sent / opened</dt><dd>${escapeHtml(formatDate(selectedRecord.createdAt))}</dd>
+          <dt>Archived</dt><dd>${escapeHtml(formatDate(selectedRecord.archivedAt || selectedRecord.updatedAt))}</dd>
           <dt>Provider</dt><dd>${escapeHtml(selectedRecord.provider || "-")}</dd>
           <dt>Status</dt><dd>${escapeHtml(selectedRecord.status || "Recorded")}</dd>
           <dt>When</dt><dd>${escapeHtml(formatDate(selectedRecord.scheduledStart || selectedRecord.windowStart))}</dd>
+          <dt>Ends</dt><dd>${escapeHtml(formatDate(selectedRecord.scheduledEnd || selectedRecord.windowEnd))}</dd>
           <dt>Where</dt><dd>${escapeHtml(selectedRecord.location || link || "-")}</dd>
           <dt>To</dt><dd>${escapeHtml(people.join(", ") || "-")}</dd>
           <dt>Next action</dt><dd>${escapeHtml(selectedRecord.nextAction || "Follow up")}</dd>
+          ${link ? `<dt>Event link</dt><dd><a href="${escapeHtml(link)}" target="_blank" rel="noopener">${escapeHtml(link)}</a></dd>` : ""}
           ${selectedRecord.onboardingLink ? `<dt>Onboarding</dt><dd><a href="${escapeHtml(selectedRecord.onboardingLink)}" target="_blank" rel="noopener">${escapeHtml(selectedRecord.onboardingLink)}</a></dd>` : ""}
           ${selectedRecord.timeEntryLink ? `<dt>Time entry</dt><dd><a href="${escapeHtml(selectedRecord.timeEntryLink)}" target="_blank" rel="noopener">${escapeHtml(selectedRecord.timeEntryLink)}</a></dd>` : ""}
         `;
