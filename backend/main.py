@@ -19,16 +19,18 @@ def top_matches_from_parts(parts: dict, limit: int = 8):
     return out
 
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Header
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
-import os, shutil, traceback, json, base64, hashlib, hmac
+import os, shutil, traceback, json, base64, hashlib, hmac, re
+import requests
 from typing import Optional
 from datetime import datetime, timedelta
 from openAI import pageAgents
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DEVMEET_BASE_URL = os.getenv("DEVMEET_BASE_URL", "https://web-production-268c2.up.railway.app").rstrip("/")
 
 # --- v2.5.0 helpers: scorecard + interview questions ---
 VERTICAL_KEYWORDS = {
@@ -281,6 +283,118 @@ def _domain_db_items(domain: str = "dev"):
     if key == "all":
         return list(DOMAIN_DB_PATHS.items())
     return [(key, DOMAIN_DB_PATHS.get(key, DOMAIN_DB_PATHS["dev"]))]
+
+
+def _devmeet_theme(domain: str = "dev") -> dict:
+    key = _domain_key(domain)
+    themes = {
+        "dev": {
+            "primary": "#7fbf3f",
+            "primary_2": "#2f7d4b",
+            "primary_3": "#eef8e8",
+            "primary_rgb": "127, 191, 63",
+            "on_primary": "#101722",
+        },
+        "engineer": {
+            "primary": "#2f80ed",
+            "primary_2": "#145db2",
+            "primary_3": "#e8f2ff",
+            "primary_rgb": "47, 128, 237",
+            "on_primary": "#ffffff",
+        },
+        "law": {
+            "primary": "#a06b39",
+            "primary_2": "#754f2b",
+            "primary_3": "#fbf4ea",
+            "primary_rgb": "160, 107, 57",
+            "on_primary": "#ffffff",
+        },
+    }
+    return themes.get(key, themes["dev"])
+
+
+def _devmeet_theme_css(domain: str = "dev") -> str:
+    theme = _devmeet_theme(domain)
+    return f"""
+      :root {{
+        --green: {theme["primary"]};
+        --green-dark: {theme["primary_2"]};
+        --blue: {theme["primary"]};
+        --meet-primary: {theme["primary"]};
+        --meet-primary-2: {theme["primary_2"]};
+        --meet-primary-3: {theme["primary_3"]};
+        --meet-primary-rgb: {theme["primary_rgb"]};
+        --meet-on-primary: {theme["on_primary"]};
+      }}
+      .hero-band {{
+        background: linear-gradient(135deg, #ffffff 0%, #f5f8fa 58%, rgba(var(--meet-primary-rgb), 0.1) 100%) !important;
+      }}
+      .eyebrow,
+      .hero-metrics strong,
+      .empty-state span,
+      .meeting-receipt > span,
+      .receipt-grid strong,
+      .processing-state span:first-child {{
+        color: var(--meet-primary-2) !important;
+      }}
+      .step-strip span {{
+        border-color: rgba(var(--meet-primary-rgb), 0.3) !important;
+        color: var(--meet-primary-2) !important;
+        background: rgba(var(--meet-primary-rgb), 0.09) !important;
+      }}
+      .step-strip span.current-step {{
+        border-color: var(--meet-primary) !important;
+        color: var(--meet-primary-2) !important;
+        background: rgba(var(--meet-primary-rgb), 0.2) !important;
+        box-shadow: 0 0 0 3px rgba(var(--meet-primary-rgb), 0.1) !important;
+      }}
+      input:focus,
+      select:focus,
+      textarea:focus {{
+        outline-color: rgba(var(--meet-primary-rgb), 0.18) !important;
+        border-color: var(--meet-primary) !important;
+      }}
+      .record-button,
+      .generate-all-action {{
+        background: var(--meet-primary) !important;
+        color: var(--meet-on-primary) !important;
+      }}
+      .record-button:hover:not(:disabled),
+      .generate-all-action:hover:not(:disabled) {{
+        background: var(--meet-primary-2) !important;
+        color: #fff !important;
+      }}
+      .saved-item-transcript {{
+        background: rgba(var(--meet-primary-rgb), 0.08) !important;
+        border-left-color: var(--meet-primary) !important;
+      }}
+      .saved-item-transcript:hover {{
+        background: rgba(var(--meet-primary-rgb), 0.13) !important;
+      }}
+      .result-doc h2 {{
+        border-left-color: var(--meet-primary) !important;
+      }}
+      .meeting-receipt {{
+        background: linear-gradient(180deg, #ffffff, var(--meet-primary-3)) !important;
+      }}
+      .meeting-receipt > span {{
+        border-color: rgba(var(--meet-primary-rgb), 0.3) !important;
+        background: rgba(var(--meet-primary-rgb), 0.1) !important;
+      }}
+      .progress-fill {{
+        background: linear-gradient(90deg, var(--meet-primary), var(--meet-primary-2)) !important;
+      }}
+    """
+
+
+def _devmeet_rewrite_html(html: str, css: str, domain: str = "dev") -> str:
+    themed_css = css + "\n" + _devmeet_theme_css(domain)
+    html = html.replace(
+        '<link rel="stylesheet" href="/static/styles.css" />',
+        f"<style>{themed_css}</style>",
+    )
+    html = re.sub(r'(["\'`])/api/(?!devmeet/proxy/api/)', r'\1/api/devmeet/proxy/api/', html)
+    return html
 
 
 def _profile_db_path(profile_id: str, domain: str = "") -> str:
@@ -677,6 +791,64 @@ for _db_path in DOMAIN_DB_PATHS.values():
     storage.init_db(_db_path)
 
 app.mount("/ui", StaticFiles(directory="ui", html=True), name="ui")
+
+
+@app.get("/api/devmeet/frame", response_class=HTMLResponse)
+def devmeet_frame(domain: str = "dev"):
+    try:
+        html_response = requests.get(f"{DEVMEET_BASE_URL}/", timeout=20)
+        html_response.raise_for_status()
+        css_response = requests.get(f"{DEVMEET_BASE_URL}/static/styles.css", timeout=20)
+        css_response.raise_for_status()
+        html = _devmeet_rewrite_html(html_response.text, css_response.text, domain)
+        return HTMLResponse(html)
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(status_code=502, detail=f"DevMeet frame could not be loaded: {exc}")
+
+
+@app.api_route(
+    "/api/devmeet/proxy/{path:path}",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+)
+async def devmeet_proxy(path: str, request: Request):
+    target = f"{DEVMEET_BASE_URL}/{path.lstrip('/')}"
+    excluded_headers = {
+        "host",
+        "content-length",
+        "connection",
+        "accept-encoding",
+        "origin",
+        "referer",
+    }
+    headers = {
+        key: value
+        for key, value in request.headers.items()
+        if key.lower() not in excluded_headers
+    }
+    try:
+        proxied = requests.request(
+            request.method,
+            target,
+            params=list(request.query_params.multi_items()),
+            data=await request.body(),
+            headers=headers,
+            timeout=120,
+        )
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(status_code=502, detail=f"DevMeet request failed: {exc}")
+
+    response_headers = {}
+    for header in ("content-disposition", "cache-control"):
+        if header in proxied.headers:
+            response_headers[header] = proxied.headers[header]
+    return Response(
+        content=proxied.content,
+        status_code=proxied.status_code,
+        media_type=proxied.headers.get("content-type"),
+        headers=response_headers,
+    )
 
 
 @app.get("/api/debug/dbinfo")

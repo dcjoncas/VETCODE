@@ -306,13 +306,13 @@
     </div>
 
     <script>
-      const meetBaseUrl = "https://web-production-268c2.up.railway.app/";
+      const meetBaseUrl = "/api/devmeet/frame";
       const meetFrame = document.getElementById("meetFrame");
       const meetStatus = document.getElementById("meetStatus");
       const refreshMeetBtn = document.getElementById("refreshMeetBtn");
       const openCrmBtn = document.getElementById("openCrmBtn");
       const meetFolderStatus = document.getElementById("meetFolderStatus");
-      const meetOrigin = new URL(meetBaseUrl).origin;
+      const meetOrigin = "https://web-production-268c2.up.railway.app";
       const domainMeetTheme = {
         dev: { primary: "#7fbf3f", primary2: "#2f7d4b", primaryRgb: "127, 191, 63" },
         engineer: { primary: "#2f80ed", primary2: "#145db2", primaryRgb: "47, 128, 237" },
@@ -320,7 +320,7 @@
       };
 
       function buildMeetUrl() {
-        const meetUrl = new URL(meetBaseUrl);
+        const meetUrl = new URL(meetBaseUrl, window.location.origin);
         const computed = getComputedStyle(document.documentElement);
         const domain = currentDomain();
         const fallback = domainMeetTheme[domain] || domainMeetTheme.dev;
@@ -333,6 +333,7 @@
         meetUrl.searchParams.set("primary", primary);
         meetUrl.searchParams.set("primary2", primary2);
         meetUrl.searchParams.set("primaryRgb", primaryRgb);
+        meetUrl.searchParams.set("v", "20260515-domain-theme");
         return meetUrl.href;
       }
 
@@ -428,7 +429,7 @@
       });
 
       window.addEventListener("message", (event) => {
-        if (event.origin !== meetOrigin) return;
+        if (![meetOrigin, window.location.origin].includes(event.origin)) return;
         const data = event.data || {};
         if (data.type !== "devready-crm") return;
         saveCrmRecordFromMeet(data);
