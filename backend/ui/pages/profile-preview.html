@@ -936,6 +936,26 @@
             sessionStorage.setItem("candidateEmail", loadedProfile.email);
           }
           sessionStorage.setItem("candidateId", candidateId);
+          window.DevReadyPageContext = {
+            type: "profile-preview",
+            candidateId,
+            candidateName: loadedName || sessionStorage.getItem("candidateName") || "",
+            candidateEmail: loadedProfile.email || sessionStorage.getItem("candidateEmail") || "",
+            domain: profileData.domain || sessionStorage.getItem("domain") || "dev",
+            title: loadedProfile.title || "",
+            location: [loadedProfile.city, loadedProfile.state, loadedProfile.country].filter(Boolean).join(", "),
+            description: loadedProfile.description || "",
+            topSkills: Array.isArray(profileData.skills)
+              ? profileData.skills
+                  .slice()
+                  .sort((a, b) => (b.years || 0) - (a.years || 0))
+                  .slice(0, 12)
+                  .map((skill) => ({ skill: skill.skill, years: skill.years }))
+              : [],
+            features: Array.isArray(profileData.features)
+              ? profileData.features.slice(0, 8).map((feature) => ({ title: feature.title, level: feature.level }))
+              : [],
+          };
           if (typeof updateCandidate === "function") updateCandidate();
           prefillProfileTimePanel(profileData);
           if (profileData.domain) {

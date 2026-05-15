@@ -196,10 +196,12 @@ def _context_summary(context: dict[str, Any]) -> str:
         "page": context.get("page"),
         "candidateId": context.get("candidateId"),
         "candidateName": context.get("candidateName"),
+        "candidateEmail": context.get("candidateEmail"),
         "jobId": context.get("jobId") or context.get("jobID"),
         "jobTitle": context.get("jobTitle"),
         "shortlistCount": context.get("shortlistCount"),
         "activeUrl": context.get("activeUrl"),
+        "pageSnapshot": context.get("pageSnapshot"),
     }
     return json.dumps({k: v for k, v in visible.items() if v not in (None, "")}, indent=2)
 

@@ -302,9 +302,93 @@
     return agent;
   }
 
+  function clippedText(value, limit = 700) {
+    const text = String(value || "").replace(/\s+/g, " ").trim();
+    return text.length > limit ? `${text.slice(0, limit - 1)}...` : text;
+  }
+
+  function textOf(selector, limit = 700) {
+    const element = document.querySelector(selector);
+    return clippedText(element?.innerText || element?.textContent || "", limit);
+  }
+
+  function valueOf(selector, limit = 240) {
+    const element = document.querySelector(selector);
+    return clippedText(element?.value || element?.innerText || element?.textContent || "", limit);
+  }
+
+  function collectTexts(selector, limit = 12) {
+    return Array.from(document.querySelectorAll(selector))
+      .map((element) => clippedText(element.getAttribute("title") || element.innerText || element.textContent || "", 160))
+      .filter(Boolean)
+      .slice(0, limit);
+  }
+
+  function selectedCandidateName() {
+    return clippedText(
+      sessionStorage.getItem("candidateName") ||
+        textOf("#profileHeader", 160) ||
+        valueOf("#profileTimeName", 160) ||
+        valueOf("#timePersonName", 160) ||
+        valueOf('input[name="person_name"]', 160) ||
+        "",
+      180,
+    );
+  }
+
+  function selectedCandidateEmail() {
+    return clippedText(
+      sessionStorage.getItem("candidateEmail") ||
+        valueOf("#profileTimeEmail", 180) ||
+        valueOf("#timePersonEmail", 180) ||
+        valueOf('input[name="email"]', 180) ||
+        "",
+      220,
+    );
+  }
+
+  function currentPageSnapshot() {
+    const processText = textOf(".process-flow, #processFlow, .breadcrumb", 900);
+    const snapshot = {
+      pageFile: pageName(),
+      visibleTitle: textOf("#pageTitle, .page-title, h1", 220),
+      processFlow: processText,
+    };
+
+    if (pageName() === "profile-preview" || pageName() === "profile-preview-edit") {
+      snapshot.profile = {
+        name: textOf("#profileHeader", 180),
+        profileId: textOf("#profileIdChip", 120),
+        title: textOf("#candidateJobTitle", 180) || valueOf("#timeRoleTitle", 180),
+        location: clippedText(
+          [textOf("#candidateCity", 80), textOf("#candidateState", 80), textOf("#candidateCountry", 80)]
+            .filter(Boolean)
+            .join(" "),
+          220,
+        ),
+        aboutHeading: textOf("#descriptionHeader", 180),
+        about: textOf("#descriptionText", 1100),
+        topMatches: collectTexts("#topMatches .pill, #featureSkillDiv .pill", 12),
+        skills: collectTexts(".chartPill, .skill-pill, #skills .pill", 24),
+        timePanel: {
+          personName: valueOf('#profileTimeName, #profileTimePanel input[name="person_name"], #timePersonName, input[placeholder*="Person" i]', 180),
+          email: valueOf('#profileTimeEmail, #profileTimePanel input[name="email"], #timePersonEmail, input[type="email"]', 180),
+          roleTitle: valueOf('#profileTimeTitle, #profileTimePanel input[name="role_title"], #timeRoleTitle', 180),
+        },
+      };
+    }
+
+    if (window.DevReadyPageContext && typeof window.DevReadyPageContext === "object") {
+      snapshot.pageData = window.DevReadyPageContext;
+    }
+
+    return snapshot;
+  }
+
   function agentContext() {
     let shortlistCount = 0;
     const agent = activeAgent();
+    const pageSnapshot = currentPageSnapshot();
     try {
       const shortlist = JSON.parse(sessionStorage.getItem("shortlistProfiles") || sessionStorage.getItem("shortlist") || "[]");
       shortlistCount = Array.isArray(shortlist) ? shortlist.length : 0;
@@ -331,11 +415,12 @@
         email: currentUser().email || "",
       },
       candidateId: sessionStorage.getItem("candidateId") || sessionStorage.getItem("selectedProfileId") || "",
-      candidateName: sessionStorage.getItem("candidateName") || "",
-      candidateEmail: sessionStorage.getItem("candidateEmail") || "",
+      candidateName: selectedCandidateName(),
+      candidateEmail: selectedCandidateEmail(),
       jobId: sessionStorage.getItem("jobId") || sessionStorage.getItem("jobID") || sessionStorage.getItem("selectedJdId") || "",
       jobTitle: sessionStorage.getItem("jobTitle") || "",
       shortlistCount,
+      pageSnapshot,
     };
   }
 
