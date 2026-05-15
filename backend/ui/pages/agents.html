@@ -24,10 +24,10 @@
       })();
     </script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <script src="JS/pageAgents.js?v=20260515-agent-workflows"></script>
+    <script src="JS/pageAgents.js?v=20260515-agent-prompt-editor"></script>
     <style>
       .agent-hero {
-        display: grid;
+        display: none;
         grid-template-columns: minmax(0, 1fr) minmax(280px, 0.72fr);
         gap: 14px;
         align-items: stretch;
@@ -298,6 +298,28 @@
         line-height: 1.45;
       }
 
+      .agent-prompt-editor {
+        display: none;
+        gap: 8px;
+      }
+
+      .agent-prompt-editor.open {
+        display: grid;
+      }
+
+      .agent-prompt-editor textarea {
+        min-height: 260px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fff;
+        color: #1f2937;
+        font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+        line-height: 1.45;
+        resize: vertical;
+      }
+
       .agent-create-panel {
         display: none;
         margin-bottom: 14px;
@@ -397,6 +419,7 @@
           renderAgents();
           renderNumaChangeMode();
           bindCreateAgentForm();
+          renderAllAgentsToggle();
         });
       });
 
@@ -558,7 +581,26 @@
           })
           .join("");
         renderAgentStatus(active);
+        renderAllAgentsToggle();
         selectAgent(active?.key || "profile", false);
+      }
+
+      function allAgentsEnabled() {
+        return window.DevReadyPageAgents.allAgents().every((agent) => window.DevReadyPageAgents.enabled(agent.key));
+      }
+
+      function renderAllAgentsToggle() {
+        const button = document.getElementById("allAgentsToggleBtn");
+        if (!button) return;
+        const allOn = allAgentsEnabled();
+        button.textContent = allOn ? "Turn Off All Agents" : "Turn On All Agents";
+        button.classList.toggle("agent-toggle-off", allOn);
+      }
+
+      function toggleAllAgents() {
+        const turnOn = !allAgentsEnabled();
+        window.DevReadyPageAgents.setAllEnabled(turnOn);
+        renderAgents();
       }
 
       function toggleAgentAvailability(key) {
@@ -614,10 +656,10 @@
         const status = document.getElementById("agentChangeModeStatus");
         if (!button || !status) return;
         button.disabled = !allowed;
-        button.textContent = enabled ? "Turn Off Admin Updates" : "Turn On Admin Updates";
+        button.textContent = enabled ? "Turn Off Numa Changes" : "Allow Numa Changes";
         status.textContent = allowed
-          ? `Allows Numa to propose controlled record updates. Currently ${enabled ? "on" : "off"}.`
-          : "Admin updates require Administrator unlock or Super user role.";
+          ? `Controlled app changes are ${enabled ? "on" : "off"}.`
+          : "Numa changes require Administrator unlock or Super user role.";
       }
 
       function toggleAgentChangeMode() {
@@ -632,6 +674,7 @@
 
       function selectAgent(key, shouldScroll = true) {
         const agent = window.DevReadyPageAgents.allAgents().find((item) => item.key === key) || window.DevReadyPageAgents.allAgents()[0];
+        window.selectedAgentKey = agent.key;
         const detailBall = document.getElementById("detailBall");
         detailBall.style.setProperty("--agent-color", window.DevReadyPageAgents.domainColor());
         detailBall.innerHTML = window.DevReadyPageAgents.icon(agent.key);
@@ -640,14 +683,66 @@
         document.getElementById("detailSpecialty").textContent = agent.specialty;
         document.getElementById("detailCanDo").innerHTML = agent.canDo.map((item) => `<li>${escapeAgent(item)}</li>`).join("");
         document.getElementById("detailPrompt").textContent = agent.prompt;
+        document.getElementById("detailPromptEditor").value = agent.prompt;
+        document.getElementById("promptEditStatus").textContent = agent.promptEdited
+          ? "Custom system instructions are active for this agent."
+          : "Default system instructions are active for this agent.";
+        lockPromptEditor();
         document.getElementById("detailOpen").href = window.DevReadyPageAgents.withDomain(agent.href);
-        document.getElementById("detailHeading").textContent = `${agent.page} agent details`;
+        document.getElementById("detailHeading").textContent = `${agent.page} Numa settings`;
         const detailToggle = document.getElementById("detailActivate");
         const enabled = window.DevReadyPageAgents.enabled(agent.key);
         detailToggle.textContent = enabled ? "Turn Off" : "Turn On";
         detailToggle.classList.toggle("agent-toggle-off", !enabled);
         detailToggle.onclick = () => toggleAgentAvailability(agent.key);
         if (shouldScroll) document.getElementById("agentDetail").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function promptPasswordUnlocked() {
+        return sessionStorage.getItem("devreadyAgentPromptEditorUnlocked") === "1";
+      }
+
+      function lockPromptEditor() {
+        const editor = document.getElementById("promptEditorWrap");
+        const display = document.getElementById("detailPrompt");
+        const unlock = document.getElementById("promptUnlockRow");
+        if (!editor || !display || !unlock) return;
+        const unlocked = promptPasswordUnlocked();
+        editor.classList.toggle("open", unlocked);
+        display.style.display = unlocked ? "none" : "block";
+        unlock.style.display = unlocked ? "none" : "flex";
+      }
+
+      function unlockPromptEditor() {
+        const input = document.getElementById("promptPasswordInput");
+        const status = document.getElementById("promptEditStatus");
+        if (input.value === "Blue12345##") {
+          sessionStorage.setItem("devreadyAgentPromptEditorUnlocked", "1");
+          input.value = "";
+          status.textContent = "Prompt editor unlocked. Select an agent, edit the instructions, then save.";
+          lockPromptEditor();
+          return;
+        }
+        status.textContent = "Wrong password. Prompt editing is still locked.";
+      }
+
+      function saveSelectedAgentPrompt() {
+        const key = window.selectedAgentKey;
+        if (!key || !promptPasswordUnlocked()) return;
+        const prompt = document.getElementById("detailPromptEditor").value;
+        window.DevReadyPageAgents.updatePrompt(key, prompt);
+        renderAgents();
+        selectAgent(key, false);
+        document.getElementById("promptEditStatus").textContent = "System instructions saved for this Numa agent.";
+      }
+
+      function resetSelectedAgentPrompt() {
+        const key = window.selectedAgentKey;
+        if (!key || !promptPasswordUnlocked()) return;
+        window.DevReadyPageAgents.resetPrompt(key);
+        renderAgents();
+        selectAgent(key, false);
+        document.getElementById("promptEditStatus").textContent = "System instructions reset to the default prompt.";
       }
 
       function toggleCreateAgent() {
@@ -692,8 +787,9 @@
           <div class="agent-top-controls">
             <div class="row-actions" style="margin-top: 7px; justify-content: flex-end">
               <button class="btn" type="button" onclick="toggleCreateAgent()">Create New Agent</button>
-              <button id="agentChangeModeBtn" class="btn secondary" type="button" onclick="toggleAgentChangeMode()">Turn On Admin Updates</button>
-              <span id="agentChangeModeStatus" class="muted">Admin updates are off.</span>
+              <button id="allAgentsToggleBtn" class="btn secondary" type="button" onclick="toggleAllAgents()">Turn On All Agents</button>
+              <button id="agentChangeModeBtn" class="btn secondary" type="button" onclick="toggleAgentChangeMode()">Allow Numa Changes</button>
+              <span id="agentChangeModeStatus" class="muted">Controlled app changes are off.</span>
             </div>
           </div>
         </div>
@@ -753,9 +849,9 @@
         <section id="agentGrid" class="agent-grid" aria-label="Page agents"></section>
 
         <section id="agentDetail" class="card" style="margin-top: 14px">
-          <h2 id="detailHeading" style="margin-top: 0">Selected agent details</h2>
+          <h2 id="detailHeading" style="margin-top: 0">Selected Numa settings</h2>
           <p class="muted">
-            This is the selected agent detail view, not a second copy. Use it to review the focus, actions, and prompt behind the card above.
+            Select an agent above to review its focus and prompt. Each card has its own on/off control; prompt edits are password locked.
           </p>
           <div class="agent-detail-layout">
             <div>
@@ -776,8 +872,20 @@
               </div>
             </div>
             <div>
-              <h2 style="margin-top: 0">Prompt Structure</h2>
+              <h2 style="margin-top: 0">System Instructions</h2>
               <div id="detailPrompt" class="agent-prompt"></div>
+              <div id="promptEditorWrap" class="agent-prompt-editor">
+                <textarea id="detailPromptEditor" aria-label="Numa system instructions"></textarea>
+                <div class="row-actions" style="margin-top: 0">
+                  <button class="btn" type="button" onclick="saveSelectedAgentPrompt()">Save Instructions</button>
+                  <button class="btn secondary" type="button" onclick="resetSelectedAgentPrompt()">Reset Default</button>
+                </div>
+              </div>
+              <div id="promptUnlockRow" class="row-actions" style="margin-top: 10px">
+                <input id="promptPasswordInput" type="password" placeholder="Prompt editor password" style="max-width: 260px" />
+                <button class="btn secondary" type="button" onclick="unlockPromptEditor()">Unlock Prompt Editor</button>
+              </div>
+              <div id="promptEditStatus" class="muted" style="margin-top: 8px"></div>
             </div>
           </div>
         </section>

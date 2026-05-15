@@ -144,6 +144,7 @@
 
   const CUSTOM_AGENTS_KEY = "devreadyCustomPageAgents";
   const DISABLED_AGENTS_KEY = "devreadyDisabledPageAgents";
+  const PROMPT_OVERRIDES_KEY = "devreadyAgentPromptOverrides";
 
   function readJson(key, fallback) {
     try {
@@ -189,12 +190,17 @@
 
   function allAgents() {
     const custom = loadCustomAgents();
+    const prompts = agentPromptOverrides();
     const seen = new Set();
     return [...agents, ...custom].filter((agent) => {
       if (seen.has(agent.key)) return false;
       seen.add(agent.key);
       return true;
-    });
+    }).map((agent) => ({
+      ...agent,
+      prompt: prompts[agent.key] || agent.prompt,
+      promptEdited: Boolean(prompts[agent.key]),
+    }));
   }
 
   function disabledAgents() {
@@ -213,6 +219,35 @@
     else disabled.add(normalizedKey);
     writeJson(DISABLED_AGENTS_KEY, Array.from(disabled));
     window.dispatchEvent(new CustomEvent("devready-agent-activation-changed", { detail: { key: normalizedKey, enabled } }));
+    renderWidgetAgent();
+  }
+
+  function setAllAgentsEnabled(enabled) {
+    writeJson(DISABLED_AGENTS_KEY, enabled ? [] : allAgents().map((agent) => agent.key));
+    window.dispatchEvent(new CustomEvent("devready-agent-activation-changed", { detail: { all: true, enabled } }));
+    renderWidgetAgent();
+  }
+
+  function agentPromptOverrides() {
+    const value = readJson(PROMPT_OVERRIDES_KEY, {});
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  }
+
+  function updateAgentPrompt(key, prompt) {
+    const normalizedKey = String(key || "").trim();
+    const prompts = agentPromptOverrides();
+    prompts[normalizedKey] = String(prompt || "").trim();
+    writeJson(PROMPT_OVERRIDES_KEY, prompts);
+    window.dispatchEvent(new CustomEvent("devready-agent-prompt-updated", { detail: { key: normalizedKey } }));
+    renderWidgetAgent();
+  }
+
+  function resetAgentPrompt(key) {
+    const normalizedKey = String(key || "").trim();
+    const prompts = agentPromptOverrides();
+    delete prompts[normalizedKey];
+    writeJson(PROMPT_OVERRIDES_KEY, prompts);
+    window.dispatchEvent(new CustomEvent("devready-agent-prompt-updated", { detail: { key: normalizedKey } }));
     renderWidgetAgent();
   }
 
@@ -461,6 +496,7 @@
             canDo: agent.canDo,
             prompt: agent.prompt,
             custom: Boolean(agent.custom),
+            promptEdited: Boolean(agent.promptEdited),
           }
         : null,
       user: {
@@ -785,7 +821,10 @@
     activate: setActiveAgent,
     enabled: isAgentEnabled,
     setEnabled: setAgentEnabled,
+    setAllEnabled: setAllAgentsEnabled,
     create: createCustomAgent,
+    updatePrompt: updateAgentPrompt,
+    resetPrompt: resetAgentPrompt,
     context: agentContext,
     mountWidget,
     domainColor,

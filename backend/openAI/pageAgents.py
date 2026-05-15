@@ -154,12 +154,19 @@ def _custom_agent_from_context(agent_key: str, context: dict[str, Any] | None = 
     if not isinstance(context, dict):
         return None
     agent = context.get("activeAgent")
-    if not isinstance(agent, dict) or not agent.get("custom"):
+    if not isinstance(agent, dict):
         return None
     clean_key = (agent_key or "").strip().lower()
     custom_key = str(agent.get("key") or "").strip().lower()
     if not clean_key or clean_key != custom_key:
         return None
+    if not agent.get("custom"):
+        edited_prompt = str(agent.get("prompt") or "").strip()
+        if not edited_prompt or not agent.get("promptEdited"):
+            return None
+        base = (AGENTS.get(clean_key) or AGENTS["talent"]).copy()
+        base["prompt"] = edited_prompt
+        return base
     page = str(agent.get("page") or "Custom").strip() or "Custom"
     specialty = str(agent.get("specialty") or "Custom workflow guidance.").strip() or "Custom workflow guidance."
     prompt = str(agent.get("prompt") or "").strip()
