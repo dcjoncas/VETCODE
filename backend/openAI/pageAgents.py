@@ -250,6 +250,103 @@ def _redact_sensitive_answer(answer: str, context: dict[str, Any]) -> str:
     return redacted
 
 
+def _json_from_model_text(text: str) -> dict[str, Any]:
+    try:
+        return json.loads(text or "{}")
+    except Exception:
+        match = re.search(r"\{.*\}", text or "", re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(0))
+            except Exception:
+                return {}
+    return {}
+
+
+def _plan_actions(client, agent_key: str, message: str, context: dict[str, Any], agent: dict[str, Any]) -> list[dict[str, Any]]:
+    if not _numa_policy(context)["can_request_changes"]:
+        return []
+
+    intent_words = {
+        "create",
+        "make",
+        "add",
+        "update",
+        "save",
+        "record",
+        "change",
+        "attach",
+        "set",
+    }
+    clean_message = (message or "").strip()
+    if not any(word in clean_message.lower() for word in intent_words):
+        return []
+
+    schema = """
+Return strict JSON:
+{
+  "actions": [
+    {
+      "type": "create_profile" | "update_profile_core",
+      "label": "short button label",
+      "summary": "one sentence explaining the exact change",
+      "payload": {
+        "profile_id": "existing profile id for updates only",
+        "full_name": "candidate full name for create",
+        "first_name": "optional for update",
+        "last_name": "optional for update",
+        "email": "optional",
+        "title": "optional role/title",
+        "city": "optional",
+        "state": "optional",
+        "country": "optional",
+        "description": "optional profile about/notes",
+        "skills": [{"title": "Python", "years": 5}]
+      }
+    }
+  ]
+}
+Only propose an action when the user clearly asks Numa to create, save, add, or update profile information.
+Use create_profile for a brand new candidate profile.
+Use update_profile_core when the page/context has an existing candidate/profile id and the user is adding or changing profile facts.
+Do not propose actions for questions, analysis, ranking, salary, deal value, code changes, deletes, or uncertain instructions.
+Keep profile descriptions factual. Do not invent facts beyond the user's message or current app context.
+"""
+    response = client.chat.completions.create(
+        model=os.getenv("OPENAI_AGENT_MODEL", "gpt-4o-mini"),
+        temperature=0,
+        max_tokens=700,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": f"You are planning safe VETCODE actions for {agent['page']} Agent."},
+            {"role": "system", "content": schema},
+            {"role": "system", "content": _policy_text(agent_key, context)},
+            {"role": "system", "content": f"Current app context:\n{_context_summary(context)}"},
+            {"role": "user", "content": clean_message[:4000]},
+        ],
+        timeout=30,
+    )
+    parsed = _json_from_model_text(response.choices[0].message.content)
+    actions = parsed.get("actions") if isinstance(parsed, dict) else []
+    clean_actions = []
+    for action in actions if isinstance(actions, list) else []:
+        if not isinstance(action, dict):
+            continue
+        action_type = action.get("type")
+        if action_type not in {"create_profile", "update_profile_core"}:
+            continue
+        payload = action.get("payload") if isinstance(action.get("payload"), dict) else {}
+        clean_actions.append(
+            {
+                "type": action_type,
+                "label": str(action.get("label") or ("Create profile" if action_type == "create_profile" else "Update profile"))[:80],
+                "summary": str(action.get("summary") or "")[:500],
+                "payload": payload,
+            }
+        )
+    return clean_actions[:2]
+
+
 def ask_page_agent(agent_key: str, message: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
     context = context or {}
     agent = get_agent(agent_key, context)
@@ -262,6 +359,7 @@ def ask_page_agent(agent_key: str, message: str, context: dict[str, Any] | None 
             "ok": True,
             "agent": agent,
             "access": _numa_policy(context),
+            "actions": [],
             "answer": (
                 f"{agent['name']} is ready. I can help with {agent['page']} using the active "
                 "candidate, job, and domain context. Add OPENAI_API_KEY to enable live model answers."
@@ -280,7 +378,9 @@ def ask_page_agent(agent_key: str, message: str, context: dict[str, Any] | None 
                     "role": "system",
                     "content": (
                         "You are inside VETCODE. Other page agents exist and can be referenced by specialty. "
-                        "Give direct, app-specific guidance. If an update requires a button or page action, name it."
+                        "Give direct, app-specific guidance. If the user asks to create, save, add, or update app data, "
+                        "explain that Numa can prepare a controlled action for confirmation when Admin Updates is on. "
+                        "Never claim a record was changed until an action result confirms it."
                     ),
                 },
                 {"role": "system", "content": _policy_text(agent_key, context)},
@@ -289,17 +389,25 @@ def ask_page_agent(agent_key: str, message: str, context: dict[str, Any] | None 
             ],
             timeout=30,
         )
+        answer = _redact_sensitive_answer(response.choices[0].message.content.strip(), context)
+        actions = []
+        try:
+            actions = _plan_actions(client, agent_key, clean_message, context, agent)
+        except Exception:
+            actions = []
         return {
             "ok": True,
             "agent": agent,
             "access": _numa_policy(context),
-            "answer": _redact_sensitive_answer(response.choices[0].message.content.strip(), context),
+            "actions": actions,
+            "answer": answer,
         }
     except Exception as exc:
         return {
             "ok": False,
             "agent": agent,
             "access": _numa_policy(context),
+            "actions": [],
             "answer": (
                 f"{agent['name']} is connected to the shared OpenAI client, but the model request did not complete: {exc}"
             ),

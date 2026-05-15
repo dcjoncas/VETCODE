@@ -500,6 +500,10 @@
       .agent-msg{max-width:88%;border-radius:12px;padding:9px 10px;background:#fff;border:1px solid var(--line,#dfe7e2);font-size:13px;line-height:1.35;white-space:pre-wrap}.agent-msg.user{justify-self:end;color:#fff;background:var(--primary-2,#2f7d4b);border-color:transparent}
       .agent-chat-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:10px;border-top:1px solid var(--line,#dfe7e2)}
       .agent-chat-form input{min-height:38px;border:1px solid var(--line,#dfe7e2);border-radius:999px;padding:8px 11px;font:inherit}
+      .agent-action-card{justify-self:stretch;max-width:100%;border-color:color-mix(in srgb,var(--primary-2,#2f7d4b),transparent 62%);background:#fff}
+      .agent-action-card strong{display:block;margin-bottom:4px;font-size:13px}.agent-action-card span{display:block;color:var(--muted,#5b6b62);font-size:12px}
+      .agent-action-card button{margin-top:9px;min-height:34px;border:1px solid color-mix(in srgb,var(--primary-2,#2f7d4b),transparent 62%);border-radius:999px;background:#fff;color:var(--primary-2,#2f7d4b);font-weight:900;cursor:pointer}
+      .agent-action-card button:disabled{opacity:.62;cursor:not-allowed}
     `;
     document.head.appendChild(style);
   }
@@ -523,6 +527,70 @@
     } else {
       appendWidgetMessage(text, "assistant");
     }
+  }
+
+  function appendWidgetActionCards(actions = []) {
+    const log = document.getElementById("agentChatLog");
+    if (!log || !Array.isArray(actions) || !actions.length) return;
+    actions.forEach((action) => {
+      const card = document.createElement("div");
+      card.className = "agent-msg agent-action-card";
+      const title = document.createElement("strong");
+      title.textContent = action.label || "Apply Numa action";
+      const summary = document.createElement("span");
+      summary.textContent = action.summary || "Numa can run this controlled update.";
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = action.type === "create_profile" ? "Create Profile" : "Apply Update";
+      button.addEventListener("click", () => executeWidgetAction(button, action));
+      card.appendChild(title);
+      card.appendChild(summary);
+      card.appendChild(button);
+      log.appendChild(card);
+    });
+    log.scrollTop = log.scrollHeight;
+  }
+
+  async function executeWidgetAction(button, action) {
+    if (!action || !button) return;
+    button.disabled = true;
+    const originalText = button.textContent;
+    button.textContent = "Working...";
+    const form = new FormData();
+    form.append("action_json", JSON.stringify(action));
+    form.append("domain", currentDomain());
+    form.append("context_json", JSON.stringify(agentContext()));
+    form.append("admin_token", adminUnlockToken());
+    form.append("numa_change_mode", numaChangeMode());
+    try {
+      const response = await fetch("/api/agents/action", { method: "POST", body: form });
+      const data = await response.json();
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.detail || data.error || "Numa could not complete that action.");
+      }
+      if (data.profile_id) {
+        sessionStorage.setItem("candidateId", String(data.profile_id));
+        if (data.profile_name) sessionStorage.setItem("candidateName", data.profile_name);
+        if (data.profile_email) sessionStorage.setItem("candidateEmail", data.profile_email);
+      }
+      appendWidgetMessage(data.message || "Numa completed the action.", "assistant");
+      if (data.profile_url) {
+        const link = document.createElement("a");
+        link.className = "agent-msg";
+        link.href = withDomainLink(data.profile_url);
+        link.textContent = "Open updated profile";
+        document.getElementById("agentChatLog")?.appendChild(link);
+      }
+      button.textContent = "Done";
+    } catch (error) {
+      appendWidgetMessage(error.message || "Numa could not complete that action.", "assistant");
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+
+  function withDomainLink(href) {
+    return applyDomainToHref(href || "profile-preview.html");
   }
 
   function renderWidgetAgent() {
@@ -565,6 +633,7 @@
       const response = await fetch("/api/agents/ask", { method: "POST", body: form });
       const data = await response.json();
       replacePendingWidgetMessage(data.answer || "I could not build an answer for that yet.");
+      appendWidgetActionCards(data.actions || []);
     } catch {
       replacePendingWidgetMessage("The page agent is wired, but the backend agent endpoint is not reachable from this page yet.");
     }

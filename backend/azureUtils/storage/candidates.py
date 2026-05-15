@@ -1657,6 +1657,19 @@ def updateCandidateCore(personId: str, firstName: str, lastName: str, city: str 
 
     return {"status": "success"}
 
+def updateCandidateEmail(personId: str, email: str = ""):
+    conn = client.getConnection()
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE professional SET email = %s WHERE personid = %s", ((email or "").strip() or None, personId))
+        conn.commit()
+        return {"status": "success"}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
 def updateCandidateSkills(personId: str, skills: list):
     conn = client.getConnection()
     cur = conn.cursor()

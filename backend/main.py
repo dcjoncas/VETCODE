@@ -28,6 +28,7 @@ import requests
 from typing import Optional
 from datetime import datetime, timedelta
 from openAI import pageAgents
+from azureUtils.storage import candidates
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEVMEET_BASE_URL = os.getenv("DEVMEET_BASE_URL", "https://web-production-268c2.up.railway.app").rstrip("/")
@@ -934,15 +935,7 @@ def access_menu():
     }
 
 
-@app.post("/api/agents/ask")
-def ask_agent(
-    agent_key: str = Form(default="talent"),
-    message: str = Form(default=""),
-    context_json: str = Form(default="{}"),
-    domain: str = Form(default="dev"),
-    admin_token: str = Form(default=""),
-    numa_change_mode: str = Form(default="off"),
-):
+def _agent_context_with_access(context_json: str = "{}", domain: str = "dev", admin_token: str = "", numa_change_mode: str = "off") -> dict:
     try:
         context = json.loads(context_json or "{}")
         if not isinstance(context, dict):
@@ -980,6 +973,139 @@ def ask_agent(
         "can_request_changes": change_mode_enabled,
         "mode": "change-enabled" if change_mode_enabled else ("sensitive-view" if can_admin else "guide-only"),
     }
+    return context
+
+
+def _require_numa_action_access(context: dict):
+    access = context.get("numa_access") if isinstance(context.get("numa_access"), dict) else {}
+    if not access.get("can_request_changes"):
+        raise HTTPException(
+            status_code=403,
+            detail="Numa actions require Administrator unlock or Super user access with Admin Updates turned on.",
+        )
+
+
+def _safe_action_text(value, limit: int = 1200) -> str:
+    return re.sub(r"\s+", " ", str(value or "")).strip()[:limit]
+
+
+def _split_action_name(full_name: str) -> tuple[str, str]:
+    parts = [part for part in _safe_action_text(full_name, 180).split(" ") if part]
+    if not parts:
+        raise HTTPException(status_code=400, detail="Profile name is required.")
+    if len(parts) == 1:
+        return parts[0], ""
+    return parts[0], " ".join(parts[1:])
+
+
+def _normalize_agent_skills(skills) -> list[dict]:
+    clean = []
+    if not isinstance(skills, list):
+        return clean
+    seen = set()
+    for skill in skills[:30]:
+        if isinstance(skill, dict):
+            title = _safe_action_text(skill.get("title") or skill.get("skill"), 100)
+            years = skill.get("years") or 1
+        else:
+            title = _safe_action_text(skill, 100)
+            years = 1
+        if not title or title.lower() in seen:
+            continue
+        seen.add(title.lower())
+        try:
+            years = int(years)
+        except Exception:
+            years = 1
+        clean.append({"title": title, "years": max(1, min(years, 40))})
+    return clean
+
+
+def _execute_numa_profile_action(action: dict, context: dict) -> dict:
+    action_type = action.get("type")
+    payload = action.get("payload") if isinstance(action.get("payload"), dict) else {}
+    domain = _domain_key(payload.get("domain") or context.get("domain") or "dev")
+    if action_type == "create_profile":
+        full_name = _safe_action_text(payload.get("full_name") or payload.get("name"), 180)
+        if not full_name:
+            raise HTTPException(status_code=400, detail="Profile name is required.")
+        result = candidates.uploadProfile(
+            skills=_normalize_agent_skills(payload.get("skills")),
+            fullName=full_name,
+            candidateDescription=_safe_action_text(payload.get("description"), 2400) or "Numa-created profile. Add resume or confirmed details before client use.",
+            domain=domain,
+            email=_safe_action_text(payload.get("email"), 240) or None,
+            linkedInUrl=_safe_action_text(payload.get("linkedin_url") or payload.get("linkedinUrl"), 400) or None,
+            candidateCity=_safe_action_text(payload.get("city"), 160) or None,
+            candidateState=_safe_action_text(payload.get("state"), 160) or None,
+            candidateCountry=_safe_action_text(payload.get("country"), 160) or None,
+            candidateTitle=_safe_action_text(payload.get("title") or payload.get("job_title"), 200) or None,
+        )
+        profile_id = str(result.get("personid") or "")
+        return {
+            "ok": True,
+            "type": action_type,
+            "message": f"Numa created profile {profile_id} for {full_name}.",
+            "profile_id": profile_id,
+            "profile_name": full_name,
+            "profile_email": _safe_action_text(payload.get("email"), 240),
+            "profile_url": f"profile-preview.html?domain={domain}&profileId={profile_id}",
+            "result": result,
+        }
+
+    if action_type == "update_profile_core":
+        profile_id = _safe_action_text(payload.get("profile_id") or context.get("candidateId"), 80)
+        if not profile_id:
+            raise HTTPException(status_code=400, detail="Profile ID is required for updates.")
+        existing = candidates.getProfile(profile_id)
+        existing_profile = existing.get("profile", {}) if isinstance(existing, dict) else {}
+        first_name, last_name = _split_action_name(
+            payload.get("full_name")
+            or " ".join(
+                [
+                    _safe_action_text(payload.get("first_name") or existing_profile.get("firstName"), 100),
+                    _safe_action_text(payload.get("last_name") or existing_profile.get("lastName"), 100),
+                ]
+            )
+        )
+        candidates.updateCandidateCore(
+            personId=profile_id,
+            firstName=first_name,
+            lastName=last_name,
+            city=_safe_action_text(payload.get("city") if payload.get("city") is not None else existing_profile.get("city"), 160),
+            state=_safe_action_text(payload.get("state") if payload.get("state") is not None else existing_profile.get("state"), 160),
+            country=_safe_action_text(payload.get("country") if payload.get("country") is not None else existing_profile.get("country"), 160),
+            description=_safe_action_text(payload.get("description") if payload.get("description") is not None else existing_profile.get("description"), 3000),
+            jobTitle=_safe_action_text(payload.get("title") or payload.get("job_title") or existing_profile.get("title"), 200),
+        )
+        if payload.get("email") is not None:
+            candidates.updateCandidateEmail(profile_id, _safe_action_text(payload.get("email"), 240))
+        skills = _normalize_agent_skills(payload.get("skills"))
+        if skills:
+            candidates.replaceCandidateSkills(profile_id, skills)
+        return {
+            "ok": True,
+            "type": action_type,
+            "message": f"Numa updated profile {profile_id}.",
+            "profile_id": profile_id,
+            "profile_name": " ".join([first_name, last_name]).strip(),
+            "profile_url": f"profile-preview.html?domain={domain}&profileId={profile_id}",
+            "updated_skills": len(skills),
+        }
+
+    raise HTTPException(status_code=400, detail="Unsupported Numa action.")
+
+
+@app.post("/api/agents/ask")
+def ask_agent(
+    agent_key: str = Form(default="talent"),
+    message: str = Form(default=""),
+    context_json: str = Form(default="{}"),
+    domain: str = Form(default="dev"),
+    admin_token: str = Form(default=""),
+    numa_change_mode: str = Form(default="off"),
+):
+    context = _agent_context_with_access(context_json, domain, admin_token, numa_change_mode)
     try:
         return pageAgents.ask_page_agent(agent_key, message, context)
     except Exception as exc:
@@ -991,6 +1117,30 @@ def ask_agent(
                 "answer": f"Agent response failed: {exc}",
             },
         )
+
+
+@app.post("/api/agents/action")
+def run_agent_action(
+    action_json: str = Form(default="{}"),
+    context_json: str = Form(default="{}"),
+    domain: str = Form(default="dev"),
+    admin_token: str = Form(default=""),
+    numa_change_mode: str = Form(default="off"),
+):
+    context = _agent_context_with_access(context_json, domain, admin_token, numa_change_mode)
+    _require_numa_action_access(context)
+    try:
+        action = json.loads(action_json or "{}")
+        if not isinstance(action, dict):
+            action = {}
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid action JSON.")
+    try:
+        return _execute_numa_profile_action(action, context)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(exc)})
 
 
 @app.post("/api/access/login")
