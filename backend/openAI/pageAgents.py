@@ -150,8 +150,43 @@ Be conservative: warn before destructive account or permission changes.""",
 }
 
 
-def get_agent(agent_key: str) -> dict[str, Any]:
+def _custom_agent_from_context(agent_key: str, context: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    if not isinstance(context, dict):
+        return None
+    agent = context.get("activeAgent")
+    if not isinstance(agent, dict) or not agent.get("custom"):
+        return None
+    clean_key = (agent_key or "").strip().lower()
+    custom_key = str(agent.get("key") or "").strip().lower()
+    if not clean_key or clean_key != custom_key:
+        return None
+    page = str(agent.get("page") or "Custom").strip() or "Custom"
+    specialty = str(agent.get("specialty") or "Custom workflow guidance.").strip() or "Custom workflow guidance."
+    prompt = str(agent.get("prompt") or "").strip()
+    if not prompt:
+        prompt = "Use the custom workflow focus to guide the user safely and accurately."
+    actions = agent.get("canDo") if isinstance(agent.get("canDo"), list) else []
+    action_text = "\n".join(f"- {str(item).strip()}" for item in actions if str(item).strip())
+    actions_block = f"Expected actions:\n{action_text}" if action_text else ""
+    return {
+        "name": "Numa",
+        "page": page,
+        "color": str(agent.get("color") or "#2f7d4b"),
+        "prompt": f"""You are Numa, the {page} Agent for VETCODE.
+You are expert in this custom workflow focus: {specialty}
+Use this custom prompt structure:
+{prompt}
+{actions_block}
+Coordinate with the built-in VETCODE page agents when candidate, job, CRM, meeting, interview, time, certification, badge, or admin context matters.
+Stay factual, protect private information, and ask one clarifying question only when needed.""",
+    }
+
+
+def get_agent(agent_key: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
     clean_key = (agent_key or "talent").strip().lower()
+    custom_agent = _custom_agent_from_context(clean_key, context)
+    if custom_agent:
+        return custom_agent
     return AGENTS.get(clean_key) or AGENTS["talent"]
 
 
@@ -214,8 +249,8 @@ def _redact_sensitive_answer(answer: str, context: dict[str, Any]) -> str:
 
 
 def ask_page_agent(agent_key: str, message: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
-    agent = get_agent(agent_key)
     context = context or {}
+    agent = get_agent(agent_key, context)
     clean_message = (message or "").strip()
     if not clean_message:
         return {"ok": False, "agent": agent, "answer": "Ask me what you want to do on this page."}

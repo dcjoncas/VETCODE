@@ -24,7 +24,7 @@
       })();
     </script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <script src="JS/pageAgents.js?v=20260515-agent-layout"></script>
+    <script src="JS/pageAgents.js?v=20260515-agent-create"></script>
     <style>
       .agent-hero {
         display: grid;
@@ -121,6 +121,11 @@
         box-shadow: 0 14px 32px color-mix(in srgb, var(--agent-color), transparent 78%);
       }
 
+      .agent-card.off {
+        opacity: 0.58;
+        background: #f8faf9;
+      }
+
       .agent-card-head {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr);
@@ -201,6 +206,15 @@
         grid-column: 1 / -1;
       }
 
+      .agent-toggle-on {
+        color: var(--primary-2);
+      }
+
+      .agent-toggle-off {
+        color: #8b1d2c;
+        border-color: rgba(139, 29, 44, 0.24);
+      }
+
       .agent-top-controls {
         display: grid;
         gap: 7px;
@@ -210,6 +224,8 @@
 
       .agent-top-controls .row-actions {
         margin-top: 0 !important;
+        max-width: 760px;
+        flex-wrap: wrap;
       }
 
       body.agents-page {
@@ -282,6 +298,49 @@
         line-height: 1.45;
       }
 
+      .agent-create-panel {
+        display: none;
+        margin-bottom: 14px;
+      }
+
+      .agent-create-panel.open {
+        display: block;
+      }
+
+      .agent-create-panel form {
+        display: grid;
+        gap: 10px;
+      }
+
+      .agent-create-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .agent-create-grid label,
+      .agent-create-panel label {
+        display: grid;
+        gap: 5px;
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 850;
+      }
+
+      .agent-create-grid input,
+      .agent-create-panel textarea {
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 10px;
+        font: inherit;
+      }
+
+      .agent-create-panel textarea {
+        min-height: 92px;
+        resize: vertical;
+      }
+
       .agent-unlock-form {
         display: grid;
         gap: 10px;
@@ -305,16 +364,19 @@
       @media (max-width: 900px) {
         .topbar {
           align-items: flex-start;
+          flex-direction: column;
         }
 
         .agent-top-controls {
           justify-items: start;
           padding-right: 0;
-          padding-top: 62px;
+          padding-top: 72px;
+          width: 100%;
         }
 
         .agent-hero,
-        .agent-detail-layout {
+        .agent-detail-layout,
+        .agent-create-grid {
           grid-template-columns: 1fr;
         }
 
@@ -328,12 +390,13 @@
     </style>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html?v=20260515-agent-layout");
+        $("#siteSidebar").load("components/sidebar.html?v=20260515-agent-create");
         ensureAgentsUnlocked().then((ok) => {
           if (!ok) return;
           renderOrbitBalls();
           renderAgents();
           renderNumaChangeMode();
+          bindCreateAgentForm();
         });
       });
 
@@ -463,20 +526,22 @@
       }
 
       function renderAgents() {
-        const agents = window.DevReadyPageAgents.all;
+        const agents = window.DevReadyPageAgents.allAgents();
         const active = window.DevReadyPageAgents.active();
         const domainColor = window.DevReadyPageAgents.domainColor();
         const grid = document.getElementById("agentGrid");
         grid.innerHTML = agents
           .map((agent) => {
+            const enabled = window.DevReadyPageAgents.enabled(agent.key);
             const activeClass = active?.key === agent.key ? " active" : "";
+            const offClass = enabled ? "" : " off";
             return `
-              <article class="agent-card${activeClass}" style="--agent-color: ${domainColor}">
+              <article class="agent-card${activeClass}${offClass}" style="--agent-color: ${domainColor}">
                 <div class="agent-card-head">
                   <i class="agent-ball" aria-hidden="true">${window.DevReadyPageAgents.icon(agent.key)}</i>
                   <div>
                     <h2>${escapeAgent(agent.name)}</h2>
-                    <div class="agent-page">${escapeAgent(agent.page)}</div>
+                    <div class="agent-page">${escapeAgent(agent.page)}${agent.custom ? " - Custom" : ""}</div>
                   </div>
                 </div>
                 <p class="muted">${escapeAgent(agent.specialty)}</p>
@@ -484,7 +549,7 @@
                   ${agent.canDo.map((item) => `<li>${escapeAgent(item)}</li>`).join("")}
                 </ul>
                 <div class="agent-actions">
-                  <button class="btn" type="button" onclick="activateAgent('${agent.key}')">${active?.key === agent.key ? "Activated" : "Activate"}</button>
+                  <button class="btn secondary ${enabled ? "agent-toggle-on" : "agent-toggle-off"}" type="button" onclick="toggleAgentAvailability('${agent.key}')">${enabled ? "On" : "Off"}</button>
                   <button class="btn secondary" type="button" onclick="selectAgent('${agent.key}')">Details</button>
                   <a class="btn secondary open-agent-page" href="${window.DevReadyPageAgents.withDomain(agent.href)}">Open Page</a>
                 </div>
@@ -496,8 +561,16 @@
         selectAgent(active?.key || "profile", false);
       }
 
+      function toggleAgentAvailability(key) {
+        const enabled = window.DevReadyPageAgents.enabled(key);
+        window.DevReadyPageAgents.setEnabled(key, !enabled);
+        if (!enabled) window.DevReadyPageAgents.activate(key);
+        renderAgents();
+      }
+
       function activateAgent(key) {
         const agent = window.DevReadyPageAgents.activate(key);
+        if (!agent) return;
         renderAgents();
         selectAgent(agent.key, false);
         renderAgentStatus(agent);
@@ -541,10 +614,10 @@
         const status = document.getElementById("agentChangeModeStatus");
         if (!button || !status) return;
         button.disabled = !allowed;
-        button.textContent = enabled ? "Disable Change Mode" : "Enable Change Mode";
+        button.textContent = enabled ? "Turn Off Admin Updates" : "Turn On Admin Updates";
         status.textContent = allowed
-          ? `Numa change mode is ${enabled ? "on" : "off"}.`
-          : "Change mode requires Administrator unlock or Super user role.";
+          ? `Allows Numa to propose controlled record updates. Currently ${enabled ? "on" : "off"}.`
+          : "Admin updates require Administrator unlock or Super user role.";
       }
 
       function toggleAgentChangeMode() {
@@ -558,7 +631,7 @@
       }
 
       function selectAgent(key, shouldScroll = true) {
-        const agent = window.DevReadyPageAgents.all.find((item) => item.key === key) || window.DevReadyPageAgents.all[0];
+        const agent = window.DevReadyPageAgents.allAgents().find((item) => item.key === key) || window.DevReadyPageAgents.allAgents()[0];
         const detailBall = document.getElementById("detailBall");
         detailBall.style.setProperty("--agent-color", window.DevReadyPageAgents.domainColor());
         detailBall.innerHTML = window.DevReadyPageAgents.icon(agent.key);
@@ -568,8 +641,42 @@
         document.getElementById("detailCanDo").innerHTML = agent.canDo.map((item) => `<li>${escapeAgent(item)}</li>`).join("");
         document.getElementById("detailPrompt").textContent = agent.prompt;
         document.getElementById("detailOpen").href = window.DevReadyPageAgents.withDomain(agent.href);
-        document.getElementById("detailActivate").onclick = () => activateAgent(agent.key);
+        document.getElementById("detailHeading").textContent = `${agent.page} agent details`;
+        const detailToggle = document.getElementById("detailActivate");
+        const enabled = window.DevReadyPageAgents.enabled(agent.key);
+        detailToggle.textContent = enabled ? "Turn Off" : "Turn On";
+        detailToggle.classList.toggle("agent-toggle-off", !enabled);
+        detailToggle.onclick = () => toggleAgentAvailability(agent.key);
         if (shouldScroll) document.getElementById("agentDetail").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function toggleCreateAgent() {
+        document.getElementById("agentCreatePanel")?.classList.toggle("open");
+      }
+
+      function bindCreateAgentForm() {
+        const form = document.getElementById("agentCreateForm");
+        if (!form || form.dataset.bound) return;
+        form.dataset.bound = "1";
+        form.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const data = new FormData(form);
+          const actions = String(data.get("actions") || "")
+            .split(/\n|,/)
+            .map((item) => item.trim())
+            .filter(Boolean);
+          const agent = window.DevReadyPageAgents.create({
+            page: data.get("page"),
+            href: data.get("href"),
+            specialty: data.get("specialty"),
+            canDo: actions,
+            prompt: data.get("prompt"),
+          });
+          form.reset();
+          document.getElementById("agentCreatePanel").classList.remove("open");
+          renderAgents();
+          selectAgent(agent.key, false);
+        });
       }
     </script>
   </head>
@@ -584,11 +691,47 @@
           </div>
           <div class="agent-top-controls">
             <div class="row-actions" style="margin-top: 7px; justify-content: flex-end">
-              <button id="agentChangeModeBtn" class="btn secondary" type="button" onclick="toggleAgentChangeMode()">Enable Change Mode</button>
-              <span id="agentChangeModeStatus" class="muted">Checking Numa access...</span>
+              <button class="btn" type="button" onclick="toggleCreateAgent()">Create New Agent</button>
+              <button id="agentChangeModeBtn" class="btn secondary" type="button" onclick="toggleAgentChangeMode()">Turn On Admin Updates</button>
+              <span id="agentChangeModeStatus" class="muted">Admin updates are off.</span>
             </div>
           </div>
         </div>
+
+        <section id="agentCreatePanel" class="card agent-create-panel" aria-label="Create new agent">
+          <h2 style="margin-top: 0">Create New Agent</h2>
+          <p class="muted">
+            Create another Numa specialty for a workflow that needs its own focus. Built-in page agents stay in place, and the new card can be turned on or off from this hub.
+          </p>
+          <form id="agentCreateForm">
+            <div class="agent-create-grid">
+              <label>
+                Page or specialty name
+                <input name="page" placeholder="Compliance Review" required />
+              </label>
+              <label>
+                Open page
+                <input name="href" placeholder="agents.html" value="agents.html" />
+              </label>
+            </div>
+            <label>
+              Focus
+              <textarea name="specialty" placeholder="What this Numa agent should understand and watch for." required></textarea>
+            </label>
+            <label>
+              Actions
+              <textarea name="actions" placeholder="One action per line" required></textarea>
+            </label>
+            <label>
+              Prompt structure
+              <textarea name="prompt" placeholder="How this Numa agent should reason, protect data, and help the user." required></textarea>
+            </label>
+            <div class="row-actions" style="margin-top: 12px">
+              <button class="btn" type="submit">Create Agent</button>
+              <button class="btn secondary" type="button" onclick="toggleCreateAgent()">Cancel</button>
+            </div>
+          </form>
+        </section>
 
         <section class="agent-hero">
           <div class="card">
@@ -610,6 +753,10 @@
         <section id="agentGrid" class="agent-grid" aria-label="Page agents"></section>
 
         <section id="agentDetail" class="card" style="margin-top: 14px">
+          <h2 id="detailHeading" style="margin-top: 0">Selected agent details</h2>
+          <p class="muted">
+            This is the selected agent detail view, not a second copy. Use it to review the focus, actions, and prompt behind the card above.
+          </p>
           <div class="agent-detail-layout">
             <div>
               <div class="agent-card-head">
@@ -629,7 +776,7 @@
               </div>
             </div>
             <div>
-              <h2 style="margin-top: 0">Agent Prompt Structure</h2>
+              <h2 style="margin-top: 0">Prompt Structure</h2>
               <div id="detailPrompt" class="agent-prompt"></div>
             </div>
           </div>

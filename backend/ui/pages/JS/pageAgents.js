@@ -142,6 +142,97 @@
     },
   ];
 
+  const CUSTOM_AGENTS_KEY = "devreadyCustomPageAgents";
+  const DISABLED_AGENTS_KEY = "devreadyDisabledPageAgents";
+
+  function readJson(key, fallback) {
+    try {
+      const value = JSON.parse(localStorage.getItem(key) || "null");
+      return value === null ? fallback : value;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function writeJson(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function sanitizeAgent(value) {
+    const agent = value || {};
+    const key = String(agent.key || "").trim();
+    if (!key) return null;
+    return {
+      key,
+      name: String(agent.name || "Numa").trim() || "Numa",
+      page: String(agent.page || "Custom").trim() || "Custom",
+      href: String(agent.href || "agents.html").trim() || "agents.html",
+      color: String(agent.color || "#2f7d4b").trim() || "#2f7d4b",
+      specialty: String(agent.specialty || "Custom workflow guidance.").trim() || "Custom workflow guidance.",
+      canDo: Array.isArray(agent.canDo)
+        ? agent.canDo.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 6)
+        : [],
+      prompt: String(agent.prompt || "Custom Numa agent prompt.").trim() || "Custom Numa agent prompt.",
+      custom: Boolean(agent.custom),
+    };
+  }
+
+  function loadCustomAgents() {
+    return readJson(CUSTOM_AGENTS_KEY, [])
+      .map(sanitizeAgent)
+      .filter(Boolean);
+  }
+
+  function saveCustomAgents(customAgents) {
+    writeJson(CUSTOM_AGENTS_KEY, customAgents.map(sanitizeAgent).filter(Boolean));
+  }
+
+  function allAgents() {
+    const custom = loadCustomAgents();
+    const seen = new Set();
+    return [...agents, ...custom].filter((agent) => {
+      if (seen.has(agent.key)) return false;
+      seen.add(agent.key);
+      return true;
+    });
+  }
+
+  function disabledAgents() {
+    const list = readJson(DISABLED_AGENTS_KEY, []);
+    return new Set(Array.isArray(list) ? list.map(String) : []);
+  }
+
+  function isAgentEnabled(key) {
+    return !disabledAgents().has(String(key || ""));
+  }
+
+  function setAgentEnabled(key, enabled) {
+    const disabled = disabledAgents();
+    const normalizedKey = String(key || "");
+    if (enabled) disabled.delete(normalizedKey);
+    else disabled.add(normalizedKey);
+    writeJson(DISABLED_AGENTS_KEY, Array.from(disabled));
+    window.dispatchEvent(new CustomEvent("devready-agent-activation-changed", { detail: { key: normalizedKey, enabled } }));
+    renderWidgetAgent();
+  }
+
+  function createCustomAgent(agent) {
+    const nowKey = `custom-${Date.now().toString(36)}`;
+    const customAgent = sanitizeAgent({
+      ...agent,
+      key: String(agent?.key || nowKey).trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-") || nowKey,
+      name: "Numa",
+      custom: true,
+    });
+    const customAgents = loadCustomAgents().filter((item) => item.key !== customAgent.key);
+    customAgents.push(customAgent);
+    saveCustomAgents(customAgents);
+    setAgentEnabled(customAgent.key, true);
+    localStorage.setItem("devreadyActivePageAgent", customAgent.key);
+    window.dispatchEvent(new CustomEvent("devready-agent-created", { detail: customAgent }));
+    return customAgent;
+  }
+
   function currentDomain() {
     return sessionStorage.getItem("domain") || document.documentElement.dataset.domain || "dev";
   }
@@ -199,11 +290,13 @@
     const pageAgent = agentForCurrentPage();
     if (pageAgent) return pageAgent;
     const key = localStorage.getItem("devreadyActivePageAgent") || "";
-    return agents.find((agent) => agent.key === key) || agents[0];
+    return allAgents().find((agent) => agent.key === key && isAgentEnabled(agent.key)) || allAgents().find((agent) => isAgentEnabled(agent.key)) || null;
   }
 
   function setActiveAgent(key) {
-    const agent = agents.find((item) => item.key === key) || agents[0];
+    const agent = allAgents().find((item) => item.key === key) || allAgents()[0];
+    if (!agent) return null;
+    setAgentEnabled(agent.key, true);
     localStorage.setItem("devreadyActivePageAgent", agent.key);
     window.dispatchEvent(new CustomEvent("devready-agent-activated", { detail: agent }));
     return agent;
@@ -211,6 +304,7 @@
 
   function agentContext() {
     let shortlistCount = 0;
+    const agent = activeAgent();
     try {
       const shortlist = JSON.parse(sessionStorage.getItem("shortlistProfiles") || sessionStorage.getItem("shortlist") || "[]");
       shortlistCount = Array.isArray(shortlist) ? shortlist.length : 0;
@@ -219,7 +313,18 @@
       domain: currentDomain(),
       page: document.title,
       activeUrl: window.location.href,
-      pageAgentKey: activeAgent()?.key || "",
+      pageAgentKey: agent?.key || "",
+      activeAgent: agent
+        ? {
+            key: agent.key,
+            name: agent.name,
+            page: agent.page,
+            specialty: agent.specialty,
+            canDo: agent.canDo,
+            prompt: agent.prompt,
+            custom: Boolean(agent.custom),
+          }
+        : null,
       user: {
         id: currentUser().id || "",
         username: currentUser().username || "",
@@ -278,7 +383,8 @@
 
   function agentForCurrentPage() {
     const key = agentKeyForPage();
-    return agents.find((agent) => agent.key === key) || null;
+    if (!key || !isAgentEnabled(key)) return null;
+    return allAgents().find((agent) => agent.key === key) || null;
   }
 
   function escapeHtml(value) {
@@ -418,15 +524,21 @@
     });
     document.getElementById("agentChatForm").addEventListener("submit", askWidgetAgent);
     window.addEventListener("devready-agent-activated", renderWidgetAgent);
+    window.addEventListener("devready-agent-activation-changed", renderWidgetAgent);
+    window.addEventListener("devready-agent-created", renderWidgetAgent);
     renderWidgetAgent();
   }
 
   window.DevReadyPageAgents = {
     all: agents,
+    allAgents,
     active: activeAgent,
     pageAgent: agentForCurrentPage,
     keyForPage: agentKeyForPage,
     activate: setActiveAgent,
+    enabled: isAgentEnabled,
+    setEnabled: setAgentEnabled,
+    create: createCustomAgent,
     context: agentContext,
     mountWidget,
     domainColor,
