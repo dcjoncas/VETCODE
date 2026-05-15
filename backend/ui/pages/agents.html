@@ -24,7 +24,7 @@
       })();
     </script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <script src="JS/pageAgents.js?v=20260515-numa-inline-label"></script>
+    <script src="JS/pageAgents.js?v=20260515-agent-layout"></script>
     <style>
       .agent-hero {
         display: grid;
@@ -189,6 +189,22 @@
         display: grid;
         gap: 7px;
         justify-items: end;
+        padding-right: 170px;
+      }
+
+      .agent-top-controls .row-actions {
+        margin-top: 0 !important;
+      }
+
+      body.agents-page {
+        --agent-dock-top: 18px;
+        --agent-dock-left: auto;
+        --agent-dock-right: 18px;
+        --agent-dock-transform: none;
+        --agent-panel-top: 76px;
+        --agent-panel-left: auto;
+        --agent-panel-right: 18px;
+        --agent-panel-transform: none;
       }
 
       .agent-status-chip {
@@ -271,15 +287,32 @@
       }
 
       @media (max-width: 900px) {
+        .topbar {
+          align-items: flex-start;
+        }
+
+        .agent-top-controls {
+          justify-items: start;
+          padding-right: 0;
+          padding-top: 62px;
+        }
+
         .agent-hero,
         .agent-detail-layout {
           grid-template-columns: 1fr;
+        }
+
+        body.agents-page {
+          --agent-dock-top: 10px;
+          --agent-dock-right: 10px;
+          --agent-panel-top: 66px;
+          --agent-panel-right: 10px;
         }
       }
     </style>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html?v=20260515-jd-nav-flow");
+        $("#siteSidebar").load("components/sidebar.html?v=20260515-agent-layout");
         ensureAgentsUnlocked().then((ok) => {
           if (!ok) return;
           renderOrbitBalls();
@@ -524,7 +557,7 @@
       }
     </script>
   </head>
-  <body>
+  <body class="agents-page">
     <div class="container">
       <div id="siteSidebar"></div>
       <main class="main">
@@ -534,10 +567,6 @@
             <div class="breadcrumb">Page experts - shared context - workflow guidance</div>
           </div>
           <div class="agent-top-controls">
-            <div id="agentStatus" class="agent-status-chip">
-              <i class="agent-ball agent-status-ball" aria-hidden="true"></i>
-              <span>Ask Numa</span>
-            </div>
             <div class="row-actions" style="margin-top: 7px; justify-content: flex-end">
               <button id="agentChangeModeBtn" class="btn secondary" type="button" onclick="toggleAgentChangeMode()">Enable Change Mode</button>
               <span id="agentChangeModeStatus" class="muted">Checking Numa access...</span>
