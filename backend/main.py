@@ -28,7 +28,7 @@ import requests
 from typing import Optional
 from datetime import datetime, timedelta
 from openAI import pageAgents
-from azureUtils.storage import candidates
+from azureUtils.storage import candidates, jobs
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEVMEET_BASE_URL = os.getenv("DEVMEET_BASE_URL", "https://web-production-268c2.up.railway.app").rstrip("/")
@@ -180,7 +180,7 @@ def build_interview_questions(profile: dict, jd: dict, breakdown: dict) -> list[
 
 from resume_ingest import ingest
 from deterministic_profile import build_profile_from_text
-from jd_match import normalize_jd, match, azureMatch
+from jd_match import normalize_jd, match, azureMatch, normalize_all_skills
 from profile_schema import new_id, empty_devready_profile
 import storage
 from renderers import profile_to_html, profile_to_docx, jd_to_html, jd_to_docx, match_report_to_html, match_report_to_docx
@@ -1051,6 +1051,29 @@ def _execute_numa_profile_action(action: dict, context: dict) -> dict:
             "profile_email": _safe_action_text(payload.get("email"), 240),
             "profile_url": f"profile-preview.html?domain={domain}&profileId={profile_id}",
             "result": result,
+        }
+
+    if action_type == "create_job_description":
+        company = _safe_action_text(payload.get("company") or payload.get("client"), 180)
+        title = _safe_action_text(payload.get("job_title") or payload.get("title"), 220)
+        jd_text = _safe_action_text(payload.get("jd_text") or payload.get("description"), 8000)
+        if not company or not title or not jd_text:
+            raise HTTPException(status_code=400, detail="Company, job title, and job description text are required.")
+        try:
+            flat_skills = list(dict.fromkeys(normalize_all_skills(jd_text)))
+        except Exception:
+            flat_skills = []
+        created = jobs.uploadJob(company, title, domain, jd_text, flat_skills) or {}
+        jd_id = str(created.get("jd_id") or "")
+        return {
+            "ok": True,
+            "type": action_type,
+            "message": f"Numa added JD {jd_id} for {company} - {title}.",
+            "jd_id": jd_id,
+            "company": company,
+            "job_title": title,
+            "job_url": f"job-descriptions.html?domain={domain}",
+            "result": {"jd_id": jd_id, "company": company, "title": title, "domain": domain, "skills": flat_skills},
         }
 
     if action_type == "update_profile_core":

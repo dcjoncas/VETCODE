@@ -347,6 +347,25 @@
     );
   }
 
+  function chatMemoryKey() {
+    return `devreadyNumaChat:${pageName() || "page"}:${activeAgent()?.key || "agent"}`;
+  }
+
+  function readChatMemory() {
+    try {
+      const rows = JSON.parse(sessionStorage.getItem(chatMemoryKey()) || "[]");
+      return Array.isArray(rows) ? rows.slice(-10) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function rememberChat(role, text) {
+    const rows = readChatMemory();
+    rows.push({ role, text: clippedText(text, 1800), at: new Date().toISOString() });
+    sessionStorage.setItem(chatMemoryKey(), JSON.stringify(rows.slice(-10)));
+  }
+
   function currentPageSnapshot() {
     const processText = textOf(".process-flow, #processFlow, .breadcrumb", 900);
     const snapshot = {
@@ -403,6 +422,16 @@
       };
     }
 
+    if (pageName() === "job-descriptions") {
+      snapshot.jobDescription = {
+        company: valueOf("#jdCompany", 180),
+        title: valueOf("#jdTitle", 220),
+        text: valueOf("#jdText", 1800),
+        status: textOf("#jdCreateStatus", 300),
+        loadedCount: textOf("#jdCount", 80),
+      };
+    }
+
     if (window.DevReadyPageContext && typeof window.DevReadyPageContext === "object") {
       snapshot.pageData = window.DevReadyPageContext;
     }
@@ -446,6 +475,7 @@
       jobTitle: sessionStorage.getItem("jobTitle") || "",
       shortlistCount,
       pageSnapshot,
+      recentChat: readChatMemory(),
     };
   }
 
@@ -571,7 +601,9 @@
           ? "Create Profile"
           : action.type === "schedule_interview_setup"
             ? "Set Up Interview"
-            : "Apply Update";
+            : action.type === "create_job_description"
+              ? "Add Job Description"
+              : "Apply Update";
       button.addEventListener("click", () => executeWidgetAction(button, action));
       card.appendChild(title);
       card.appendChild(summary);
@@ -616,12 +648,28 @@
         if (data.profile_name) sessionStorage.setItem("candidateName", data.profile_name);
         if (data.profile_email) sessionStorage.setItem("candidateEmail", data.profile_email);
       }
+      if (data.jd_id) {
+        sessionStorage.setItem("jdId", String(data.jd_id));
+        sessionStorage.setItem("selectedJdId", String(data.jd_id));
+        sessionStorage.setItem("jobId", String(data.jd_id));
+        sessionStorage.setItem("jobID", String(data.jd_id));
+      }
       appendWidgetMessage(data.message || "Numa completed the action.", "assistant");
       if (data.profile_url) {
         const link = document.createElement("a");
         link.className = "agent-msg";
         link.href = withDomainLink(data.profile_url);
         link.textContent = "Open updated profile";
+        document.getElementById("agentChatLog")?.appendChild(link);
+      }
+      if (data.job_url) {
+        if (pageName() === "job-descriptions" && typeof window.loadJobDescriptions === "function") {
+          window.loadJobDescriptions();
+        }
+        const link = document.createElement("a");
+        link.className = "agent-msg";
+        link.href = withDomainLink(data.job_url);
+        link.textContent = "Open saved job descriptions";
         document.getElementById("agentChatLog")?.appendChild(link);
       }
       button.textContent = "Done";
@@ -663,6 +711,7 @@
     const message = input?.value.trim();
     if (!agent || !message) return;
     input.value = "";
+    rememberChat("user", message);
     appendWidgetMessage(message, "user");
     appendWidgetMessage("Thinking through the page context...", "assistant", true);
     const form = new FormData();
@@ -676,6 +725,7 @@
       const response = await fetch("/api/agents/ask", { method: "POST", body: form });
       const data = await response.json();
       replacePendingWidgetMessage(data.answer || "I could not build an answer for that yet.");
+      rememberChat("assistant", data.answer || "");
       appendWidgetActionCards(data.actions || []);
     } catch {
       replacePendingWidgetMessage("The page agent is wired, but the backend agent endpoint is not reachable from this page yet.");

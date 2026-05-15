@@ -202,6 +202,7 @@ def _context_summary(context: dict[str, Any]) -> str:
         "shortlistCount": context.get("shortlistCount"),
         "activeUrl": context.get("activeUrl"),
         "pageSnapshot": context.get("pageSnapshot"),
+        "recentChat": context.get("recentChat"),
     }
     return json.dumps({k: v for k, v in visible.items() if v not in (None, "")}, indent=2)
 
@@ -290,7 +291,7 @@ Return strict JSON:
 {
   "actions": [
     {
-      "type": "create_profile" | "update_profile_core" | "schedule_interview_setup",
+      "type": "create_profile" | "update_profile_core" | "schedule_interview_setup" | "create_job_description",
       "label": "short button label",
       "summary": "one sentence explaining the exact change",
       "missing_fields": ["field name Numa still needs from the user"],
@@ -322,6 +323,12 @@ Return strict JSON:
         "client_contact_name": "client interview contact",
         "client_contact_email": "client interview email",
         "talking_points": "optional talking points"
+        "company": "client/company for job description",
+        "job_title": "job description title",
+        "jd_text": "complete job description text",
+        "must_have_skills": ["Java"],
+        "preferred_skills": ["React"],
+        "team_traits": ["collaborative"]
       }
     }
   ]
@@ -335,6 +342,9 @@ For schedule_interview_setup, default interview_type to "ready" for a candidate 
 For candidate review interviews, interviewer_name and interviewer_email identify the DevReady person meeting the candidate.
 For client interviews, client_company, client_contact_name, and client_contact_email are required.
 Do not propose create_profile or update_profile_core unless can_request_changes is true in the safety policy.
+Use create_job_description when the user asks to create, draft, save, add, or add to system a job description. If the user says "the JD I just asked for" or similar, use the recent chat history in context to recover the prior drafted JD.
+For create_job_description, include company, job_title, and a complete jd_text. If the original request is short, expand it into a professional JD without inventing confidential facts.
+Do not propose create_job_description unless can_request_changes is true in the safety policy.
 Do not propose actions for questions, analysis, ranking, salary, deal value, code changes, deletes, or uncertain instructions.
 Keep profile descriptions factual. Do not invent facts beyond the user's message or current app context.
 """
@@ -359,9 +369,9 @@ Keep profile descriptions factual. Do not invent facts beyond the user's message
         if not isinstance(action, dict):
             continue
         action_type = action.get("type")
-        if action_type in {"create_profile", "update_profile_core"} and not _numa_policy(context)["can_request_changes"]:
+        if action_type in {"create_profile", "update_profile_core", "create_job_description"} and not _numa_policy(context)["can_request_changes"]:
             continue
-        if action_type not in {"create_profile", "update_profile_core", "schedule_interview_setup"}:
+        if action_type not in {"create_profile", "update_profile_core", "schedule_interview_setup", "create_job_description"}:
             continue
         payload = action.get("payload") if isinstance(action.get("payload"), dict) else {}
         missing_fields = action.get("missing_fields") if isinstance(action.get("missing_fields"), list) else []
@@ -382,7 +392,11 @@ Keep profile descriptions factual. Do not invent facts beyond the user's message
                     or (
                         "Create profile"
                         if action_type == "create_profile"
-                        else ("Set up interview" if action_type == "schedule_interview_setup" else "Update profile")
+                        else (
+                            "Set up interview"
+                            if action_type == "schedule_interview_setup"
+                            else ("Add job description" if action_type == "create_job_description" else "Update profile")
+                        )
                     )
                 )[:80],
                 "summary": str(action.get("summary") or "")[:500],
@@ -426,6 +440,7 @@ def ask_page_agent(agent_key: str, message: str, context: dict[str, Any] | None 
                         "You are inside VETCODE. Other page agents exist and can be referenced by specialty. "
                         "Give direct, app-specific guidance. If the user asks to create, save, add, or update app data, "
                         "explain that Numa can prepare a controlled action for confirmation when Admin Updates is on. "
+                        "Use recentChat to understand references like 'the one above', 'that JD', or 'what I just asked for'. "
                         "Never claim a record was changed until an action result confirms it."
                     ),
                 },
