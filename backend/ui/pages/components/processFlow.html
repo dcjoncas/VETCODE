@@ -131,6 +131,128 @@
     font-size: 10px;
     font-weight: 900;
   }
+
+  #processFlow .quick-hit-play {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(var(--primary-rgb, 20, 88, 55), 0.28);
+    border-radius: 999px;
+    background:
+      radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.95) 0 16%, transparent 18%),
+      var(--primary, #145837);
+    color: #fff;
+    box-shadow: 0 9px 18px rgba(var(--primary-rgb, 20, 88, 55), 0.24);
+    cursor: pointer;
+  }
+
+  #processFlow .quick-hit-play svg {
+    width: 17px;
+    height: 17px;
+    fill: currentColor;
+    transform: translateX(1px);
+  }
+
+  #quickHitOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9800;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+    background: rgba(15, 23, 42, 0.46);
+  }
+
+  #quickHitOverlay[hidden] {
+    display: none;
+  }
+
+  .quick-hit-dialog {
+    width: min(760px, calc(100vw - 28px));
+    max-height: calc(100vh - 42px);
+    overflow: auto;
+    border: 1px solid var(--line, #dfe7e2);
+    border-radius: 14px;
+    background: #fff;
+    color: var(--text, #101827);
+    box-shadow: 0 26px 70px rgba(15, 23, 42, 0.28);
+  }
+
+  .quick-hit-head,
+  .quick-hit-body,
+  .quick-hit-actions {
+    padding: 14px;
+  }
+
+  .quick-hit-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--line, #dfe7e2);
+    background: linear-gradient(90deg, rgba(var(--primary-rgb, 20, 88, 55), 0.1), #fff);
+  }
+
+  .quick-hit-head h2 {
+    margin: 0;
+    font-size: 18px;
+  }
+
+  .quick-hit-body {
+    display: grid;
+    gap: 12px;
+  }
+
+  .quick-hit-body textarea,
+  .quick-hit-body input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--line, #dfe7e2);
+    border-radius: 10px;
+    padding: 10px 11px;
+    font: inherit;
+  }
+
+  .quick-hit-body textarea {
+    min-height: 96px;
+    resize: vertical;
+  }
+
+  .quick-hit-preview {
+    border: 1px solid rgba(var(--primary-rgb, 20, 88, 55), 0.18);
+    border-radius: 10px;
+    padding: 12px;
+    background: #f8faf9;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .quick-hit-steps {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .quick-hit-steps span {
+    border: 1px solid rgba(var(--primary-rgb, 20, 88, 55), 0.18);
+    border-radius: 999px;
+    padding: 4px 8px;
+    color: var(--primary, #145837);
+    background: rgba(var(--primary-rgb, 20, 88, 55), 0.06);
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .quick-hit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--line, #dfe7e2);
+  }
 </style>
 
 <div class="card process-flow-card">
@@ -195,6 +317,16 @@
       Start in Talent. Use Find (Out) only when no internal candidate fits.
     </div>
     <div class="flow">
+      <button
+        class="quick-hit-play"
+        type="button"
+        onclick="startQuickHitFlow()"
+        data-hint="Start the quick AI-assisted candidate finder. It asks for the job, confirms each step, creates a JD, searches the best internal candidate, and prepares scheduling/status context."
+        title="Quick AI candidate finder"
+        aria-label="Quick AI candidate finder"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
+      </button>
       <a class="step" data-flow-step="talent" href="find-candidate.html" data-hint="Start a talent workflow: upload a resume, find an existing profile, choose a job description, or scan profile groups inside the current domain.">1 - Talent</a>
       <span class="flow-arrow" aria-hidden="true"></span>
       <div class="split-step" aria-label="Step 2 candidate search">
@@ -285,6 +417,20 @@
   </div>
 </div>
 
+<div id="quickHitOverlay" hidden>
+  <div class="quick-hit-dialog" role="dialog" aria-modal="true" aria-labelledby="quickHitTitle">
+    <div class="quick-hit-head">
+      <div>
+        <h2 id="quickHitTitle">Quick Hit Candidate Finder</h2>
+        <div class="muted">Numa will ask, draft, confirm, create, rank, select, and prepare scheduling.</div>
+      </div>
+      <button class="btn secondary" type="button" onclick="closeQuickHitFlow()">Close</button>
+    </div>
+    <div id="quickHitBody" class="quick-hit-body"></div>
+    <div id="quickHitActions" class="quick-hit-actions"></div>
+  </div>
+</div>
+
 <script src="JS/updateProcessFlow.js"></script>
 
 <script>
@@ -349,6 +495,9 @@
     }
     if (flow) {
       flow.innerHTML = `
+        <button class="quick-hit-play" type="button" onclick="startQuickHitFlow()" data-hint="Start the quick AI-assisted candidate finder. It asks for the job, confirms each step, creates a JD, searches the best internal candidate, and prepares scheduling/status context." title="Quick AI candidate finder" aria-label="Quick AI candidate finder">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
+        </button>
         <a class="step complete" data-flow-step="talent" href="find-candidate.html" data-hint="Return to Talent to choose the domain, upload resumes, search profiles, or start a candidate workflow.">1 - Talent</a>
         <span class="flow-arrow" aria-hidden="true"></span>
         <a class="step on" data-flow-step="job-descriptions" href="job-descriptions.html" data-hint="Create, upload, normalize, edit, and select saved job descriptions for the active domain.">2 - Job Descriptions</a>
@@ -410,6 +559,260 @@
 
   function closeProcessMap() {
     document.getElementById("processMapOverlay").hidden = true;
+  }
+
+  function quickHitDomain() {
+    return sessionStorage.getItem("domain") || document.documentElement.dataset.domain || "dev";
+  }
+
+  function quickHitApi(path, opts = {}) {
+    return fetch(path, opts).then(async (response) => {
+      const text = await response.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = text;
+      }
+      if (!response.ok) {
+        throw new Error((data && (data.detail || data.error)) || text || `HTTP ${response.status}`);
+      }
+      return data;
+    });
+  }
+
+  function quickHitSet(bodyHtml, actionsHtml = "") {
+    document.getElementById("quickHitBody").innerHTML = bodyHtml;
+    document.getElementById("quickHitActions").innerHTML = actionsHtml;
+  }
+
+  function quickHitEscape(value) {
+    return String(value || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function quickHitFallbackPayload(jobRequest) {
+    const clean = String(jobRequest || "").trim();
+    const companyMatch = clean.match(/\b(?:for|at)\s+([A-Za-z0-9&.\- ]{2,40})/i);
+    const company = (companyMatch && companyMatch[1].replace(/\b(?:as|with|who|that|and)\b.*$/i, "").trim()) || "Client";
+    const titleMatch = clean.match(/\b(?:need|needs|for|as|hire|hiring)\s+(?:an?\s+)?([A-Za-z0-9 /+#.\-]{4,70}?)(?:\s+(?:for|at|with|who|that|and)|$)/i);
+    const title = (titleMatch && titleMatch[1].trim()) || clean.slice(0, 70) || "Developer";
+    const jdText = `Job Title: ${title}
+Company: ${company}
+
+Overview:
+${company} is seeking a motivated ${title} to support application delivery, collaborate with team members, and help turn business requirements into reliable software.
+
+Responsibilities:
+- Build, test, and maintain application features.
+- Work with senior team members to clarify requirements and implementation options.
+- Participate in code reviews and team ceremonies.
+- Troubleshoot defects and document fixes clearly.
+- Communicate progress, blockers, and risks early.
+
+Required Skills:
+- Foundational programming experience.
+- Ability to learn quickly and work well in a team.
+- Clear written and verbal communication.
+- Basic understanding of APIs, databases, and version control.
+
+Preferred Skills:
+- Exposure to cloud, AI-enabled tools, data workflows, or modern web frameworks.
+- Internship, bootcamp, certification, or project experience.
+
+Success Profile:
+The best candidate is curious, collaborative, detail-oriented, and comfortable asking good questions while growing into the role.`;
+    return { company, job_title: title, jd_text: jdText };
+  }
+
+  function quickHitNormalizeActionPayload(data, jobRequest) {
+    const action = (data.actions || []).find((item) => item && item.type === "create_job_description");
+    const payload = action && action.payload ? action.payload : {};
+    const fallback = quickHitFallbackPayload(jobRequest);
+    return {
+      company: String(payload.company || payload.client || fallback.company || "Client").trim(),
+      job_title: String(payload.job_title || payload.title || fallback.job_title || "Developer").trim(),
+      jd_text: String(payload.jd_text || payload.description || fallback.jd_text || "").trim(),
+      summary: action?.summary || data.answer || "",
+    };
+  }
+
+  async function startQuickHitFlow() {
+    document.getElementById("quickHitOverlay").hidden = false;
+    quickHitSet(
+      `<div class="quick-hit-steps"><span>1 Ask</span><span>2 Draft JD</span><span>3 Save JD</span><span>4 Rank</span><span>5 Schedule</span><span>6 Status</span></div>
+       <label><strong>What job should Numa fill?</strong><textarea id="quickHitJobInput" placeholder="Example: Telus needs a junior AI developer who can work well with a team and knows Python, APIs, and front-end basics."></textarea></label>`,
+      `<button class="btn secondary" type="button" onclick="closeQuickHitFlow()">Cancel</button><button class="btn" type="button" onclick="quickHitDraftJob()">Build JD</button>`,
+    );
+  }
+
+  function closeQuickHitFlow() {
+    document.getElementById("quickHitOverlay").hidden = true;
+  }
+
+  async function quickHitDraftJob() {
+    const jobRequest = document.getElementById("quickHitJobInput")?.value.trim();
+    if (!jobRequest) return alert("Tell Numa what job you want to fill first.");
+    quickHitSet(`<div class="quick-hit-preview">Numa is drafting the job description...</div>`);
+    const context = {
+      domain: quickHitDomain(),
+      page: document.title,
+      activeUrl: window.location.href,
+      pageSnapshot: {
+        pageFile: "job-descriptions",
+        quickHit: true,
+      },
+    };
+    const form = new FormData();
+    form.append("agent_key", "jobs");
+    form.append("domain", quickHitDomain());
+    form.append("message", `Create a complete job description and create_job_description action for this quick candidate search. ${jobRequest}`);
+    form.append("context_json", JSON.stringify(context));
+    form.append("numa_change_mode", "off");
+    try {
+      const data = await quickHitApi("/api/agents/ask", { method: "POST", body: form });
+      window.quickHitState = { jobRequest, jd: quickHitNormalizeActionPayload(data, jobRequest) };
+    } catch (error) {
+      window.quickHitState = { jobRequest, jd: quickHitFallbackPayload(jobRequest) };
+    }
+    const jd = window.quickHitState.jd;
+    quickHitSet(
+      `<div class="quick-hit-steps"><span>JD draft ready</span><span>Approval required</span></div>
+       <div><strong>${quickHitEscape(jd.company)} - ${quickHitEscape(jd.job_title)}</strong></div>
+       <div class="quick-hit-preview">${quickHitEscape(jd.jd_text)}</div>`,
+      `<button class="btn secondary" type="button" onclick="startQuickHitFlow()">Back</button><button class="btn" type="button" onclick="quickHitCreateJd()">Approve and Add JD</button>`,
+    );
+  }
+
+  async function quickHitCreateJd() {
+    const jd = window.quickHitState?.jd;
+    if (!jd) return;
+    quickHitSet(`<div class="quick-hit-preview">Creating the job description in DevReady...</div>`);
+    const form = new FormData();
+    form.append("company", jd.company);
+    form.append("title", jd.job_title);
+    form.append("jd_text", jd.jd_text);
+    form.append("domain", quickHitDomain());
+    try {
+      const created = await quickHitApi("/api/azureJobs/createJob", { method: "POST", body: form });
+      const jdId = String(created.jd_id || "");
+      window.quickHitState.createdJd = created;
+      sessionStorage.setItem("jdId", jdId);
+      sessionStorage.setItem("selectedJdId", jdId);
+      sessionStorage.setItem("jobId", jdId);
+      sessionStorage.setItem("jobID", jdId);
+      sessionStorage.setItem("jobCompany", created.company || jd.company);
+      sessionStorage.setItem("jobTitle", created.title || jd.job_title);
+      sessionStorage.setItem("jobSkills", (created.jd_skills || []).join(", "));
+      if (typeof updateJob === "function") updateJob();
+      quickHitSet(
+        `<div class="quick-hit-steps"><span>JD saved</span><span>Next: search best candidate</span></div>
+         <div class="quick-hit-preview">Saved JD ${quickHitEscape(jdId)} for ${quickHitEscape(created.company || jd.company)} - ${quickHitEscape(created.title || jd.job_title)}.</div>`,
+        `<button class="btn secondary" type="button" onclick="closeQuickHitFlow()">Stop here</button><button class="btn" type="button" onclick="quickHitRankCandidates()">Approve Search</button>`,
+      );
+    } catch (error) {
+      quickHitSet(`<div class="quick-hit-preview">Could not create the JD: ${quickHitEscape(error.message || error)}</div>`, `<button class="btn secondary" type="button" onclick="quickHitDraftJob()">Back</button>`);
+    }
+  }
+
+  async function quickHitRankCandidates() {
+    const jdId = String(window.quickHitState?.createdJd?.jd_id || sessionStorage.getItem("selectedJdId") || "");
+    if (!jdId) return alert("No saved JD is selected yet.");
+    quickHitSet(`<div class="quick-hit-preview">Searching the best internal candidate for JD ${quickHitEscape(jdId)}...</div>`);
+    const form = new FormData();
+    form.append("domain", quickHitDomain());
+    form.append("jd_id", jdId);
+    form.append("top_k", "5");
+    form.append("external_source", "none");
+    try {
+      const ranked = await quickHitApi("/api/azureJobs/match/run", { method: "POST", body: form });
+      const best = (ranked.results || [])[0];
+      window.quickHitState.ranked = ranked;
+      window.quickHitState.bestCandidate = best;
+      if (!best) {
+        quickHitSet(
+          `<div class="quick-hit-preview">The JD was saved, but no internal candidate came back for this role. Open Find (Out) if you want to source externally.</div>`,
+          `<a class="btn" href="mine-candidate-external.html?domain=${encodeURIComponent(quickHitDomain())}">Find Outside Candidate</a><button class="btn secondary" type="button" onclick="closeQuickHitFlow()">Close</button>`,
+        );
+        return;
+      }
+      const score = Math.round(best._score100 || best.score || 0);
+      quickHitSet(
+        `<div class="quick-hit-steps"><span>Best candidate found</span><span>Approval required</span></div>
+         <div class="quick-hit-preview"><strong>${quickHitEscape(best.name || "Candidate")}</strong>
+Email: ${quickHitEscape(best.email || "No email listed")}
+Score: ${quickHitEscape(score)}%
+Reason: ${quickHitEscape(best.fit_reason || "Top internal match for the saved JD.")}
+Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") || "Skills pending")}</div>`,
+        `<button class="btn secondary" type="button" onclick="quickHitRankCandidates()">Search Again</button><button class="btn" type="button" onclick="quickHitApproveCandidate()">Approve Candidate</button>`,
+      );
+    } catch (error) {
+      quickHitSet(`<div class="quick-hit-preview">Candidate search failed: ${quickHitEscape(error.message || error)}</div>`, `<button class="btn secondary" type="button" onclick="quickHitCreateJd()">Back</button>`);
+    }
+  }
+
+  function quickHitApproveCandidate() {
+    const candidate = window.quickHitState?.bestCandidate;
+    if (!candidate) return;
+    const id = String(candidate.profile_id || candidate.id || "");
+    const name = candidate.name || "Candidate";
+    const email = candidate.email || "";
+    sessionStorage.setItem("candidateId", id);
+    sessionStorage.setItem("candidateName", name);
+    sessionStorage.setItem("candidateEmail", email);
+    sessionStorage.setItem("candidateStatus", "Quick Hit selected for candidate review");
+    const shortlistItem = {
+      id,
+      profile_id: id,
+      name,
+      email,
+      score: Math.round(candidate._score100 || candidate.score || 0),
+      status: "Quick Hit selected",
+      skills: candidate.top_matches || [],
+      top_matches: candidate.top_matches || [],
+      source: "Quick Hit AI",
+      stage: "Quick Hit - Find candidate",
+    };
+    if (window.DevReadyShortlist && typeof window.DevReadyShortlist.add === "function") {
+      window.DevReadyShortlist.add(shortlistItem, { stage: "Quick Hit - Find candidate", source: "Quick Hit AI" });
+    } else {
+      sessionStorage.setItem("shortlist", id);
+      const details = {};
+      details[id] = shortlistItem;
+      sessionStorage.setItem(`shortlistDetails:${quickHitDomain()}`, JSON.stringify(details));
+      sessionStorage.setItem("shortlistDetails", JSON.stringify(details));
+    }
+    const statusRecord = {
+      id: `quick-hit-${Date.now()}`,
+      domain: quickHitDomain(),
+      interviewType: "ready",
+      candidateId: id,
+      candidateName: name,
+      candidateEmail: email,
+      role: sessionStorage.getItem("jobTitle") || "",
+      company: sessionStorage.getItem("jobCompany") || "",
+      status: "Quick Hit ready to schedule",
+      provider: "ask",
+      nextAction: "Schedule candidate review",
+      createdAt: new Date().toISOString(),
+    };
+    const storageKey = `scheduleTracking:${quickHitDomain()}`;
+    const existing = JSON.parse(sessionStorage.getItem(storageKey) || sessionStorage.getItem("scheduleTracking") || "[]");
+    const records = [statusRecord, ...existing].slice(0, 25);
+    sessionStorage.setItem(storageKey, JSON.stringify(records));
+    sessionStorage.setItem("scheduleTracking", JSON.stringify(records));
+    sessionStorage.setItem(`latestScheduleTracking:${quickHitDomain()}`, JSON.stringify(statusRecord));
+    sessionStorage.setItem("latestScheduleTracking", JSON.stringify(statusRecord));
+    if (typeof updateCandidate === "function") updateCandidate();
+    quickHitSet(
+      `<div class="quick-hit-steps"><span>Candidate selected</span><span>Schedule ready</span><span>Status seeded</span></div>
+       <div class="quick-hit-preview">${quickHitEscape(name)} has been selected, added to the shortlist, and prepared for candidate review scheduling.</div>`,
+      `<a class="btn" href="schedule-interview.html?domain=${encodeURIComponent(quickHitDomain())}&interview=ready">Send to Schedule</a><a class="btn secondary" href="status-tracker.html?domain=${encodeURIComponent(quickHitDomain())}&record=${encodeURIComponent(statusRecord.id)}">Move to Status</a>`,
+    );
   }
 
   function toggleProcessFlow() {
