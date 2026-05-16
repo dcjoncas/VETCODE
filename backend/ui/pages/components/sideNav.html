@@ -175,14 +175,48 @@
     font-size: 12px;
   }
 
-  #pageNavInner::before {
-    content: "NAVIGATION";
-    display: block;
+  .nav-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     margin: 16px 12px 8px;
+  }
+
+  .nav-heading span {
     color: rgba(255, 255, 255, 0.56);
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.16em;
+  }
+
+  .nav-quick-hit {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.42);
+    border-radius: 999px;
+    background:
+      radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.95) 0 17%, transparent 19%),
+      rgba(255, 255, 255, 0.14);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+  }
+
+  .nav-quick-hit:hover {
+    background:
+      radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.95) 0 17%, transparent 19%),
+      rgba(255, 255, 255, 0.24);
+  }
+
+  .nav-quick-hit svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+    transform: translateX(1px);
   }
 </style>
 
@@ -205,6 +239,19 @@
     <symbol id="nav-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="m15 9-2 6-4 2 2-6z"></path></symbol>
     <symbol id="nav-admin" viewBox="0 0 24 24"><path d="M12 3 20 6v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"></path><path d="M9 12h6"></path><path d="M12 9v6"></path></symbol>
   </svg>
+  <div class="nav-heading">
+    <span>NAVIGATION</span>
+    <button
+      class="nav-quick-hit"
+      type="button"
+      onclick="window.startQuickHitFlow ? startQuickHitFlow() : alert('Quick Hit is available from workflow pages that show the Process Flow.')"
+      data-hint="Start the one-off Quick Hit AI candidate finder. Numa asks for the job, confirms each step, creates the JD, finds one best candidate, and prepares schedule/status context."
+      title="Quick Hit AI candidate finder"
+      aria-label="Quick Hit AI candidate finder"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
+    </button>
+  </div>
   <a href="find-candidate.html" class="nav-talent" data-menu-key="talent" data-hint="Go to the main talent workspace. From there you can upload a resume, search existing profiles, pick a saved job description, and start a candidate shortlist in the current domain."><svg class="nav-icon"><use href="#nav-home"></use></svg>Talent</a>
   <a href="job-descriptions.html" class="nav-jds" data-menu-key="job_descriptions" data-hint="Manage job descriptions for the active domain only. Saved jobs here are what matching uses when ranking candidates and showing missing skills."><svg class="nav-icon"><use href="#nav-briefcase"></use></svg>Job Descriptions</a>
   <div class="nav-group" aria-label="Candidate mining">

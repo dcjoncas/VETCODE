@@ -132,29 +132,6 @@
     font-weight: 900;
   }
 
-  #processFlow .quick-hit-play {
-    display: inline-grid;
-    place-items: center;
-    flex: 0 0 auto;
-    width: 36px;
-    height: 36px;
-    border: 1px solid rgba(var(--primary-rgb, 20, 88, 55), 0.28);
-    border-radius: 999px;
-    background:
-      radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.95) 0 16%, transparent 18%),
-      var(--primary, #145837);
-    color: #fff;
-    box-shadow: 0 9px 18px rgba(var(--primary-rgb, 20, 88, 55), 0.24);
-    cursor: pointer;
-  }
-
-  #processFlow .quick-hit-play svg {
-    width: 17px;
-    height: 17px;
-    fill: currentColor;
-    transform: translateX(1px);
-  }
-
   #quickHitOverlay {
     position: fixed;
     inset: 0;
@@ -317,16 +294,6 @@
       Start in Talent. Use Find (Out) only when no internal candidate fits.
     </div>
     <div class="flow">
-      <button
-        class="quick-hit-play"
-        type="button"
-        onclick="startQuickHitFlow()"
-        data-hint="Start the quick AI-assisted candidate finder. It asks for the job, confirms each step, creates a JD, searches the best internal candidate, and prepares scheduling/status context."
-        title="Quick AI candidate finder"
-        aria-label="Quick AI candidate finder"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
-      </button>
       <a class="step" data-flow-step="talent" href="find-candidate.html" data-hint="Start a talent workflow: upload a resume, find an existing profile, choose a job description, or scan profile groups inside the current domain.">1 - Talent</a>
       <span class="flow-arrow" aria-hidden="true"></span>
       <div class="split-step" aria-label="Step 2 candidate search">
@@ -495,9 +462,6 @@
     }
     if (flow) {
       flow.innerHTML = `
-        <button class="quick-hit-play" type="button" onclick="startQuickHitFlow()" data-hint="Start the quick AI-assisted candidate finder. It asks for the job, confirms each step, creates a JD, searches the best internal candidate, and prepares scheduling/status context." title="Quick AI candidate finder" aria-label="Quick AI candidate finder">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
-        </button>
         <a class="step complete" data-flow-step="talent" href="find-candidate.html" data-hint="Return to Talent to choose the domain, upload resumes, search profiles, or start a candidate workflow.">1 - Talent</a>
         <span class="flow-arrow" aria-hidden="true"></span>
         <a class="step on" data-flow-step="job-descriptions" href="job-descriptions.html" data-hint="Create, upload, normalize, edit, and select saved job descriptions for the active domain.">2 - Job Descriptions</a>
