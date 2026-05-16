@@ -882,6 +882,68 @@
         status.textContent = `Selected ${title || "job description"} for ${client || "client"}.`;
       }
 
+      function currentAgentUser() {
+        try {
+          return JSON.parse(sessionStorage.getItem("devreadyUser") || localStorage.getItem("devreadyUser") || "null") || {};
+        } catch {
+          return {};
+        }
+      }
+
+      function numaMaySaveJd() {
+        const user = currentAgentUser();
+        const isSuper = user.role === "super_user" && user.status !== "blocked";
+        const isAdministrator = String(user.username || "").trim().toLowerCase() === "administrator";
+        let adminUnlocked = false;
+        try {
+          adminUnlocked = Boolean(JSON.parse(sessionStorage.getItem("devreadyAdminUnlock") || "null")?.token);
+        } catch {}
+        return localStorage.getItem("devreadyNumaChangeMode") === "on" && Boolean(isSuper || isAdministrator || adminUnlocked);
+      }
+
+      function loadNumaJobDescriptionDraft(payload) {
+        const company = (payload.company || payload.client || "").trim();
+        const title = (payload.job_title || payload.title || "").trim();
+        const text = (payload.jd_text || payload.description || "").trim();
+        document.getElementById("jdCompany").value = company;
+        document.getElementById("jdTitle").value = title;
+        document.getElementById("jdText").value = text;
+        clearEditMode(false);
+        document.getElementById("jdCreateStatus").textContent =
+          `Numa loaded a draft${company || title ? ` for ${company || "client"} - ${title || "role"}` : ""}. Review it, then save when ready.`;
+        document.getElementById("jdFormTitle").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      window.DevReadyNumaActions = {
+        async execute(action) {
+          if (!action || action.type !== "create_job_description") {
+            throw new Error("This page can only run Numa job-description actions.");
+          }
+          const payload = action.payload || {};
+          loadNumaJobDescriptionDraft(payload);
+
+          if (!payload.company && !payload.client) {
+            return { message: "Numa loaded the JD draft area, but still needs the client/company name." };
+          }
+          if (!payload.job_title && !payload.title) {
+            return { message: "Numa loaded the JD draft area, but still needs the role title." };
+          }
+          if (!payload.jd_text && !payload.description) {
+            return { message: "Numa loaded the JD draft area, but still needs the job description text." };
+          }
+
+          if (numaMaySaveJd()) {
+            await saveJobDescription();
+            return { message: "Numa loaded and saved the job description." };
+          }
+
+          return {
+            message:
+              "Numa loaded the job description into the form. Review it and click Normalize & Save JD, or turn on Allow Numa Changes to let Numa save controlled JD updates.",
+          };
+        },
+      };
+
       document.addEventListener("DOMContentLoaded", function () {
         document.getElementById("btnSaveJd").addEventListener("click", saveJobDescription);
         document.getElementById("btnCancelEdit").addEventListener("click", function () {

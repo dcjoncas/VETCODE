@@ -351,7 +351,8 @@ For client interviews, client_company, client_contact_name, and client_contact_e
 Do not propose create_profile or update_profile_core unless can_request_changes is true in the safety policy.
 Use create_job_description when the user asks to create, draft, save, add, or add to system a job description. If the user says "the JD I just asked for" or similar, use the recent chat history in context to recover the prior drafted JD.
 For create_job_description, include company, job_title, and a complete jd_text. If the original request is short, expand it into a professional JD without inventing confidential facts.
-Do not propose create_job_description unless can_request_changes is true in the safety policy.
+On the Job Descriptions page, you may propose create_job_description to load a draft into the page form even when change mode is off. The app will only save the JD to the database when change mode is authorized.
+Outside the Job Descriptions page, do not propose create_job_description unless can_request_changes is true in the safety policy.
 Do not propose actions for questions, analysis, ranking, salary, deal value, code changes, deletes, or uncertain instructions.
 Keep profile descriptions factual. Do not invent facts beyond the user's message or current app context.
 """
@@ -376,7 +377,12 @@ Keep profile descriptions factual. Do not invent facts beyond the user's message
         if not isinstance(action, dict):
             continue
         action_type = action.get("type")
-        if action_type in {"create_profile", "update_profile_core", "create_job_description"} and not _numa_policy(context)["can_request_changes"]:
+        page_file = (
+            ((context.get("pageSnapshot") or {}).get("pageFile") if isinstance(context.get("pageSnapshot"), dict) else "")
+            or ""
+        )
+        local_jd_draft = action_type == "create_job_description" and page_file == "job-descriptions"
+        if action_type in {"create_profile", "update_profile_core", "create_job_description"} and not _numa_policy(context)["can_request_changes"] and not local_jd_draft:
             continue
         if action_type not in {"create_profile", "update_profile_core", "schedule_interview_setup", "create_job_description"}:
             continue

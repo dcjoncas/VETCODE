@@ -464,6 +464,7 @@
         text: valueOf("#jdText", 1800),
         status: textOf("#jdCreateStatus", 300),
         loadedCount: textOf("#jdCount", 80),
+        canLoadDraftLocally: true,
       };
     }
 
