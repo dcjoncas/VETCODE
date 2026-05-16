@@ -639,7 +639,9 @@
           : action.type === "schedule_interview_setup"
             ? "Set Up Interview"
             : action.type === "create_job_description"
-              ? "Add Job Description"
+              ? pageName() === "job-descriptions" && numaChangeMode() !== "on"
+                ? "Load JD"
+                : "Add Job Description"
               : "Apply Update";
       button.addEventListener("click", () => executeWidgetAction(button, action));
       card.appendChild(title);

@@ -271,6 +271,126 @@ def _json_from_model_text(text: str) -> dict[str, Any]:
     return {}
 
 
+def _recent_chat_text(context: dict[str, Any]) -> str:
+    rows = context.get("recentChat")
+    if not isinstance(rows, list):
+        return ""
+    parts = []
+    for row in rows[-8:]:
+        if not isinstance(row, dict):
+            continue
+        role = str(row.get("role") or "chat").strip()
+        text = str(row.get("text") or "").strip()
+        if text:
+            parts.append(f"{role}: {text}")
+    return "\n\n".join(parts)
+
+
+def _field_from_text(text: str, labels: list[str]) -> str:
+    for label in labels:
+        pattern = rf"(?im)^\s*(?:[#*\-\s]*\**{re.escape(label)}\**\s*:)\s*(.+?)\s*$"
+        match = re.search(pattern, text or "")
+        if match:
+            return re.sub(r"[\[\]*_`]+", "", match.group(1)).strip()
+    return ""
+
+
+def _simple_jd_text(company: str, title: str, source: str) -> str:
+    exp_match = re.search(r"(?i)\b(\d+)\s*\+?\s*(?:years|yrs|year)\b", source or "")
+    years = exp_match.group(1) if exp_match else "3"
+    focus = "AI, machine learning, data workflows, and practical software delivery"
+    if re.search(r"(?i)\bjunior\b", source or ""):
+        seniority = "Junior "
+        years = exp_match.group(1) if exp_match else "1"
+    else:
+        seniority = ""
+    return f"""Job Title: {title}
+Company: {company}
+
+Overview:
+{company} is seeking a {seniority}{title} with hands-on experience in {focus}. This role is for a practical builder who can work with a team, understand business needs, and deliver simple, useful AI-enabled solutions.
+
+Responsibilities:
+- Build, test, and maintain AI-enabled application features.
+- Work with product, engineering, and business teams to clarify requirements.
+- Use data, APIs, and model outputs responsibly in production workflows.
+- Document assumptions, decisions, risks, and handoff notes clearly.
+- Troubleshoot issues and improve reliability over time.
+
+Required Qualifications:
+- {years}+ years of relevant AI, machine learning, data, or software engineering experience.
+- Working knowledge of Python and common AI or data libraries.
+- Familiarity with APIs, databases, and version control.
+- Ability to communicate clearly and collaborate in a team environment.
+
+Preferred Qualifications:
+- Experience with cloud platforms, automation, model evaluation, or modern web applications.
+- Exposure to LLMs, prompt design, retrieval workflows, or applied AI tools.
+
+Success Profile:
+The right candidate is collaborative, curious, careful with data, and able to turn AI ideas into practical working features."""
+
+
+def _clean_jd_title(value: str) -> str:
+    title = re.sub(r"\s+", " ", str(value or "")).strip(" -:.,")
+    replacements = {
+        r"(?i)\benigineer\b": "Engineer",
+        r"(?i)\benginee?r\b": "Engineer",
+        r"(?i)\bdevleoper\b": "Developer",
+        r"(?i)\bdeveloepr\b": "Developer",
+        r"(?i)\bdesctiion\b": "Description",
+    }
+    for pattern, replacement in replacements.items():
+        title = re.sub(pattern, replacement, title)
+    return title
+
+
+def _fallback_job_description_action(message: str, context: dict[str, Any]) -> dict[str, Any] | None:
+    page_file = (
+        ((context.get("pageSnapshot") or {}).get("pageFile") if isinstance(context.get("pageSnapshot"), dict) else "")
+        or ""
+    )
+    if page_file != "job-descriptions":
+        return None
+
+    combined = "\n\n".join([_recent_chat_text(context), message or ""]).strip()
+    if not re.search(r"(?i)\b(job\s*description|jd|role|position|engineer|developer)\b", combined):
+        return None
+    if not re.search(r"(?i)\b(add|save|load|create|build|yes|confirm|system)\b", message or ""):
+        return None
+
+    title = _field_from_text(combined, ["Job Title", "Title", "Role"])
+    company = _field_from_text(combined, ["Company", "Client"])
+
+    if not company:
+        company_match = re.search(r"(?i)\b(?:for|at)\s+([A-Z][A-Za-z0-9&.\- ]{1,42})(?:\s+(?:that|who|with|for|as|needs?|need|is|has)\b|$)", combined)
+        company = (company_match.group(1).strip() if company_match else "") or "Client"
+    if not title:
+        title_match = re.search(r"(?i)\b(?:for|as|need|needs|hiring)\s+(?:an?\s+)?([A-Za-z0-9 /+#.\-]*?(?:AI|Java|Python|Front End|Backend|Full Stack|Developer|Engineer)[A-Za-z0-9 /+#.\-]*?)(?:\s+(?:for|at|that|who|with|and|$))", combined)
+        title = (title_match.group(1).strip() if title_match else "") or "AI Engineer"
+    title = _clean_jd_title(title)
+
+    jd_text = ""
+    jd_start = re.search(r"(?im)^\s*(?:[#*\-\s]*\**Job Title\**\s*:)", combined)
+    if jd_start:
+        jd_text = combined[jd_start.start():].strip()
+        jd_text = re.split(r"(?im)^\s*(?:Please confirm|If you|Let me know|assistant: Please confirm)\b", jd_text)[0].strip()
+    if not jd_text or len(jd_text) < 220:
+        jd_text = _simple_jd_text(company, title, combined)
+
+    return {
+        "type": "create_job_description",
+        "label": "Add job description",
+        "summary": f"Load and save-ready draft for {company} - {title}.",
+        "missing_fields": [],
+        "payload": {
+            "company": company,
+            "job_title": title,
+            "jd_text": jd_text,
+        },
+    }
+
+
 def _plan_actions(client, agent_key: str, message: str, context: dict[str, Any], agent: dict[str, Any]) -> list[dict[str, Any]]:
     intent_words = {
         "create",
@@ -417,6 +537,10 @@ Keep profile descriptions factual. Do not invent facts beyond the user's message
                 "payload": payload,
             }
         )
+    if not clean_actions:
+        fallback = _fallback_job_description_action(clean_message, context)
+        if fallback:
+            clean_actions.append(fallback)
     return clean_actions[:2]
 
 
@@ -428,11 +552,12 @@ def ask_page_agent(agent_key: str, message: str, context: dict[str, Any] | None 
         return {"ok": False, "agent": agent, "answer": "Ask me what you want to do on this page."}
 
     if not os.getenv("OPENAI_API_KEY"):
+        fallback_action = _fallback_job_description_action(clean_message, context)
         return {
             "ok": True,
             "agent": agent,
             "access": _numa_policy(context),
-            "actions": [],
+            "actions": [fallback_action] if fallback_action else [],
             "answer": (
                 f"{agent['name']} is ready. I can help with {agent['page']} using the active "
                 "candidate, job, and domain context. Add OPENAI_API_KEY to enable live model answers."
@@ -468,7 +593,8 @@ def ask_page_agent(agent_key: str, message: str, context: dict[str, Any] | None 
         try:
             actions = _plan_actions(client, agent_key, clean_message, context, agent)
         except Exception:
-            actions = []
+            fallback_action = _fallback_job_description_action(clean_message, context)
+            actions = [fallback_action] if fallback_action else []
         return {
             "ok": True,
             "agent": agent,
