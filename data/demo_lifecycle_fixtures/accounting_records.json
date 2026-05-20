@@ -13,6 +13,92 @@
   ],
   "invoices": [
     {
+      "client": "LedgerPeak Bank",
+      "client_address": "910 LedgerPeak Plaza\nCharlotte, NC 28202",
+      "client_email": "ap@ledgerpeak-bank.example",
+      "created_at": "2026-05-06T12:00:00Z",
+      "domain": "dev",
+      "due_date": "2026-05-16",
+      "id": "INV-DEMO-DEV-004",
+      "invoice_date": "2026-05-01",
+      "invoice_number": "DR-DEV-2026-004",
+      "line_items": [
+        {
+          "amount": 2280,
+          "consultant": "Tina DevReady",
+          "description": "2026-05-01 - Tina DevReady - Banking platform QA automation",
+          "qty": 12,
+          "rate": 190,
+          "summary": "Overdue sample invoice for receivables reporting.",
+          "work_date": "2026-05-01"
+        },
+        {
+          "amount": 900,
+          "consultant": "Tom DevReady",
+          "description": "2026-05-02 - Tom DevReady - API compliance support",
+          "qty": 6,
+          "rate": 150,
+          "summary": "Follow-up support tied to invoice collection.",
+          "work_date": "2026-05-02"
+        }
+      ],
+      "notes": "Seed overdue invoice for Accounts Receivable reporting.",
+      "payment_terms": "Net 15",
+      "period_end": "2026-05-02",
+      "period_start": "2026-05-01",
+      "po_number": "LEDGER-DEMO-004",
+      "sent_at": "2026-05-06T12:00:00Z",
+      "status": "overdue",
+      "subtotal": 3180,
+      "tax": 0,
+      "time_entry_ids": [],
+      "total": 3180,
+      "updated_at": "2026-05-20T16:00:00Z"
+    },
+    {
+      "id": "INV-DEMO-DEV-006",
+      "domain": "dev",
+      "client": "BrightCart Retail",
+      "client_email": "ap@brightcart-retail.example",
+      "client_address": "225 Retail Automation Plaza\nAustin, TX 78701",
+      "invoice_number": "DR-DEV-2026-006",
+      "invoice_date": "2026-05-10",
+      "due_date": "2026-05-25",
+      "period_start": "2026-05-08",
+      "period_end": "2026-05-10",
+      "status": "sent",
+      "payment_terms": "Net 15",
+      "po_number": "BRIGHTCART-DEMO-006",
+      "sent_at": "2026-05-10T18:00:00Z",
+      "notes": "Additional sent Technology invoice for AP follow-up testing.",
+      "line_items": [
+        {
+          "work_date": "2026-05-08",
+          "consultant": "Tina DevReady",
+          "description": "2026-05-08 - Tina DevReady - Retail automation sprint planning",
+          "summary": "Sprint planning and automation QA review.",
+          "qty": 8,
+          "rate": 190,
+          "amount": 1520
+        },
+        {
+          "work_date": "2026-05-09",
+          "consultant": "Tom DevReady",
+          "description": "2026-05-09 - Tom DevReady - Support workflow integration",
+          "summary": "Integrated support workflow checks.",
+          "qty": 7,
+          "rate": 150,
+          "amount": 1050
+        }
+      ],
+      "created_at": "2026-05-20T18:30:00Z",
+      "updated_at": "2026-05-20T18:30:00Z",
+      "tax": 0,
+      "time_entry_ids": [],
+      "subtotal": 2570,
+      "total": 2570
+    },
+    {
       "client": "Atlas AI Health",
       "client_address": "100 Health Innovation Way\nDenver, CO 80202",
       "client_email": "ap@atlasaihealth.example",
@@ -45,9 +131,216 @@
       "status": "sent",
       "subtotal": 2625,
       "tax": 0,
-      "time_entry_ids": ["TIM-DEMO-DEV-01-1", "TIM-DEMO-DEV-02-2"],
+      "time_entry_ids": [
+        "TIM-DEMO-DEV-01-1",
+        "TIM-DEMO-DEV-02-2"
+      ],
       "total": 2625,
       "updated_at": "2026-05-20T14:00:00Z"
+    },
+    {
+      "client": "BrightCart Retail",
+      "client_address": "225 Retail Automation Plaza\nAustin, TX 78701",
+      "client_email": "ap@brightcart-retail.example",
+      "created_at": "2026-05-20T15:10:00Z",
+      "domain": "dev",
+      "due_date": "2026-06-05",
+      "id": "INV-DEMO-DEV-002",
+      "invoice_date": "2026-05-21",
+      "invoice_number": "DR-DEV-2026-002",
+      "line_items": [
+        {
+          "amount": 1710,
+          "consultant": "Tina DevReady",
+          "description": "2026-05-21 - Tina DevReady - Retail workflow automation",
+          "qty": 9,
+          "rate": 190,
+          "summary": "Approved product automation discovery and Playwright workflow validation.",
+          "work_date": "2026-05-21"
+        },
+        {
+          "amount": 1050,
+          "consultant": "Tom DevReady",
+          "description": "2026-05-22 - Tom DevReady - API integration support",
+          "qty": 7,
+          "rate": 150,
+          "summary": "Approved integration mapping and prompt workflow support.",
+          "work_date": "2026-05-22"
+        }
+      ],
+      "notes": "Seed invoice showing a draft Technology customer invoice ready for AP review.",
+      "payment_terms": "Net 15",
+      "period_end": "2026-05-22",
+      "period_start": "2026-05-21",
+      "po_number": "BRIGHTCART-DEMO-002",
+      "status": "draft",
+      "subtotal": 2760,
+      "tax": 0,
+      "time_entry_ids": [],
+      "total": 2760,
+      "updated_at": "2026-05-20T15:10:00Z"
+    },
+    {
+      "client": "Northstar Health",
+      "client_address": "480 Clinical AI Center\nBoston, MA 02110",
+      "client_email": "ap@northstar-health.example",
+      "created_at": "2026-05-20T15:20:00Z",
+      "domain": "dev",
+      "due_date": "2026-06-06",
+      "id": "INV-DEMO-DEV-003",
+      "invoice_date": "2026-05-22",
+      "invoice_number": "DR-DEV-2026-003",
+      "line_items": [
+        {
+          "amount": 1425,
+          "consultant": "Tina DevReady",
+          "description": "2026-05-22 - Tina DevReady - Healthcare data automation",
+          "qty": 7.5,
+          "rate": 190,
+          "summary": "Approved automation design and reporting workflow documentation.",
+          "work_date": "2026-05-22"
+        }
+      ],
+      "notes": "Seed invoice showing a sent Technology customer invoice awaiting payment.",
+      "payment_terms": "Net 15",
+      "period_end": "2026-05-22",
+      "period_start": "2026-05-22",
+      "po_number": "NORTHSTAR-DEMO-003",
+      "sent_at": "2026-05-22T15:20:00Z",
+      "status": "sent",
+      "subtotal": 1425,
+      "tax": 0,
+      "time_entry_ids": [],
+      "total": 1425,
+      "updated_at": "2026-05-22T15:20:00Z"
+    },
+    {
+      "id": "INV-DEMO-DEV-005",
+      "domain": "dev",
+      "client": "Atlas AI Health",
+      "client_email": "ap@atlasaihealth.example",
+      "client_address": "100 Health Innovation Way\nDenver, CO 80202",
+      "invoice_number": "DR-DEV-2026-005",
+      "invoice_date": "2026-05-24",
+      "due_date": "2026-06-08",
+      "period_start": "2026-05-23",
+      "period_end": "2026-05-24",
+      "status": "draft",
+      "payment_terms": "Net 15",
+      "po_number": "ATLAS-DEMO-005",
+      "notes": "Additional seeded draft Technology invoice for customer tab testing.",
+      "line_items": [
+        {
+          "work_date": "2026-05-23",
+          "consultant": "Tina DevReady",
+          "description": "2026-05-23 - Tina DevReady - Healthcare automation backlog review",
+          "summary": "Reviewed backlog and prepared automation work plan.",
+          "qty": 6.5,
+          "rate": 190,
+          "amount": 1235
+        },
+        {
+          "work_date": "2026-05-24",
+          "consultant": "Tom DevReady",
+          "description": "2026-05-24 - Tom DevReady - API readiness validation",
+          "summary": "Validated integrations and handoff notes.",
+          "qty": 5,
+          "rate": 150,
+          "amount": 750
+        }
+      ],
+      "created_at": "2026-05-20T18:30:00Z",
+      "updated_at": "2026-05-20T18:30:00Z",
+      "tax": 0,
+      "time_entry_ids": [],
+      "subtotal": 1985,
+      "total": 1985
+    },
+    {
+      "client": "Canyon Water Authority",
+      "client_address": "1200 Waterworks Drive\nFort Collins, CO 80521",
+      "client_email": "ap@canyon-water-authority.example",
+      "created_at": "2026-05-08T12:00:00Z",
+      "domain": "engineer",
+      "due_date": "2026-05-18",
+      "id": "INV-DEMO-ENG-002",
+      "invoice_date": "2026-05-03",
+      "invoice_number": "DR-BUILD-2026-002",
+      "line_items": [
+        {
+          "amount": 2040,
+          "consultant": "Tom BuildReady",
+          "description": "2026-05-03 - Tom BuildReady - Pump station remediation support",
+          "qty": 12,
+          "rate": 170,
+          "summary": "Overdue engineering invoice for aged receivables testing.",
+          "work_date": "2026-05-03"
+        },
+        {
+          "amount": 1600,
+          "consultant": "Tina BuildReady",
+          "description": "2026-05-04 - Tina BuildReady - Controls review and scheduling",
+          "qty": 8,
+          "rate": 200,
+          "summary": "Project controls review for engineering delivery.",
+          "work_date": "2026-05-04"
+        }
+      ],
+      "notes": "Seed overdue Engineering invoice for reporting and follow-up workflow.",
+      "payment_terms": "Net 15",
+      "period_end": "2026-05-04",
+      "period_start": "2026-05-03",
+      "po_number": "CANYON-DEMO-002",
+      "sent_at": "2026-05-08T12:00:00Z",
+      "status": "overdue",
+      "subtotal": 3640,
+      "tax": 0,
+      "time_entry_ids": [],
+      "total": 3640,
+      "updated_at": "2026-05-20T16:10:00Z"
+    },
+    {
+      "id": "INV-DEMO-ENG-005",
+      "domain": "engineer",
+      "client": "ForgeLine Fabrication",
+      "client_email": "ap@forgeline-fabrication.example",
+      "client_address": "340 Fabrication Loop\nPittsburgh, PA 15222",
+      "invoice_number": "DR-BUILD-2026-005",
+      "invoice_date": "2026-05-07",
+      "due_date": "2026-05-22",
+      "period_start": "2026-05-05",
+      "period_end": "2026-05-07",
+      "status": "overdue",
+      "payment_terms": "Net 15",
+      "po_number": "FORGELINE-DEMO-005",
+      "sent_at": "2026-05-07T16:45:00Z",
+      "notes": "Additional overdue Engineering invoice for collections report testing.",
+      "line_items": [
+        {
+          "work_date": "2026-05-05",
+          "consultant": "Tina BuildReady",
+          "description": "2026-05-05 - Tina BuildReady - Controls upgrade planning",
+          "summary": "Controls planning and stakeholder coordination.",
+          "qty": 10,
+          "rate": 200,
+          "amount": 2000
+        },
+        {
+          "work_date": "2026-05-06",
+          "consultant": "Tom BuildReady",
+          "description": "2026-05-06 - Tom BuildReady - Site readiness assessment",
+          "summary": "Site readiness and remediation assessment.",
+          "qty": 7,
+          "rate": 170,
+          "amount": 1190
+        }
+      ],
+      "created_at": "2026-05-20T18:30:00Z",
+      "updated_at": "2026-05-20T18:30:00Z",
+      "tax": 0,
+      "time_entry_ids": [],
+      "subtotal": 3190,
+      "total": 3190
     },
     {
       "client": "Summit Grid Works",
@@ -81,10 +374,166 @@
       "status": "viewed",
       "subtotal": 2860,
       "tax": 0,
-      "time_entry_ids": ["TIM-DEMO-ENGINEER-01-1", "TIM-DEMO-ENGINEER-02-2"],
+      "time_entry_ids": [
+        "TIM-DEMO-ENGINEER-01-1",
+        "TIM-DEMO-ENGINEER-02-2"
+      ],
       "total": 2860,
       "updated_at": "2026-05-20T14:00:00Z",
       "viewed_at": "2026-05-20T15:25:00Z"
+    },
+    {
+      "client": "Apex Grid Storage",
+      "client_address": "760 Battery Park Road\nPhoenix, AZ 85004",
+      "client_email": "ap@apex-grid-storage.example",
+      "created_at": "2026-05-20T16:15:00Z",
+      "domain": "engineer",
+      "due_date": "2026-06-04",
+      "id": "INV-DEMO-ENG-003",
+      "invoice_date": "2026-05-20",
+      "invoice_number": "DR-BUILD-2026-003",
+      "line_items": [
+        {
+          "amount": 1800,
+          "consultant": "Tina BuildReady",
+          "description": "2026-05-20 - Tina BuildReady - Battery storage site QA",
+          "qty": 9,
+          "rate": 200,
+          "summary": "Fresh draft engineering invoice ready for AP review.",
+          "work_date": "2026-05-20"
+        }
+      ],
+      "notes": "Seed draft Engineering invoice ready to save/send.",
+      "payment_terms": "Net 15",
+      "period_end": "2026-05-20",
+      "period_start": "2026-05-20",
+      "po_number": "APEX-DEMO-003",
+      "status": "draft",
+      "subtotal": 1800,
+      "tax": 0,
+      "time_entry_ids": [],
+      "total": 1800,
+      "updated_at": "2026-05-20T16:15:00Z"
+    },
+    {
+      "id": "INV-DEMO-ENG-004",
+      "domain": "engineer",
+      "client": "Summit Grid Works",
+      "client_email": "billing@summitgrid.example",
+      "client_address": "450 Civic Build Road\nBoulder, CO 80301",
+      "invoice_number": "DR-BUILD-2026-004",
+      "invoice_date": "2026-05-24",
+      "due_date": "2026-06-08",
+      "period_start": "2026-05-22",
+      "period_end": "2026-05-24",
+      "status": "sent",
+      "payment_terms": "Net 15",
+      "po_number": "SUMMIT-DEMO-004",
+      "sent_at": "2026-05-24T17:30:00Z",
+      "notes": "Additional sent Engineering invoice for week-over-week report testing.",
+      "line_items": [
+        {
+          "work_date": "2026-05-22",
+          "consultant": "Tina BuildReady",
+          "description": "2026-05-22 - Tina BuildReady - Project controls review",
+          "summary": "Reviewed project controls and delivery risks.",
+          "qty": 8,
+          "rate": 200,
+          "amount": 1600
+        },
+        {
+          "work_date": "2026-05-23",
+          "consultant": "Tom BuildReady",
+          "description": "2026-05-23 - Tom BuildReady - Civil delivery QA",
+          "summary": "Civil QA and drawing package review.",
+          "qty": 6,
+          "rate": 170,
+          "amount": 1020
+        }
+      ],
+      "created_at": "2026-05-20T18:30:00Z",
+      "updated_at": "2026-05-20T18:30:00Z",
+      "tax": 0,
+      "time_entry_ids": [],
+      "subtotal": 2620,
+      "total": 2620
+    },
+    {
+      "client": "Meridian Compliance Group",
+      "client_address": "880 Compliance Row\nNew York, NY 10005",
+      "client_email": "ap@meridian-compliance-group.example",
+      "created_at": "2026-05-05T09:30:00Z",
+      "domain": "law",
+      "due_date": "2026-05-15",
+      "id": "INV-DEMO-LAW-003",
+      "invoice_date": "2026-04-30",
+      "invoice_number": "DR-LAW-2026-003",
+      "line_items": [
+        {
+          "amount": 2640,
+          "consultant": "Tina LegalReady",
+          "description": "2026-04-30 - Tina LegalReady - AI policy review",
+          "qty": 12,
+          "rate": 220,
+          "summary": "Overdue legal compliance invoice for reporting.",
+          "work_date": "2026-04-30"
+        }
+      ],
+      "notes": "Seed overdue Law invoice for collection reporting.",
+      "payment_terms": "Net 15",
+      "period_end": "2026-04-30",
+      "period_start": "2026-04-30",
+      "po_number": "MERIDIAN-DEMO-003",
+      "sent_at": "2026-05-05T09:30:00Z",
+      "status": "overdue",
+      "subtotal": 2640,
+      "tax": 0,
+      "time_entry_ids": [],
+      "total": 2640,
+      "updated_at": "2026-05-20T16:25:00Z"
+    },
+    {
+      "id": "INV-DEMO-LAW-005",
+      "domain": "law",
+      "client": "BrightPath Legal Ops",
+      "client_email": "ap@brightpath-legal-ops.example",
+      "client_address": "515 Counsel Square\nChicago, IL 60601",
+      "invoice_number": "DR-LAW-2026-005",
+      "invoice_date": "2026-05-09",
+      "due_date": "2026-05-24",
+      "period_start": "2026-05-07",
+      "period_end": "2026-05-09",
+      "status": "sent",
+      "payment_terms": "Net 15",
+      "po_number": "BRIGHTPATH-DEMO-005",
+      "sent_at": "2026-05-09T15:15:00Z",
+      "notes": "Additional sent Law invoice for AP follow-up workflow testing.",
+      "line_items": [
+        {
+          "work_date": "2026-05-07",
+          "consultant": "Tina LegalReady",
+          "description": "2026-05-07 - Tina LegalReady - CLM intake workshop",
+          "summary": "CLM intake workshop and follow-up documentation.",
+          "qty": 8,
+          "rate": 220,
+          "amount": 1760
+        },
+        {
+          "work_date": "2026-05-08",
+          "consultant": "Tom LegalReady",
+          "description": "2026-05-08 - Tom LegalReady - Contract approval mapping",
+          "summary": "Mapped contract approval workflow.",
+          "qty": 6.5,
+          "rate": 180,
+          "amount": 1170
+        }
+      ],
+      "created_at": "2026-05-20T18:30:00Z",
+      "updated_at": "2026-05-20T18:30:00Z",
+      "tax": 0,
+      "time_entry_ids": [],
+      "subtotal": 2930,
+      "total": 2930
     },
     {
       "client": "Civic Harbor Legal",
@@ -118,9 +567,96 @@
       "status": "paid",
       "subtotal": 3090,
       "tax": 0,
-      "time_entry_ids": ["TIM-DEMO-LAW-01-1", "TIM-DEMO-LAW-02-2"],
+      "time_entry_ids": [
+        "TIM-DEMO-LAW-01-1",
+        "TIM-DEMO-LAW-02-2"
+      ],
       "total": 3090,
       "updated_at": "2026-05-20T14:00:00Z"
+    },
+    {
+      "client": "BrightPath Legal Ops",
+      "client_address": "515 Counsel Square\nChicago, IL 60601",
+      "client_email": "ap@brightpath-legal-ops.example",
+      "created_at": "2026-05-20T16:20:00Z",
+      "domain": "law",
+      "due_date": "2026-06-04",
+      "id": "INV-DEMO-LAW-002",
+      "invoice_date": "2026-05-20",
+      "invoice_number": "DR-LAW-2026-002",
+      "line_items": [
+        {
+          "amount": 1980,
+          "consultant": "Tina LegalReady",
+          "description": "2026-05-20 - Tina LegalReady - CLM workflow cleanup",
+          "qty": 9,
+          "rate": 220,
+          "summary": "Draft legal operations invoice for AP review.",
+          "work_date": "2026-05-20"
+        },
+        {
+          "amount": 1080,
+          "consultant": "Tom LegalReady",
+          "description": "2026-05-20 - Tom LegalReady - Intake governance support",
+          "qty": 6,
+          "rate": 180,
+          "summary": "Matter intake governance and documentation support.",
+          "work_date": "2026-05-20"
+        }
+      ],
+      "notes": "Seed draft Law invoice ready for AP review.",
+      "payment_terms": "Net 15",
+      "period_end": "2026-05-20",
+      "period_start": "2026-05-20",
+      "po_number": "BRIGHTPATH-DEMO-002",
+      "status": "draft",
+      "subtotal": 3060,
+      "tax": 0,
+      "time_entry_ids": [],
+      "total": 3060,
+      "updated_at": "2026-05-20T16:20:00Z"
+    },
+    {
+      "id": "INV-DEMO-LAW-004",
+      "domain": "law",
+      "client": "Civic Harbor Legal",
+      "client_email": "ap@civicharbor.example",
+      "client_address": "210 Legal Harbor Ave\nWashington, DC 20001",
+      "invoice_number": "DR-LAW-2026-004",
+      "invoice_date": "2026-05-24",
+      "due_date": "2026-06-08",
+      "period_start": "2026-05-22",
+      "period_end": "2026-05-24",
+      "status": "draft",
+      "payment_terms": "Net 15",
+      "po_number": "CIVIC-DEMO-004",
+      "notes": "Additional draft Law invoice for invoice tabs and reporting testing.",
+      "line_items": [
+        {
+          "work_date": "2026-05-22",
+          "consultant": "Tina LegalReady",
+          "description": "2026-05-22 - Tina LegalReady - Matter workflow cleanup",
+          "summary": "Matter workflow cleanup and AP-ready notes.",
+          "qty": 7,
+          "rate": 220,
+          "amount": 1540
+        },
+        {
+          "work_date": "2026-05-23",
+          "consultant": "Tom LegalReady",
+          "description": "2026-05-23 - Tom LegalReady - Legal ops documentation",
+          "summary": "Legal operations documentation and QA.",
+          "qty": 6,
+          "rate": 180,
+          "amount": 1080
+        }
+      ],
+      "created_at": "2026-05-20T18:30:00Z",
+      "updated_at": "2026-05-20T18:30:00Z",
+      "tax": 0,
+      "time_entry_ids": [],
+      "subtotal": 2620,
+      "total": 2620
     }
   ],
   "resources": [

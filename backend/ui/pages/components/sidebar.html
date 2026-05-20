@@ -455,7 +455,7 @@
     domainUpdate(activeDomain);
     initPageAgentDock();
     loadPageAgentRuntime(renderActivePageAgent);
-    $("#pageNav").load("components/sideNav.html?v=20260519-egeria-label", function () {
+    $("#pageNav").load("components/sideNav.html?v=20260520-ops-menu", function () {
       applyMenuAccess();
       applyDomainToLocalLinks(sessionStorage.getItem("domain") || "dev");
     });
@@ -512,9 +512,6 @@
     }
     if (allowed.has("time_link") || allowed.has("status")) {
       allowed.add("onboarding");
-    }
-    if (allowed.has("reports") || allowed.has("time_link") || allowed.has("onboarding")) {
-      allowed.add("accounting");
     }
     if (allowed.has("accounting")) {
       allowed.add("invoices");

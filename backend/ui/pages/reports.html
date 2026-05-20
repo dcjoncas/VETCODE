@@ -218,6 +218,44 @@
         color: #9f1d2c;
       }
 
+      .report-action-list {
+        display: grid;
+        gap: 10px;
+        padding: 12px;
+      }
+
+      .report-action-card {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fff;
+      }
+
+      .report-action-card h3 {
+        margin: 0;
+        font-size: 16px;
+      }
+
+      .report-action-meta {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .report-action-buttons {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
       @media (max-width: 960px) {
         .summary-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -234,6 +272,7 @@
         #siteSidebar,
         #searchBar,
         .report-actions,
+        .report-action-buttons,
         .report-icon-grid,
         .topbar select,
         .topbar label,
@@ -322,6 +361,7 @@
         { key: "meetings", title: "Meetings", icon: "mic", hint: "Meeting totals by day and week, with client/candidate context." },
         { key: "interviews", title: "Interviews", icon: "calendar", hint: "Candidate review and client interview scheduling totals." },
         { key: "time", title: "Time entry", icon: "clock", hint: "Weekly submitted hours, processed hours, missing time, and staff list." },
+        { key: "accounting", title: "Accounting", icon: "calculator", hint: "Customers, invoices, receivables, sent/overdue links, and week-over-week invoice totals." },
       ];
 
       let reportState = {};
@@ -362,6 +402,7 @@
           mic: '<rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path>',
           calendar: '<rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path>',
           clock: '<circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path>',
+          calculator: '<rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M8 7h8"></path><path d="M8 11h2"></path><path d="M12 11h2"></path><path d="M16 11h0"></path><path d="M8 15h2"></path><path d="M12 15h2"></path><path d="M16 15h0"></path>',
         };
         return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || paths.chart}</svg>`;
       }
@@ -419,7 +460,7 @@
       async function loadJsonBundle(domain) {
         const week = document.getElementById("weekStart").value || startOfWeek();
         const queryDomain = encodeURIComponent(domain);
-        const [profileCount, recentProfileCount, profiles, jobs, onboarding, time, meetings, interviews, temp] = await Promise.all([
+        const [profileCount, recentProfileCount, profiles, jobs, onboarding, time, meetings, interviews, temp, accounting] = await Promise.all([
           safeApi(`/api/profile/count?domain=${queryDomain}`, 0),
           safeApi(`/api/profile/count/recent?domain=${queryDomain}`, 0),
           safeApi(`/api/profile/list?domain=${queryDomain}`, []),
@@ -429,6 +470,7 @@
           safeApi(`/api/meetings/archive?domain=${queryDomain}&limit=500`, { records: [] }),
           safeApi(`/api/interviews/archive?domain=${queryDomain}&limit=250`, { records: [] }),
           safeApi(`/api/azureJobs/external/temp?domain=${queryDomain}&limit=200`, { profiles: [], records: [], count: 0 }),
+          safeApi(`/api/accounting/summary?domain=${queryDomain}`, { resources: [], invoices: [], crm_customers: [], counts: {}, pnl: {}, balance_sheet: {} }),
         ]);
         return {
           domain,
@@ -446,6 +488,14 @@
           interviews: interviews.records || [],
           tempProfiles: temp.profiles || temp.records || temp.people || [],
           tempCount: Number(temp.count || (temp.profiles || temp.records || temp.people || []).length || 0),
+          resources: accounting.resources || [],
+          invoices: accounting.invoices || [],
+          crmCustomers: accounting.crm_customers || [],
+          accountingCounts: accounting.counts || {},
+          pnl: accounting.pnl || {},
+          balanceSheet: accounting.balance_sheet || {},
+          accountingTimeRows: accounting.time_rows || [],
+          accountingOnboardingPeople: accounting.onboarding_people || [],
         };
       }
 
@@ -459,6 +509,83 @@
 
       function profileId(profile) {
         return profile.profile_id || profile.profileId || profile.id || profile.meta?.profile_id || "";
+      }
+
+      function personKey(item) {
+        return String(item?.profile_id || item?.profileId || item?.id || item?.token || item?.email || item?.candidate_name || item?.name || "").trim().toLowerCase();
+      }
+
+      function resourceMap(resources) {
+        const map = new Map();
+        (resources || []).forEach((resource) => {
+          [resource.profile_id, resource.token, resource.email, resource.name].forEach((key) => {
+            if (key) map.set(String(key).trim().toLowerCase(), resource);
+          });
+        });
+        return map;
+      }
+
+      function resourceFor(item) {
+        const map = reportState._resourceMap || new Map();
+        for (const key of [item?.profile_id, item?.profileId, item?.token, item?.email, item?.candidate_name, item?.name]) {
+          const normalized = String(key || "").trim().toLowerCase();
+          if (normalized && map.has(normalized)) return map.get(normalized);
+        }
+        return {};
+      }
+
+      function profileHref(profileId, domain = currentDomain()) {
+        return profileId ? `profile-preview.html?domain=${encodeURIComponent(domain)}&profileId=${encodeURIComponent(profileId)}` : "";
+      }
+
+      function timeHref(person) {
+        const token = person?.token || person?.onboarding_token || "";
+        return token ? `time-entry.html?token=${encodeURIComponent(token)}` : "";
+      }
+
+      function clientHref(client, domain = currentDomain()) {
+        return `crm.html?domain=${encodeURIComponent(domain)}${client ? `&client=${encodeURIComponent(client)}` : ""}`;
+      }
+
+      function reminderHref(person, resource, week) {
+        const email = person.email || "";
+        const name = person.candidate_name || person.legal_name || person.name || "there";
+        const client = resource.client || person.client || "your current client";
+        const link = new URL(timeHref(person) || "time-entry.html", window.location.origin).href;
+        const subject = `Missing DevReady time for week of ${week}`;
+        const body = `Hi ${name},\n\nPlease submit your DevReady time for the week of ${week}. This keeps payroll and client invoicing accurate for ${client}.\n\nTime-entry link:\n${link}\n\nThank you,\nDevReady`;
+        return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      }
+
+      function money(value) {
+        return Number(value || 0).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+      }
+
+      function invoiceHref(invoice, domain = currentDomain()) {
+        const id = invoice?.id || "";
+        return `invoices.html?domain=${encodeURIComponent(domain)}${id ? `&invoice_id=${encodeURIComponent(id)}` : ""}`;
+      }
+
+      function invoiceStatus(invoice) {
+        return String(invoice?.status || "draft").toLowerCase();
+      }
+
+      function invoiceAmount(invoice) {
+        return Number(invoice?.total || invoice?.amount || 0);
+      }
+
+      function invoiceIsOverdue(invoice) {
+        const status = invoiceStatus(invoice);
+        if (status === "overdue") return true;
+        if (["paid", "void"].includes(status)) return false;
+        const due = invoice?.due_date ? new Date(invoice.due_date) : null;
+        return due && !Number.isNaN(due.getTime()) && due < new Date();
+      }
+
+      function invoicePeople(invoice) {
+        if (Array.isArray(invoice?.consultants) && invoice.consultants.length) return invoice.consultants.join(", ");
+        const people = (invoice?.line_items || []).map((item) => item.consultant).filter(Boolean);
+        return [...new Set(people)].join(", ");
       }
 
       function jobDate(job) {
@@ -481,6 +608,14 @@
       }
 
       function buildReports(bundle) {
+        const resourcesByKey = resourceMap(bundle.resources);
+        const lookupResource = (item) => {
+          for (const key of [item?.profile_id, item?.profileId, item?.token, item?.email, item?.candidate_name, item?.name]) {
+            const normalized = String(key || "").trim().toLowerCase();
+            if (normalized && resourcesByKey.has(normalized)) return resourcesByKey.get(normalized);
+          }
+          return {};
+        };
         const assignedKeys = new Set();
         bundle.onboardingPeople.forEach((person) => assignedKeys.add(person.profile_id || person.email || person.candidate_name));
         bundle.candidateTotals.forEach((person) => assignedKeys.add(person.profile_id || person.email || person.candidate_name));
@@ -494,11 +629,31 @@
         const missingTime = bundle.onboardingPeople.filter((person) => {
           const key = person.profile_id || person.email || person.candidate_name;
           return !bundle.timeGroups.some((group) => (group.profile_id || group.email || group.candidate_name) === key);
+        }).map((person) => {
+          const resource = lookupResource(person);
+          return {
+            ...person,
+            client: person.client || resource.client || "",
+            project: person.project || resource.project || resource.role || "",
+          };
         });
         const meetingDayCounts = countsBy(bundle.meetings, (record) => isoDate(record.meetingAt || record.createdAt || record.updatedAt));
         const meetingWeekCounts = countsBy(bundle.meetings, (record) => weekKey(record.meetingAt || record.createdAt || record.updatedAt));
         const interviewCounts = countsBy(bundle.interviews, interviewKind);
         const timeStatusCounts = countsBy(bundle.timeEntries, (entry) => entry.status || "submitted_to_devready");
+        const invoices = bundle.invoices || [];
+        const activeStatuses = new Set(["draft", "sent", "viewed", "due", "overdue"]);
+        const sentInvoices = invoices.filter((invoice) => ["sent", "viewed", "due", "overdue", "paid"].includes(invoiceStatus(invoice)));
+        const overdueInvoices = invoices.filter(invoiceIsOverdue);
+        const openInvoices = invoices.filter((invoice) => activeStatuses.has(invoiceStatus(invoice)));
+        const paidInvoices = invoices.filter((invoice) => invoiceStatus(invoice) === "paid");
+        const invoiceTotal = invoices.filter((invoice) => invoiceStatus(invoice) !== "void").reduce((sum, invoice) => sum + invoiceAmount(invoice), 0);
+        const paidTotal = paidInvoices.reduce((sum, invoice) => sum + invoiceAmount(invoice), 0);
+        const receivableTotal = openInvoices.reduce((sum, invoice) => sum + invoiceAmount(invoice), 0);
+        const overdueTotal = overdueInvoices.reduce((sum, invoice) => sum + invoiceAmount(invoice), 0);
+        const sentTotal = sentInvoices.reduce((sum, invoice) => sum + invoiceAmount(invoice), 0);
+        const customerTotals = customerAccountingTotals(bundle.crmCustomers, invoices, bundle.resources);
+        const weeklyInvoices = weekInvoiceTotals(invoices);
 
         return {
           overall: {
@@ -511,6 +666,7 @@
               ["Missing time this week", missingTime.length, bundle.week],
               ["Meetings", bundle.meetings.length, "Archived meeting records"],
               ["Interviews", bundle.interviews.length, `${candidateInterviews.length} candidate review, ${clientInterviews.length} client interview`],
+              ["Accounting", money(invoiceTotal), `${bundle.crmCustomers.length} customers, ${bundle.resources.length} resource rate record(s), ${money(receivableTotal)} receivable`],
             ],
           },
           jobs: {
@@ -569,14 +725,112 @@
           },
           time: {
             count: bundle.timeTotals.total_hours || 0,
+            week: bundle.week,
+            groups: bundle.timeGroups,
             missingTime,
             timeStatusCounts,
             rows: [
-              ["Candidate", "Email", "Week", "Hours", "Status", "Client / Project"],
-              ...bundle.timeGroups.map((group) => [group.candidate_name || "Staff member", group.email || "", group.week_start || "", group.total_hours || 0, group.status || "", [group.client, group.project].filter(Boolean).join(" / ")]),
+              ["Candidate", "Email", "Week", "Hours", "Status", "Client / Project", "Profile ID"],
+              ...bundle.timeGroups.map((group) => {
+                const resource = lookupResource(group);
+                return [
+                  group.candidate_name || "Staff member",
+                  group.email || "",
+                  group.week_start || "",
+                  group.total_hours || 0,
+                  group.status || "",
+                  [group.client || resource.client, group.project || resource.project || resource.role].filter(Boolean).join(" / "),
+                  group.profile_id || "",
+                ];
+              }),
+            ],
+          },
+          accounting: {
+            count: invoices.length,
+            customers: bundle.crmCustomers,
+            resources: bundle.resources,
+            invoices,
+            sentInvoices,
+            overdueInvoices,
+            openInvoices,
+            paidInvoices,
+            customerTotals,
+            weeklyInvoices,
+            rows: [
+              ["Invoice", "Customer", "Status", "Invoice date", "Due date", "Amount", "People", "AP email"],
+              ...invoices.map((invoice) => [
+                invoice.invoice_number || invoice.id || "",
+                invoice.client || "",
+                invoiceStatus(invoice),
+                invoice.invoice_date || "",
+                invoice.due_date || "",
+                money(invoiceAmount(invoice)),
+                invoicePeople(invoice),
+                invoice.client_email || "",
+              ]),
+            ],
+            snapshotRows: [
+              ["Metric", "Value", "Notes"],
+              ["CRM customers", bundle.crmCustomers.length, "Customer source is CRM"],
+              ["Resource people", bundle.resources.length, "Onboarded/rated people tied to CRM customers"],
+              ["Total invoices", invoices.length, money(invoiceTotal)],
+              ["Sent invoices", sentInvoices.length, money(sentTotal)],
+              ["Overdue invoices", overdueInvoices.length, money(overdueTotal)],
+              ["Accounts receivable", money(bundle.balanceSheet.accounts_receivable ?? receivableTotal), "Draft, sent, viewed, due, overdue"],
+              ["Paid revenue", money(bundle.balanceSheet.cash ?? paidTotal), "Paid invoice total"],
+              ["Labor cost", money(bundle.pnl.labor_cost), "From time rows and resource cost rates"],
+              ["Net income", money(bundle.pnl.net_income), "Revenue minus labor and expenses"],
             ],
           },
         };
+      }
+
+      function weekInvoiceTotals(invoices) {
+        const weeks = new Map();
+        (invoices || []).forEach((invoice) => {
+          const week = weekKey(invoice.invoice_date || invoice.created_at || invoice.updated_at);
+          if (!week) return;
+          const row = weeks.get(week) || { week, count: 0, amount: 0, sent: 0, overdue: 0, paid: 0 };
+          row.count += 1;
+          row.amount += invoiceAmount(invoice);
+          if (["sent", "viewed", "due", "overdue", "paid"].includes(invoiceStatus(invoice))) row.sent += 1;
+          if (invoiceIsOverdue(invoice)) row.overdue += 1;
+          if (invoiceStatus(invoice) === "paid") row.paid += 1;
+          weeks.set(week, row);
+        });
+        return [...weeks.values()].sort((a, b) => String(b.week).localeCompare(String(a.week)));
+      }
+
+      function customerAccountingTotals(customers, invoices, resources) {
+        const rows = new Map();
+        (customers || []).forEach((customer) => {
+          rows.set(customer.id || customer.name, {
+            id: customer.id || "",
+            name: customer.name || "Customer",
+            email: customer.email || "",
+            owner: customer.owner || "",
+            invoices: 0,
+            invoiceTotal: 0,
+            openTotal: 0,
+            overdueTotal: 0,
+            people: 0,
+          });
+        });
+        (resources || []).forEach((resource) => {
+          const key = resource.crm_customer_id || resource.client || "Unlinked";
+          if (!rows.has(key)) rows.set(key, { id: resource.crm_customer_id || "", name: resource.client || "Unlinked", email: resource.client_email || "", owner: "", invoices: 0, invoiceTotal: 0, openTotal: 0, overdueTotal: 0, people: 0 });
+          rows.get(key).people += 1;
+        });
+        (invoices || []).forEach((invoice) => {
+          const key = invoice.crm_customer_id || invoice.client || "Unlinked";
+          if (!rows.has(key)) rows.set(key, { id: invoice.crm_customer_id || "", name: invoice.client || "Unlinked", email: invoice.client_email || "", owner: "", invoices: 0, invoiceTotal: 0, openTotal: 0, overdueTotal: 0, people: 0 });
+          const row = rows.get(key);
+          row.invoices += 1;
+          row.invoiceTotal += invoiceAmount(invoice);
+          if (["draft", "sent", "viewed", "due", "overdue"].includes(invoiceStatus(invoice))) row.openTotal += invoiceAmount(invoice);
+          if (invoiceIsOverdue(invoice)) row.overdueTotal += invoiceAmount(invoice);
+        });
+        return [...rows.values()].sort((a, b) => b.invoiceTotal - a.invoiceTotal || a.name.localeCompare(b.name));
       }
 
       function countsBy(items, getter) {
@@ -642,6 +896,160 @@
         `;
       }
 
+      function missingTimeActionsHtml(people) {
+        const rows = people || [];
+        if (!rows.length) return '<div class="notice" style="margin:12px">No missing time for this week.</div>';
+        const week = reportState.time?.week || document.getElementById("weekStart").value || startOfWeek();
+        return `
+          <div class="report-action-list">
+            ${rows.map((person) => {
+              const client = person.client || "Client not assigned";
+              const profile = profileHref(person.profile_id, person.domain || currentDomain());
+              const time = timeHref(person);
+              const reminder = reminderHref(person, person, week);
+              return `
+                <article class="report-action-card">
+                  <div>
+                    <h3>${escapeLocal(person.candidate_name || person.legal_name || person.email || "Onboarded person")}</h3>
+                    <div class="report-action-meta">
+                      <span>${escapeLocal(person.email || "No email")}</span>
+                      <span>${escapeLocal(client)}</span>
+                      <span>${escapeLocal(person.project || person.title || "No project listed")}</span>
+                      <span>Week of ${escapeLocal(week)}</span>
+                    </div>
+                  </div>
+                  <div class="report-action-buttons">
+                    ${profile ? `<a class="btn secondary" href="${escapeLocal(profile)}">Open profile</a>` : ""}
+                    <a class="btn secondary" href="${escapeLocal(clientHref(person.client, person.domain || currentDomain()))}">Open client</a>
+                    ${time ? `<a class="btn secondary" href="${escapeLocal(time)}" target="_blank" rel="noopener">Open time link</a>` : ""}
+                    ${person.email ? `<a class="btn" href="${escapeLocal(reminder)}">Send reminder</a>` : ""}
+                  </div>
+                </article>
+              `;
+            }).join("")}
+          </div>
+        `;
+      }
+
+      function timeActionRowsHtml(groups) {
+        const rows = groups || [];
+        if (!rows.length) return '<div class="notice" style="margin:12px">No time rows for this week.</div>';
+        return `
+          <div class="report-action-list">
+            ${rows.map((group) => {
+              const profile = profileHref(group.profile_id, group.domain || currentDomain());
+              const client = group.client || "Client not assigned";
+              return `
+                <article class="report-action-card">
+                  <div>
+                    <h3>${escapeLocal(group.candidate_name || "Staff member")} - ${escapeLocal(group.total_hours || 0)} hours</h3>
+                    <div class="report-action-meta">
+                      <span>${escapeLocal(group.email || "No email")}</span>
+                      <span>${escapeLocal(group.week_start || "Week not set")}</span>
+                      <span>${escapeLocal(statusLabel(group.status))}</span>
+                      <span>${escapeLocal([client, group.project].filter(Boolean).join(" / "))}</span>
+                    </div>
+                  </div>
+                  <div class="report-action-buttons">
+                    ${profile ? `<a class="btn secondary" href="${escapeLocal(profile)}">Open profile</a>` : ""}
+                    <a class="btn secondary" href="${escapeLocal(clientHref(group.client, group.domain || currentDomain()))}">Open client</a>
+                    <a class="btn" href="time-admin.html?domain=${encodeURIComponent(group.domain || currentDomain())}&week_start=${encodeURIComponent(group.week_start || "")}">Review in Time</a>
+                  </div>
+                </article>
+              `;
+            }).join("")}
+          </div>
+        `;
+      }
+
+      function invoiceActionsHtml(invoices, emptyMessage) {
+        const rows = invoices || [];
+        if (!rows.length) return `<div class="notice" style="margin:12px">${escapeLocal(emptyMessage || "No invoices found.")}</div>`;
+        return `
+          <div class="report-action-list">
+            ${rows.map((invoice) => {
+              const status = invoiceStatus(invoice);
+              const apEmail = invoice.client_email || "";
+              const subject = `DevReady invoice ${invoice.invoice_number || invoice.id || ""} for ${invoice.client || ""}`.trim();
+              const body = `Hi,\n\nDevReady invoice ${invoice.invoice_number || invoice.id || ""} is ready for ${money(invoiceAmount(invoice))}.\n\nCustomer: ${invoice.client || ""}\nDue date: ${invoice.due_date || ""}\nStatus: ${status}\n\nThank you,\nDevReady`;
+              const mailto = `mailto:${encodeURIComponent(apEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+              return `
+                <article class="report-action-card">
+                  <div>
+                    <h3>${escapeLocal(invoice.invoice_number || invoice.id || "Invoice")} - ${escapeLocal(invoice.client || "No customer")}</h3>
+                    <div class="report-action-meta">
+                      <span class="pill ${invoiceIsOverdue(invoice) ? "danger" : status === "sent" ? "" : "warn"}">${escapeLocal(status)}</span>
+                      <span>${escapeLocal(money(invoiceAmount(invoice)))}</span>
+                      <span>Invoice ${escapeLocal(invoice.invoice_date || "date not set")}</span>
+                      <span>Due ${escapeLocal(invoice.due_date || "not set")}</span>
+                      <span>${escapeLocal(invoicePeople(invoice) || "No consultant listed")}</span>
+                    </div>
+                  </div>
+                  <div class="report-action-buttons">
+                    <a class="btn secondary" href="${escapeLocal(invoiceHref(invoice, invoice.domain || currentDomain()))}">Open invoice</a>
+                    <a class="btn secondary" href="${escapeLocal(clientHref(invoice.client, invoice.domain || currentDomain()))}">Open customer</a>
+                    ${apEmail ? `<a class="btn" href="${escapeLocal(mailto)}">Email AP</a>` : ""}
+                  </div>
+                </article>
+              `;
+            }).join("")}
+          </div>
+        `;
+      }
+
+      function customerAccountingTable(rows) {
+        const data = rows || [];
+        if (!data.length) return '<div class="notice" style="margin:12px">No CRM customers found for this workspace.</div>';
+        return tableHtml([
+          ["Customer", "Owner", "People", "Invoices", "Total", "Open AR", "Overdue"],
+          ...data.map((row) => [
+            row.name,
+            row.owner || "",
+            row.people,
+            row.invoices,
+            money(row.invoiceTotal),
+            money(row.openTotal),
+            money(row.overdueTotal),
+          ]),
+        ]);
+      }
+
+      function weeklyInvoiceTable(rows) {
+        const data = rows || [];
+        if (!data.length) return '<div class="notice" style="margin:12px">No invoice dates available for weekly reporting.</div>';
+        return tableHtml([
+          ["Week starting", "Invoices", "Amount", "Sent/read/due/paid", "Overdue", "Paid"],
+          ...data.map((row) => [row.week, row.count, money(row.amount), row.sent, row.overdue, row.paid]),
+        ]);
+      }
+
+      function resourceRateTable(resources) {
+        const rows = resources || [];
+        if (!rows.length) return '<div class="notice" style="margin:12px">No resource rate records found. Add them in Accounting > Resource rate and cost.</div>';
+        return tableHtml([
+          ["Person", "Customer", "Role", "Email", "Bill rate", "Cost rate", "Status"],
+          ...rows.map((resource) => [
+            resource.name || "",
+            resource.client || "",
+            resource.role || "",
+            resource.email || "",
+            money(resource.bill_rate),
+            money(resource.cost_rate),
+            resource.status || "",
+          ]),
+        ]);
+      }
+
+      function statusLabel(status) {
+        const labels = {
+          submitted_to_devready: "Submitted to DevReady",
+          approved_for_payment: "Approved for invoice/payroll",
+          processed_for_payment: "Processed in payroll/accounting",
+          needs_review: "Needs HR review",
+        };
+        return labels[status] || String(status || "Submitted to DevReady").replaceAll("_", " ");
+      }
+
       function renderPanels() {
         const panels = {
           overall: `
@@ -696,9 +1104,22 @@
           time: `
             <section class="card report-panel ${activeReport === "time" ? "active" : ""}" data-report-panel="time">
               <h2>Time-entry reports</h2>
-              <details class="report-drill" open><summary>Weekly time entries <span>${reportState.time?.count || 0} hours</span></summary>${tableHtml(reportState.time?.rows)}</details>
-              <details class="report-drill"><summary>Missing time this week <span>${reportState.time?.missingTime?.length || 0} people</span></summary>${tableHtml([["Candidate", "Email", "Title", "Status"], ...(reportState.time?.missingTime || []).map((person) => [person.candidate_name || person.legal_name || "", person.email || "", person.title || "", person.status || ""])])}</details>
+              <details class="report-drill" open><summary>Weekly time actions <span>${reportState.time?.count || 0} hours</span></summary>${timeActionRowsHtml(reportState.time?.groups)}</details>
+              <details class="report-drill"><summary>Weekly time export table <span>CSV-ready detail</span></summary>${tableHtml(reportState.time?.rows)}</details>
+              <details class="report-drill" open><summary>Missing time this week <span>${reportState.time?.missingTime?.length || 0} people</span></summary>${missingTimeActionsHtml(reportState.time?.missingTime)}</details>
               <details class="report-drill"><summary>Time status totals <span>Submitted, approved, processed, review</span></summary>${countTable("Status", reportState.time?.timeStatusCounts)}</details>
+            </section>
+          `,
+          accounting: `
+            <section class="card report-panel ${activeReport === "accounting" ? "active" : ""}" data-report-panel="accounting">
+              <h2>Accounting reports</h2>
+              <details class="report-drill" open><summary>Accounting snapshot <span>${reportState.accounting?.customers?.length || 0} customers, ${reportState.accounting?.resources?.length || 0} people</span></summary>${tableHtml(reportState.accounting?.snapshotRows)}</details>
+              <details class="report-drill" open><summary>Overdue invoices with links <span>${reportState.accounting?.overdueInvoices?.length || 0} overdue</span></summary>${invoiceActionsHtml(reportState.accounting?.overdueInvoices, "No overdue invoices for this workspace.")}</details>
+              <details class="report-drill" open><summary>Sent invoices with links <span>${reportState.accounting?.sentInvoices?.length || 0} sent/read/due/paid</span></summary>${invoiceActionsHtml(reportState.accounting?.sentInvoices, "No sent invoices yet.")}</details>
+              <details class="report-drill"><summary>Week-over-week invoice reporting <span>${reportState.accounting?.weeklyInvoices?.length || 0} week(s)</span></summary>${weeklyInvoiceTable(reportState.accounting?.weeklyInvoices)}</details>
+              <details class="report-drill"><summary>Customer totals <span>Customers, people, invoice amounts</span></summary>${customerAccountingTable(reportState.accounting?.customerTotals)}</details>
+              <details class="report-drill"><summary>Resource rates and costs <span>${reportState.accounting?.resources?.length || 0} resource record(s)</span></summary>${resourceRateTable(reportState.accounting?.resources)}</details>
+              <details class="report-drill"><summary>All invoices export table <span>${reportState.accounting?.count || 0} invoice(s)</span></summary>${tableHtml(reportState.accounting?.rows)}</details>
             </section>
           `,
         };

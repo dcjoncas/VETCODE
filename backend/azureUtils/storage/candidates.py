@@ -816,6 +816,104 @@ def listProfilesAlphabetical(domain: str = "dev"):
         for row in results
     ]
 
+def listOnboardingReadyProfiles(domain: str = "dev", limit: int = 250):
+    conn = client.getConnection()
+    cur = conn.cursor()
+
+    safe_limit = max(10, min(int(limit or 250), 500))
+    where_parts = [
+        "COALESCE(prof.title, '') <> ''",
+        "(COALESCE(prof.maindescription, '') <> '' OR COALESCE(allskills.skill_count, 0) > 0 OR COALESCE(exp.experience_count, 0) > 0)",
+        "COALESCE(personality.personality_count, 0) > 0",
+        "COALESCE(culture.culture_count, 0) > 0",
+    ]
+    params = []
+    if domain != "all":
+        where_parts.insert(0, "person.domain = %s")
+        params.append(domain)
+    where_sql = f"WHERE {' AND '.join(where_parts)}"
+    query = f"""
+        SELECT
+            person.id,
+            person.firstname,
+            person.lastname,
+            prof.email,
+            prof.title,
+            profper.id AS profile_id,
+            COALESCE(allskills.skill_count, 0) AS skill_count,
+            COALESCE(exp.experience_count, 0) AS experience_count,
+            COALESCE(personality.personality_count, 0) AS personality_count,
+            COALESCE(culture.culture_count, 0) AS culture_count
+        FROM person
+        JOIN professional prof ON person.id = prof.personid
+        JOIN professionalprofile profper ON prof.id = profper.professionalid
+        LEFT JOIN (
+            SELECT profileid, COUNT(DISTINCT skillid) AS skill_count
+            FROM (
+                SELECT profileid, skillid FROM professionalskill
+                UNION
+                SELECT profileid, skillid FROM resumeskill
+                UNION
+                SELECT profileid, skillid FROM techskill
+            ) all_skill_sources
+            GROUP BY profileid
+        ) allskills ON allskills.profileid = profper.id
+        LEFT JOIN (
+            SELECT profileid, COUNT(*) AS experience_count
+            FROM professionalexperience
+            WHERE COALESCE(description, '') <> '' OR COALESCE(mainrole, '') <> ''
+            GROUP BY profileid
+        ) exp ON exp.profileid = profper.id
+        LEFT JOIN (
+            SELECT ps.profileid, COUNT(DISTINCT p.id) AS personality_count
+            FROM professionalsurvey ps
+            JOIN professionalsurveyquestion psq ON psq.professionalsurveyid = ps.id
+            JOIN surveyquestion sq ON psq.surveyquestionid = sq.id
+            JOIN question q ON sq.questionid = q.id
+            JOIN personality p ON p.id = q.personalityid
+            GROUP BY ps.profileid
+        ) personality ON personality.profileid = profper.id
+        LEFT JOIN (
+            SELECT profileid, COUNT(*) AS culture_count
+            FROM professionalculturalexperience
+            WHERE COALESCE(title, '') <> '' AND COALESCE(level, 0) > 0
+            GROUP BY profileid
+        ) culture ON culture.profileid = profper.id
+        {where_sql}
+        ORDER BY LOWER(COALESCE(person.lastname, '')),
+                 LOWER(COALESCE(person.firstname, '')),
+                 person.id
+        LIMIT {safe_limit}
+    """
+    cur.execute(query, tuple(params))
+    rows = cur.fetchall()
+    conn.close()
+
+    ready = []
+    for row in rows:
+        name = f"{row[1] or ''} {row[2] or ''}".strip() or "Unnamed profile"
+        ready.append({
+            "id": str(row[0] or ""),
+            "profile_id": str(row[0] or ""),
+            "name": name,
+            "email": row[3] or "",
+            "title": row[4] or "",
+            "domain": domain,
+            "completion": {
+                "profileId": str(row[0] or ""),
+                "complete": True,
+                "state": "complete",
+                "missing": [],
+                "hasRegularProfile": True,
+                "hasPersonality": True,
+                "hasCulture": True,
+                "name": name,
+                "email": row[3] or "",
+                "title": row[4] or "",
+            },
+        })
+    return {"profiles": ready, "skipped_incomplete": 0}
+
 def getProfessionalProfileId(personId: str):
     conn = client.getConnection()
     cur = conn.cursor()

@@ -225,15 +225,15 @@ MENU_ITEMS = [
     {"key": "find_out", "label": "Find Candidates (Out)", "href": "mine-candidate-external.html"},
     {"key": "profiles", "label": "Profiles", "href": "profile-preview.html"},
     {"key": "job_descriptions", "label": "Job Descriptions", "href": "job-descriptions.html"},
-    {"key": "crm", "label": "CRM", "href": "crm.html"},
     {"key": "meet", "label": "Meet", "href": "meet.html"},
     {"key": "interviews", "label": "Interviews", "href": "schedule-interview.html?interview=ready"},
+    {"key": "onboarding", "label": "Onboarding", "href": "onboarding-admin.html"},
+    {"key": "time_link", "label": "Time", "href": "time-admin.html"},
     {"key": "status", "label": "Status", "href": "status-tracker.html"},
+    {"key": "crm", "label": "CRM", "href": "crm.html"},
     {"key": "reports", "label": "Reports", "href": "reports.html"},
     {"key": "accounting", "label": "Accounting", "href": "accounting.html"},
     {"key": "invoices", "label": "Invoices", "href": "invoices.html"},
-    {"key": "onboarding", "label": "Onboarding", "href": "onboarding-admin.html"},
-    {"key": "time_link", "label": "Time Link", "href": "time-admin.html"},
     {"key": "test_challenge", "label": "Test Challenge", "href": "test-challenge.html"},
     {"key": "ai_cert", "label": "Certification", "href": "ai-cert.html"},
     {"key": "badges", "label": "View Badges", "href": "badge-catalog.html"},
@@ -247,15 +247,15 @@ DEFAULT_INTERNAL_MENU = [
     "find_out",
     "profiles",
     "job_descriptions",
-    "crm",
     "meet",
     "interviews",
+    "onboarding",
+    "time_link",
     "status",
+    "crm",
     "reports",
     "accounting",
     "invoices",
-    "onboarding",
-    "time_link",
     "test_challenge",
     "ai_cert",
     "badges",
@@ -2319,6 +2319,53 @@ def list_crm_records(domain: str = "dev", limit: int = 200):
     return {"ok": True, "records": records[: max(1, min(limit, 500))]}
 
 
+def _crm_customer_rows(domain: str = "dev") -> list[dict]:
+    clean_domain = _domain_key(domain)
+    records = _read_json_store_with_demo(CRM_RECORDS_PATH, [])
+    if not isinstance(records, list):
+        records = []
+    rows = []
+    seen = set()
+    for item in sorted(records, key=lambda row: row.get("updatedAt") or row.get("createdAt") or "", reverse=True):
+        if not isinstance(item, dict):
+            continue
+        if clean_domain != "all" and _domain_key(item.get("domain", "dev")) != clean_domain:
+            continue
+        name = _safe_action_text(item.get("customer"), 240)
+        if not name:
+            continue
+        row_id = _safe_action_text(item.get("id"), 120) or name
+        key = row_id.lower()
+        name_key = name.lower()
+        if key in seen or name_key in seen:
+            continue
+        seen.add(key)
+        seen.add(name_key)
+        rows.append(
+            {
+                "id": row_id,
+                "name": name,
+                "email": _safe_action_text(item.get("billing_email") or item.get("ap_email") or item.get("email"), 240),
+                "address": _safe_action_text(item.get("billing_address") or item.get("address"), 1200),
+                "contact": _safe_action_text(item.get("contact"), 240),
+                "owner": _safe_action_text(item.get("owner"), 120),
+                "domain": _domain_key(item.get("domain", clean_domain)),
+                "source": item,
+            }
+        )
+    return rows
+
+
+def _crm_customer_for_value(domain: str, value: str) -> dict:
+    clean = _safe_action_text(value, 240).lower()
+    if not clean:
+        return {}
+    for customer in _crm_customer_rows(domain):
+        if customer.get("id", "").lower() == clean or customer.get("name", "").lower() == clean:
+            return customer
+    return {}
+
+
 def _strip_html(value: str) -> str:
     text = re.sub(r"<[^>]+>", " ", str(value or ""))
     return re.sub(r"\s+", " ", text).strip()
@@ -2689,6 +2736,84 @@ def list_meeting_records(domain: str = "dev", profile_id: str = "", limit: int =
     return {"ok": True, "records": records[: max(1, min(limit, 500))]}
 
 
+def _profile_completion_status_for_onboarding(profile_id: str, profile_data: dict) -> dict:
+    profile_data = profile_data if isinstance(profile_data, dict) else {}
+    core_profile = profile_data.get("profile") or {}
+    skills = profile_data.get("skills") or []
+    technical_skills = profile_data.get("technicalSkills") or []
+    portfolio_experience = profile_data.get("portfolioExperience") or []
+    personality = profile_data.get("personality") or []
+    cultural_experience = profile_data.get("culturalExperience") or []
+
+    def _level_value(item):
+        try:
+            return float((item or {}).get("level") or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    has_regular_profile = bool(core_profile.get("title")) and bool(
+        core_profile.get("description")
+        or skills
+        or technical_skills
+        or any(item and (item.get("description") or item.get("mainrole")) for item in portfolio_experience)
+    )
+    has_personality = any(item and item.get("title") and item.get("score") for item in personality)
+    has_culture = any(item and item.get("title") and _level_value(item) > 0 for item in cultural_experience)
+    checks = [has_regular_profile, has_personality, has_culture]
+    missing = []
+    if not has_regular_profile:
+        missing.append("regular profile")
+    if not has_personality:
+        missing.append("personality survey")
+    if not has_culture:
+        missing.append("culture profile")
+    return {
+        "profileId": str(profile_id or ""),
+        "complete": all(checks),
+        "state": "complete" if all(checks) else "partial" if any(checks) else "missing",
+        "missing": missing,
+        "hasRegularProfile": has_regular_profile,
+        "hasPersonality": has_personality,
+        "hasCulture": has_culture,
+        "name": " ".join(
+            part for part in [core_profile.get("firstName"), core_profile.get("lastName")] if part
+        ).strip(),
+        "email": core_profile.get("email") or "",
+        "title": core_profile.get("title") or "",
+    }
+
+
+def _completed_profile_for_onboarding(profile_id: str, domain: str) -> tuple[dict, dict, str]:
+    clean_domain = _domain_key(domain)
+    if not profile_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Select a completed profile before creating onboarding.",
+        )
+    try:
+        actual_domain = _domain_key(candidates.getCandidateDomain(profile_id))
+    except Exception as exc:
+        raise HTTPException(status_code=404, detail=f"Profile {profile_id} was not found.") from exc
+    if clean_domain != "all" and actual_domain != clean_domain:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Profile {profile_id} belongs to {actual_domain}, not {clean_domain}.",
+        )
+    try:
+        profile_data = candidates.getProfile(profile_id)
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Could not load profile {profile_id}.") from exc
+    completion = _profile_completion_status_for_onboarding(profile_id, profile_data)
+    if not completion["complete"]:
+        missing = ", ".join(completion["missing"]) or "profile completion pieces"
+        raise HTTPException(
+            status_code=400,
+            detail=f"Profile must be complete before onboarding. Missing: {missing}.",
+        )
+    return profile_data, completion, actual_domain
+
+
 @app.post("/api/onboarding/start")
 def start_onboarding(
     profile_id: str = Form(default=""),
@@ -2699,6 +2824,12 @@ def start_onboarding(
     start_day: str = Form(default=""),
     source_record_json: str = Form(default="{}"),
 ):
+    profile_data, completion, actual_domain = _completed_profile_for_onboarding(profile_id, domain)
+    core_profile = profile_data.get("profile") or {}
+    profile_name = completion.get("name") or candidate_name or email or "Candidate"
+    profile_email = completion.get("email") or email or ""
+    profile_title = completion.get("title") or title or ""
+
     records = _read_json_store(ONBOARDING_RECORDS_PATH, {})
     now = _now_utc()
     token = ""
@@ -2706,7 +2837,7 @@ def start_onboarding(
         if profile_id and record.get("profile_id") == profile_id:
             token = existing_token
             break
-        if email and (record.get("email") or "").lower() == email.lower():
+        if profile_email and (record.get("email") or "").lower() == profile_email.lower():
             token = existing_token
             break
     token = token or _safe_token("ONB")
@@ -2718,12 +2849,22 @@ def start_onboarding(
     record.update({
         "token": token,
         "profile_id": profile_id,
-        "candidate_name": candidate_name or record.get("candidate_name", ""),
-        "email": email or record.get("email", ""),
-        "title": title or record.get("title", ""),
-        "domain": domain or record.get("domain", "dev"),
+        "candidate_name": profile_name,
+        "email": profile_email,
+        "title": profile_title,
+        "domain": actual_domain,
         "start_day": start_day or record.get("start_day", ""),
         "status": "hire_started",
+        "profile_completion": completion,
+        "profile_source": {
+            "firstName": core_profile.get("firstName") or "",
+            "lastName": core_profile.get("lastName") or "",
+            "publicUrl": core_profile.get("publicUrl") or "",
+            "linkedinUrl": core_profile.get("linkedinUrl") or "",
+            "city": core_profile.get("city") or "",
+            "state": core_profile.get("state") or "",
+            "country": core_profile.get("country") or "",
+        },
         "source_record": source_record if isinstance(source_record, dict) else {"value": source_record},
         "recipient": os.getenv("HEIDI_NAME", "Heidi at DevReady"),
         "recipient_email": os.getenv("HEIDI_EMAIL", "heidi@devready.io"),
@@ -2737,12 +2878,12 @@ def start_onboarding(
     events.insert(0, {
         "id": _safe_token("EVT"),
         "profile_id": profile_id,
-        "candidate_name": candidate_name,
-        "email": email,
-        "domain": domain or "dev",
+        "candidate_name": profile_name,
+        "email": profile_email,
+        "domain": actual_domain,
         "event_type": "hire_onboarding_started",
         "status": "hire_started",
-        "notes": "Onboarding link created.",
+        "notes": "Onboarding link created from completed profile.",
         "payload": {"onboarding_token": token},
         "created_at": now,
         "updated_at": now,
@@ -2789,23 +2930,20 @@ def get_onboarding_candidates(domain: str = "dev", limit: int = 250):
     clean_domain = _domain_key(domain)
     safe_limit = max(10, min(int(limit or 250), 500))
     try:
-        rows = candidates.listProfilesAlphabetical(clean_domain)
+        ready = candidates.listOnboardingReadyProfiles(clean_domain, safe_limit)
     except Exception as exc:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Candidate list failed: {exc}")
-    people = []
-    for row in rows[:safe_limit]:
-        people.append(
-            {
-                "id": str(row.get("id") or ""),
-                "profile_id": str(row.get("id") or ""),
-                "name": row.get("name") or "Unnamed profile",
-                "email": row.get("email") or "",
-                "title": row.get("title") or "",
-                "domain": clean_domain,
-            }
-        )
-    return {"ok": True, "domain": clean_domain, "candidates": people}
+    people = ready.get("profiles", [])[:safe_limit] if isinstance(ready, dict) else []
+    skipped_incomplete = ready.get("skipped_incomplete", 0) if isinstance(ready, dict) else 0
+    return {
+        "ok": True,
+        "domain": clean_domain,
+        "candidates": people,
+        "count": len(people),
+        "skipped_incomplete": skipped_incomplete,
+        "require_completed_profile": True,
+    }
 
 
 @app.get("/api/onboarding/{token}")
@@ -2889,6 +3027,15 @@ def submit_time_entry(
     person_name = candidate_name or onboarding.get("candidate_name", "") or onboarding.get("legal_name", "")
     person_email = email or onboarding.get("email", "")
     entry_domain = domain or onboarding.get("domain", "dev")
+    resource_context = _resource_for_time_person({
+        "profile_id": person_profile_id,
+        "token": token,
+        "email": person_email,
+        "candidate_name": person_name,
+        "domain": entry_domain,
+    })
+    entry_client = client or onboarding.get("client", "") or resource_context.get("client", "")
+    entry_project = project or onboarding.get("project", "") or resource_context.get("project", "") or resource_context.get("role", "")
     recipient = os.getenv("HEIDI_NAME", "Heidi at DevReady")
     recipient_email = os.getenv("HEIDI_EMAIL", "heidi@devready.io")
 
@@ -2925,8 +3072,8 @@ def submit_time_entry(
                 "week_start": week_start,
                 "work_date": row_date,
                 "hours": row_hours,
-                "client": client,
-                "project": project,
+                "client": entry_client,
+                "project": entry_project,
                 "summary": row_summary,
                 "blockers": str(row.get("blockers") or blockers or "").strip(),
                 "status": "submitted_to_devready",
@@ -2946,8 +3093,8 @@ def submit_time_entry(
             "week_start": week_start,
             "work_date": work_date,
             "hours": clean_hours(hours),
-            "client": client,
-            "project": project,
+            "client": entry_client,
+            "project": entry_project,
             "summary": summary,
             "blockers": blockers,
             "status": "submitted_to_devready",
@@ -3156,6 +3303,15 @@ def _resource_for_time_entry(entry: dict, resource_keyed: dict) -> dict:
     return {}
 
 
+def _resource_for_time_person(person: dict) -> dict:
+    try:
+        clean_domain = _domain_key((person or {}).get("domain", "dev"))
+        resources = _accounting_domain_rows(_accounting_store().get("resources", []), clean_domain)
+        return _resource_for_time_entry(person or {}, _resource_lookup(resources))
+    except Exception:
+        return {}
+
+
 def _time_row_from_entry(entry: dict, resource: dict) -> dict:
     try:
         hours = float(entry.get("hours") or 0)
@@ -3177,6 +3333,7 @@ def _time_row_from_entry(entry: dict, resource: dict) -> dict:
         "status": entry.get("status") or "",
         "week_start": entry.get("week_start") or "",
         "work_date": entry.get("work_date") or entry.get("week_start") or "",
+        "crm_customer_id": entry.get("crm_customer_id") or (resource or {}).get("crm_customer_id") or "",
         "client": entry.get("client") or (resource or {}).get("client") or "",
         "project": entry.get("project") or "",
         "summary": entry.get("summary") or "",
@@ -3188,8 +3345,26 @@ def _time_row_from_entry(entry: dict, resource: dict) -> dict:
 def _accounting_summary_for_domain(domain: str = "dev", period_start: str = "", period_end: str = "") -> dict:
     store = _accounting_store()
     clean_domain = _domain_key(domain)
-    resources = _accounting_domain_rows(store.get("resources", []), clean_domain)
-    invoices_all = _accounting_domain_rows(store.get("invoices", []), clean_domain)
+    crm_customers = _crm_customer_rows(clean_domain)
+    crm_by_id = {customer["id"].lower(): customer for customer in crm_customers}
+    crm_by_name = {customer["name"].lower(): customer for customer in crm_customers}
+
+    def _linked_customer(value: str = "", crm_id: str = "") -> dict:
+        clean_id = _safe_action_text(crm_id, 120).lower()
+        clean_value = _safe_action_text(value, 240).lower()
+        return crm_by_id.get(clean_id) or crm_by_name.get(clean_value) or {}
+
+    def _with_customer_link(row: dict) -> dict:
+        copied = dict(row or {})
+        customer = _linked_customer(copied.get("client"), copied.get("crm_customer_id"))
+        if customer:
+            copied["crm_customer_id"] = customer["id"]
+            copied["client"] = customer["name"]
+            copied.setdefault("client_email", customer.get("email", ""))
+        return copied
+
+    resources = [_with_customer_link(item) for item in _accounting_domain_rows(store.get("resources", []), clean_domain)]
+    invoices_all = [_with_customer_link(item) for item in _accounting_domain_rows(store.get("invoices", []), clean_domain)]
     expenses_all = _accounting_domain_rows(store.get("expenses", []), clean_domain)
     time_entries_all = _accounting_domain_rows(_read_json_store_with_demo(TIME_ENTRIES_PATH, []), clean_domain)
     invoices = [
@@ -3204,17 +3379,35 @@ def _accounting_summary_for_domain(domain: str = "dev", period_start: str = "", 
         entry for entry in time_entries_all
         if _date_in_period(entry.get("work_date") or entry.get("week_start") or entry.get("created_at"), period_start, period_end)
     ]
+    resource_keyed = _resource_lookup(resources)
     onboarding = _read_json_store_with_demo(ONBOARDING_RECORDS_PATH, {})
     if isinstance(onboarding, dict):
-        onboarding_people = [
-            {**record, "token": token}
-            for token, record in onboarding.items()
-            if clean_domain == "all" or _domain_key(record.get("domain", "dev")) == clean_domain
-        ]
+        onboarding_people = []
+        for token, record in onboarding.items():
+            if clean_domain != "all" and _domain_key(record.get("domain", "dev")) != clean_domain:
+                continue
+            person = {**record, "token": token}
+            linked_resource = _resource_for_time_entry(
+                {
+                    "profile_id": person.get("profile_id", ""),
+                    "token": token,
+                    "email": person.get("email", ""),
+                    "candidate_name": person.get("candidate_name") or person.get("legal_name", ""),
+                },
+                resource_keyed,
+            )
+            if linked_resource:
+                person["resource_id"] = linked_resource.get("id", "")
+                person["crm_customer_id"] = linked_resource.get("crm_customer_id", "")
+                person["client"] = linked_resource.get("client", "")
+                person["client_email"] = linked_resource.get("client_email", "")
+                person["bill_rate"] = linked_resource.get("bill_rate", "")
+                person["cost_rate"] = linked_resource.get("cost_rate", "")
+                person["resource_status"] = linked_resource.get("status", "")
+                person["resource_notes"] = linked_resource.get("notes", "")
+            onboarding_people.append(person)
     else:
         onboarding_people = []
-
-    resource_keyed = _resource_lookup(resources)
 
     labor_cost = 0.0
     billable_value = 0.0
@@ -3242,6 +3435,10 @@ def _accounting_summary_for_domain(domain: str = "dev", period_start: str = "", 
         "period": {"start": period_start, "end": period_end},
         "resources": resources,
         "invoices": invoices,
+        "crm_customers": [
+            {key: customer.get(key, "") for key in ["id", "name", "email", "address", "contact", "owner", "domain"]}
+            for customer in crm_customers
+        ],
         "expenses": expenses,
         "time_rows": time_rows,
         "onboarding_people": onboarding_people,
@@ -3274,6 +3471,7 @@ def _accounting_summary_for_domain(domain: str = "dev", period_start: str = "", 
             "invoices": len(invoices),
             "time_rows": len(time_rows),
             "onboarding_people": len(onboarding_people),
+            "crm_customers": len(crm_customers),
         },
     }
 
@@ -3287,6 +3485,7 @@ def get_accounting_summary(domain: str = "dev", period_start: str = "", period_e
 def save_accounting_resource(
     resource_id: str = Form(default=""),
     domain: str = Form(default="dev"),
+    crm_customer_id: str = Form(default=""),
     profile_id: str = Form(default=""),
     token: str = Form(default=""),
     name: str = Form(default=""),
@@ -3302,15 +3501,20 @@ def save_accounting_resource(
     store = _accounting_store()
     now = _now_utc()
     resource_id = resource_id or _safe_token("RES")
+    crm_customer = _crm_customer_for_value(domain, crm_customer_id or client)
+    if not crm_customer:
+        raise HTTPException(status_code=400, detail="Select a customer from CRM before saving resource financials.")
     resource = {
         "id": resource_id,
         "domain": _domain_key(domain),
+        "crm_customer_id": crm_customer["id"],
         "profile_id": _safe_action_text(profile_id, 80),
         "token": _safe_action_text(token, 120),
         "name": _safe_action_text(name, 240),
         "email": _safe_action_text(email, 240),
         "role": _safe_action_text(role, 240),
-        "client": _safe_action_text(client, 240),
+        "client": crm_customer["name"],
+        "client_email": crm_customer.get("email", ""),
         "bill_rate": _money_float(bill_rate),
         "cost_rate": _money_float(cost_rate),
         "start_date": _safe_action_text(start_date, 40),
@@ -3336,6 +3540,7 @@ def save_accounting_resource(
 def save_accounting_invoice(
     invoice_id: str = Form(default=""),
     domain: str = Form(default="dev"),
+    crm_customer_id: str = Form(default=""),
     client: str = Form(default=""),
     client_email: str = Form(default=""),
     client_address: str = Form(default=""),
@@ -3354,6 +3559,9 @@ def save_accounting_invoice(
     store = _accounting_store()
     now = _now_utc()
     invoice_id = invoice_id or _safe_token("INV")
+    crm_customer = _crm_customer_for_value(domain, crm_customer_id or client)
+    if not crm_customer:
+        raise HTTPException(status_code=400, detail="Select a customer from CRM before saving an invoice.")
     try:
         line_items = json.loads(line_items_json or "[]")
     except Exception:
@@ -3381,6 +3589,10 @@ def save_accounting_invoice(
             "qty": qty,
             "rate": rate,
             "amount": amount,
+            "time_entry_id": _safe_action_text(item.get("time_entry_id"), 120),
+            "consultant": _safe_action_text(item.get("consultant"), 240),
+            "work_date": _safe_action_text(item.get("work_date"), 40),
+            "summary": _safe_action_text(item.get("summary"), 500),
         }
         subtotal += amount
         clean_items.append(clean)
@@ -3388,9 +3600,10 @@ def save_accounting_invoice(
     invoice = {
         "id": invoice_id,
         "domain": _domain_key(domain),
-        "client": _safe_action_text(client, 240),
-        "client_email": _safe_action_text(client_email, 240),
-        "client_address": _safe_action_text(client_address, 1200),
+        "crm_customer_id": crm_customer["id"],
+        "client": crm_customer["name"],
+        "client_email": crm_customer.get("email") or _safe_action_text(client_email, 240),
+        "client_address": crm_customer.get("address") or _safe_action_text(client_address, 1200),
         "invoice_number": _safe_action_text(invoice_number, 80) or invoice_id,
         "invoice_date": _safe_action_text(invoice_date, 40),
         "due_date": _safe_action_text(due_date, 40),
@@ -3454,23 +3667,65 @@ def _invoice_workbench(domain: str = "dev", client: str = "", period_start: str 
     time_entries = _accounting_domain_rows(_read_json_store_with_demo(TIME_ENTRIES_PATH, []), clean_domain)
     approved_statuses = {"approved_for_payment", "processed_for_payment", "approved"}
     rows = []
-    clients = {}
+    crm_customers = _crm_customer_rows(clean_domain)
+    crm_by_name = {customer["name"].lower(): customer for customer in crm_customers}
+    crm_by_id = {customer["id"].lower(): customer for customer in crm_customers}
+    selected_crm = _crm_customer_for_value(clean_domain, client)
+    selected_client_name = selected_crm.get("name", "")
+    clients = {customer["name"]: 0.0 for customer in crm_customers}
     consultants_by_client = {}
-    clean_client = _safe_action_text(client, 240).lower()
+    clean_client = selected_client_name.lower()
+
+    def crm_for_row(value: str = "", crm_id: str = "") -> dict:
+        clean_id = _safe_action_text(crm_id, 120).lower()
+        clean_value = _safe_action_text(value, 240).lower()
+        return crm_by_id.get(clean_id) or crm_by_name.get(clean_value) or {}
+
+    for resource in resources:
+        crm_customer = crm_for_row(resource.get("client"), resource.get("crm_customer_id"))
+        if not crm_customer:
+            continue
+        resource_client = crm_customer["name"]
+        clients.setdefault(resource_client, 0.0)
+        consultants_by_client.setdefault(resource_client, {})
+        consultant_key = (
+            _safe_action_text(resource.get("email"), 240).lower()
+            or _safe_action_text(resource.get("profile_id"), 80)
+            or _safe_action_text(resource.get("name"), 240).lower()
+        )
+        consultants_by_client[resource_client][consultant_key] = {
+            "name": _safe_action_text(resource.get("name"), 240),
+            "email": _safe_action_text(resource.get("email"), 240),
+            "role": _safe_action_text(resource.get("role"), 240),
+            "profile_id": _safe_action_text(resource.get("profile_id"), 80),
+            "bill_rate": _money_float(resource.get("bill_rate")),
+            "cost_rate": _money_float(resource.get("cost_rate")),
+            "status": _safe_action_text(resource.get("status"), 80) or "active",
+        }
     for entry in time_entries:
         if (entry.get("status") or "") not in approved_statuses:
             continue
         if not _date_in_period(entry.get("work_date") or entry.get("week_start") or entry.get("created_at"), period_start, period_end):
             continue
         row = _time_row_from_entry(entry, _resource_for_time_entry(entry, resource_keyed))
-        row_client = row.get("client") or "Unassigned client"
+        crm_customer = crm_for_row(row.get("client"), row.get("crm_customer_id") or row.get("client_id"))
+        if not crm_customer:
+            continue
+        row_client = crm_customer["name"]
+        row["client"] = row_client
+        row["crm_customer_id"] = crm_customer["id"]
         clients[row_client] = clients.get(row_client, 0) + row["billable_value"]
         consultants_by_client.setdefault(row_client, {})
-        consultants_by_client[row_client][row["candidate_name"]] = {
+        consultant_key = (row.get("email") or row.get("candidate_name") or "").lower()
+        existing_consultant = consultants_by_client[row_client].get(consultant_key, {})
+        consultants_by_client[row_client][consultant_key] = {
             "name": row["candidate_name"],
             "email": row["email"],
+            "role": existing_consultant.get("role", ""),
+            "profile_id": row.get("profile_id") or existing_consultant.get("profile_id", ""),
             "bill_rate": row["bill_rate"],
             "cost_rate": row["cost_rate"],
+            "status": existing_consultant.get("status", "active"),
         }
         if clean_client and row_client.lower() != clean_client:
             continue
@@ -3479,13 +3734,17 @@ def _invoice_workbench(domain: str = "dev", client: str = "", period_start: str 
         invoice for invoice in _accounting_domain_rows(store.get("invoices", []), clean_domain)
         if invoice.get("client") or invoice.get("line_items")
     ]
-    crm_records = _accounting_domain_rows(_read_json_store_with_demo(CRM_RECORDS_PATH, []), clean_domain)
+    for invoice in invoices:
+        crm_customer = crm_for_row(invoice.get("client"), invoice.get("crm_customer_id"))
+        if crm_customer:
+            clients.setdefault(crm_customer["name"], 0.0)
     customers = []
-    for name, value in sorted(clients.items()):
-        crm = next((record for record in crm_records if _safe_action_text(record.get("customer"), 240).lower() == name.lower()), {})
+    for crm_customer in crm_customers:
+        name = crm_customer["name"]
+        value = clients.get(name, 0.0)
         client_invoices = [
             invoice for invoice in invoices
-            if _safe_action_text(invoice.get("client"), 240).lower() == name.lower()
+            if (crm_for_row(invoice.get("client"), invoice.get("crm_customer_id")) or {}).get("name", "").lower() == name.lower()
         ]
         po_numbers = []
         payment_terms = []
@@ -3498,16 +3757,41 @@ def _invoice_workbench(domain: str = "dev", client: str = "", period_start: str 
                 payment_terms.append(terms)
         customers.append(
             {
+                "id": crm_customer["id"],
                 "name": name,
                 "approved_billable": round(value, 2),
-                "email": crm.get("email") or (client_invoices[0].get("client_email") if client_invoices else "") or "",
-                "address": crm.get("billing_address") or crm.get("address") or (client_invoices[0].get("client_address") if client_invoices else "") or "",
-                "contact": crm.get("contact") or "",
+                "email": crm_customer.get("email") or (client_invoices[0].get("client_email") if client_invoices else "") or "",
+                "address": crm_customer.get("address") or (client_invoices[0].get("client_address") if client_invoices else "") or "",
+                "contact": crm_customer.get("contact") or "",
+                "owner": crm_customer.get("owner") or "",
                 "po_numbers": po_numbers,
                 "payment_terms": payment_terms,
                 "consultants": list(consultants_by_client.get(name, {}).values()),
             }
         )
+    invoice_rows = []
+    for invoice in invoices:
+        crm_customer = crm_for_row(invoice.get("client"), invoice.get("crm_customer_id"))
+        if not crm_customer:
+            continue
+        copied = dict(invoice)
+        copied["crm_customer_id"] = crm_customer["id"]
+        copied["client"] = crm_customer["name"]
+        copied["client_email"] = crm_customer.get("email") or copied.get("client_email") or ""
+        copied["client_address"] = crm_customer.get("address") or copied.get("client_address") or ""
+        consultants = set()
+        for item in copied.get("line_items", []) or []:
+            if isinstance(item, dict):
+                consultant = _safe_action_text(item.get("consultant"), 240)
+                if not consultant and item.get("description"):
+                    parts = str(item.get("description")).split(" - ")
+                    if len(parts) >= 2:
+                        consultant = _safe_action_text(parts[1], 240)
+                if consultant:
+                    consultants.add(consultant)
+        copied["consultants"] = sorted(consultants)
+        copied["line_count"] = len(copied.get("line_items", []) or [])
+        invoice_rows.append(copied)
     line_items = [
         {
             "description": f"{row.get('work_date') or row.get('week_start')} - {row.get('candidate_name')} - {row.get('project') or 'Consulting services'}",
@@ -3520,18 +3804,19 @@ def _invoice_workbench(domain: str = "dev", client: str = "", period_start: str 
             "summary": row.get("summary") or "",
         }
         for row in rows
-        if row.get("bill_rate")
+        if clean_client and row.get("bill_rate")
     ]
     return {
         "ok": True,
         "domain": clean_domain,
-        "client": client,
+        "client": selected_client_name,
+        "crm_customer_id": selected_crm.get("id", ""),
         "period": {"start": period_start, "end": period_end},
         "customers": customers,
-        "consultants": list(consultants_by_client.get(client, {}).values()) if client else [],
+        "consultants": list(consultants_by_client.get(selected_client_name, {}).values()) if clean_client else [],
         "time_rows": rows,
         "line_items": line_items,
-        "invoices": sorted(invoices, key=lambda item: item.get("updated_at") or item.get("created_at") or "", reverse=True),
+        "invoices": sorted(invoice_rows, key=lambda item: item.get("updated_at") or item.get("created_at") or "", reverse=True),
     }
 
 
@@ -3544,6 +3829,7 @@ def get_invoice_workbench(domain: str = "dev", client: str = "", period_start: s
 def save_invoice_from_time(
     invoice_id: str = Form(default=""),
     domain: str = Form(default="dev"),
+    crm_customer_id: str = Form(default=""),
     client: str = Form(default=""),
     client_email: str = Form(default=""),
     client_address: str = Form(default=""),
@@ -3558,7 +3844,10 @@ def save_invoice_from_time(
     time_entry_ids_json: str = Form(default="[]"),
     notes: str = Form(default=""),
 ):
-    workbench = _invoice_workbench(domain, client, period_start, period_end)
+    crm_customer = _crm_customer_for_value(domain, crm_customer_id or client)
+    if not crm_customer:
+        raise HTTPException(status_code=400, detail="Select a customer from CRM before saving an invoice.")
+    workbench = _invoice_workbench(domain, crm_customer["id"], period_start, period_end)
     line_items = workbench.get("line_items", [])
     try:
         selected_time_ids = json.loads(time_entry_ids_json or "[]")
@@ -3567,16 +3856,15 @@ def save_invoice_from_time(
     if isinstance(selected_time_ids, list) and selected_time_ids:
         selected_set = {str(item) for item in selected_time_ids if item}
         line_items = [item for item in line_items if str(item.get("time_entry_id") or "") in selected_set]
-    if not client:
-        raise HTTPException(status_code=400, detail="Customer is required.")
     if not line_items:
         raise HTTPException(status_code=400, detail="No approved billable time with consultant bill rates was found for this customer and period.")
     return save_accounting_invoice(
         invoice_id=invoice_id,
         domain=domain,
-        client=client,
-        client_email=client_email,
-        client_address=client_address,
+        crm_customer_id=crm_customer["id"],
+        client=crm_customer["name"],
+        client_email=crm_customer.get("email") or client_email,
+        client_address=crm_customer.get("address") or client_address,
         invoice_number=invoice_number or f"DR-{datetime.utcnow().strftime('%Y%m%d%H%M')}",
         invoice_date=invoice_date,
         due_date=due_date,
@@ -3631,9 +3919,23 @@ def update_time_entry_status(
 def get_time_entries(token: str):
     entries = _read_json_store_with_demo(TIME_ENTRIES_PATH, [])
     onboarding = _read_json_store_with_demo(ONBOARDING_RECORDS_PATH, {}).get(token, {}) if token else {}
+    resource = _resource_for_time_person({
+        "profile_id": onboarding.get("profile_id", ""),
+        "token": token,
+        "email": onboarding.get("email", ""),
+        "candidate_name": onboarding.get("candidate_name") or onboarding.get("legal_name", ""),
+        "domain": onboarding.get("domain", "dev"),
+    })
+    record = dict(onboarding)
+    if resource:
+        record.setdefault("client", resource.get("client", ""))
+        record.setdefault("project", resource.get("project", "") or resource.get("role", ""))
+        record.setdefault("bill_rate", resource.get("bill_rate", ""))
+        record.setdefault("cost_rate", resource.get("cost_rate", ""))
     return {
         "token": token,
-        "record": onboarding,
+        "record": record,
+        "resource": resource,
         "entries": [entry for entry in entries if entry.get("token") == token],
     }
 

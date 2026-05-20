@@ -170,6 +170,22 @@
         color: var(--primary-2);
       }
 
+      .profile-gate {
+        border: 1px solid rgba(var(--primary-rgb), 0.22);
+        border-radius: 12px;
+        padding: 10px 12px;
+        background: rgba(var(--primary-rgb), 0.07);
+        color: var(--primary-2);
+        font-weight: 800;
+        line-height: 1.4;
+      }
+
+      .profile-gate.blocked {
+        border-color: rgba(172, 93, 19, 0.28);
+        background: #fff8e8;
+        color: #8a4c0d;
+      }
+
       .notice-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -224,12 +240,12 @@
           <section class="card">
             <h2>What HR sends</h2>
             <p>
-              Create one candidate onboarding link after the hire decision. The email draft includes the onboarding form, the weekly time-entry link, start details, and the DevReady HR contact.
+              Create one candidate onboarding link after the hire decision and only after the candidate profile is complete. The email draft includes the onboarding form, the weekly time-entry link, start details, and the DevReady HR contact.
             </p>
             <div class="notice-grid">
               <div class="notice-step">
-                <strong>1. Create link</strong>
-                Enter the candidate name, email, role, and start day for the current domain.
+                <strong>1. Select complete profile</strong>
+                Pick a completed profile from this domain. Onboarding cannot start from typed-in candidate details.
               </div>
               <div class="notice-step">
                 <strong>2. Send packet</strong>
@@ -256,9 +272,12 @@
                 <label class="wide">
                   Select candidate
                   <select id="candidateSelect" onchange="selectCandidate()">
-                    <option value="">Load candidates from this domain...</option>
+                    <option value="">Load completed profiles from this domain...</option>
                   </select>
                 </label>
+                <div id="profileGate" class="profile-gate blocked wide">
+                  Select a completed profile before HR can create an onboarding packet.
+                </div>
                 <label>
                   Candidate name
                   <input id="candidateName" type="text" placeholder="Select candidate above" readonly />
@@ -281,14 +300,14 @@
                   Profile ID
                   <input id="profileId" type="text" placeholder="Linked profile id" readonly />
                 </label>
-                <button class="btn" type="submit">Create onboarding link</button>
+                <button id="createOnboardingBtn" class="btn" type="submit" disabled>Create onboarding link</button>
                 <label class="wide">
                   HR note for the email draft
                   <textarea id="hrNote" placeholder="Add equipment notes, first-day instructions, payroll reminders, or client-specific details."></textarea>
                 </label>
               </form>
               <div id="createStatus" class="notice" style="margin-top: 12px">
-                Fill in the candidate details, then create the onboarding packet.
+                Select a completed candidate profile, then create the onboarding packet.
               </div>
             </section>
 
@@ -393,10 +412,17 @@
         sessionStorage.setItem("domain", domain);
         document.getElementById("domainSelect").value = domain;
         document.getElementById("currentDomainPill").textContent = `${domainLabel(domain)} workspace`;
-        document.getElementById("candidateName").value = sessionStorage.getItem("candidateName") || "";
-        document.getElementById("candidateEmail").value = sessionStorage.getItem("candidateEmail") || "";
-        document.getElementById("candidateTitle").value = sessionStorage.getItem("jobTitle") || "";
-        document.getElementById("profileId").value = sessionStorage.getItem("candidateId") || "";
+        clearCandidateSelection();
+      }
+
+      function clearCandidateSelection() {
+        ["candidateName", "candidateEmail", "candidateTitle", "profileId"].forEach((id) => {
+          document.getElementById(id).value = "";
+        });
+        document.getElementById("createOnboardingBtn").disabled = true;
+        const gate = document.getElementById("profileGate");
+        gate.className = "profile-gate blocked wide";
+        gate.textContent = "Select a completed profile before HR can create an onboarding packet.";
       }
 
       async function loadCandidateChoices() {
@@ -407,10 +433,19 @@
           const data = await response.json();
           if (!response.ok) throw new Error(data.detail || "Could not load candidates.");
           candidatesForOnboarding = data.candidates || [];
-          select.innerHTML = '<option value="">Select linked candidate</option>' + candidatesForOnboarding.map((candidate, index) => {
+          select.innerHTML = '<option value="">Select completed profile</option>' + candidatesForOnboarding.map((candidate, index) => {
             const label = `${candidate.name || "Unnamed"}${candidate.email ? " - " + candidate.email : ""}${candidate.title ? " - " + candidate.title : ""}`;
             return `<option value="${index}">${escapeLocal(label)}</option>`;
           }).join("");
+          if (!candidatesForOnboarding.length) {
+            select.innerHTML = '<option value="">No completed profiles found</option>';
+            clearCandidateSelection();
+            const skipped = Number(data.skipped_incomplete || 0);
+            document.getElementById("createStatus").textContent = skipped
+              ? `No completed profiles are ready for onboarding in this domain. ${skipped} incomplete profile(s) were held back.`
+              : "No completed profiles are ready for onboarding in this domain.";
+            return;
+          }
           const sessionId = sessionStorage.getItem("candidateId") || "";
           const foundIndex = candidatesForOnboarding.findIndex((candidate) => String(candidate.id) === String(sessionId) || String(candidate.profile_id) === String(sessionId));
           if (foundIndex >= 0) {
@@ -419,6 +454,7 @@
           }
         } catch (error) {
           select.innerHTML = '<option value="">Candidate list unavailable</option>';
+          clearCandidateSelection();
           document.getElementById("createStatus").textContent = error.message || "Candidate list unavailable.";
         }
       }
@@ -427,16 +463,23 @@
         const index = document.getElementById("candidateSelect").value;
         const candidate = candidatesForOnboarding[Number(index)];
         if (!candidate) {
-          ["candidateName", "candidateEmail", "candidateTitle", "profileId"].forEach((id) => {
-            document.getElementById(id).value = "";
-          });
+          clearCandidateSelection();
           return;
         }
+        const complete = candidate.completion?.complete === true;
         document.getElementById("candidateName").value = candidate.name || "";
         document.getElementById("candidateEmail").value = candidate.email || "";
         document.getElementById("candidateTitle").value = candidate.title || "";
         document.getElementById("profileId").value = candidate.profile_id || candidate.id || "";
-        document.getElementById("createStatus").textContent = "Candidate linked from profile data. Add a start day, then create the onboarding packet.";
+        document.getElementById("createOnboardingBtn").disabled = !complete;
+        const gate = document.getElementById("profileGate");
+        gate.className = `profile-gate ${complete ? "" : "blocked"} wide`;
+        gate.textContent = complete
+          ? "Complete profile selected. HR can create onboarding from this linked profile data."
+          : `This profile is not ready for onboarding. Missing: ${(candidate.completion?.missing || []).join(", ") || "profile completion"}.`;
+        document.getElementById("createStatus").textContent = complete
+          ? "Candidate linked from completed profile data. Add a start day, then create the onboarding packet."
+          : "Finish the candidate profile before onboarding.";
       }
 
       function switchDomain() {
@@ -487,7 +530,11 @@
         const profileId = document.getElementById("profileId").value.trim();
         const status = document.getElementById("createStatus");
         if (!name && !email) {
-          status.textContent = "Add at least a candidate name or email before creating the onboarding packet.";
+          status.textContent = "Select a completed profile before creating the onboarding packet.";
+          return;
+        }
+        if (!profileId) {
+          status.textContent = "Onboarding must start from a selected completed profile.";
           return;
         }
         status.textContent = "Creating onboarding packet...";

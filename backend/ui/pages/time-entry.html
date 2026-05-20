@@ -40,6 +40,19 @@
         color: #125b36;
         font-weight: 800;
       }
+      .assignment-strip {
+        margin-top: 10px;
+        border: 1px solid #d7e7dc;
+        border-radius: 14px;
+        padding: 12px;
+        background: #fff;
+        color: #244239;
+        display: grid;
+        gap: 4px;
+      }
+      .assignment-strip strong {
+        color: #125b36;
+      }
       .week-bar,
       .entry-actions {
         display: flex;
@@ -133,11 +146,11 @@
             </label>
             <label>
               Client
-              <input id="client" name="client" placeholder="Client or internal team" />
+              <input id="client" name="client" placeholder="Loaded from assignment" readonly />
             </label>
             <label>
               Project
-              <input id="project" name="project" placeholder="Project or workstream" />
+              <input id="project" name="project" placeholder="Loaded from assignment" readonly />
             </label>
             <div>
               <div class="muted">Week total</div>
@@ -239,7 +252,17 @@
       function setPerson(record) {
         const name = record.candidate_name || record.legal_name || "Staff member";
         const title = record.title ? ` - ${record.title}` : "";
-        document.getElementById("personText").textContent = `${name}${title}`;
+        const client = record.client || "";
+        const project = record.project || record.role || "";
+        document.getElementById("personText").innerHTML = `
+          <div>${escapeLocal(name)}${escapeLocal(title)}</div>
+          <div class="assignment-strip">
+            <strong>${escapeLocal(client || "Client assignment not set")}</strong>
+            <span>${escapeLocal(project || "Project/workstream not set yet")}</span>
+          </div>
+        `;
+        document.getElementById("client").value = client;
+        document.getElementById("project").value = project;
         if (record.start_day) {
           document.getElementById("weekStart").value = isoDate(mondayFor(`${record.start_day}T12:00:00`));
           renderDayRows();

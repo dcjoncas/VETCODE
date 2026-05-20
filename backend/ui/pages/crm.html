@@ -1089,6 +1089,34 @@
         align-items: start;
       }
 
+      .team-player-identity {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr);
+        gap: 10px;
+        align-items: center;
+      }
+
+      .team-player-avatar {
+        width: 42px;
+        height: 42px;
+        border: 1px solid rgba(var(--domain-rgb), 0.2);
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.9), rgba(var(--domain-rgb), 0.22)),
+          #fff;
+        color: var(--domain-ink);
+        font-weight: 950;
+      }
+
+      .team-player-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
       .team-player-head h3 {
         margin: 0;
         color: var(--crm-ink);
@@ -1423,8 +1451,8 @@
                 <textarea id="crmWhy" placeholder="Business driver, urgency, emotional reason this matters..."></textarea>
               </div>
               <div class="field full">
-                <label>Contacts</label>
-                <textarea id="crmContacts" placeholder="One per line: name | relationship role | email | phone | title | description | last conversation"></textarea>
+                <label>Client contacts</label>
+                <textarea id="crmContacts" placeholder="One actual person per line: name | relationship role | email | phone | title | description | last conversation | LinkedIn URL | photo URL"></textarea>
               </div>
               <div class="field full">
                 <label>History / notes</label>
@@ -1736,7 +1764,7 @@
 
       function cleanRelationshipRole(value) {
         const role = String(value || "").trim();
-        const allowed = ["Decision Maker", "Buyer", "Influencer", "Champion", "Technical Reviewer", "Finance", "Legal", "User"];
+        const allowed = ["Decision Maker", "Buyer", "Influencer", "Champion", "Technical Reviewer", "Finance", "Legal", "HR", "Project Manager", "Developer Lead", "User"];
         const match = allowed.find((item) => item.toLowerCase() === role.toLowerCase());
         return match || (role ? role : "Influencer");
       }
@@ -1747,6 +1775,24 @@
           name: parts[0] || "",
           title: parts.slice(1).join(", "),
         };
+      }
+
+      function looksLikeEntityContact(value, record = {}) {
+        const raw = String(value || "").trim();
+        if (!raw) return true;
+        const clean = raw.toLowerCase();
+        const customer = String(record.customer || "").toLowerCase();
+        if (/\b(hiring team|team inbox|talent team|recruiting team|people team|department|group|committee|office|desk|sponsor)\b/i.test(raw)) return true;
+        if (customer && clean.includes(customer) && !/,/.test(raw)) return true;
+        return false;
+      }
+
+      function isActualPersonContact(value, record = {}) {
+        const nameTitle = splitContactNameTitle(value);
+        const name = nameTitle.name || String(value || "").trim();
+        if (!name || looksLikeEntityContact(name, record)) return false;
+        const parts = name.split(/\s+/).filter(Boolean);
+        return parts.length >= 2;
       }
 
       function contactSlug(value, fallback = "contact") {
@@ -1768,11 +1814,27 @@
         return `${prefix}-${String(410 + (seed % 80)).padStart(3, "0")}-${String(1100 + (seed % 7000)).padStart(4, "0")}`;
       }
 
+      function demoLinkedInFor(record = {}, name = "contact") {
+        return `https://www.linkedin.com/in/${contactSlug(`${record.customer || "client"} ${name}`)}`;
+      }
+
+      function initialsFor(name = "") {
+        const parts = String(name || "Team member").split(/\s+/).filter(Boolean);
+        return (parts[0]?.[0] || "T") + (parts[1]?.[0] || "M");
+      }
+
       function demoSupportPlayers(record = {}, existing = []) {
+        const domain = currentDomain();
+        const technicalTitle = domain === "law" ? "Legal Operations Director" : domain === "engineer" ? "Project Engineering Manager" : "Lead Platform Architect";
+        const userTitle = domain === "law" ? "Practice Manager" : domain === "engineer" ? "Site Project Manager" : "Delivery Manager";
         const names = [
-          ["Heidi Larson", "Buyer", "Procurement Lead", "Controls rate approval, contract routing, and PO timing."],
-          ["Nora Patel", "Influencer", "Operations Partner", "Shapes role requirements, interview feedback, and day-to-day coordination."],
-          ["Evan Brooks", "Technical Reviewer", "Technical Lead", "Validates skills, stack fit, and technical interview feedback."],
+          ["Maya Chen", "Decision Maker", "SVP Operations", "Owns business outcome, budget, and final approval for DevReady engagement."],
+          ["Jordan Blake", "Buyer", "Director of Procurement", "Controls vendor onboarding, rate approval, and purchase order timing."],
+          ["Priya Shah", "Influencer", userTitle, "Coordinates interviews, internal feedback, and day-to-day delivery expectations."],
+          ["Evan Brooks", "Technical Reviewer", technicalTitle, "Reviews technical fit, project scope, and candidate readiness."],
+          ["Nina Alvarez", "Finance", "AP Manager", "Confirms invoice routing, payment terms, and billing contact details."],
+          ["Caleb Wright", "User", "Team Lead", "Works directly with placed resources and reports practical delivery needs."],
+          ["Morgan Lee", "HR", "People Operations Manager", "Supports onboarding paperwork, access, and first-week coordination."],
         ];
         const used = new Set(existing.map((item) => String(item.name || "").toLowerCase()));
         const additions = [];
@@ -1787,9 +1849,11 @@
             title,
             jobTitle: title,
             description,
+            linkedinUrl: demoLinkedInFor(record, name),
+            photoUrl: "",
             lastConversation: "Needs next-step clarity from the DevReady team.",
           });
-          if (existing.length + additions.length >= 3) break;
+          if (existing.length + additions.length >= 4) break;
         }
         return additions;
       }
@@ -1801,6 +1865,7 @@
           ? raw.split("|").map((part) => part.trim())
           : raw.split(",").map((part) => part.trim());
         const nameTitle = splitContactNameTitle(parts[0] || record.contact || "");
+        if (!isActualPersonContact(nameTitle.name || parts[0], record)) return null;
         const email = parts.find((part) => /@/.test(part)) || "";
         const phone = parts.find((part) => /\d{3}[\s).-]?\d{3}/.test(part) && !/@/.test(part)) || "";
         return {
@@ -1813,6 +1878,8 @@
           jobTitle: parts[4] || nameTitle.title || parts[1] || "",
           description: parts[5] || "",
           lastConversation: parts[6] || record.lastTouched || record.when || "",
+          linkedinUrl: parts[7] || "",
+          photoUrl: parts[8] || "",
         };
       }
 
@@ -1825,6 +1892,8 @@
           player.jobTitle || player.title || "",
           player.description || "",
           player.lastConversation || "",
+          player.linkedinUrl || player.linkedin || "",
+          player.photoUrl || player.photo || player.avatarUrl || "",
         ].join(" | ");
       }
 
@@ -1838,7 +1907,8 @@
         const members = raw
           .map((player) => {
             const nameTitle = splitContactNameTitle(player.name || player.contact || "");
-            const name = player.name || nameTitle.name || "Team member";
+            const name = player.name || nameTitle.name || "";
+            if (!isActualPersonContact(name, record)) return null;
             return {
               id: player.id || (crypto.randomUUID ? crypto.randomUUID() : `player-${Date.now()}-${Math.random().toString(16).slice(2)}`),
               name,
@@ -1849,20 +1919,23 @@
               jobTitle: player.jobTitle || player.title || nameTitle.title || "",
               description: player.description || player.notes || "",
               lastConversation: player.lastConversation || player.last_conversation || player.lastTouched || "",
+              linkedinUrl: player.linkedinUrl || player.linkedin || player.linkedin_url || "",
+              photoUrl: player.photoUrl || player.photo || player.avatarUrl || player.imageUrl || "",
             };
           })
+          .filter(Boolean)
           .filter((player) => player.name || player.email || player.phone);
         if (members.length) {
-          return demoRecord && members.length < 3 ? [...members, ...demoSupportPlayers(record, members)] : members;
+          return members.length < 3 ? [...members, ...demoSupportPlayers(record, members)] : members;
         }
         const parsed = String(record.contacts || "")
           .split(/\r?\n/)
           .map((line) => contactLineToPlayer(line, record))
           .filter(Boolean);
         if (parsed.length) return parsed;
-        if (record.contact || record.email || record.phone) {
+        if ((record.contact && isActualPersonContact(record.contact, record)) || record.email || record.phone) {
           const nameTitle = splitContactNameTitle(record.contact || "");
-          const name = nameTitle.name || record.customer || "Primary contact";
+          const name = isActualPersonContact(nameTitle.name, record) ? nameTitle.name : "Primary contact";
           const primary = [
             {
               id: `${record.id || "record"}-player-1`,
@@ -1874,11 +1947,13 @@
               jobTitle: nameTitle.title || "",
               description: "Primary account contact.",
               lastConversation: record.lastTouched || record.when || "",
+              linkedinUrl: demoRecord ? demoLinkedInFor(record, name) : "",
+              photoUrl: "",
             },
           ];
-          return demoRecord ? [...primary, ...demoSupportPlayers(record, primary)] : primary;
+          return [...primary, ...demoSupportPlayers(record, primary)];
         }
-        return [];
+        return demoSupportPlayers(record, []);
       }
 
       function primaryTeamMember(record = {}) {
@@ -1950,10 +2025,16 @@
         normalized.dealStage = cleanStage(normalized.dealStage || primary.stage);
         normalized.dealProbability = normalized.dealProbability ?? primary.probability ?? dealProbabilityFromStage(normalized.dealStage);
         normalized.owner = normalized.owner || primary.owner || "";
-        normalized.contact = normalized.contact || primary.contact || [primaryMember.name, primaryMember.jobTitle || primaryMember.title].filter(Boolean).join(", ");
+        const validPrimaryContact = isActualPersonContact(normalized.contact, normalized) ? normalized.contact : "";
+        const validDealContact = isActualPersonContact(primary.contact, normalized) ? primary.contact : "";
+        normalized.contact = validPrimaryContact || validDealContact || [primaryMember.name, primaryMember.jobTitle || primaryMember.title].filter(Boolean).join(", ");
         normalized.email = normalized.email || primaryMember.email || "";
         normalized.phone = normalized.phone || primaryMember.phone || "";
-        normalized.contacts = normalized.contacts || normalized.teamMembers.map(playerToLine).join("\n");
+        normalized.deals = normalized.deals.map((deal) => ({
+          ...deal,
+          contact: isActualPersonContact(deal.contact, normalized) ? deal.contact : normalized.contact,
+        }));
+        normalized.contacts = normalized.teamMembers.map(playerToLine).join("\n");
         normalized.value = Number(normalized.value || primary.value || 0);
         return normalized;
       }
@@ -2637,8 +2718,8 @@
                 <textarea name="why">${escapeHtml(record.why || "")}</textarea>
               </label>
               <label class="full">
-                Contacts
-                <textarea name="contacts">${escapeHtml(record.contacts || "")}</textarea>
+                Client contacts
+                <textarea name="contacts" placeholder="actual person | relationship role | email | phone | title | description | last conversation | LinkedIn URL | photo URL">${escapeHtml(normalizeTeamMembers(record).map(playerToLine).join("\n"))}</textarea>
               </label>
               <label class="full">
                 History
@@ -2707,19 +2788,29 @@
         const phone = player.phone || "";
         const title = player.title || "Title not captured";
         const jobTitle = player.jobTitle || player.title || "Job title not captured";
+        const linkedin = player.linkedinUrl || player.linkedin || "";
+        const photo = player.photoUrl || player.photo || player.avatarUrl || "";
+        const avatar = photo
+          ? `<span class="team-player-avatar"><img src="${escapeHtml(photo)}" alt="${escapeHtml(player.name || "Contact")}" onerror="this.remove();"></span>`
+          : `<span class="team-player-avatar">${escapeHtml(initialsFor(player.name))}</span>`;
         return `
           <article class="team-player-card">
             <div class="team-player-head">
-              <div>
-                <h3>${escapeHtml(player.name || "Team member")}</h3>
-                <div class="team-player-meta">Title: ${escapeHtml(title)}</div>
-                <div class="team-player-meta">Job title: ${escapeHtml(jobTitle)}</div>
+              <div class="team-player-identity">
+                ${avatar}
+                <div>
+                  <h3>${escapeHtml(player.name || "Contact")}</h3>
+                  <div class="team-player-meta">Title: ${escapeHtml(title)}</div>
+                  <div class="team-player-meta">Job title: ${escapeHtml(jobTitle)}</div>
+                </div>
               </div>
               <span class="team-player-role">${escapeHtml(cleanRelationshipRole(player.relationshipRole || player.role))}</span>
             </div>
             <div class="team-player-contact">
               ${email ? `<a href="mailto:${encodeURIComponent(email)}">${escapeHtml(email)}</a>` : `<span class="team-player-meta">No email captured</span>`}
               ${phone ? `<a href="tel:${escapeHtml(phone)}">${escapeHtml(phone)}</a>` : `<span class="team-player-meta">No phone captured</span>`}
+              ${linkedin ? `<a href="${escapeHtml(linkedin)}" target="_blank" rel="noopener">LinkedIn profile</a>` : `<span class="team-player-meta">No LinkedIn profile saved</span>`}
+              ${photo ? `<span class="team-player-meta">Photo linked</span>` : `<span class="team-player-meta">No photo URL saved</span>`}
             </div>
             <div class="team-player-meta">${escapeHtml(player.description || "No relationship description captured yet.")}</div>
             <div class="team-player-meta"><strong>Last conversation:</strong> ${escapeHtml(player.lastConversation || "Not recorded")}</div>
@@ -2800,13 +2891,13 @@
             <section>
               <div class="builder-head" style="margin-bottom: 10px">
                 <div>
-                  <span>Team players</span>
-                  <h2 style="font-size: 20px">${teamMembers.length} client player${teamMembers.length === 1 ? "" : "s"} linked to this team card</h2>
+                  <span>Client contacts</span>
+                  <h2 style="font-size: 20px">${teamMembers.length} person${teamMembers.length === 1 ? "" : "s"} linked to this team card</h2>
                 </div>
-                <button class="btn secondary" type="button" onclick="startCrmCardEdit('${escapeHtml(record.id)}'); closeDealDetail();">Edit Team Contacts</button>
+                <button class="btn secondary" type="button" onclick="startCrmCardEdit('${escapeHtml(record.id)}'); closeDealDetail();">Edit Contacts</button>
               </div>
               <div class="team-player-grid">
-                ${teamMembers.length ? teamMembers.map(renderTeamPlayerCard).join("") : `<div class="notice">No team players captured yet. Edit the team card and add contacts.</div>`}
+                ${teamMembers.length ? teamMembers.map(renderTeamPlayerCard).join("") : `<div class="notice">No client contacts captured yet. Edit the team card and add actual people.</div>`}
               </div>
             </section>
             <section>
@@ -3119,7 +3210,7 @@
           dev: [
             ["Northstar Health", "Maya Chen, COO", 180000, "Darrin", 1, 9, "Needs two senior integration leads for a claims modernization push.", "Board deadline is moving faster than internal hiring can support.", "Send vetted shortlist and schedule technical calibration.", "Teams"],
             ["Summit Energy", "Jon Reyes, VP Data", 95000, "Alex", 6, 6, "Exploring data engineering capacity for a Q3 analytics rollout.", "Team is under pressure after delayed vendor delivery.", "Follow up with rate card and availability.", "Zoom"],
-            ["BluePeak Logistics", "Sam Carter, COO", 225000, "Darrin", 0, 8, "Needs immediate SAP delivery leadership for a stalled implementation.", "Executive sponsor wants a recovery plan before Friday.", "Schedule executive follow-up and prepare two-player shortlist.", "Teams"],
+            ["BluePeak Logistics", "Sam Carter, COO", 225000, "Darrin", 0, 8, "Needs immediate SAP delivery leadership for a stalled implementation.", "Executive sponsor wants a recovery plan before Friday.", "Schedule executive follow-up and prepare two-candidate shortlist.", "Teams"],
           ],
           engineer: [
             ["ForgeLine Fabrication", "Elena Brooks, VP Engineering", 310000, "Darrin", 2, 8, "Needs plant modernization engineers for a controls upgrade and throughput study.", "Capital project is approved but internal bench is overloaded.", "Send BuildReady controls and process engineering shortlist.", "Teams"],
@@ -3150,17 +3241,21 @@
               title: leadTitle,
               jobTitle: leadTitle,
               description: "Owns the business outcome and approves the shortlist before client interviews.",
+              linkedinUrl: demoLinkedInFor({ customer: company }, leadName),
+              photoUrl: "",
               lastConversation: "Confirmed priority, timing, and decision criteria during the last CRM touch.",
             },
             {
               id: `${slug}-buyer`,
-              name: index === 0 ? "Heidi Larson" : index === 1 ? "Marcus Bell" : "Priya Shah",
+              name: index === 0 ? "Jordan Blake" : index === 1 ? "Marcus Bell" : "Priya Shah",
               relationshipRole: "Buyer",
               email: `procurement.${index + 1}@${slug}.example`,
               phone: samplePhone(index, 2200 + index),
-              title: "Procurement Lead",
-              jobTitle: "Procurement Lead",
+              title: "Director of Procurement",
+              jobTitle: "Director of Procurement",
               description: "Controls contract paperwork, rate approval, and purchase order routing.",
+              linkedinUrl: demoLinkedInFor({ customer: company }, index === 0 ? "Jordan Blake" : index === 1 ? "Marcus Bell" : "Priya Shah"),
+              photoUrl: "",
               lastConversation: "Waiting for final scope and rate card before opening the PO.",
             },
             {
@@ -3172,7 +3267,22 @@
               title: domain === "law" ? "Legal Operations Manager" : domain === "engineer" ? "Program Engineering Manager" : "Talent Operations Manager",
               jobTitle: domain === "law" ? "Legal Operations Manager" : domain === "engineer" ? "Program Engineering Manager" : "Talent Operations Manager",
               description: "Shapes requirements, interview feedback, and day-to-day hiring coordination.",
+              linkedinUrl: demoLinkedInFor({ customer: company }, index === 0 ? "Nora Patel" : index === 1 ? "Evan Brooks" : "Camila Torres"),
+              photoUrl: "",
               lastConversation: "Shared team constraints and asked for a practical next-step plan.",
+            },
+            {
+              id: `${slug}-hr`,
+              name: index === 0 ? "Morgan Lee" : index === 1 ? "Nina Alvarez" : "Caleb Wright",
+              relationshipRole: "HR",
+              email: `people.${index + 1}@${slug}.example`,
+              phone: samplePhone(index, 4400 + index),
+              title: "People Operations Manager",
+              jobTitle: "People Operations Manager",
+              description: "Owns candidate onboarding, interview logistics, and access coordination once a resource is selected.",
+              linkedinUrl: demoLinkedInFor({ customer: company }, index === 0 ? "Morgan Lee" : index === 1 ? "Nina Alvarez" : "Caleb Wright"),
+              photoUrl: "",
+              lastConversation: "Asked for a clean candidate handoff and onboarding checklist.",
             },
           ];
         };

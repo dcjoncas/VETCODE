@@ -245,6 +245,169 @@
         flex-wrap: wrap;
       }
 
+      .workflow-notice {
+        border: 1px dashed rgba(var(--primary-rgb, 47, 125, 75), 0.34);
+        border-radius: 10px;
+        padding: 11px 12px;
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb, 47, 125, 75), 0.08), rgba(255, 255, 255, 0.92)),
+          #fff;
+        color: var(--text, #102015);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .workflow-notice.warn {
+        border-color: #f3bd64;
+        background: #fff8eb;
+      }
+
+      .workflow-notice.ready {
+        border-style: solid;
+        border-color: rgba(var(--primary-rgb, 47, 125, 75), 0.34);
+      }
+
+      .workflow-notice strong {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 13px;
+      }
+
+      .notice-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 9px;
+      }
+
+      .history-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: end;
+      }
+
+      .history-filters {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .history-filters input,
+      .history-filters select {
+        min-width: 170px;
+      }
+
+      .invoice-register-stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin: 12px 0;
+      }
+
+      .invoice-history {
+        max-height: 420px;
+        overflow: auto;
+        padding-right: 4px;
+      }
+
+      .invoice-register-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .invoice-register-row .amount {
+        color: var(--primary-2, #2f7d4b);
+        font-size: 18px;
+        font-weight: 950;
+        text-align: right;
+      }
+
+      .invoice-tabs-card {
+        display: grid;
+        gap: 10px;
+      }
+
+      .invoice-tab-row,
+      .invoice-chip-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .invoice-tab {
+        border: 1px solid var(--line, #dfe7e2);
+        border-radius: 999px;
+        padding: 8px 12px;
+        background: #fff;
+        color: var(--text, #102015);
+        font-weight: 950;
+        cursor: pointer;
+      }
+
+      .invoice-tab.active,
+      .invoice-tab:hover {
+        border-color: rgba(var(--primary-rgb, 47, 125, 75), 0.32);
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.12);
+        color: var(--primary-2, #2f7d4b);
+      }
+
+      .invoice-chip-row {
+        max-height: 118px;
+        overflow: auto;
+        padding-bottom: 2px;
+      }
+
+      .invoice-chip {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 4px 10px;
+        min-width: 230px;
+        max-width: 320px;
+        border: 1px solid var(--line, #dfe7e2);
+        border-radius: 10px;
+        padding: 10px 12px;
+        background: #fff;
+        color: var(--text, #102015);
+        text-align: left;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        cursor: pointer;
+      }
+
+      .invoice-chip.active,
+      .invoice-chip:hover {
+        border-color: rgba(var(--primary-rgb, 47, 125, 75), 0.4);
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb, 47, 125, 75), 0.12), rgba(255, 255, 255, 0.98)),
+          #fff;
+      }
+
+      .invoice-chip strong,
+      .invoice-chip span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .invoice-chip strong {
+        font-size: 13px;
+      }
+
+      .invoice-chip .chip-status {
+        border-radius: 999px;
+        padding: 3px 7px;
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.1);
+        color: var(--primary-2, #2f7d4b);
+        font-size: 10px;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
       @media print {
         body > :not(.invoice-print-root),
         #siteSidebar,
@@ -274,8 +437,15 @@
         .invoice-grid,
         .invoice-filters,
         .invoice-form,
-        .stat-grid {
+        .stat-grid,
+        .history-head,
+        .invoice-register-stats,
+        .invoice-register-row {
           grid-template-columns: 1fr;
+        }
+
+        .history-filters {
+          justify-content: stretch;
         }
       }
     </style>
@@ -315,6 +485,7 @@
               <a class="btn secondary" href="accounting.html" id="openRatesLink">Resource rates</a>
               <button class="btn secondary" type="button" onclick="window.print()">Print / PDF</button>
               <button class="btn" type="button" onclick="copyInvoiceEmail()">Copy email</button>
+              <button class="btn" type="button" onclick="emailCurrentInvoice()">Email invoice</button>
               <button class="btn primary" type="button" onclick="saveInvoiceFromTime()">Save invoice</button>
             </div>
           </section>
@@ -352,6 +523,18 @@
                 <input id="periodEnd" type="date" onchange="loadWorkbench()" />
               </label>
             </div>
+          </section>
+
+          <section class="invoice-card invoice-tabs-card">
+            <div class="history-head">
+              <div>
+                <h2>Working invoices</h2>
+                <p class="mini-note">Jump between invoices by status without leaving the invoice workspace.</p>
+              </div>
+              <button class="btn secondary" type="button" onclick="startNewInvoice()">New invoice</button>
+            </div>
+            <div id="invoiceStatusTabs" class="invoice-tab-row"></div>
+            <div id="invoiceChipRow" class="invoice-chip-row"></div>
           </section>
 
           <section class="invoice-grid">
@@ -473,8 +656,28 @@
           </section>
 
           <section class="invoice-card invoice-history-card">
-            <h2>Invoice tracking</h2>
-            <p class="mini-note">Track invoices as draft, sent, viewed/read, due, overdue, paid, or void.</p>
+            <div class="history-head">
+              <div>
+                <h2>Invoice register</h2>
+                <p class="mini-note">See every invoice for this workspace, who it belongs to, which consultants are included, and what needs to be mailed or collected.</p>
+              </div>
+              <div class="history-filters">
+                <input id="invoiceSearch" placeholder="Search customer, invoice, consultant" oninput="renderHistory()" />
+                <select id="invoiceHistoryStatus" onchange="renderHistory()">
+                  <option value="all">All statuses</option>
+                  <option value="current">Current</option>
+                  <option value="draft">Draft</option>
+                  <option value="sent">Sent</option>
+                  <option value="viewed">Viewed / read</option>
+                  <option value="due">Due</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="paid">Paid</option>
+                  <option value="past">Past / paid</option>
+                  <option value="void">Void</option>
+                </select>
+              </div>
+            </div>
+            <div id="invoiceRegisterStats" class="invoice-register-stats"></div>
             <div id="invoiceHistory" class="invoice-history"></div>
           </section>
         </div>
@@ -488,9 +691,24 @@
       let workbench = null;
       let latestInvoice = null;
       let selectedTimeEntryIds = new Set();
+      let activeInvoiceView = "current";
+      let pendingInvoiceId = "";
+
+      const invoiceViews = [
+        { key: "current", label: "Current", statuses: ["draft", "due"] },
+        { key: "sent", label: "Sent", statuses: ["sent", "viewed"] },
+        { key: "overdue", label: "Overdue", statuses: ["overdue"] },
+        { key: "past", label: "Past / paid", statuses: ["paid", "void"] },
+        { key: "all", label: "All", statuses: [] },
+      ];
+
+      function normalizeDomain(value) {
+        const clean = value === "technology" ? "dev" : value;
+        return ["dev", "engineer", "law"].includes(clean) ? clean : "dev";
+      }
 
       function currentDomain() {
-        return document.getElementById("domainSelect")?.value || sessionStorage.getItem("domain") || "dev";
+        return normalizeDomain(document.getElementById("domainSelect")?.value || document.documentElement.dataset.domain || sessionStorage.getItem("domain") || "dev");
       }
 
       function money(value) {
@@ -605,6 +823,36 @@
         loadWorkbench();
       }
 
+      function invoicesForView(viewKey = activeInvoiceView) {
+        const view = invoiceViews.find((item) => item.key === viewKey) || invoiceViews[0];
+        const invoices = workbench?.invoices || [];
+        if (!view.statuses.length) return invoices;
+        return invoices.filter((invoice) => view.statuses.includes(invoice.status || "draft"));
+      }
+
+      function setInvoiceView(viewKey) {
+        activeInvoiceView = viewKey;
+        const statusSelect = document.getElementById("invoiceHistoryStatus");
+        if (statusSelect) {
+          const statusMap = { current: "all", sent: "sent", overdue: "overdue", past: "paid", all: "all" };
+          statusSelect.value = statusMap[viewKey] || "all";
+        }
+        renderInvoiceTabs();
+        renderHistory();
+      }
+
+      function startNewInvoice() {
+        latestInvoice = null;
+        selectedTimeEntryIds = new Set((workbench?.line_items || []).map((item) => item.time_entry_id).filter(Boolean));
+        document.getElementById("invoiceId").value = "";
+        document.getElementById("invoiceNumber").value = "";
+        document.getElementById("invoiceSelect").value = "";
+        renderTimeLines();
+        renderPreview();
+        renderInvoiceTabs();
+        document.getElementById("invoiceStatusText").textContent = "New invoice draft ready. Select a CRM customer and approved time.";
+      }
+
       async function loadWorkbench() {
         const client = document.getElementById("customerSelect").value;
         const params = new URLSearchParams({
@@ -620,27 +868,43 @@
         if (!latestInvoice) {
           selectedTimeEntryIds = new Set((workbench?.line_items || []).map((item) => item.time_entry_id).filter(Boolean));
         }
-        hydrateCustomer(client);
+        hydrateCustomer(document.getElementById("customerSelect").value);
         renderConsultants();
         renderTimeLines();
         renderPreview();
+        renderInvoiceTabs();
         renderHistory();
+        if (pendingInvoiceId) {
+          const invoice = (workbench?.invoices || []).find((item) => item.id === pendingInvoiceId || item.invoice_number === pendingInvoiceId);
+          if (invoice) {
+            hydrateInvoice(invoice);
+            pendingInvoiceId = "";
+          }
+        }
       }
 
       function renderCustomerSelect(selected) {
         const select = document.getElementById("customerSelect");
         const customers = workbench?.customers || [];
         select.innerHTML = '<option value="">Select customer</option>' + customers.map((customer) => {
-          const chosen = customer.name === selected ? " selected" : "";
+          const chosen = customer.id === selected || customer.name === selected ? " selected" : "";
           const amount = Number(customer.approved_billable || 0) > 0 ? money(customer.approved_billable) : "missing bill rate";
-          return `<option value="${escapeHtml(customer.name)}"${chosen}>${escapeHtml(customer.name)} - ${amount}</option>`;
+          return `<option value="${escapeHtml(customer.id)}"${chosen}>${escapeHtml(customer.name)} - ${amount}</option>`;
         }).join("");
       }
 
       function hydrateCustomer(client) {
-        const customer = (workbench?.customers || []).find((item) => item.name === client);
-        if (!client) return;
-        document.getElementById("clientName").value = client;
+        const customer = (workbench?.customers || []).find((item) => item.id === client || item.name === client);
+        if (!client) {
+          document.getElementById("clientName").value = "";
+          document.getElementById("clientEmail").value = "";
+          document.getElementById("clientAddress").value = "";
+          document.getElementById("poNumber").innerHTML = '<option value="">No PO on file</option>';
+          document.getElementById("invoiceNotes").value = "";
+          document.getElementById("invoiceStatusText").textContent = "Select a linked customer to load consultants and approved time.";
+          return;
+        }
+        document.getElementById("clientName").value = customer?.name || client;
         if (customer) {
           document.getElementById("clientEmail").value = customer.email || "";
           document.getElementById("clientAddress").value = customer.address || "";
@@ -650,7 +914,7 @@
             document.getElementById("paymentTerms").value = terms;
             syncDuePresetFromTerms();
           }
-          document.getElementById("invoiceNotes").value = `Generated from approved ${client} time for ${document.getElementById("periodStart").value || "selected period"} to ${document.getElementById("periodEnd").value || "selected period"}.`;
+          document.getElementById("invoiceNotes").value = `Generated from approved ${customer.name} time for ${document.getElementById("periodStart").value || "selected period"} to ${document.getElementById("periodEnd").value || "selected period"}.`;
         }
       }
 
@@ -663,10 +927,11 @@
 
       function selectCustomer() {
         const client = document.getElementById("customerSelect").value;
+        const customer = (workbench?.customers || []).find((item) => item.id === client || item.name === client);
         latestInvoice = null;
         document.getElementById("invoiceId").value = "";
         document.getElementById("invoiceNumber").value = "";
-        document.getElementById("clientName").value = client;
+        document.getElementById("clientName").value = customer?.name || "";
         document.getElementById("clientEmail").value = "";
         document.getElementById("clientAddress").value = "";
         document.getElementById("poNumber").innerHTML = '<option value="">No PO on file</option>';
@@ -684,10 +949,37 @@
         }).join("");
       }
 
+      function renderInvoiceTabs() {
+        const tabs = document.getElementById("invoiceStatusTabs");
+        const chips = document.getElementById("invoiceChipRow");
+        if (!tabs || !chips) return;
+        tabs.innerHTML = invoiceViews.map((view) => {
+          const count = invoicesForView(view.key).length;
+          const active = activeInvoiceView === view.key ? " active" : "";
+          return `<button class="invoice-tab${active}" type="button" onclick="setInvoiceView('${escapeHtml(view.key)}')">${escapeHtml(view.label)} <span>${count}</span></button>`;
+        }).join("");
+        const selected = latestInvoice?.id || document.getElementById("invoiceId")?.value || "";
+        const invoices = invoicesForView();
+        chips.innerHTML = invoices.length
+          ? invoices.map((invoice) => {
+              const active = invoice.id === selected ? " active" : "";
+              return `<button class="invoice-chip${active}" type="button" onclick="hydrateInvoiceById('${escapeHtml(invoice.id)}')">
+                <strong>${escapeHtml(invoice.invoice_number || invoice.id)}</strong>
+                <span class="chip-status">${escapeHtml(invoice.status || "draft")}</span>
+                <span>${escapeHtml(invoice.client || "No customer")}</span>
+                <strong>${money(invoice.total)}</strong>
+                <span>Due ${escapeHtml(invoice.due_date || "not set")}</span>
+                <span>${escapeHtml(invoiceConsultantSummary(invoice))}</span>
+              </button>`;
+            }).join("")
+          : `<div class="notice">No ${escapeHtml((invoiceViews.find((item) => item.key === activeInvoiceView) || {}).label || "matching")} invoices in this workspace.</div>`;
+      }
+
       function hydrateInvoice(invoice) {
         latestInvoice = invoice;
         document.getElementById("invoiceId").value = invoice.id || "";
-        document.getElementById("customerSelect").value = invoice.client || "";
+        const customer = (workbench?.customers || []).find((item) => item.id === invoice.crm_customer_id || item.name === invoice.client);
+        document.getElementById("customerSelect").value = customer?.id || invoice.crm_customer_id || "";
         document.getElementById("clientName").value = invoice.client || "";
         document.getElementById("clientEmail").value = invoice.client_email || "";
         document.getElementById("clientAddress").value = invoice.client_address || "";
@@ -697,13 +989,15 @@
         document.getElementById("invoiceStatus").value = invoice.status || "draft";
         document.getElementById("paymentTerms").value = invoice.payment_terms || "Net 15";
         syncDuePresetFromTerms(true);
-        renderPoSelect((workbench?.customers || []).find((item) => item.name === invoice.client), invoice.po_number || "");
+        renderPoSelect(customer, invoice.po_number || "");
         document.getElementById("invoiceNotes").value = invoice.notes || "";
         selectedTimeEntryIds = new Set((invoice.time_entry_ids || []).filter(Boolean));
         document.getElementById("invoiceStatusText").textContent = `Loaded invoice ${invoice.invoice_number || invoice.id}.`;
         renderPreview();
         renderInvoiceSelect();
+        renderConsultants();
         renderTimeLines();
+        renderInvoiceTabs();
       }
 
       function loadInvoiceFromSelect() {
@@ -725,27 +1019,163 @@
         return lines.filter((item) => selectedTimeEntryIds.has(item.time_entry_id));
       }
 
-      function totals() {
-        const lines = lineItems();
+      function summarizeLines(lines) {
+        const safeLines = lines || [];
         return {
-          hours: lines.reduce((sum, item) => sum + Number(item.qty || 0), 0),
-          total: lines.reduce((sum, item) => sum + Number(item.amount || 0), 0),
-          consultants: new Set(lines.map((item) => item.consultant).filter(Boolean)).size,
+          hours: safeLines.reduce((sum, item) => sum + Number(item.qty || 0), 0),
+          total: safeLines.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+          consultants: new Set(safeLines.map((item) => item.consultant).filter(Boolean)).size,
         };
+      }
+
+      function totals() {
+        return summarizeLines(lineItems());
+      }
+
+      function currentCustomerValue() {
+        return document.getElementById("customerSelect").value || latestInvoice?.crm_customer_id || latestInvoice?.client || "";
+      }
+
+      function openTimeHref() {
+        return `time-admin.html?domain=${encodeURIComponent(currentDomain())}`;
+      }
+
+      function openRatesHref() {
+        const customer = currentCustomerValue();
+        return `accounting.html?domain=${encodeURIComponent(currentDomain())}${customer ? `&customer=${encodeURIComponent(customer)}` : ""}`;
+      }
+
+      function guidanceHtml(title, body, actions = [], variant = "") {
+        return `
+          <div class="workflow-notice ${escapeHtml(variant)}">
+            <strong>${escapeHtml(title)}</strong>
+            <div>${escapeHtml(body)}</div>
+            ${actions.length ? `<div class="notice-actions">${actions.join("")}</div>` : ""}
+          </div>
+        `;
+      }
+
+      function statusActionButton(label, onclick, primary = false) {
+        return `<button class="btn ${primary ? "primary" : "secondary"}" type="button" onclick="${onclick}">${escapeHtml(label)}</button>`;
+      }
+
+      function linkAction(label, href, primary = false) {
+        return `<a class="btn ${primary ? "primary" : "secondary"}" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
+      }
+
+      function updateInvoiceGuidance(invoice, lines) {
+        const statusTarget = document.getElementById("invoiceStatusText");
+        if (!statusTarget) return;
+        const hasCustomer = Boolean(invoice.client);
+        const hasLines = Boolean((lines || []).length);
+        const status = invoice.status || "draft";
+        if (latestInvoice && hasLines) {
+          if (status === "draft") {
+            statusTarget.innerHTML = guidanceHtml(
+              "Ready to send",
+              "This saved invoice has customer details and billable line items. Next step: save any changes, then email it to AP. Sending marks the invoice as Sent.",
+              [
+                statusActionButton("Save changes", "saveInvoiceFromTime()"),
+                statusActionButton("Send invoice", "emailCurrentInvoice()", true),
+                statusActionButton("Mark sent", `setInvoiceStatus('${escapeHtml(invoice.id || "")}', 'sent')`),
+              ],
+              "ready",
+            );
+            return;
+          }
+          if (["sent", "viewed", "due", "overdue"].includes(status)) {
+            statusTarget.innerHTML = guidanceHtml(
+              "Waiting on payment",
+              "This invoice has already been sent or is in collection. Next step: follow up with AP or mark it paid when payment is received.",
+              [
+                statusActionButton("Email AP", "emailCurrentInvoice()"),
+                statusActionButton("Mark paid", `setInvoiceStatus('${escapeHtml(invoice.id || "")}', 'paid')`, true),
+              ],
+              status === "overdue" ? "warn" : "ready",
+            );
+            return;
+          }
+          if (status === "paid") {
+            statusTarget.innerHTML = guidanceHtml("Paid invoice", "This invoice is closed. Use the invoice register or accounting reports for history.", [], "ready");
+            return;
+          }
+          statusTarget.innerHTML = guidanceHtml("Invoice loaded", "Review the saved invoice, then choose the correct next action from the invoice register.", [], "ready");
+          return;
+        }
+        if (!hasCustomer) {
+          statusTarget.innerHTML = guidanceHtml("Select a customer first", "Choose a CRM customer. The invoice page will then load linked consultants and approved billable time for the selected period.");
+          return;
+        }
+        if (hasLines) {
+          statusTarget.innerHTML = guidanceHtml(
+            "Approved time loaded",
+            "Review the customer, PO, dates, and line items. Next step: save the invoice, then send it to AP.",
+            [statusActionButton("Save invoice", "saveInvoiceFromTime()", true)],
+            "ready",
+          );
+          return;
+        }
+        statusTarget.innerHTML = guidanceHtml(
+          "No approved billable time found",
+          "To create a new invoice, first approve time for this customer and make sure each consultant has a bill rate. Existing saved invoices can still be opened and sent from the invoice register.",
+          [
+            linkAction("Approve time", openTimeHref(), true),
+            linkAction("Add bill rate", openRatesHref()),
+            linkAction("Open invoice register", "#invoiceHistory"),
+          ],
+          "warn",
+        );
       }
 
       function renderConsultants() {
         const consultants = workbench?.consultants || [];
-        document.getElementById("consultantList").innerHTML = consultants.length
-          ? consultants.map((person) => {
+        const invoiceLines = latestInvoice?.line_items || [];
+        if (consultants.length) {
+          document.getElementById("consultantList").innerHTML = consultants.map((person) => {
               const rate = Number(person.bill_rate || 0) > 0 ? `Bill rate ${money(person.bill_rate)} / hr` : 'Missing bill rate - add it in Accounting > Resource rates';
-              return `<div class="row-box"><strong>${escapeHtml(person.name)}</strong><span>${escapeHtml(person.email || "")} | ${escapeHtml(rate)}</span></div>`;
-            }).join("")
-          : '<div class="notice">No onboarded consultants with approved time for this customer and period.</div>';
+              const profile = person.profile_id ? `Profile ${person.profile_id}` : "No profile linked";
+              return `<div class="row-box"><strong>${escapeHtml(person.name)}</strong><span>${escapeHtml(person.role || "Consultant")} | ${escapeHtml(person.email || "")}</span><span>${escapeHtml(rate)} | ${escapeHtml(profile)}</span></div>`;
+            }).join("");
+          return;
+        }
+        if (latestInvoice && invoiceLines.length) {
+          const people = [...new Set(invoiceLines.map((item) => item.consultant).filter(Boolean))];
+          document.getElementById("consultantList").innerHTML = people.length
+            ? people.map((name) => `<div class="row-box"><strong>${escapeHtml(name)}</strong><span>Saved on this invoice. Add/update the formal resource rate in Accounting if this person should appear as a current consultant for the customer.</span></div>`).join("")
+            : guidanceHtml("Consultants are on the invoice lines", "This invoice has billable work, but consultant names were not captured separately. Open the invoice lines below to review the work.", [], "ready");
+          return;
+        }
+        document.getElementById("consultantList").innerHTML = guidanceHtml(
+          "No linked consultants for this customer",
+          "Add the onboarded consultant and bill rate before building a new invoice from time. If you are sending an existing saved invoice, open it from the invoice register.",
+          [
+            linkAction("Add resource rate", openRatesHref(), true),
+            linkAction("Review onboarding", `onboarding-admin.html?domain=${encodeURIComponent(currentDomain())}`),
+          ],
+          "warn",
+        );
       }
 
       function renderTimeLines() {
         const lines = workbench?.line_items || [];
+        const invoiceLines = latestInvoice?.line_items || [];
+        if (latestInvoice) {
+          document.getElementById("timeLineList").innerHTML = invoiceLines.length
+            ? `
+              ${guidanceHtml("Line items are already attached", "This saved invoice is not waiting for new approved time. Use Save changes if you changed status, dates, or terms. Use Send invoice when ready for AP.", [statusActionButton("Send invoice", "emailCurrentInvoice()", true), linkAction("Review time", openTimeHref())], "ready")}
+              ${invoiceLines.map((item) => `<div class="row-box time-line">
+                <span></span>
+                <span>
+                  <strong>${escapeHtml(item.description || item.consultant || "Invoice line")} - ${escapeHtml(item.work_date || "")}</strong>
+                  <span>${Number(item.qty || 0).toFixed(1)} hours x ${money(item.rate)} / hr = ${money(item.amount)}</span>
+                  <span>${escapeHtml(item.summary || "")}</span>
+                </span>
+                <strong>${money(item.amount)}</strong>
+              </div>`).join("")}
+            `
+            : guidanceHtml("Saved invoice has no line items", "Add approved time first, or open a different invoice from the register.", [linkAction("Approve time", openTimeHref(), true), linkAction("Open invoice register", "#invoiceHistory")], "warn");
+          return;
+        }
         document.getElementById("timeLineList").innerHTML = lines.length
           ? lines.map((item) => {
               const checked = selectedTimeEntryIds.has(item.time_entry_id) ? " checked" : "";
@@ -759,7 +1189,15 @@
                 <strong>${money(item.amount)}</strong>
               </label>`;
             }).join("")
-          : '<div class="notice">No approved time rows with a saved bill rate. Add the consultant rate in Accounting, then approve time.</div>';
+          : guidanceHtml(
+              "No approved time rows are ready",
+              "Approve submitted time for this customer and period, then come back here. If time is already approved but still missing, add the consultant bill rate in Accounting so it becomes billable.",
+              [
+                linkAction("Approve time", openTimeHref(), true),
+                linkAction("Add bill rate", openRatesHref()),
+              ],
+              "warn",
+            );
       }
 
       function toggleTimeRow(input) {
@@ -782,6 +1220,7 @@
         const lines = lineItems();
         return {
           client: document.getElementById("clientName").value.trim(),
+          crm_customer_id: document.getElementById("customerSelect").value,
           client_email: document.getElementById("clientEmail").value.trim(),
           client_address: document.getElementById("clientAddress").value.trim(),
           invoice_number: document.getElementById("invoiceNumber").value.trim() || `DR-${Date.now().toString().slice(-8)}`,
@@ -799,7 +1238,7 @@
       function renderPreview() {
         const invoice = latestInvoice || invoiceDraft();
         const lines = invoice.line_items || [];
-        const summary = totals();
+        const summary = summarizeLines(lines);
         document.getElementById("statHours").textContent = summary.hours.toFixed(1);
         document.getElementById("statConsultants").textContent = summary.consultants;
         document.getElementById("statTotal").textContent = money(summary.total);
@@ -835,23 +1274,65 @@
           <div class="invoice-total">Total ${money(invoice.total || summary.total)}</div>
           <p class="mini-note" style="white-space:pre-wrap">${escapeHtml(invoice.notes || "Thank you for working with DevReady.")}</p>
         `;
-        if (invoice.client && !latestInvoice) {
-          document.getElementById("invoiceStatusText").textContent = lines.length
-            ? "Approved time loaded. Review customer details, then save invoice."
-            : "No approved billable time with consultant bill rates found for this customer and period.";
-        }
+        updateInvoiceGuidance(invoice, lines);
       }
 
       async function saveInvoiceFromTime() {
         const draft = invoiceDraft();
         if (!draft.client) {
-          document.getElementById("invoiceStatusText").textContent = "Select a customer first.";
+          updateInvoiceGuidance(draft, []);
+          return;
+        }
+        if (latestInvoice) {
+          const savedLines = latestInvoice.line_items || [];
+          if (!savedLines.length) {
+            updateInvoiceGuidance(latestInvoice, savedLines);
+            return;
+          }
+          try {
+            const data = await apiPostForm("/api/accounting/invoice", {
+              invoice_id: latestInvoice.id,
+              domain: currentDomain(),
+              crm_customer_id: latestInvoice.crm_customer_id || draft.crm_customer_id,
+              client: draft.client,
+              client_email: draft.client_email,
+              client_address: draft.client_address,
+              invoice_number: draft.invoice_number,
+              invoice_date: draft.invoice_date,
+              due_date: draft.due_date,
+              status: draft.status,
+              payment_terms: draft.payment_terms,
+              po_number: draft.po_number,
+              period_start: latestInvoice.period_start || document.getElementById("periodStart").value,
+              period_end: latestInvoice.period_end || document.getElementById("periodEnd").value,
+              time_entry_ids_json: JSON.stringify(latestInvoice.time_entry_ids || []),
+              line_items_json: JSON.stringify(savedLines),
+              notes: draft.notes,
+            });
+            latestInvoice = data.invoice;
+            document.getElementById("invoiceId").value = latestInvoice.id;
+            document.getElementById("invoiceNumber").value = latestInvoice.invoice_number;
+            renderPreview();
+            await loadWorkbench();
+          } catch (error) {
+            document.getElementById("invoiceStatusText").innerHTML = guidanceHtml(
+              "Could not save invoice",
+              error.message || "The invoice could not be saved. Check that the CRM customer is still linked.",
+              [linkAction("Open Accounting", openRatesHref(), true)],
+              "warn",
+            );
+          }
+          return;
+        }
+        if (!draft.line_items.length) {
+          updateInvoiceGuidance(draft, []);
           return;
         }
         try {
           const data = await apiPostForm("/api/invoices/from-time", {
             invoice_id: document.getElementById("invoiceId").value,
             domain: currentDomain(),
+            crm_customer_id: draft.crm_customer_id,
             client: draft.client,
             client_email: draft.client_email,
             client_address: draft.client_address,
@@ -869,37 +1350,94 @@
           latestInvoice = data.invoice;
           document.getElementById("invoiceId").value = latestInvoice.id;
           document.getElementById("invoiceNumber").value = latestInvoice.invoice_number;
-          document.getElementById("invoiceStatusText").textContent = "Invoice saved.";
+          activeInvoiceView = latestInvoice.status === "paid" || latestInvoice.status === "void"
+            ? "past"
+            : latestInvoice.status === "overdue"
+              ? "overdue"
+              : ["sent", "viewed"].includes(latestInvoice.status)
+                ? "sent"
+                : "current";
           renderPreview();
           await loadWorkbench();
         } catch (error) {
-          document.getElementById("invoiceStatusText").textContent = error.message || "Could not save invoice.";
+          document.getElementById("invoiceStatusText").innerHTML = guidanceHtml(
+            "Could not save invoice",
+            error.message || "The invoice could not be saved. Check approved time, bill rates, and the selected CRM customer.",
+            [linkAction("Approve time", openTimeHref(), true), linkAction("Add bill rate", openRatesHref())],
+            "warn",
+          );
         }
       }
 
       async function setInvoiceStatus(id, status) {
         const data = await apiPostForm(`/api/accounting/invoice/${encodeURIComponent(id)}/status`, { status });
         latestInvoice = data.invoice;
+        activeInvoiceView = status === "paid" || status === "void" ? "past" : status === "overdue" ? "overdue" : ["sent", "viewed"].includes(status) ? "sent" : "current";
         await loadWorkbench();
+      }
+
+      function invoiceConsultantSummary(invoice) {
+        const names = invoice?.consultants?.length
+          ? invoice.consultants
+          : (invoice?.line_items || []).map((item) => item.consultant).filter(Boolean);
+        const unique = Array.from(new Set(names));
+        return unique.length ? unique.join(", ") : "No consultant names captured";
       }
 
       function renderHistory() {
         const invoices = workbench?.invoices || [];
-        document.getElementById("invoiceHistory").innerHTML = invoices.length
-          ? invoices.map((invoice) => `<div class="row-box">
-              <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center">
+        const query = (document.getElementById("invoiceSearch")?.value || "").trim().toLowerCase();
+        const status = document.getElementById("invoiceHistoryStatus")?.value || "all";
+        const filtered = invoices.filter((invoice) => {
+          const haystack = [
+            invoice.invoice_number,
+            invoice.id,
+            invoice.client,
+            invoice.client_email,
+            invoice.status,
+            invoiceConsultantSummary(invoice),
+          ].join(" ").toLowerCase();
+          const statusMatch = status === "all"
+            ? true
+            : status === "current"
+              ? ["draft", "due"].includes(invoice.status || "draft")
+              : status === "past"
+                ? ["paid", "void"].includes(invoice.status || "")
+                : invoice.status === status;
+          return statusMatch && (!query || haystack.includes(query));
+        });
+        const openInvoices = invoices.filter((invoice) => ["draft", "sent", "viewed", "due", "overdue"].includes(invoice.status || "draft"));
+        const sentInvoices = invoices.filter((invoice) => ["sent", "viewed", "due", "overdue", "paid"].includes(invoice.status || ""));
+        const unpaidTotal = openInvoices.reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
+        const paidTotal = invoices.filter((invoice) => invoice.status === "paid").reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
+        document.getElementById("invoiceRegisterStats").innerHTML = `
+          <div class="stat"><strong>${invoices.length}</strong><span>Total invoices</span></div>
+          <div class="stat"><strong>${openInvoices.length}</strong><span>Open</span></div>
+          <div class="stat"><strong>${sentInvoices.length}</strong><span>Mailed / sent</span></div>
+          <div class="stat"><strong>${money(unpaidTotal)}</strong><span>Receivable</span></div>
+        `;
+        document.getElementById("invoiceHistory").innerHTML = filtered.length
+          ? filtered.map((invoice) => `<div class="row-box">
+              <div class="invoice-register-row">
                 <div>
                   <strong>${escapeHtml(invoice.invoice_number || invoice.id)} - ${escapeHtml(invoice.client || "")}</strong>
-                  <span>${money(invoice.total)} | ${escapeHtml(invoice.status || "draft")} | Due ${escapeHtml(invoice.due_date || "")}</span>
+                  <span>${escapeHtml(invoice.client_email || "No AP email on file")} | ${escapeHtml(invoice.status || "draft")} | Due ${escapeHtml(invoice.due_date || "")}</span>
+                  <span>Consultants: ${escapeHtml(invoiceConsultantSummary(invoice))}</span>
                   <span>Sent: ${escapeHtml(invoice.sent_at || "not sent")} | Read: ${escapeHtml(invoice.viewed_at || "not read")} | Paid: ${escapeHtml(invoice.paid_at || "not paid")}</span>
+                </div>
+                <div>
+                  <div class="amount">${money(invoice.total)}</div>
+                  <span class="mini-note">${escapeHtml(invoice.period_start || "")} to ${escapeHtml(invoice.period_end || "")}</span>
+                  <span class="mini-note">${Number(invoice.line_count || invoice.line_items?.length || 0)} line item(s)</span>
                 </div>
                 <div class="row-actions">
                   <button class="btn secondary" type="button" onclick="hydrateInvoiceById('${escapeHtml(invoice.id)}')">Open</button>
-                  ${["sent", "viewed", "due", "overdue", "paid"].map((status) => `<button class="btn secondary" type="button" onclick="setInvoiceStatus('${escapeHtml(invoice.id)}','${status}')">${status}</button>`).join("")}
+                  <button class="btn primary" type="button" onclick="emailInvoiceById('${escapeHtml(invoice.id)}')">Email</button>
+                  ${["sent", "viewed", "due", "overdue", "paid"].map((nextStatus) => `<button class="btn secondary" type="button" onclick="setInvoiceStatus('${escapeHtml(invoice.id)}','${nextStatus}')">${nextStatus}</button>`).join("")}
                 </div>
               </div>
             </div>`).join("")
-          : '<div class="notice">No invoices saved yet.</div>';
+          : '<div class="notice">No invoices match the current register filter.</div>';
       }
 
       function hydrateInvoiceById(id) {
@@ -907,9 +1445,10 @@
         if (invoice) hydrateInvoice(invoice);
       }
 
-      function invoiceEmailText() {
-        const invoice = latestInvoice || invoiceDraft();
-        return `Hi,\n\nDevReady invoice ${invoice.invoice_number || ""} is ready for ${money(invoice.total || totals().total)}.\n\nCustomer: ${invoice.client || ""}\nPayment terms: ${invoice.payment_terms || ""}\nDue date: ${invoice.due_date || ""}\n\n${invoice.notes || "Thank you,\nDevReady"}`;
+      function invoiceEmailText(invoiceOverride = null) {
+        const invoice = invoiceOverride || latestInvoice || invoiceDraft();
+        const lines = (invoice.line_items || []).map((item) => `- ${item.description}: ${Number(item.qty || 0).toFixed(1)} hrs x ${money(item.rate)} = ${money(item.amount)}`).join("\n");
+        return `Hi,\n\nDevReady invoice ${invoice.invoice_number || ""} is ready for ${money(invoice.total || totals().total)}.\n\nCustomer: ${invoice.client || ""}\nConsultants: ${invoiceConsultantSummary(invoice)}\nPayment terms: ${invoice.payment_terms || ""}\nDue date: ${invoice.due_date || ""}\n\n${lines || "Line items are included on the invoice."}\n\n${invoice.notes || "Thank you,\nDevReady"}`;
       }
 
       async function copyInvoiceEmail() {
@@ -917,12 +1456,75 @@
         document.getElementById("invoiceStatusText").textContent = "Invoice email copied.";
       }
 
+      function mailtoHref(invoice) {
+        const subject = `DevReady invoice ${invoice.invoice_number || ""} for ${invoice.client || ""}`.trim();
+        return `mailto:${encodeURIComponent(invoice.client_email || "")}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(invoiceEmailText(invoice))}`;
+      }
+
+      async function emailCurrentInvoice() {
+        const invoice = latestInvoice || invoiceDraft();
+        if (!invoice.client) {
+          updateInvoiceGuidance(invoice, invoice.line_items || []);
+          return;
+        }
+        if (!invoice.id) {
+          document.getElementById("invoiceStatusText").innerHTML = guidanceHtml(
+            "Save before sending",
+            "This draft has not been saved yet. Save the invoice first so DevReady can track sent/read/due/paid status.",
+            [statusActionButton("Save invoice", "saveInvoiceFromTime()", true)],
+            "warn",
+          );
+          return;
+        }
+        if (!(invoice.line_items || []).length) {
+          updateInvoiceGuidance(invoice, []);
+          return;
+        }
+        if (!invoice.client_email) {
+          document.getElementById("invoiceStatusText").innerHTML = guidanceHtml(
+            "AP email missing",
+            "Add the customer AP email in CRM or Accounting before sending this invoice.",
+            [linkAction("Open customer", `crm.html?domain=${encodeURIComponent(currentDomain())}&client=${encodeURIComponent(invoice.client || "")}`, true)],
+            "warn",
+          );
+          return;
+        }
+        window.location.href = mailtoHref(invoice);
+        if (invoice.id) await setInvoiceStatus(invoice.id, "sent");
+      }
+
+      async function emailInvoiceById(id) {
+        const invoice = (workbench?.invoices || []).find((item) => item.id === id);
+        if (!invoice) return;
+        hydrateInvoice(invoice);
+        if (!invoice.client_email) {
+          document.getElementById("invoiceStatusText").textContent = "This customer does not have a linked AP email yet. Add it in CRM or Accounting first.";
+          return;
+        }
+        window.location.href = mailtoHref(invoice);
+        await setInvoiceStatus(id, "sent");
+      }
+
+      function syncLatestInvoiceFromFields() {
+        if (!latestInvoice) return;
+        latestInvoice.status = document.getElementById("invoiceStatus").value;
+        latestInvoice.payment_terms = document.getElementById("paymentTerms").value;
+        latestInvoice.po_number = document.getElementById("poNumber").value;
+        latestInvoice.invoice_date = document.getElementById("invoiceDate").value;
+        latestInvoice.due_date = document.getElementById("dueDate").value;
+        latestInvoice.notes = document.getElementById("invoiceNotes").value;
+      }
+
       function init() {
         const params = new URLSearchParams(window.location.search);
-        document.getElementById("domainSelect").value = currentDomain();
+        const initialDomain = normalizeDomain(params.get("domain") || document.documentElement.dataset.domain || sessionStorage.getItem("domain") || "dev");
+        document.getElementById("domainSelect").value = initialDomain;
+        document.documentElement.dataset.domain = initialDomain;
+        sessionStorage.setItem("domain", initialDomain);
         document.getElementById("openRatesLink").href = `accounting.html?domain=${encodeURIComponent(currentDomain())}`;
         document.getElementById("periodStart").value = params.get("period_start") || monthStart();
         document.getElementById("periodEnd").value = params.get("period_end") || today();
+        pendingInvoiceId = params.get("invoice_id") || params.get("invoice") || "";
         document.getElementById("invoiceDate").value = today();
         document.getElementById("paymentTerms").value = "Net 15";
         applyDuePreset();
@@ -932,7 +1534,7 @@
       ["invoiceStatus", "paymentTerms", "poNumber"].forEach((id) => {
         document.addEventListener("input", (event) => {
           if (event.target?.id === id) {
-            latestInvoice = null;
+            syncLatestInvoiceFromFields();
             renderPreview();
           }
         });

@@ -292,9 +292,15 @@
                 <input id="resourceProfileId" type="hidden" />
                 <input id="resourceToken" type="hidden" />
                 <label class="wide">
-                  Pull from onboarding
+                  CRM customer
+                  <select id="resourceClient" onchange="handleResourceCustomerChange()">
+                    <option value="">Select CRM customer</option>
+                  </select>
+                </label>
+                <label class="wide">
+                  Pull from onboarding for selected customer
                   <select id="onboardingSelect" onchange="fillResourceFromOnboarding()">
-                    <option value="">Select onboarded person</option>
+                    <option value="">Select CRM customer first</option>
                   </select>
                 </label>
                 <label>
@@ -308,12 +314,6 @@
                 <label>
                   Role
                   <input id="resourceRole" placeholder="Linked role" readonly />
-                </label>
-                <label>
-                  Client
-                  <select id="resourceClient">
-                    <option value="">Select client</option>
-                  </select>
                 </label>
                 <label>
                   Bill rate / hr
@@ -414,6 +414,18 @@
         return Number(String(value || "").replace(/[$,\s]/g, "")) || 0;
       }
 
+      function selectedCrmCustomer() {
+        const value = document.getElementById("resourceClient")?.value || "";
+        return (accountingState?.crm_customers || []).find((item) => item.id === value) || null;
+      }
+
+      function resourcePersonKey(person) {
+        return [person?.token, person?.profile_id, person?.email, person?.candidate_name || person?.legal_name]
+          .filter(Boolean)
+          .join("|")
+          .toLowerCase();
+      }
+
       function selectOptions(values, selected, placeholder) {
         const cleanSelected = String(selected ?? "");
         const unique = [...new Set(values.filter((value) => value !== null && value !== undefined && String(value) !== "").map((value) => String(value)))];
@@ -425,20 +437,46 @@
       }
 
       function renderControlledResourceChoices(selectedClient = "", selectedBillRate = "", selectedCostRate = "") {
-        const clients = new Set();
-        (accountingState?.resources || []).forEach((item) => {
-          if (item.client) clients.add(item.client);
-        });
-        (accountingState?.time_rows || []).forEach((item) => {
-          if (item.client) clients.add(item.client);
-          if (item.project) clients.add(item.project);
-        });
-        (accountingState?.invoices || []).forEach((item) => {
-          if (item.client) clients.add(item.client);
-        });
-        document.getElementById("resourceClient").innerHTML = selectOptions([...clients].sort(), selectedClient, "Select client");
+        const customers = accountingState?.crm_customers || [];
+        const selectedCustomer = customers.find((item) => item.id === selectedClient || item.name === selectedClient) || {};
+        document.getElementById("resourceClient").innerHTML = '<option value="">Select CRM customer</option>' + customers.map((customer) => {
+          const chosen = customer.id === selectedClient || customer.name === selectedClient || customer.id === selectedCustomer.id ? " selected" : "";
+          return `<option value="${escapeLocal(customer.id)}"${chosen}>${escapeLocal(customer.name)}</option>`;
+        }).join("");
         document.getElementById("billRate").innerHTML = selectOptions(BILL_RATE_OPTIONS, selectedBillRate, "Select bill rate");
         document.getElementById("costRate").innerHTML = selectOptions(COST_RATE_OPTIONS, selectedCostRate, "Select cost rate");
+      }
+
+      function mergedOnboardingPeopleForCustomer(customerId) {
+        const people = accountingState?.onboarding_people || [];
+        const resources = (accountingState?.resources || []).filter((resource) => resource.crm_customer_id === customerId);
+        const byKey = new Map();
+        resources.forEach((resource) => {
+          const key = resourcePersonKey(resource);
+          if (!key) return;
+          byKey.set(key, {
+            candidate_name: resource.name,
+            email: resource.email,
+            title: resource.role,
+            profile_id: resource.profile_id,
+            token: resource.token,
+            resource_id: resource.id,
+            crm_customer_id: resource.crm_customer_id,
+            client: resource.client,
+            bill_rate: resource.bill_rate,
+            cost_rate: resource.cost_rate,
+            resource_status: resource.status,
+            resource_notes: resource.notes,
+          });
+        });
+        people.forEach((person) => {
+          const key = resourcePersonKey(person);
+          if (!key) return;
+          if (person.crm_customer_id === customerId || byKey.has(key)) {
+            byKey.set(key, { ...person, ...(byKey.get(key) || {}), crm_customer_id: person.crm_customer_id || customerId });
+          }
+        });
+        return [...byKey.values()].sort((a, b) => String(a.candidate_name || a.legal_name || a.email).localeCompare(String(b.candidate_name || b.legal_name || b.email)));
       }
 
       function today(offsetDays = 0) {
@@ -474,36 +512,71 @@
 
       function fillOnboardingSelect() {
         const select = document.getElementById("onboardingSelect");
-        const people = accountingState?.onboarding_people || [];
-        select.innerHTML = '<option value="">Select onboarded person</option>' + people.map((person, index) => {
+        const customer = selectedCrmCustomer();
+        if (!customer) {
+          select.innerHTML = '<option value="">Select CRM customer first</option>';
+          return;
+        }
+        const people = mergedOnboardingPeopleForCustomer(customer.id);
+        const seen = new Set();
+        const options = [];
+        people.forEach((person) => {
+          const key = resourcePersonKey(person);
+          if (!key || seen.has(key)) return;
+          seen.add(key);
           const name = person.candidate_name || person.legal_name || person.email || "Onboarded person";
-          return `<option value="${index}">${escapeLocal(name)} - ${escapeLocal(person.email || "")}</option>`;
-        }).join("");
+          const rate = person.bill_rate ? ` - ${money(person.bill_rate)}/hr` : " - rate needed";
+          options.push(`<option value="${escapeLocal(key)}">${escapeLocal(name)} - ${escapeLocal(person.email || "")}${escapeLocal(rate)}</option>`);
+        });
+        select.innerHTML = people.length
+          ? '<option value="">Select assigned/onboarded person</option>' + options.join("")
+          : '<option value="">No onboarded resources linked to this CRM customer</option>';
+      }
+
+      function handleResourceCustomerChange() {
+        clearResourceIdentity();
+        fillOnboardingSelect();
+        const customer = selectedCrmCustomer();
+        document.getElementById("resourceStatusText").textContent = customer
+          ? `Showing onboarded resources linked to ${customer.name}.`
+          : "Select a CRM customer to see who is working there.";
       }
 
       function fillResourceFromOnboarding() {
-        const index = document.getElementById("onboardingSelect").value;
-        if (index === "") return;
-        const person = accountingState.onboarding_people[Number(index)];
+        const key = document.getElementById("onboardingSelect").value;
+        if (!key) return;
+        const customer = selectedCrmCustomer();
+        const person = mergedOnboardingPeopleForCustomer(customer?.id || "").find((item) => resourcePersonKey(item) === key);
         if (!person) return;
-        document.getElementById("resourceId").value = "";
+        document.getElementById("resourceId").value = person.resource_id || "";
         document.getElementById("resourceProfileId").value = person.profile_id || "";
         document.getElementById("resourceToken").value = person.token || "";
         document.getElementById("resourceName").value = person.candidate_name || person.legal_name || "";
         document.getElementById("resourceEmail").value = person.email || "";
         document.getElementById("resourceRole").value = person.title || "";
         document.getElementById("startDate").value = person.start_day || "";
-        renderControlledResourceChoices(person.client || "", "", "");
+        renderControlledResourceChoices(customer?.id || person.crm_customer_id || person.client || "", person.bill_rate || "", person.cost_rate || "");
+        fillOnboardingSelect();
+        document.getElementById("onboardingSelect").value = key;
+        if (person.resource_status) document.getElementById("resourceStatus").value = person.resource_status;
         document.getElementById("resourceNotes").value = `Onboarding token: ${person.token || ""}`;
-        document.getElementById("resourceStatusText").textContent = "Onboarded person loaded. Add bill rate and internal cost rate, then save.";
+        document.getElementById("resourceStatusText").textContent = person.resource_id
+          ? "Existing resource loaded. Review or update bill/cost rate, then save."
+          : "Onboarded person loaded. Add bill rate and internal cost rate, then save.";
       }
 
-      function clearResourceForm() {
+      function clearResourceIdentity() {
         ["resourceId", "resourceProfileId", "resourceToken", "resourceName", "resourceEmail", "resourceRole", "startDate", "resourceNotes"].forEach((id) => {
           const field = document.getElementById(id);
           if (field) field.value = "";
         });
+        document.getElementById("onboardingSelect").value = "";
+      }
+
+      function clearResourceForm() {
+        clearResourceIdentity();
         renderControlledResourceChoices();
+        fillOnboardingSelect();
         document.getElementById("resourceStatus").value = "active";
       }
 
@@ -516,7 +589,8 @@
         document.getElementById("resourceName").value = record.name || "";
         document.getElementById("resourceEmail").value = record.email || "";
         document.getElementById("resourceRole").value = record.role || "";
-        renderControlledResourceChoices(record.client || "", record.bill_rate || "", record.cost_rate || "");
+        renderControlledResourceChoices(record.crm_customer_id || record.client || "", record.bill_rate || "", record.cost_rate || "");
+        fillOnboardingSelect();
         document.getElementById("startDate").value = record.start_date || "";
         document.getElementById("resourceStatus").value = record.status || "active";
         document.getElementById("resourceNotes").value = record.notes || "";
@@ -531,7 +605,9 @@
           status.textContent = "Select an onboarded person before saving resource financials.";
           return;
         }
-        if (!document.getElementById("resourceClient").value) {
+        const clientSelect = document.getElementById("resourceClient");
+        const selectedCustomer = (accountingState?.crm_customers || []).find((item) => item.id === clientSelect.value);
+        if (!selectedCustomer) {
           status.textContent = "Select a linked client before saving resource financials.";
           return;
         }
@@ -547,7 +623,8 @@
           name: document.getElementById("resourceName").value,
           email: document.getElementById("resourceEmail").value,
           role: document.getElementById("resourceRole").value,
-          client: document.getElementById("resourceClient").value,
+          crm_customer_id: selectedCustomer.id,
+          client: selectedCustomer.name,
           bill_rate: document.getElementById("billRate").value,
           cost_rate: document.getElementById("costRate").value,
           start_date: document.getElementById("startDate").value,
@@ -808,12 +885,12 @@
         document.getElementById("kpiLabor").textContent = money(pnl.labor_cost);
         document.getElementById("kpiNet").textContent = money(pnl.net_income);
         document.getElementById("kpiAR").textContent = money(balance.accounts_receivable);
-        fillOnboardingSelect();
         renderControlledResourceChoices(
           document.getElementById("resourceClient")?.value || "",
           document.getElementById("billRate")?.value || "",
           document.getElementById("costRate")?.value || "",
         );
+        fillOnboardingSelect();
         renderResources();
         renderStatements();
       }
