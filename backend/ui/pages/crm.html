@@ -201,6 +201,13 @@
         grid-column: 1 / -1;
       }
 
+      .crm-form-grid .thirds {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        grid-column: 1 / -1;
+      }
+
       .range-row {
         display: grid;
         grid-template-columns: 1fr auto;
@@ -530,6 +537,19 @@
         text-decoration: underline;
       }
 
+      .phone-line {
+        display: block;
+        margin-top: 3px;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 13px;
+        font-weight: 850;
+        text-decoration: none;
+      }
+
+      .phone-line:hover {
+        text-decoration: underline;
+      }
+
       .heat-badge {
         min-width: 64px;
         height: 64px;
@@ -764,6 +784,86 @@
         font-size: 13px;
       }
 
+      .deal-summary {
+        display: grid;
+        gap: 8px;
+        margin: 14px 18px 0;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 8px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .deal-summary-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .deal-summary strong {
+        display: block;
+        color: #fff;
+        font-size: 15px;
+        line-height: 1.25;
+      }
+
+      .deal-summary small {
+        display: block;
+        color: rgba(238, 248, 241, 0.66);
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .deal-stage-chip {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        border-radius: 999px;
+        padding: 5px 8px;
+        background: rgba(0, 0, 0, 0.16);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 950;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .deal-progress {
+        height: 11px;
+        overflow: hidden;
+        border-radius: 999px;
+        background:
+          linear-gradient(90deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.2)),
+          rgba(255, 255, 255, 0.16);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+          0 8px 18px rgba(0, 0, 0, 0.12);
+      }
+
+      .deal-progress span {
+        display: block;
+        height: 100%;
+        width: var(--deal-progress, 0%);
+        border-radius: inherit;
+        background: var(--deal-progress-color, linear-gradient(90deg, rgba(255, 255, 255, 0.64), rgba(255, 255, 255, 0.94)));
+        box-shadow: 0 0 18px var(--deal-progress-glow, rgba(255, 255, 255, 0.24));
+      }
+
+      .deal-stage-select {
+        min-height: 32px;
+        border: 1px solid rgba(var(--domain-rgb), 0.28);
+        border-radius: 999px;
+        padding: 5px 10px;
+        background: #fff;
+        color: var(--domain-ink);
+        font: inherit;
+        font-size: 12px;
+        font-weight: 950;
+      }
+
       .player-card > .card-small {
         display: block;
         margin: 10px 18px 0;
@@ -860,6 +960,260 @@
         display: none !important;
       }
 
+      .deal-drawer-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 9200;
+        display: none;
+        background: rgba(15, 23, 42, 0.32);
+      }
+
+      .deal-drawer-backdrop.open {
+        display: block;
+      }
+
+      .deal-drawer {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: min(620px, calc(100vw - 24px));
+        height: 100%;
+        overflow-y: auto;
+        border-left: 1px solid rgba(var(--domain-rgb), 0.18);
+        background: #fff;
+        color: var(--crm-ink);
+        box-shadow: -24px 0 60px rgba(15, 23, 42, 0.24);
+      }
+
+      .deal-drawer-head {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 18px;
+        border-bottom: 1px solid var(--line);
+        background:
+          linear-gradient(135deg, rgba(var(--domain-rgb), 0.12), rgba(255, 255, 255, 0.96)),
+          #fff;
+      }
+
+      .deal-drawer-head h2 {
+        margin: 3px 0 0;
+        color: var(--crm-ink);
+      }
+
+      .deal-drawer-body {
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+      }
+
+      .deal-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .deal-detail-box,
+      .deal-row {
+        border: 1px solid rgba(var(--domain-rgb), 0.16);
+        border-radius: 8px;
+        padding: 12px;
+        background: rgba(var(--domain-rgb), 0.04);
+      }
+
+      .deal-detail-box strong,
+      .deal-row strong {
+        display: block;
+        color: var(--crm-ink);
+      }
+
+      .deal-detail-box span,
+      .deal-row span {
+        display: block;
+        margin-top: 4px;
+        color: #64746b;
+        font-size: 12px;
+      }
+
+      .deal-rows {
+        display: grid;
+        gap: 10px;
+      }
+
+      .deal-row-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .deal-row-meta {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .deal-row-meta span {
+        border-radius: 7px;
+        padding: 7px;
+        background: rgba(255, 255, 255, 0.72);
+        font-weight: 800;
+      }
+
+      .team-player-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px;
+      }
+
+      .team-player-card {
+        display: grid;
+        gap: 8px;
+        border: 1px solid rgba(var(--domain-rgb), 0.16);
+        border-radius: 10px;
+        padding: 12px;
+        background:
+          linear-gradient(135deg, rgba(var(--domain-rgb), 0.08), rgba(255, 255, 255, 0.96)),
+          #fff;
+      }
+
+      .team-player-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: start;
+      }
+
+      .team-player-head h3 {
+        margin: 0;
+        color: var(--crm-ink);
+        font-size: 16px;
+      }
+
+      .team-player-role {
+        display: inline-flex;
+        width: fit-content;
+        border: 1px solid rgba(var(--domain-rgb), 0.22);
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: rgba(var(--domain-rgb), 0.1);
+        color: var(--domain-ink);
+        font-size: 10px;
+        font-weight: 950;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .team-player-meta {
+        color: #64746b;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .team-player-contact {
+        display: grid;
+        gap: 4px;
+        font-size: 12px;
+      }
+
+      .team-player-contact a {
+        color: var(--domain-ink);
+        font-weight: 850;
+        overflow-wrap: anywhere;
+      }
+
+      .touch-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 9300;
+        display: none;
+        place-items: center;
+        padding: 18px;
+        background: rgba(15, 23, 42, 0.36);
+      }
+
+      .touch-modal.open {
+        display: grid;
+      }
+
+      .touch-card {
+        width: min(560px, 100%);
+        border: 1px solid rgba(var(--domain-rgb), 0.2);
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+        overflow: hidden;
+      }
+
+      .touch-card-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 16px;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(135deg, rgba(var(--domain-rgb), 0.12), #fff);
+      }
+
+      .touch-card-head h2 {
+        margin: 2px 0 0;
+      }
+
+      .touch-card-body {
+        display: grid;
+        gap: 12px;
+        padding: 16px;
+      }
+
+      .touch-channel-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .touch-channel {
+        border: 1px solid rgba(var(--domain-rgb), 0.18);
+        border-radius: 9px;
+        padding: 10px 8px;
+        background: rgba(var(--domain-rgb), 0.04);
+        color: var(--crm-ink);
+        font-weight: 950;
+        cursor: pointer;
+      }
+
+      .touch-channel.active {
+        border-color: rgba(var(--domain-rgb), 0.46);
+        background: rgba(var(--domain-rgb), 0.14);
+        color: var(--domain-ink);
+      }
+
+      .touch-card textarea,
+      .touch-card input,
+      .touch-card select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 9px 10px;
+        font: inherit;
+      }
+
+      .touch-card textarea {
+        min-height: 90px;
+        resize: vertical;
+      }
+
+      .touch-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
       @media (max-width: 1200px) {
         .crm-workspace {
           grid-template-columns: 1fr;
@@ -888,7 +1242,11 @@
         .crm-stats,
         .relationship-board,
         .crm-list-row,
-        .crm-form-grid {
+        .crm-form-grid,
+        .crm-form-grid .thirds,
+        .deal-detail-grid,
+        .deal-row-meta,
+        .touch-channel-grid {
           grid-template-columns: 1fr;
         }
 
@@ -941,13 +1299,14 @@
             <span class="breadcrumb">Bright = alive. Dark = drifting.</span>
             <h1>Relationship radar</h1>
             <p>
-              Build client player cards from scratch, move meeting intelligence into the card, and let neglected relationships visually decay.
+              Build client team cards from linked account and contact data, move meeting intelligence into the card, and let neglected relationships visually decay.
             </p>
             <div id="domainLock" class="domain-lock" style="margin-top: 12px">
               Domain locked: Technology / DevReady
             </div>
           </div>
           <div class="crm-command-actions">
+            <button id="copySalesWorkspaceBtn" class="btn primary" type="button">Copy sales workspace link</button>
             <a class="btn secondary" href="meet.html">Open Meet</a>
             <button id="seedCrmBtn" class="btn secondary" type="button">Load demo cards</button>
             <button id="clearCrmRecordsBtn" class="btn secondary" type="button">Clear local CRM</button>
@@ -957,7 +1316,7 @@
         <section class="crm-stats" aria-label="Relationship energy summary">
           <div class="crm-stat">
             <strong id="crmRecordCount">0</strong>
-            <span>Player cards</span>
+            <span>Team cards</span>
           </div>
           <div class="crm-stat">
             <strong id="crmHotCount">0</strong>
@@ -974,11 +1333,11 @@
         </section>
 
         <div class="crm-workspace">
-          <section class="builder-panel" aria-label="Build client player card">
+          <section class="builder-panel" aria-label="Build client team card">
             <div class="builder-head">
               <div>
                 <span id="builderMode">Build from scratch</span>
-                <h2>Player card</h2>
+                <h2>Team card</h2>
               </div>
               <button id="clearCrmFormBtn" class="btn secondary" type="button">Reset</button>
             </div>
@@ -1004,6 +1363,30 @@
                 <label>Owner</label>
                 <input id="crmOwner" placeholder="Darrin" />
               </div>
+              <div class="thirds">
+                <div class="field">
+                  <label>Primary deal</label>
+                  <input id="crmDealTitle" placeholder="AI platform hiring sprint" />
+                </div>
+                <div class="field">
+                  <label>Deal stage</label>
+                  <select id="crmDealStage">
+                    <option value="Discovery">Discovery</option>
+                    <option value="Qualified">Qualified</option>
+                    <option value="Candidate Review">Candidate Review</option>
+                    <option value="Shortlist Sent">Shortlist Sent</option>
+                    <option value="Client Interview">Client Interview</option>
+                    <option value="Offer">Offer</option>
+                    <option value="Won">Won</option>
+                    <option value="Lost">Lost</option>
+                    <option value="On Hold">On Hold</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Probability</label>
+                  <input id="crmDealProbability" inputmode="numeric" placeholder="60" />
+                </div>
+              </div>
               <div class="field">
                 <label>Last touched</label>
                 <input id="crmWhen" type="datetime-local" />
@@ -1028,6 +1411,10 @@
                 <input id="crmNextStep" placeholder="Send shortlist, schedule follow-up, prep SOW..." />
               </div>
               <div class="field full">
+                <label>Deals in play</label>
+                <textarea id="crmDeals" placeholder="One per line: deal name | stage | value | owner | contact | probability | close date | notes"></textarea>
+              </div>
+              <div class="field full">
                 <label>Meeting URL</label>
                 <input id="crmMeetingUrl" placeholder="https://..." />
               </div>
@@ -1037,7 +1424,7 @@
               </div>
               <div class="field full">
                 <label>Contacts</label>
-                <textarea id="crmContacts" placeholder="One per line: name, role, email, phone"></textarea>
+                <textarea id="crmContacts" placeholder="One per line: name | relationship role | email | phone | title | description | last conversation"></textarea>
               </div>
               <div class="field full">
                 <label>History / notes</label>
@@ -1046,8 +1433,8 @@
             </div>
 
             <div class="crm-actions" style="margin-top: 14px">
-              <button id="saveCrmBtn" class="btn primary" type="button">Save player card</button>
-              <button id="scanCrmBtn" class="btn secondary" type="button">AI scan card</button>
+              <button id="saveCrmBtn" class="btn primary" type="button">Save team card</button>
+              <button id="scanCrmBtn" class="btn secondary" type="button">Scan customer news</button>
               <button id="touchCrmBtn" class="btn secondary" type="button">Touch now</button>
             </div>
             <div id="crmStatus" class="notice" style="margin-top: 12px">
@@ -1059,7 +1446,7 @@
             <div class="radar-head">
               <div>
                 <span>Business card wall</span>
-                <h2>Client player cards</h2>
+                <h2>Client team cards</h2>
               </div>
               <div class="crm-mode" aria-label="CRM view mode">
                 <button id="boardModeBtn" class="active" type="button">Board</button>
@@ -1071,6 +1458,57 @@
           </section>
         </div>
       </main>
+    </div>
+
+    <div id="dealDrawerBackdrop" class="deal-drawer-backdrop" aria-hidden="true">
+      <aside class="deal-drawer" aria-label="CRM deal details">
+        <div id="dealDrawerContent"></div>
+      </aside>
+    </div>
+
+    <div id="touchModal" class="touch-modal" aria-hidden="true">
+      <section class="touch-card" aria-label="Record CRM touch">
+        <div class="touch-card-head">
+          <div>
+            <span class="breadcrumb">Record client touch</span>
+            <h2 id="touchAccountTitle">Touch account</h2>
+            <div id="touchAccountMeta" class="muted">Choose how you touched this client.</div>
+          </div>
+          <button class="btn secondary" type="button" onclick="closeTouchModal()">Close</button>
+        </div>
+        <form class="touch-card-body" onsubmit="saveTouchModal(event)">
+          <input id="touchRecordId" type="hidden" />
+          <input id="touchChannel" type="hidden" value="Call" />
+          <div class="touch-channel-grid" aria-label="Touch type">
+            <button class="touch-channel active" type="button" data-touch-channel="Call" onclick="setTouchChannel('Call')">Call</button>
+            <button class="touch-channel" type="button" data-touch-channel="Email" onclick="setTouchChannel('Email')">Email</button>
+            <button class="touch-channel" type="button" data-touch-channel="Meeting" onclick="setTouchChannel('Meeting')">Meeting</button>
+            <button class="touch-channel" type="button" data-touch-channel="Text" onclick="setTouchChannel('Text')">Text</button>
+          </div>
+          <label>
+            Outcome
+            <select id="touchOutcome">
+              <option value="Connected">Connected</option>
+              <option value="Left message">Left message</option>
+              <option value="Sent follow-up">Sent follow-up</option>
+              <option value="No response">No response</option>
+              <option value="Scheduled next step">Scheduled next step</option>
+            </select>
+          </label>
+          <label>
+            Notes
+            <textarea id="touchNotes" placeholder="What happened? What did they ask for? What should happen next?"></textarea>
+          </label>
+          <label>
+            Next action
+            <input id="touchNextStep" placeholder="Send shortlist, schedule call, follow up Friday..." />
+          </label>
+          <div class="touch-actions">
+            <button class="btn secondary" type="button" onclick="closeTouchModal()">Cancel</button>
+            <button class="btn primary" type="submit">Save Touch</button>
+          </div>
+        </form>
+      </section>
     </div>
 
     <script src="JS/apiScripts.js"></script>
@@ -1088,6 +1526,18 @@
         engineer: { label: "Engineer / BuildReady", rgb: "31, 91, 128", ink: "#1f5b80" },
         law: { label: "Law / LegalReady", rgb: "63, 74, 88", ink: "#3f4a58" },
       };
+
+      const dealStages = [
+        "Discovery",
+        "Qualified",
+        "Candidate Review",
+        "Shortlist Sent",
+        "Client Interview",
+        "Offer",
+        "Won",
+        "Lost",
+        "On Hold",
+      ];
 
       let editingCrmId = null;
       let cardEditingId = null;
@@ -1113,6 +1563,31 @@
         if (lock) lock.textContent = `Domain locked: ${palette.label} - samples and cards do not cross-pollinate`;
       }
 
+      function currentUserName() {
+        try {
+          const user = JSON.parse(sessionStorage.getItem("devreadyUser") || localStorage.getItem("devreadyUser") || "null");
+          return user?.display_name || user?.username || "";
+        } catch {
+          return "";
+        }
+      }
+
+      async function copySalesWorkspaceLink() {
+        const url = new URL("sales-crm.html", window.location.href);
+        url.searchParams.set("domain", currentDomain());
+        const repName = currentUserName();
+        if (repName) url.searchParams.set("rep", repName);
+        url.searchParams.set("workspace", "sales");
+        const value = url.toString();
+        try {
+          await navigator.clipboard?.writeText(value);
+          document.getElementById("crmStatus").textContent = "Sales mini-workspace link copied. Send it to the rep who only needs CRM territory updates.";
+        } catch {
+          window.prompt("Copy this sales mini-workspace link:", value);
+          document.getElementById("crmStatus").textContent = "Sales mini-workspace link is ready to send.";
+        }
+      }
+
       function crmStorageKey() {
         return `devreadyCrmRecords:${currentDomain()}`;
       }
@@ -1124,6 +1599,10 @@
           email: document.getElementById("crmEmail"),
           value: document.getElementById("crmValue"),
           owner: document.getElementById("crmOwner"),
+          dealTitle: document.getElementById("crmDealTitle"),
+          dealStage: document.getElementById("crmDealStage"),
+          dealProbability: document.getElementById("crmDealProbability"),
+          deals: document.getElementById("crmDeals"),
           when: document.getElementById("crmWhen"),
           where: document.getElementById("crmWhere"),
           strength: document.getElementById("crmStrength"),
@@ -1137,7 +1616,8 @@
       }
 
       function crmRecords() {
-        return JSON.parse(localStorage.getItem(crmStorageKey()) || "[]");
+        const raw = JSON.parse(localStorage.getItem(crmStorageKey()) || "[]");
+        return Array.isArray(raw) ? raw.map(normalizeCrmRecord) : [];
       }
 
       function setCrmRecords(records) {
@@ -1159,6 +1639,327 @@
           .replace(/>/g, "&gt;")
           .replace(/"/g, "&quot;")
           .replace(/'/g, "&#39;");
+      }
+
+      function cleanStage(value) {
+        const stage = String(value || "").trim();
+        return dealStages.includes(stage) ? stage : "Discovery";
+      }
+
+      function stageProgress(stage) {
+        const clean = cleanStage(stage);
+        if (clean === "Lost") return 8;
+        if (clean === "On Hold") return 28;
+        const index = dealStages.filter((item) => !["Lost", "On Hold"].includes(item)).indexOf(clean);
+        return Math.max(8, Math.min(100, Math.round(((index + 1) / 7) * 100)));
+      }
+
+      function stageTone(stage) {
+        const tones = {
+          Discovery: ["#94a3b8", "#64748b"],
+          Qualified: ["#38bdf8", "#2563eb"],
+          "Candidate Review": ["#60a5fa", "#145db2"],
+          "Shortlist Sent": ["#22c55e", "#15803d"],
+          "Client Interview": ["#a3e635", "#65a30d"],
+          Offer: ["#facc15", "#d97706"],
+          Won: ["#34d399", "#047857"],
+          Lost: ["#f87171", "#b91c1c"],
+          "On Hold": ["#fbbf24", "#a16207"],
+        };
+        return tones[cleanStage(stage)] || tones.Discovery;
+      }
+
+      function dealProgressStyle(stage) {
+        const [start, end] = stageTone(stage);
+        return `--deal-progress:${stageProgress(stage)}%;--deal-progress-color:linear-gradient(90deg,${start},${end});--deal-progress-glow:${end}66;`;
+      }
+
+      function dealProbabilityFromStage(stage) {
+        const map = {
+          Discovery: 20,
+          Qualified: 35,
+          "Candidate Review": 50,
+          "Shortlist Sent": 60,
+          "Client Interview": 72,
+          Offer: 88,
+          Won: 100,
+          Lost: 0,
+          "On Hold": 15,
+        };
+        return map[cleanStage(stage)] ?? 20;
+      }
+
+      function defaultDealTitle(record) {
+        if (record.dealTitle) return record.dealTitle;
+        const need = String(record.what || "").split(/[.:;]/)[0].trim();
+        return need || `${record.customer || "Client"} active deal`;
+      }
+
+      function dealLineToObject(line, record = {}) {
+        const parts = String(line || "").split("|").map((part) => part.trim());
+        if (!parts[0]) return null;
+        const stage = cleanStage(parts[1] || record.dealStage || "Discovery");
+        const value = Math.max(0, Math.round(numberFromText(parts[2], record.value || 0)));
+        return {
+          id: crypto.randomUUID ? crypto.randomUUID() : `deal-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          title: parts[0],
+          stage,
+          value,
+          owner: parts[3] || record.owner || "",
+          contact: parts[4] || record.contact || "",
+          probability: Math.max(0, Math.min(100, Math.round(numberFromText(parts[5], dealProbabilityFromStage(stage))))),
+          closeDate: parts[6] || "",
+          notes: parts.slice(7).join(" | ") || record.nextStep || "",
+          status: ["Won", "Lost", "On Hold"].includes(stage) ? stage : "Active",
+        };
+      }
+
+      function dealToLine(deal) {
+        return [
+          deal.title || "",
+          cleanStage(deal.stage),
+          deal.value || 0,
+          deal.owner || "",
+          deal.contact || "",
+          deal.probability ?? dealProbabilityFromStage(deal.stage),
+          deal.closeDate || "",
+          deal.notes || "",
+        ].join(" | ");
+      }
+
+      function parseDealsText(value, record = {}) {
+        return String(value || "")
+          .split(/\r?\n/)
+          .map((line) => dealLineToObject(line, record))
+          .filter(Boolean);
+      }
+
+      function cleanRelationshipRole(value) {
+        const role = String(value || "").trim();
+        const allowed = ["Decision Maker", "Buyer", "Influencer", "Champion", "Technical Reviewer", "Finance", "Legal", "User"];
+        const match = allowed.find((item) => item.toLowerCase() === role.toLowerCase());
+        return match || (role ? role : "Influencer");
+      }
+
+      function splitContactNameTitle(value) {
+        const parts = String(value || "").split(",").map((part) => part.trim()).filter(Boolean);
+        return {
+          name: parts[0] || "",
+          title: parts.slice(1).join(", "),
+        };
+      }
+
+      function contactSlug(value, fallback = "contact") {
+        return String(value || fallback).toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.|\.$/g, "") || fallback;
+      }
+
+      function isDemoTeamRecord(record = {}) {
+        return String(record.id || "").startsWith("demo-") || /sample .*card created for dev testing/i.test(String(record.history || ""));
+      }
+
+      function demoEmailFor(record = {}, name = "contact") {
+        return `${contactSlug(name)}@${contactSlug(record.customer || "client")}.example`;
+      }
+
+      function demoPhoneFor(record = {}) {
+        const domain = currentDomain();
+        const prefix = domain === "law" ? "720" : domain === "engineer" ? "555" : "303";
+        const seed = Array.from(String(record.customer || record.id || "team")).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+        return `${prefix}-${String(410 + (seed % 80)).padStart(3, "0")}-${String(1100 + (seed % 7000)).padStart(4, "0")}`;
+      }
+
+      function demoSupportPlayers(record = {}, existing = []) {
+        const names = [
+          ["Heidi Larson", "Buyer", "Procurement Lead", "Controls rate approval, contract routing, and PO timing."],
+          ["Nora Patel", "Influencer", "Operations Partner", "Shapes role requirements, interview feedback, and day-to-day coordination."],
+          ["Evan Brooks", "Technical Reviewer", "Technical Lead", "Validates skills, stack fit, and technical interview feedback."],
+        ];
+        const used = new Set(existing.map((item) => String(item.name || "").toLowerCase()));
+        const additions = [];
+        for (const [name, role, title, description] of names) {
+          if (used.has(name.toLowerCase())) continue;
+          additions.push({
+            id: `${record.id || contactSlug(record.customer)}-${contactSlug(name)}`,
+            name,
+            relationshipRole: role,
+            email: demoEmailFor(record, name),
+            phone: demoPhoneFor({ ...record, customer: `${record.customer || ""}-${name}` }),
+            title,
+            jobTitle: title,
+            description,
+            lastConversation: "Needs next-step clarity from the DevReady team.",
+          });
+          if (existing.length + additions.length >= 3) break;
+        }
+        return additions;
+      }
+
+      function contactLineToPlayer(line, record = {}) {
+        const raw = String(line || "").trim();
+        if (!raw) return null;
+        const parts = raw.includes("|")
+          ? raw.split("|").map((part) => part.trim())
+          : raw.split(",").map((part) => part.trim());
+        const nameTitle = splitContactNameTitle(parts[0] || record.contact || "");
+        const email = parts.find((part) => /@/.test(part)) || "";
+        const phone = parts.find((part) => /\d{3}[\s).-]?\d{3}/.test(part) && !/@/.test(part)) || "";
+        return {
+          id: crypto.randomUUID ? crypto.randomUUID() : `player-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          name: nameTitle.name || parts[0] || "Team member",
+          relationshipRole: cleanRelationshipRole(parts[1]),
+          email: email || record.email || "",
+          phone: phone || record.phone || "",
+          title: parts[4] || nameTitle.title || parts[1] || "",
+          jobTitle: parts[4] || nameTitle.title || parts[1] || "",
+          description: parts[5] || "",
+          lastConversation: parts[6] || record.lastTouched || record.when || "",
+        };
+      }
+
+      function playerToLine(player = {}) {
+        return [
+          player.name || "",
+          cleanRelationshipRole(player.relationshipRole || player.role),
+          player.email || "",
+          player.phone || "",
+          player.jobTitle || player.title || "",
+          player.description || "",
+          player.lastConversation || "",
+        ].join(" | ");
+      }
+
+      function normalizeTeamMembers(record = {}) {
+        const raw = Array.isArray(record.teamMembers)
+          ? record.teamMembers
+          : Array.isArray(record.players)
+            ? record.players
+            : [];
+        const demoRecord = isDemoTeamRecord(record) || Boolean(record.customer && !record.email && !record.phone);
+        const members = raw
+          .map((player) => {
+            const nameTitle = splitContactNameTitle(player.name || player.contact || "");
+            const name = player.name || nameTitle.name || "Team member";
+            return {
+              id: player.id || (crypto.randomUUID ? crypto.randomUUID() : `player-${Date.now()}-${Math.random().toString(16).slice(2)}`),
+              name,
+              relationshipRole: cleanRelationshipRole(player.relationshipRole || player.role || player.type),
+              email: player.email || (demoRecord ? demoEmailFor(record, name) : ""),
+              phone: player.phone || (demoRecord ? demoPhoneFor(record) : ""),
+              title: player.title || player.jobTitle || nameTitle.title || "",
+              jobTitle: player.jobTitle || player.title || nameTitle.title || "",
+              description: player.description || player.notes || "",
+              lastConversation: player.lastConversation || player.last_conversation || player.lastTouched || "",
+            };
+          })
+          .filter((player) => player.name || player.email || player.phone);
+        if (members.length) {
+          return demoRecord && members.length < 3 ? [...members, ...demoSupportPlayers(record, members)] : members;
+        }
+        const parsed = String(record.contacts || "")
+          .split(/\r?\n/)
+          .map((line) => contactLineToPlayer(line, record))
+          .filter(Boolean);
+        if (parsed.length) return parsed;
+        if (record.contact || record.email || record.phone) {
+          const nameTitle = splitContactNameTitle(record.contact || "");
+          const name = nameTitle.name || record.customer || "Primary contact";
+          const primary = [
+            {
+              id: `${record.id || "record"}-player-1`,
+              name,
+              relationshipRole: "Decision Maker",
+              email: record.email || (demoRecord ? demoEmailFor(record, name) : ""),
+              phone: record.phone || (demoRecord ? demoPhoneFor(record) : ""),
+              title: nameTitle.title || "",
+              jobTitle: nameTitle.title || "",
+              description: "Primary account contact.",
+              lastConversation: record.lastTouched || record.when || "",
+            },
+          ];
+          return demoRecord ? [...primary, ...demoSupportPlayers(record, primary)] : primary;
+        }
+        return [];
+      }
+
+      function primaryTeamMember(record = {}) {
+        return normalizeTeamMembers(record)[0] || {};
+      }
+
+      function phoneFor(record = {}) {
+        if (record.phone) return record.phone;
+        const primary = primaryTeamMember(record);
+        if (primary.phone) return primary.phone;
+        const source = [record.contact, record.contacts, record.history, record.nextStep].filter(Boolean).join(" ");
+        const match = source.match(/(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})/);
+        return match ? match[0] : "";
+      }
+
+      function normalizeDeals(record = {}) {
+        const rawDeals = Array.isArray(record.deals) ? record.deals : [];
+        const deals = rawDeals
+          .map((deal) => ({
+            id: deal.id || (crypto.randomUUID ? crypto.randomUUID() : `deal-${Date.now()}-${Math.random().toString(16).slice(2)}`),
+            title: deal.title || deal.name || defaultDealTitle(record),
+            stage: cleanStage(deal.stage || deal.status || record.dealStage),
+            value: Math.max(0, Math.round(Number(deal.value || record.value || 0))),
+            owner: deal.owner || record.owner || "",
+            contact: deal.contact || record.contact || "",
+            probability: Math.max(0, Math.min(100, Math.round(Number(deal.probability ?? dealProbabilityFromStage(deal.stage || record.dealStage))))),
+            closeDate: deal.closeDate || deal.close_date || "",
+            notes: deal.notes || deal.nextStep || record.nextStep || "",
+            status: deal.status || (["Won", "Lost", "On Hold"].includes(deal.stage) ? deal.stage : "Active"),
+          }))
+          .filter((deal) => deal.title);
+        if (deals.length) return deals;
+        const stage = cleanStage(record.dealStage || (buyingSignal(record) === "Strong" ? "Qualified" : "Discovery"));
+        return [
+          {
+            id: `${record.id || "record"}-deal-1`,
+            title: defaultDealTitle(record),
+            stage,
+            value: Number(record.value || 0),
+            owner: record.owner || "",
+            contact: record.contact || "",
+            probability: dealProbabilityFromStage(stage),
+            closeDate: "",
+            notes: record.nextStep || record.what || "",
+            status: ["Won", "Lost", "On Hold"].includes(stage) ? stage : "Active",
+          },
+          {
+            id: `${record.id || "record"}-deal-2`,
+            title: `${record.customer || "Client"} follow-on opportunity`,
+            stage: "Discovery",
+            value: Math.round(Number(record.value || 0) * 0.35),
+            owner: record.owner || "",
+            contact: record.contact || "",
+            probability: dealProbabilityFromStage("Discovery"),
+            closeDate: "",
+            notes: "Secondary deal variable to track follow-on work without mixing it into the primary opportunity.",
+            status: "Active",
+          },
+        ];
+      }
+
+      function normalizeCrmRecord(record = {}) {
+        const normalized = { ...record };
+        normalized.deals = normalizeDeals(normalized);
+        normalized.teamMembers = normalizeTeamMembers(normalized);
+        const primary = normalized.deals[0] || {};
+        const primaryMember = normalized.teamMembers[0] || {};
+        normalized.dealTitle = normalized.dealTitle || primary.title || "";
+        normalized.dealStage = cleanStage(normalized.dealStage || primary.stage);
+        normalized.dealProbability = normalized.dealProbability ?? primary.probability ?? dealProbabilityFromStage(normalized.dealStage);
+        normalized.owner = normalized.owner || primary.owner || "";
+        normalized.contact = normalized.contact || primary.contact || [primaryMember.name, primaryMember.jobTitle || primaryMember.title].filter(Boolean).join(", ");
+        normalized.email = normalized.email || primaryMember.email || "";
+        normalized.phone = normalized.phone || primaryMember.phone || "";
+        normalized.contacts = normalized.contacts || normalized.teamMembers.map(playerToLine).join("\n");
+        normalized.value = Number(normalized.value || primary.value || 0);
+        return normalized;
+      }
+
+      function primaryDeal(record) {
+        return normalizeDeals(record)[0] || {};
       }
 
       function localDatetimeNow() {
@@ -1231,6 +2032,8 @@
       function emailFor(record) {
         const direct = String(record.email || "").trim();
         if (direct) return direct;
+        const primary = primaryTeamMember(record);
+        if (primary.email) return primary.email;
         const source = [record.contact, record.contacts, record.history, record.nextStep].filter(Boolean).join(" ");
         const match = source.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
         return match ? match[0] : "";
@@ -1346,24 +2149,78 @@
         };
       }
 
-      function aiScanRecord(id) {
+      function newsScanLine(scan) {
+        const summary = scan.summary || {};
+        const headline = summary.headline || `Recent news scan for ${scan.customer || "customer"}.`;
+        const highlights = Array.isArray(summary.highlights) ? summary.highlights.filter(Boolean).slice(0, 3) : [];
+        const sources = Array.isArray(scan.items)
+          ? scan.items
+              .filter((item) => item && item.title)
+              .slice(0, 3)
+              .map((item) => `${item.title}${item.source ? ` (${item.source})` : ""}`)
+          : [];
+        const parts = [
+          `Customer News Scan (${new Date().toLocaleDateString()}): ${headline}`,
+          highlights.length ? `Highlights: ${highlights.join(" | ")}` : "",
+          summary.recommended_action ? `Recommended next touch: ${summary.recommended_action}` : "",
+          sources.length ? `Sources: ${sources.join(" | ")}` : "",
+        ];
+        return parts.filter(Boolean).join("\n");
+      }
+
+      async function requestCustomerNewsScan(record) {
+        const body = new URLSearchParams();
+        body.set("domain", currentDomain());
+        body.set("customer", record.customer || "");
+        body.set("location", record.where || "");
+        const response = await fetch("/api/crm/news-scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.detail || "News scan failed.");
+        return data;
+      }
+
+      async function newsScanRecord(id, event) {
+        if (event) event.stopPropagation();
         const records = crmRecords();
         const record = records.find((item) => item.id === id);
         if (!record) return;
-        record.aiScan = scanClientCard(record);
-        record.updatedAt = new Date().toISOString();
-        setCrmRecords(records);
-        document.getElementById("crmStatus").textContent = `AI scan added: ${record.aiScan.rarity} / ${record.aiScan.archetype}.`;
-        renderCrm();
+        if (!record.customer) {
+          document.getElementById("crmStatus").textContent = "Add a customer name before scanning news.";
+          return;
+        }
+        document.getElementById("crmStatus").textContent = `Scanning recent local and web news for ${record.customer}...`;
+        try {
+          const scan = await requestCustomerNewsScan(record);
+          record.newsScan = scan;
+          record.history = [record.history || "", newsScanLine(scan)].filter(Boolean).join("\n\n");
+          record.updatedAt = new Date().toISOString();
+          setCrmRecords(records);
+          document.getElementById("crmStatus").textContent = `News scan complete for ${record.customer}.`;
+          renderCrm();
+        } catch (error) {
+          document.getElementById("crmStatus").textContent = error.message || "News scan failed.";
+        }
       }
 
-      function scanCurrentForm() {
+      async function scanCurrentForm() {
         const record = recordFromForm();
-        const scan = scanClientCard(record);
+        if (!record.customer) {
+          document.getElementById("crmStatus").textContent = "Add a customer name before scanning news.";
+          return;
+        }
         const fields = crmFields();
-        const scanLine = `AI Scan: ${scan.rarity} - ${scan.archetype}. ${scan.report}`;
-        fields.history.value = [fields.history.value.trim(), scanLine].filter(Boolean).join("\n");
-        document.getElementById("crmStatus").textContent = `AI scan ready: ${scan.rarity} / ${scan.archetype}. Save the card to keep it.`;
+        document.getElementById("crmStatus").textContent = `Scanning recent local and web news for ${record.customer}...`;
+        try {
+          const scan = await requestCustomerNewsScan(record);
+          fields.history.value = [fields.history.value.trim(), newsScanLine(scan)].filter(Boolean).join("\n\n");
+          document.getElementById("crmStatus").textContent = `News scan ready for ${record.customer}. Save the card to keep it.`;
+        } catch (error) {
+          document.getElementById("crmStatus").textContent = error.message || "News scan failed.";
+        }
       }
 
       function money(value) {
@@ -1387,10 +2244,11 @@
           if (field.type === "range") field.value = "6";
           else field.value = "";
         });
+        document.getElementById("crmDealStage").value = "Discovery";
         document.getElementById("crmStrengthValue").textContent = "6";
         document.getElementById("crmWhen").value = localDatetimeNow();
         document.getElementById("builderMode").textContent = "Build from scratch";
-        document.getElementById("saveCrmBtn").textContent = "Save player card";
+        document.getElementById("saveCrmBtn").textContent = "Save team card";
       }
 
       function recordFromForm() {
@@ -1405,6 +2263,9 @@
           email: crmValue("email"),
           value: crmNumberValue("value"),
           owner: crmValue("owner"),
+          dealTitle: crmValue("dealTitle"),
+          dealStage: cleanStage(crmValue("dealStage")),
+          dealProbability: Math.max(0, Math.min(100, Math.round(crmNumberValue("dealProbability") || dealProbabilityFromStage(crmValue("dealStage"))))),
           lastTouched: crmValue("when"),
           when: crmValue("when"),
           where: crmValue("where"),
@@ -1416,7 +2277,26 @@
           history: crmValue("history"),
           nextStep: crmValue("nextStep"),
         };
+        record.teamMembers = normalizeTeamMembers(record);
         record.email = record.email || emailFor(record);
+        record.phone = record.phone || phoneFor(record);
+        record.deals = parseDealsText(crmValue("deals"), record);
+        if (!record.deals.length) {
+          record.deals = [
+            {
+              id: `${record.id}-deal-1`,
+              title: record.dealTitle || defaultDealTitle(record),
+              stage: record.dealStage,
+              value: record.value,
+              owner: record.owner,
+              contact: record.contact,
+              probability: record.dealProbability,
+              closeDate: "",
+              notes: record.nextStep || record.what || "",
+              status: ["Won", "Lost", "On Hold"].includes(record.dealStage) ? record.dealStage : "Active",
+            },
+          ];
+        }
         record.aiScan = scanClientCard(record);
         return record;
       }
@@ -1433,10 +2313,10 @@
         if (existingIndex >= 0) {
           record.createdAt = records[existingIndex].createdAt || record.createdAt;
           records.splice(existingIndex, 1, record);
-          document.getElementById("crmStatus").textContent = "Player card updated.";
+          document.getElementById("crmStatus").textContent = "Team card updated.";
         } else {
           records.unshift(record);
-          document.getElementById("crmStatus").textContent = "Player card saved.";
+          document.getElementById("crmStatus").textContent = "Team card saved.";
         }
         setCrmRecords(records);
         clearCrmForm();
@@ -1453,6 +2333,10 @@
         fields.email.value = read("email") || "";
         fields.value.value = read("value") || "";
         fields.owner.value = read("owner") || "";
+        fields.dealTitle.value = read("dealTitle") || read("deal") || "";
+        fields.dealStage.value = cleanStage(read("dealStage") || read("stage") || "Discovery");
+        fields.dealProbability.value = read("dealProbability") || read("probability") || "";
+        fields.deals.value = read("deals") || "";
         fields.when.value = read("when") || "";
         fields.where.value = read("where") || "";
         fields.strength.value = read("strength") || read("heat") || "6";
@@ -1476,6 +2360,10 @@
         fields.email.value = record.email || emailFor(record) || "";
         fields.value.value = record.value || "";
         fields.owner.value = record.owner || "";
+        fields.dealTitle.value = record.dealTitle || primaryDeal(record).title || "";
+        fields.dealStage.value = cleanStage(record.dealStage || primaryDeal(record).stage);
+        fields.dealProbability.value = record.dealProbability ?? primaryDeal(record).probability ?? "";
+        fields.deals.value = normalizeDeals(record).map(dealToLine).join("\n");
         fields.when.value = (record.lastTouched || record.when || "").slice(0, 16);
         fields.where.value = record.where || "";
         fields.strength.value = record.strength || record.heatScore || 6;
@@ -1486,29 +2374,79 @@
         fields.history.value = record.history || "";
         fields.nextStep.value = record.nextStep || "";
         document.getElementById("crmStrengthValue").textContent = fields.strength.value;
-        document.getElementById("builderMode").textContent = "Editing player card";
-        document.getElementById("saveCrmBtn").textContent = "Update player card";
+        document.getElementById("builderMode").textContent = "Editing team card";
+        document.getElementById("saveCrmBtn").textContent = "Update team card";
         renderCrm();
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
 
       function deleteCrmRecord(id) {
-        if (!confirm("Delete this local CRM player card?")) return;
+        if (!confirm("Delete this local CRM team card?")) return;
         setCrmRecords(crmRecords().filter((record) => record.id !== id));
         if (editingCrmId === id) clearCrmForm();
         renderCrm();
       }
 
-      function touchCrmRecord(id) {
+      function openTouchModal(id) {
+        const record = crmRecords().find((item) => item.id === id);
+        if (!record) return;
+        document.getElementById("touchRecordId").value = id;
+        document.getElementById("touchAccountTitle").textContent = record.customer || "Untitled account";
+        document.getElementById("touchAccountMeta").textContent = `${record.contact || "No primary contact"}${emailFor(record) ? ` - ${emailFor(record)}` : ""}`;
+        document.getElementById("touchNotes").value = "";
+        document.getElementById("touchNextStep").value = record.nextStep || "";
+        document.getElementById("touchOutcome").value = "Connected";
+        setTouchChannel("Call");
+        const modal = document.getElementById("touchModal");
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+      }
+
+      function closeTouchModal() {
+        const modal = document.getElementById("touchModal");
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+      }
+
+      function setTouchChannel(channel) {
+        document.getElementById("touchChannel").value = channel;
+        document.querySelectorAll(".touch-channel").forEach((button) => {
+          button.classList.toggle("active", button.dataset.touchChannel === channel);
+        });
+      }
+
+      function saveTouchModal(event) {
+        event.preventDefault();
+        const id = document.getElementById("touchRecordId").value;
+        touchCrmRecord(id, {
+          channel: document.getElementById("touchChannel").value,
+          outcome: document.getElementById("touchOutcome").value,
+          notes: document.getElementById("touchNotes").value.trim(),
+          nextStep: document.getElementById("touchNextStep").value.trim(),
+        });
+        closeTouchModal();
+      }
+
+      function touchCrmRecord(id, touch = {}) {
         const records = crmRecords();
         const record = records.find((item) => item.id === id);
         if (!record) return;
         const now = localDatetimeNow();
+        const channel = touch.channel || "Touch";
+        const outcome = touch.outcome || "Recorded";
+        const notes = touch.notes || "";
+        const nextStep = touch.nextStep || record.nextStep || "";
+        const touchLine = `[${now}] ${channel} - ${outcome}${notes ? `: ${notes}` : ""}${nextStep ? ` Next: ${nextStep}` : ""}`;
+        const oldTouches = interactionCount(record);
         record.lastTouched = now;
         record.when = now;
         record.updatedAt = new Date().toISOString();
         record.strength = Math.min(10, Number(record.strength || 5) + 1);
+        record.nextStep = nextStep;
+        record.history = [touchLine, record.history || ""].filter(Boolean).join("\n");
+        record.touchOverride = oldTouches + 1;
         setCrmRecords(records);
+        document.getElementById("crmStatus").textContent = `${channel} touch saved for ${record.customer || "account"}.`;
         renderCrm();
       }
 
@@ -1559,6 +2497,9 @@
         record.email = String(fd.get("email") || "").trim();
         record.value = Math.max(0, Math.round(numberFromText(fd.get("value"), record.value || 0)));
         record.owner = String(fd.get("owner") || "").trim();
+        record.dealTitle = String(fd.get("dealTitle") || "").trim();
+        record.dealStage = cleanStage(fd.get("dealStage"));
+        record.dealProbability = Math.max(0, Math.min(100, Math.round(numberFromText(fd.get("dealProbability"), dealProbabilityFromStage(record.dealStage)))));
         record.strength = clampScore(fd.get("strength"), Number(record.strength || record.heatScore || 6));
         record.heatOverride = clampScore(fd.get("heat"), heatScore(record));
         record.touchOverride = Math.max(0, Math.round(numberFromText(fd.get("touches"), interactionCount(record))));
@@ -1572,6 +2513,10 @@
         record.why = String(fd.get("why") || "").trim();
         record.contacts = String(fd.get("contacts") || "").trim();
         record.history = String(fd.get("history") || "").trim();
+        record.teamMembers = normalizeTeamMembers(record);
+        record.phone = phoneFor(record);
+        record.deals = parseDealsText(fd.get("deals"), record);
+        if (!record.deals.length) record.deals = normalizeDeals(record);
         scan.cool = Math.max(1, clampScore(fd.get("cool"), scan.cool || coolFactor(record)));
         scan.archetype = String(fd.get("archetype") || "").trim() || scan.archetype;
         scan.report = String(fd.get("report") || "").trim() || scan.report;
@@ -1580,7 +2525,7 @@
 
         setCrmRecords(records);
         cardEditingId = null;
-        document.getElementById("crmStatus").textContent = "Player card edits saved.";
+        document.getElementById("crmStatus").textContent = "Team card edits saved.";
         renderCrm();
       }
 
@@ -1601,7 +2546,7 @@
         return `
           <form class="card-edit-mode" onsubmit="saveCrmCardEdit(event, '${escapeHtml(record.id)}')">
             <div>
-              <p>Editing player card</p>
+              <p>Editing team card</p>
               <h3>${escapeHtml(record.customer || "Untitled account")}</h3>
             </div>
             <div class="card-edit-grid">
@@ -1624,6 +2569,20 @@
               <label>
                 Owner
                 <input name="owner" value="${escapeHtml(record.owner || "")}" />
+              </label>
+              <label>
+                Primary deal
+                <input name="dealTitle" value="${escapeHtml(record.dealTitle || primaryDeal(record).title || "")}" />
+              </label>
+              <label>
+                Deal stage
+                <select name="dealStage">
+                  ${dealStages.map((stage) => `<option value="${escapeHtml(stage)}"${cleanStage(record.dealStage || primaryDeal(record).stage) === stage ? " selected" : ""}>${escapeHtml(stage)}</option>`).join("")}
+                </select>
+              </label>
+              <label>
+                Probability
+                <input name="dealProbability" type="number" min="0" max="100" value="${escapeHtml(record.dealProbability ?? primaryDeal(record).probability ?? "")}" />
               </label>
               <label>
                 Location
@@ -1670,6 +2629,10 @@
                 <textarea name="nextStep">${escapeHtml(record.nextStep || "")}</textarea>
               </label>
               <label class="full">
+                Deals in play
+                <textarea name="deals">${escapeHtml(normalizeDeals(record).map(dealToLine).join("\n"))}</textarea>
+              </label>
+              <label class="full">
                 Why it matters
                 <textarea name="why">${escapeHtml(record.why || "")}</textarea>
               </label>
@@ -1694,6 +2657,176 @@
         `;
       }
 
+      function openDealDetailFromCard(event, id) {
+        if (event?.target?.closest("button, a, input, textarea, select, label")) return;
+        openDealDetail(id);
+      }
+
+      function openDealDetail(id) {
+        const record = crmRecords().find((item) => item.id === id);
+        if (!record) return;
+        const backdrop = document.getElementById("dealDrawerBackdrop");
+        const content = document.getElementById("dealDrawerContent");
+        content.innerHTML = renderDealDetail(record);
+        backdrop.classList.add("open");
+        backdrop.setAttribute("aria-hidden", "false");
+      }
+
+      function closeDealDetail() {
+        const backdrop = document.getElementById("dealDrawerBackdrop");
+        backdrop.classList.remove("open");
+        backdrop.setAttribute("aria-hidden", "true");
+      }
+
+      function updateDealStage(recordId, dealId, stage) {
+        const records = crmRecords();
+        const record = records.find((item) => item.id === recordId);
+        if (!record) return;
+        record.deals = normalizeDeals(record).map((deal) => {
+          if (deal.id !== dealId) return deal;
+          const clean = cleanStage(stage);
+          return {
+            ...deal,
+            stage: clean,
+            probability: dealProbabilityFromStage(clean),
+            status: ["Won", "Lost", "On Hold"].includes(clean) ? clean : "Active",
+          };
+        });
+        const primary = record.deals[0] || {};
+        record.dealStage = cleanStage(primary.stage);
+        record.dealProbability = primary.probability ?? dealProbabilityFromStage(primary.stage);
+        record.updatedAt = new Date().toISOString();
+        setCrmRecords(records);
+        document.getElementById("crmStatus").textContent = `Deal stage updated to ${cleanStage(stage)}.`;
+        renderCrm();
+        openDealDetail(recordId);
+      }
+
+      function renderTeamPlayerCard(player = {}) {
+        const email = player.email || "";
+        const phone = player.phone || "";
+        const title = player.title || "Title not captured";
+        const jobTitle = player.jobTitle || player.title || "Job title not captured";
+        return `
+          <article class="team-player-card">
+            <div class="team-player-head">
+              <div>
+                <h3>${escapeHtml(player.name || "Team member")}</h3>
+                <div class="team-player-meta">Title: ${escapeHtml(title)}</div>
+                <div class="team-player-meta">Job title: ${escapeHtml(jobTitle)}</div>
+              </div>
+              <span class="team-player-role">${escapeHtml(cleanRelationshipRole(player.relationshipRole || player.role))}</span>
+            </div>
+            <div class="team-player-contact">
+              ${email ? `<a href="mailto:${encodeURIComponent(email)}">${escapeHtml(email)}</a>` : `<span class="team-player-meta">No email captured</span>`}
+              ${phone ? `<a href="tel:${escapeHtml(phone)}">${escapeHtml(phone)}</a>` : `<span class="team-player-meta">No phone captured</span>`}
+            </div>
+            <div class="team-player-meta">${escapeHtml(player.description || "No relationship description captured yet.")}</div>
+            <div class="team-player-meta"><strong>Last conversation:</strong> ${escapeHtml(player.lastConversation || "Not recorded")}</div>
+          </article>
+        `;
+      }
+
+      function renderDealDetail(record) {
+        const deals = normalizeDeals(record);
+        const teamMembers = normalizeTeamMembers(record);
+        const primary = deals[0] || {};
+        const weighted = deals.reduce((sum, deal) => sum + Number(deal.value || 0) * ((Number(deal.probability) || 0) / 100), 0);
+        const rows = deals
+          .map((deal) => {
+            return `
+              <article class="deal-row">
+                <div class="deal-row-head">
+                  <div>
+                    <strong>${escapeHtml(deal.title || "Untitled deal")}</strong>
+                    <span>${escapeHtml(deal.notes || "No deal notes yet.")}</span>
+                  </div>
+                  <select class="deal-stage-select" onchange="updateDealStage('${escapeHtml(record.id)}', '${escapeHtml(deal.id)}', this.value)" aria-label="Change deal stage">
+                    ${dealStages.map((stage) => `<option value="${escapeHtml(stage)}"${cleanStage(deal.stage) === stage ? " selected" : ""}>${escapeHtml(stage)}</option>`).join("")}
+                  </select>
+                </div>
+                <div class="deal-progress" style="${dealProgressStyle(deal.stage)}"><span></span></div>
+                <div class="deal-row-meta">
+                  <span>Owner: ${escapeHtml(deal.owner || record.owner || "Unowned")}</span>
+                  <span>Contact: ${escapeHtml(deal.contact || record.contact || "No contact")}</span>
+                  <span>Value: ${escapeHtml(money(deal.value || record.value))}</span>
+                  <span>Probability: ${escapeHtml(deal.probability ?? dealProbabilityFromStage(deal.stage))}%</span>
+                  <span>Close: ${escapeHtml(deal.closeDate || "Not set")}</span>
+                  <span>Status: ${escapeHtml(deal.status || "Active")}</span>
+                </div>
+              </article>
+            `;
+          })
+          .join("");
+        return `
+          <div class="deal-drawer-head">
+            <div>
+              <span class="breadcrumb">${escapeHtml(domainLabel())} CRM deal view</span>
+              <h2>${escapeHtml(record.customer || "Untitled account")}</h2>
+              <div class="muted">${escapeHtml(record.contact || "No primary contact")} ${emailFor(record) ? `- ${escapeHtml(emailFor(record))}` : ""}${phoneFor(record) ? ` - ${escapeHtml(phoneFor(record))}` : ""}</div>
+            </div>
+            <div class="crm-actions">
+              <button class="btn secondary" type="button" onclick="openTouchModal('${escapeHtml(record.id)}')">Record Touch</button>
+              <button class="btn secondary" type="button" onclick="closeDealDetail()">Close</button>
+            </div>
+          </div>
+          <div class="deal-drawer-body">
+            <div class="deal-detail-grid">
+              <div class="deal-detail-box">
+                <strong>${escapeHtml(primary.title || "No primary deal")}</strong>
+                <span>Primary deal</span>
+              </div>
+              <div class="deal-detail-box">
+                <strong>${escapeHtml(cleanStage(primary.stage || record.dealStage))}</strong>
+                <span>Current stage</span>
+              </div>
+              <div class="deal-detail-box">
+                <strong>${escapeHtml(record.owner || primary.owner || "Unowned")}</strong>
+                <span>Deal owner</span>
+              </div>
+              <div class="deal-detail-box">
+                <strong>${escapeHtml(money(weighted))}</strong>
+                <span>Weighted pipeline</span>
+              </div>
+              <div class="deal-detail-box">
+                <strong>${escapeHtml([record.contact, emailFor(record), phoneFor(record)].filter(Boolean).join(" - ") || "No contacts captured")}</strong>
+                <span>Customer contact information</span>
+              </div>
+              <div class="deal-detail-box">
+                <strong>${escapeHtml(record.nextStep || primary.notes || "No next action")}</strong>
+                <span>Next action</span>
+              </div>
+            </div>
+            <section>
+              <div class="builder-head" style="margin-bottom: 10px">
+                <div>
+                  <span>Team players</span>
+                  <h2 style="font-size: 20px">${teamMembers.length} client player${teamMembers.length === 1 ? "" : "s"} linked to this team card</h2>
+                </div>
+                <button class="btn secondary" type="button" onclick="startCrmCardEdit('${escapeHtml(record.id)}'); closeDealDetail();">Edit Team Contacts</button>
+              </div>
+              <div class="team-player-grid">
+                ${teamMembers.length ? teamMembers.map(renderTeamPlayerCard).join("") : `<div class="notice">No team players captured yet. Edit the team card and add contacts.</div>`}
+              </div>
+            </section>
+            <section>
+              <div class="builder-head" style="margin-bottom: 10px">
+                <div>
+                  <span>Deals in play</span>
+                  <h2 style="font-size: 20px">${deals.length} active deal variable${deals.length === 1 ? "" : "s"}</h2>
+                </div>
+                <button class="btn secondary" type="button" onclick="startCrmCardEdit('${escapeHtml(record.id)}'); closeDealDetail();">Edit Deal Data</button>
+              </div>
+              <div class="deal-rows">${rows}</div>
+            </section>
+            <section class="deal-detail-box">
+              <strong>Account notes</strong>
+              <span>${escapeHtml(record.history || "No account history captured yet.")}</span>
+            </section>
+          </div>
+        `;
+      }
+
       function renderPlayerCard(record) {
         const lane = lanes.find((item) => item.key === laneFor(record)) || lanes[3];
         const heat = heatScore(record);
@@ -1706,9 +2839,14 @@
         const strength = Number(record.strength || record.heatScore || 6);
         const touches = interactionCount(record);
         const signal = buyingSignal(record);
+        const primary = primaryDeal(record);
+        const primaryMember = primaryTeamMember(record);
+        const dealStage = cleanStage(primary.stage || record.dealStage);
         const email = emailFor(record);
+        const phone = phoneFor(record);
         const mailto = mailtoFor(record);
         const scan = record.aiScan || scanClientCard(record);
+        const newsHeadline = record.newsScan?.summary?.headline || "";
         const refs = (scan.references || referenceChips(record))
           .map((item) => `<span class="reference-chip">${escapeHtml(item)}</span>`)
           .join("");
@@ -1718,6 +2856,9 @@
         const emailLine = email
           ? `<a class="email-line" href="${escapeHtml(mailto)}">${escapeHtml(email)}</a>`
           : '<span class="email-line">No email captured</span>';
+        const phoneLine = phone
+          ? `<a class="phone-line" href="tel:${escapeHtml(phone)}">${escapeHtml(phone)}</a>`
+          : '<span class="phone-line">No phone captured</span>';
         const emailAction = email
           ? `<a class="btn secondary" href="${escapeHtml(mailto)}">Email</a>`
           : "";
@@ -1729,7 +2870,7 @@
             ${renderPlayerCardEditor(record, scan, heat, days, touches, signal)}
           </article>`;
         }
-        return `<article class="player-card ${hotClass} ${attentionClass} ${selectedClass}" style="${cardStyle(record, lane)}">
+        return `<article class="player-card ${hotClass} ${attentionClass} ${selectedClass}" style="${cardStyle(record, lane)}" onclick="openDealDetailFromCard(event, '${escapeHtml(record.id)}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDealDetail('${escapeHtml(record.id)}')}">
           ${attention ? `
             <span class="attention-icon" title="Needs attention">
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1742,11 +2883,12 @@
           ` : ""}
           <div class="player-top">
             <div>
-              <span class="card-edition">VETCODE Business Card - ${escapeHtml(scan.rarity)}</span>
+              <span class="card-edition">VETCODE Team Card - ${escapeHtml(scan.rarity)}</span>
               <span class="card-domain">${escapeHtml(domainLabel())}</span>
               <h3 class="company-name">${escapeHtml(record.customer || "Untitled account")}</h3>
-              <div class="contact-line">${escapeHtml(record.contact || "No primary contact")}</div>
+              <div class="contact-line">${escapeHtml(record.contact || primaryMember.name || "No primary contact")}</div>
               ${emailLine}
+              ${phoneLine}
               <span class="status-pill">${escapeHtml(laneLabel(record))}</span>
             </div>
             <div class="heat-badge editable-card-region" title="Relationship heat after decay">${heat}</div>
@@ -1784,10 +2926,29 @@
               <span>Cool factor / AI read</span>
             </div>
           </div>
+          <div class="deal-summary">
+            <div class="deal-summary-head">
+              <div>
+                <small>Primary deal</small>
+                <strong>${escapeHtml(primary.title || record.dealTitle || "Deal not named")}</strong>
+              </div>
+              <span class="deal-stage-chip">${escapeHtml(dealStage)}</span>
+            </div>
+            <div class="deal-progress" style="${dealProgressStyle(dealStage)}"><span></span></div>
+            <small>${escapeHtml(normalizeDeals(record).length)} deal variable${normalizeDeals(record).length === 1 ? "" : "s"} in play - click card for detail</small>
+          </div>
           <div class="scouting-report">
             <span class="card-label">Scouting report</span>
             <p>${escapeHtml(scan.report)}</p>
           </div>
+          ${
+            newsHeadline
+              ? `<div class="scouting-report">
+                  <span class="card-label">Latest customer news</span>
+                  <p>${escapeHtml(newsHeadline)}</p>
+                </div>`
+              : ""
+          }
           <div class="reference-row">${refs || '<span class="reference-chip">No page references yet</span>'}</div>
           <div class="player-body">
             <div class="editable-card-region">
@@ -1821,15 +2982,15 @@
             <button class="btn secondary" type="button" onclick="startCrmCardEdit('${escapeHtml(record.id)}')">Edit</button>
             ${emailAction}
             ${meetingAction}
-            <button class="btn secondary" type="button" onclick="aiScanRecord('${escapeHtml(record.id)}')">AI Scan</button>
-            <button class="btn secondary" type="button" onclick="touchCrmRecord('${escapeHtml(record.id)}')">Touch</button>
+            <button class="btn secondary" type="button" onclick="newsScanRecord('${escapeHtml(record.id)}', event)">Scan News</button>
+            <button class="btn secondary" type="button" onclick="openTouchModal('${escapeHtml(record.id)}')">Touch</button>
             <button class="btn secondary" type="button" onclick="deleteCrmRecord('${escapeHtml(record.id)}')">Delete</button>
           </div>
         </article>`;
       }
 
       function renderCrmList(enriched) {
-        if (!enriched.length) return '<div class="notice">No CRM player cards yet.</div>';
+        if (!enriched.length) return '<div class="notice">No CRM team cards yet.</div>';
 
         const header = `
           <div class="crm-list-row header" aria-hidden="true">
@@ -1871,7 +3032,7 @@
                 <div class="crm-list-cell">${escapeHtml(compactDate(record))}</div>
                 <div class="crm-list-actions">
                   <button class="btn secondary" type="button" onclick="useCrmRecord('${escapeHtml(record.id)}')">Edit</button>
-                  <button class="btn secondary" type="button" onclick="touchCrmRecord('${escapeHtml(record.id)}')">Touch</button>
+                  <button class="btn secondary" type="button" onclick="openTouchModal('${escapeHtml(record.id)}')">Touch</button>
                   ${emailAction}
                   ${meetingAction}
                 </div>
@@ -1897,11 +3058,11 @@
         const board = document.getElementById("relationshipBoard");
         board.innerHTML = enriched.length
           ? enriched.map(renderPlayerCard).join("")
-          : '<div class="notice">No CRM player cards yet.</div>';
+          : '<div class="notice">No CRM team cards yet.</div>';
 
         document.getElementById("relationshipList").innerHTML = enriched.length
           ? renderCrmList(enriched)
-          : '<div class="notice">No CRM player cards yet.</div>';
+          : '<div class="notice">No CRM team cards yet.</div>';
       }
 
       function setViewMode(mode) {
@@ -1935,6 +3096,10 @@
           history: data.history || data.transcript || "",
           nextStep: data.nextStep || data.next_step || "",
         };
+        record.dealStage = cleanStage(data.dealStage || data.stage || (data.nextStep ? "Qualified" : "Discovery"));
+        record.dealTitle = data.dealTitle || data.deal || defaultDealTitle(record);
+        record.dealProbability = Number(data.dealProbability || data.probability || dealProbabilityFromStage(record.dealStage));
+        record.deals = normalizeDeals(record);
         record.aiScan = scanClientCard(record);
         records.unshift(record);
         setCrmRecords(records);
@@ -1942,7 +3107,7 @@
 
       function seedDemoCards() {
         const domain = currentDomain();
-        if (crmRecords().length && !confirm(`Add ${domain} sample player cards to the current local CRM?`)) return;
+        if (crmRecords().length && !confirm(`Add ${domain} sample team cards to the current local CRM?`)) return;
         const now = new Date();
         const daysAgo = (days) => {
           const date = new Date(now);
@@ -1970,7 +3135,50 @@
         const source = sampleSets[domain] || sampleSets.dev;
         const sampleEmail = (company) =>
           `${company.toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.|\.$/g, "")}@${domain === "law" ? "legalready" : domain === "engineer" ? "buildready" : "devready"}.example`;
+        const samplePhone = (index, extension = 10) => `555-${domain === "law" ? "07" : domain === "engineer" ? "05" : "03"}${index + 1}-${String(extension).padStart(4, "0")}`;
+        const teamFor = (company, lead, index) => {
+          const [leadName, leadTitle = "Executive Sponsor"] = lead.split(",").map((part) => part.trim());
+          const slug = company.toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.|\.$/g, "");
+          const domainSlug = domain === "law" ? "legalready" : domain === "engineer" ? "buildready" : "devready";
+          return [
+            {
+              id: `${slug}-decision-maker`,
+              name: leadName,
+              relationshipRole: "Decision Maker",
+              email: `${leadName.toLowerCase().replace(/[^a-z0-9]+/g, ".")}@${slug}.example`,
+              phone: samplePhone(index, 1100 + index),
+              title: leadTitle,
+              jobTitle: leadTitle,
+              description: "Owns the business outcome and approves the shortlist before client interviews.",
+              lastConversation: "Confirmed priority, timing, and decision criteria during the last CRM touch.",
+            },
+            {
+              id: `${slug}-buyer`,
+              name: index === 0 ? "Heidi Larson" : index === 1 ? "Marcus Bell" : "Priya Shah",
+              relationshipRole: "Buyer",
+              email: `procurement.${index + 1}@${slug}.example`,
+              phone: samplePhone(index, 2200 + index),
+              title: "Procurement Lead",
+              jobTitle: "Procurement Lead",
+              description: "Controls contract paperwork, rate approval, and purchase order routing.",
+              lastConversation: "Waiting for final scope and rate card before opening the PO.",
+            },
+            {
+              id: `${slug}-influencer`,
+              name: index === 0 ? "Nora Patel" : index === 1 ? "Evan Brooks" : "Camila Torres",
+              relationshipRole: "Influencer",
+              email: `ops.${index + 1}@${slug}.example`,
+              phone: samplePhone(index, 3300 + index),
+              title: domain === "law" ? "Legal Operations Manager" : domain === "engineer" ? "Program Engineering Manager" : "Talent Operations Manager",
+              jobTitle: domain === "law" ? "Legal Operations Manager" : domain === "engineer" ? "Program Engineering Manager" : "Talent Operations Manager",
+              description: "Shapes requirements, interview feedback, and day-to-day hiring coordination.",
+              lastConversation: "Shared team constraints and asked for a practical next-step plan.",
+            },
+          ];
+        };
         const demo = source.map((item, index) => {
+          const stage = index === 0 ? "Shortlist Sent" : index === 1 ? "Candidate Review" : "Client Interview";
+          const secondaryStage = index === 0 ? "Qualified" : "Discovery";
           const record = {
             id: crypto.randomUUID ? crypto.randomUUID() : `demo-${domain}-${index + 1}`,
             domain,
@@ -1980,6 +3188,9 @@
             email: sampleEmail(item[0]),
             value: item[2],
             owner: item[3],
+            dealTitle: item[6].split(".")[0],
+            dealStage: stage,
+            dealProbability: dealProbabilityFromStage(stage),
             lastTouched: daysAgo(item[4]),
             when: daysAgo(item[4]),
             where: item[9],
@@ -1991,6 +3202,36 @@
             contacts: "",
             history: `Sample ${domain} card created for dev testing.`,
           };
+          record.teamMembers = teamFor(item[0], item[1], index);
+          record.contacts = record.teamMembers.map(playerToLine).join("\n");
+          record.email = record.teamMembers[0]?.email || sampleEmail(item[0]);
+          record.phone = record.teamMembers[0]?.phone || "";
+          record.deals = [
+            {
+              id: `${record.id}-deal-primary`,
+              title: record.dealTitle,
+              stage,
+              value: item[2],
+              owner: item[3],
+              contact: item[1],
+              probability: dealProbabilityFromStage(stage),
+              closeDate: "",
+              notes: item[8],
+              status: "Active",
+            },
+            {
+              id: `${record.id}-deal-secondary`,
+              title: `${item[0]} follow-on advisory`,
+              stage: secondaryStage,
+              value: Math.round(item[2] * 0.42),
+              owner: item[3],
+              contact: item[1],
+              probability: dealProbabilityFromStage(secondaryStage),
+              closeDate: "",
+              notes: "Potential second workstream after the first client touch lands.",
+              status: "Active",
+            },
+          ];
           record.aiScan = scanClientCard(record);
           return record;
         });
@@ -2009,7 +3250,10 @@
           const existingIds = new Set(records.map((record) => record.id));
           const incoming = seeded
             .filter((record) => record && record.id && !existingIds.has(record.id))
-            .map((record) => ({ ...record, aiScan: record.aiScan || scanClientCard(record) }));
+            .map((record) => {
+              const normalized = normalizeCrmRecord(record);
+              return { ...normalized, aiScan: normalized.aiScan || scanClientCard(normalized) };
+            });
           if (incoming.length) setCrmRecords([...incoming, ...records]);
         } catch {}
       }
@@ -2021,7 +3265,7 @@
         hydrateFromUrl();
         renderCrm();
         document.getElementById("crmStatus").textContent =
-          "Meeting intelligence moved into CRM as a player card. Review and tune the relationship strength.";
+          "Meeting intelligence moved into CRM as a team card. Review and tune the relationship strength.";
       });
 
       document.addEventListener("DOMContentLoaded", async () => {
@@ -2032,6 +3276,7 @@
         document.getElementById("saveCrmBtn").addEventListener("click", saveCrmRecord);
         document.getElementById("scanCrmBtn").addEventListener("click", scanCurrentForm);
         document.getElementById("touchCrmBtn").addEventListener("click", touchCurrentForm);
+        document.getElementById("copySalesWorkspaceBtn").addEventListener("click", copySalesWorkspaceLink);
         document.getElementById("clearCrmFormBtn").addEventListener("click", () => {
           clearCrmForm();
           renderCrm();
@@ -2039,11 +3284,23 @@
         document.getElementById("seedCrmBtn").addEventListener("click", seedDemoCards);
         document.getElementById("boardModeBtn").addEventListener("click", () => setViewMode("board"));
         document.getElementById("listModeBtn").addEventListener("click", () => setViewMode("list"));
+        document.getElementById("dealDrawerBackdrop").addEventListener("click", (event) => {
+          if (event.target.id === "dealDrawerBackdrop") closeDealDetail();
+        });
+        document.getElementById("touchModal").addEventListener("click", (event) => {
+          if (event.target.id === "touchModal") closeTouchModal();
+        });
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            closeDealDetail();
+            closeTouchModal();
+          }
+        });
         document.getElementById("crmStrength").addEventListener("input", (event) => {
           document.getElementById("crmStrengthValue").textContent = event.target.value;
         });
         document.getElementById("clearCrmRecordsBtn").addEventListener("click", () => {
-          if (!confirm("Clear all local CRM player cards?")) return;
+          if (!confirm("Clear all local CRM team cards?")) return;
           localStorage.removeItem(crmStorageKey());
           clearCrmForm();
           renderCrm();

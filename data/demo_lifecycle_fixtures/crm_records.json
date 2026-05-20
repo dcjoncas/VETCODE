@@ -1,7 +1,7 @@
 [
   {
     "contact": "Atlas AI Health Sponsor",
-    "contacts": "Atlas AI Health Sponsor, sponsor@atlas-ai-health.example",
+    "contacts": "Atlas AI Health Sponsor | Decision Maker | sponsor@atlas-ai-health.example | 303-410-1101 | Executive Sponsor | Owns the business outcome and approves shortlist movement. | 2026-05-14T00:00\nAvery Johnson | Buyer | avery.johnson@atlas.ai.health.example | 303-410-1102 | Procurement Lead | Coordinates commercial approval, contract details, and follow-up timing. | Needs rate and scope confirmation before the next step.\nMorgan Lee | Influencer | morgan.lee@atlas.ai.health.example | 303-410-1103 | Operations Partner | Shapes requirements, validates candidate fit, and influences stakeholder feedback. | Asked for clearer role requirements and next-step ownership.",
     "createdAt": "2026-05-15T13:27:48Z",
     "customer": "Atlas AI Health",
     "domain": "dev",
@@ -18,11 +18,47 @@
     "what": "Healthcare Technology demo relationship for AI Workflow Engineer.",
     "when": "2026-05-14T00:00",
     "where": "Microsoft Teams",
-    "why": "Scenario: A-Z complete."
+    "why": "Scenario: A-Z complete.",
+    "phone": "303-410-1101",
+    "teamMembers": [
+      {
+        "id": "CRM-DEMO-DEV-01-decision-maker",
+        "name": "Atlas AI Health Sponsor",
+        "relationshipRole": "Decision Maker",
+        "email": "sponsor@atlas-ai-health.example",
+        "phone": "303-410-1101",
+        "title": "Executive Sponsor",
+        "jobTitle": "Executive Sponsor",
+        "description": "Owns the business outcome and approves shortlist movement.",
+        "lastConversation": "2026-05-14T00:00"
+      },
+      {
+        "id": "CRM-DEMO-DEV-01-buyer",
+        "name": "Avery Johnson",
+        "relationshipRole": "Buyer",
+        "email": "avery.johnson@atlas.ai.health.example",
+        "phone": "303-410-1102",
+        "title": "Procurement Lead",
+        "jobTitle": "Procurement Lead",
+        "description": "Coordinates commercial approval, contract details, and follow-up timing.",
+        "lastConversation": "Needs rate and scope confirmation before the next step."
+      },
+      {
+        "id": "CRM-DEMO-DEV-01-influencer",
+        "name": "Morgan Lee",
+        "relationshipRole": "Influencer",
+        "email": "morgan.lee@atlas.ai.health.example",
+        "phone": "303-410-1103",
+        "title": "Operations Partner",
+        "jobTitle": "Operations Partner",
+        "description": "Shapes requirements, validates candidate fit, and influences stakeholder feedback.",
+        "lastConversation": "Asked for clearer role requirements and next-step ownership."
+      }
+    ]
   },
   {
     "contact": "Atlas AI Health Sponsor",
-    "contacts": "Atlas AI Health Sponsor, sponsor@atlas-ai-health.example",
+    "contacts": "Atlas AI Health Sponsor | Decision Maker | sponsor@atlas-ai-health.example | 303-411-1102 | Executive Sponsor | Owns the business outcome and approves shortlist movement. | 2026-05-13T00:00\nMorgan Lee | Influencer | morgan.lee@atlas.ai.health.example | 303-411-1103 | Operations Partner | Coordinates commercial approval, contract details, and follow-up timing. | Needs rate and scope confirmation before the next step.\nRiley Chen | Finance | riley.chen@atlas.ai.health.example | 303-411-1104 | Finance Reviewer | Shapes requirements, validates candidate fit, and influences stakeholder feedback. | Asked for clearer role requirements and next-step ownership.",
     "createdAt": "2026-05-15T13:27:48Z",
     "customer": "Atlas AI Health",
     "domain": "dev",
@@ -39,11 +75,47 @@
     "what": "Healthcare Technology demo relationship for AI Workflow Engineer.",
     "when": "2026-05-13T00:00",
     "where": "Microsoft Teams",
-    "why": "Scenario: Pending invite review."
+    "why": "Scenario: Pending invite review.",
+    "phone": "303-411-1102",
+    "teamMembers": [
+      {
+        "id": "CRM-DEMO-DEV-02-decision-maker",
+        "name": "Atlas AI Health Sponsor",
+        "relationshipRole": "Decision Maker",
+        "email": "sponsor@atlas-ai-health.example",
+        "phone": "303-411-1102",
+        "title": "Executive Sponsor",
+        "jobTitle": "Executive Sponsor",
+        "description": "Owns the business outcome and approves shortlist movement.",
+        "lastConversation": "2026-05-13T00:00"
+      },
+      {
+        "id": "CRM-DEMO-DEV-02-buyer",
+        "name": "Morgan Lee",
+        "relationshipRole": "Influencer",
+        "email": "morgan.lee@atlas.ai.health.example",
+        "phone": "303-411-1103",
+        "title": "Operations Partner",
+        "jobTitle": "Operations Partner",
+        "description": "Coordinates commercial approval, contract details, and follow-up timing.",
+        "lastConversation": "Needs rate and scope confirmation before the next step."
+      },
+      {
+        "id": "CRM-DEMO-DEV-02-influencer",
+        "name": "Riley Chen",
+        "relationshipRole": "Finance",
+        "email": "riley.chen@atlas.ai.health.example",
+        "phone": "303-411-1104",
+        "title": "Finance Reviewer",
+        "jobTitle": "Finance Reviewer",
+        "description": "Shapes requirements, validates candidate fit, and influences stakeholder feedback.",
+        "lastConversation": "Asked for clearer role requirements and next-step ownership."
+      }
+    ]
   },
   {
     "contact": "Atlas AI Health Sponsor",
-    "contacts": "Atlas AI Health Sponsor, sponsor@atlas-ai-health.example",
+    "contacts": "Atlas AI Health Sponsor | Decision Maker | sponsor@atlas-ai-health.example | 303-412-1103 | Executive Sponsor | Owns the business outcome and approves shortlist movement. | 2026-05-12T00:00\nRiley Chen | Finance | riley.chen@atlas.ai.health.example | 303-412-1104 | Finance Reviewer | Coordinates commercial approval, contract details, and follow-up timing. | Needs rate and scope confirmation before the next step.\nSam Patel | Technical Reviewer | sam.patel@atlas.ai.health.example | 303-412-1105 | Technical Reviewer | Shapes requirements, validates candidate fit, and influences stakeholder feedback. | Asked for clearer role requirements and next-step ownership.",
     "createdAt": "2026-05-15T13:27:48Z",
     "customer": "Atlas AI Health",
     "domain": "dev",
@@ -60,11 +132,47 @@
     "what": "Healthcare Technology demo relationship for AI Workflow Engineer.",
     "when": "2026-05-12T00:00",
     "where": "Microsoft Teams",
-    "why": "Scenario: Invite sent."
+    "why": "Scenario: Invite sent.",
+    "phone": "303-412-1103",
+    "teamMembers": [
+      {
+        "id": "CRM-DEMO-DEV-03-decision-maker",
+        "name": "Atlas AI Health Sponsor",
+        "relationshipRole": "Decision Maker",
+        "email": "sponsor@atlas-ai-health.example",
+        "phone": "303-412-1103",
+        "title": "Executive Sponsor",
+        "jobTitle": "Executive Sponsor",
+        "description": "Owns the business outcome and approves shortlist movement.",
+        "lastConversation": "2026-05-12T00:00"
+      },
+      {
+        "id": "CRM-DEMO-DEV-03-buyer",
+        "name": "Riley Chen",
+        "relationshipRole": "Finance",
+        "email": "riley.chen@atlas.ai.health.example",
+        "phone": "303-412-1104",
+        "title": "Finance Reviewer",
+        "jobTitle": "Finance Reviewer",
+        "description": "Coordinates commercial approval, contract details, and follow-up timing.",
+        "lastConversation": "Needs rate and scope confirmation before the next step."
+      },
+      {
+        "id": "CRM-DEMO-DEV-03-influencer",
+        "name": "Sam Patel",
+        "relationshipRole": "Technical Reviewer",
+        "email": "sam.patel@atlas.ai.health.example",
+        "phone": "303-412-1105",
+        "title": "Technical Reviewer",
+        "jobTitle": "Technical Reviewer",
+        "description": "Shapes requirements, validates candidate fit, and influences stakeholder feedback.",
+        "lastConversation": "Asked for clearer role requirements and next-step ownership."
+      }
+    ]
   },
   {
     "contact": "Atlas AI Health Sponsor",
-    "contacts": "Atlas AI Health Sponsor, sponsor@atlas-ai-health.example",
+    "contacts": "Atlas AI Health Sponsor | Decision Maker | sponsor@atlas-ai-health.example | 303-413-1104 | Executive Sponsor | Owns the business outcome and approves shortlist movement. | 2026-05-11T00:00\nSam Patel | Technical Reviewer | sam.patel@atlas.ai.health.example | 303-413-1105 | Technical Reviewer | Coordinates commercial approval, contract details, and follow-up timing. | Needs rate and scope confirmation before the next step.\nAvery Johnson | Buyer | avery.johnson@atlas.ai.health.example | 303-413-1106 | Procurement Lead | Shapes requirements, validates candidate fit, and influences stakeholder feedback. | Asked for clearer role requirements and next-step ownership.",
     "createdAt": "2026-05-15T13:27:48Z",
     "customer": "Atlas AI Health",
     "domain": "dev",
@@ -81,11 +189,47 @@
     "what": "Healthcare Technology demo relationship for AI Workflow Engineer.",
     "when": "2026-05-11T00:00",
     "where": "Microsoft Teams",
-    "why": "Scenario: Onboarding pending."
+    "why": "Scenario: Onboarding pending.",
+    "phone": "303-413-1104",
+    "teamMembers": [
+      {
+        "id": "CRM-DEMO-DEV-04-decision-maker",
+        "name": "Atlas AI Health Sponsor",
+        "relationshipRole": "Decision Maker",
+        "email": "sponsor@atlas-ai-health.example",
+        "phone": "303-413-1104",
+        "title": "Executive Sponsor",
+        "jobTitle": "Executive Sponsor",
+        "description": "Owns the business outcome and approves shortlist movement.",
+        "lastConversation": "2026-05-11T00:00"
+      },
+      {
+        "id": "CRM-DEMO-DEV-04-buyer",
+        "name": "Sam Patel",
+        "relationshipRole": "Technical Reviewer",
+        "email": "sam.patel@atlas.ai.health.example",
+        "phone": "303-413-1105",
+        "title": "Technical Reviewer",
+        "jobTitle": "Technical Reviewer",
+        "description": "Coordinates commercial approval, contract details, and follow-up timing.",
+        "lastConversation": "Needs rate and scope confirmation before the next step."
+      },
+      {
+        "id": "CRM-DEMO-DEV-04-influencer",
+        "name": "Avery Johnson",
+        "relationshipRole": "Buyer",
+        "email": "avery.johnson@atlas.ai.health.example",
+        "phone": "303-413-1106",
+        "title": "Procurement Lead",
+        "jobTitle": "Procurement Lead",
+        "description": "Shapes requirements, validates candidate fit, and influences stakeholder feedback.",
+        "lastConversation": "Asked for clearer role requirements and next-step ownership."
+      }
+    ]
   },
   {
     "contact": "Atlas AI Health Sponsor",
-    "contacts": "Atlas AI Health Sponsor, sponsor@atlas-ai-health.example",
+    "contacts": "Atlas AI Health Sponsor | Decision Maker | sponsor@atlas-ai-health.example | 303-414-1105 | Executive Sponsor | Owns the business outcome and approves shortlist movement. | 2026-05-10T00:00\nAvery Johnson | Buyer | avery.johnson@atlas.ai.health.example | 303-414-1106 | Procurement Lead | Coordinates commercial approval, contract details, and follow-up timing. | Needs rate and scope confirmation before the next step.\nMorgan Lee | Influencer | morgan.lee@atlas.ai.health.example | 303-414-1107 | Operations Partner | Shapes requirements, validates candidate fit, and influences stakeholder feedback. | Asked for clearer role requirements and next-step ownership.",
     "createdAt": "2026-05-15T13:27:48Z",
     "customer": "Atlas AI Health",
     "domain": "dev",
@@ -102,11 +246,47 @@
     "what": "Healthcare Technology demo relationship for AI Workflow Engineer.",
     "when": "2026-05-10T00:00",
     "where": "Microsoft Teams",
-    "why": "Scenario: Exam retry."
+    "why": "Scenario: Exam retry.",
+    "phone": "303-414-1105",
+    "teamMembers": [
+      {
+        "id": "CRM-DEMO-DEV-05-decision-maker",
+        "name": "Atlas AI Health Sponsor",
+        "relationshipRole": "Decision Maker",
+        "email": "sponsor@atlas-ai-health.example",
+        "phone": "303-414-1105",
+        "title": "Executive Sponsor",
+        "jobTitle": "Executive Sponsor",
+        "description": "Owns the business outcome and approves shortlist movement.",
+        "lastConversation": "2026-05-10T00:00"
+      },
+      {
+        "id": "CRM-DEMO-DEV-05-buyer",
+        "name": "Avery Johnson",
+        "relationshipRole": "Buyer",
+        "email": "avery.johnson@atlas.ai.health.example",
+        "phone": "303-414-1106",
+        "title": "Procurement Lead",
+        "jobTitle": "Procurement Lead",
+        "description": "Coordinates commercial approval, contract details, and follow-up timing.",
+        "lastConversation": "Needs rate and scope confirmation before the next step."
+      },
+      {
+        "id": "CRM-DEMO-DEV-05-influencer",
+        "name": "Morgan Lee",
+        "relationshipRole": "Influencer",
+        "email": "morgan.lee@atlas.ai.health.example",
+        "phone": "303-414-1107",
+        "title": "Operations Partner",
+        "jobTitle": "Operations Partner",
+        "description": "Shapes requirements, validates candidate fit, and influences stakeholder feedback.",
+        "lastConversation": "Asked for clearer role requirements and next-step ownership."
+      }
+    ]
   },
   {
     "contact": "Summit Grid Works Sponsor",
-    "contacts": "Summit Grid Works Sponsor, sponsor@summit-grid-works.example",
+    "contacts": "Summit Grid Works Sponsor | Decision Maker | sponsor@summit-grid-works.example | 555-415-1106 | Executive Sponsor | Owns the business outcome and approves shortlist movement. | 2026-05-14T00:00\nMorgan Lee | Influencer | morgan.lee@summit.grid.works.example | 555-415-1107 | Operations Partner | Coordinates commercial approval, contract details, and follow-up timing. | Needs rate and scope confirmation before the next step.\nRiley Chen | Finance | riley.chen@summit.grid.works.example | 555-415-1108 | Finance Reviewer | Shapes requirements, validates candidate fit, and influences stakeholder feedback. | Asked for clearer role requirements and next-step ownership.",
     "createdAt": "2026-05-15T13:27:48Z",
     "customer": "Summit Grid Works",
     "domain": "engineer",
@@ -123,11 +303,47 @@
     "what": "Renewable Infrastructure demo relationship for Field Controls Engineer.",
     "when": "2026-05-14T00:00",
     "where": "Microsoft Teams",
-    "why": "Scenario: A-Z complete."
+    "why": "Scenario: A-Z complete.",
+    "phone": "555-415-1106",
+    "teamMembers": [
+      {
+        "id": "CRM-DEMO-ENGINEER-01-decision-maker",
+        "name": "Summit Grid Works Sponsor",
+        "relationshipRole": "Decision Maker",
+        "email": "sponsor@summit-grid-works.example",
+        "phone": "555-415-1106",
+        "title": "Executive Sponsor",
+        "jobTitle": "Executive Sponsor",
+        "description": "Owns the business outcome and approves shortlist movement.",
+        "lastConversation": "2026-05-14T00:00"
+      },
+      {
+        "id": "CRM-DEMO-ENGINEER-01-buyer",
+        "name": "Morgan Lee",
+        "relationshipRole": "Influencer",
+        "email": "morgan.lee@summit.grid.works.example",
+        "phone": "555-415-1107",
+        "title": "Operations Partner",
+        "jobTitle": "Operations Partner",
+        "description": "Coordinates commercial approval, contract details, and follow-up timing.",
+        "lastConversation": "Needs rate and scope confirmation before the next step."
+      },
+      {
+        "id": "CRM-DEMO-ENGINEER-01-influencer",
+        "name": "Riley Chen",
+        "relationshipRole": "Finance",
+        "email": "riley.chen@summit.grid.works.example",
+        "phone": "555-415-1108",
+        "title": "Finance Reviewer",
+        "jobTitle": "Finance Reviewer",
+        "description": "Shapes requirements, validates candidate fit, and influences stakeholder feedback.",
+        "lastConversation": "Asked for clearer role requirements and next-step ownership."
+      }
+    ]
   },
   {
     "contact": "Summit Grid Works Sponsor",
-    "contacts": "Summit Grid Works Sponsor, sponsor@summit-grid-works.example",
+    "contacts": "Summit Grid Works Sponsor | Decision Maker | sponsor@summit-grid-works.example | 555-416-1107 | Executive Sponsor | Owns the business outcome and approves shortlist movement. | 2026-05-13T00:00\nRiley Chen | Finance | riley.chen@summit.grid.works.example | 555-416-1108 | Finance Reviewer | Coordinates commercial approval, contract details, and follow-up timing. | Needs rate and scope confirmation before the next step.\nSam Patel | Technical Reviewer | sam.patel@summit.grid.works.example | 555-416-1109 | Technical Reviewer | Shapes requirements, validates candidate fit, and influences stakeholder feedback. | Asked for clearer role requirements and next-step ownership.",
     "createdAt": "2026-05-15T13:27:48Z",
     "customer": "Summit Grid Works",
     "domain": "engineer",
@@ -144,11 +360,47 @@
     "what": "Renewable Infrastructure demo relationship for Field Controls Engineer.",
     "when": "2026-05-13T00:00",
     "where": "Microsoft Teams",
-    "why": "Scenario: Pending invite review."
+    "why": "Scenario: Pending invite review.",
+    "phone": "555-416-1107",
+    "teamMembers": [
+      {
+        "id": "CRM-DEMO-ENGINEER-02-decision-maker",
+        "name": "Summit Grid Works Sponsor",
+        "relationshipRole": "Decision Maker",
+        "email": "sponsor@summit-grid-works.example",
+        "phone": "555-416-1107",
+        "title": "Executive Sponsor",
+        "jobTitle": "Executive Sponsor",
+        "description": "Owns the business outcome and approves shortlist movement.",
+        "lastConversation": "2026-05-13T00:00"
+      },
+      {
+        "id": "CRM-DEMO-ENGINEER-02-buyer",
+        "name": "Riley Chen",
+        "relationshipRole": "Finance",
+        "email": "riley.chen@summit.grid.works.example",
+        "phone": "555-416-1108",
+        "title": "Finance Reviewer",
+        "jobTitle": "Finance Reviewer",
+        "description": "Coordinates commercial approval, contract details, and follow-up timing.",
+        "lastConversation": "Needs rate and scope confirmation before the next step."
+      },
+      {
+        "id": "CRM-DEMO-ENGINEER-02-influencer",
+        "name": "Sam Patel",
+        "relationshipRole": "Technical Reviewer",
+        "email": "sam.patel@summit.grid.works.example",
+        "phone": "555-416-1109",
+        "title": "Technical Reviewer",
+        "jobTitle": "Technical Reviewer",
+        "description": "Shapes requirements, validates candidate fit, and influences stakeholder feedback.",
+        "lastConversation": "Asked for clearer role requirements and next-step ownership."
+      }
+    ]
   },
   {
     "contact": "Summit Grid Works Sponsor",
-    "contacts": "Summit Grid Works Sponsor, sponsor@summit-grid-works.example",
+    "contacts": "Summit Grid Works Sponsor | Decision Maker | sponsor@summit-grid-works.example | 555-417-1108 | Executive Sponsor | Owns the business outcome and approves shortlist movement. | 2026-05-12T00:00\nSam Patel | Technical Reviewer | sam.patel@summit.grid.works.example | 555-417-1109 | Technical Reviewer | Coordinates commercial approval, contract details, and follow-up timing. | Needs rate and scope confirmation before the next step.\nAvery Johnson | Buyer | avery.johnson@summit.grid.works.example | 555-417-1110 | Procurement Lead | Shapes requirements, validates candidate fit, and influences stakeholder feedback. | Asked for clearer role requirements and next-step ownership.",
     "createdAt": "2026-05-15T13:27:48Z",
     "customer": "Summit Grid Works",
     "domain": "engineer",
@@ -165,11 +417,47 @@
     "what": "Renewable Infrastructure demo relationship for Field Controls Engineer.",
     "when": "2026-05-12T00:00",
     "where": "Microsoft Teams",
-    "why": "Scenario: Invite sent."
+    "why": "Scenario: Invite sent.",
+    "phone": "555-417-1108",
+    "teamMembers": [
+      {
+        "id": "CRM-DEMO-ENGINEER-03-decision-maker",
+        "name": "Summit Grid Works Sponsor",
+        "relationshipRole": "Decision Maker",
+        "email": "sponsor@summit-grid-works.example",
+        "phone": "555-417-1108",
+        "title": "Executive Sponsor",
+        "jobTitle": "Executive Sponsor",
+        "description": "Owns the business outcome and approves shortlist movement.",
+        "lastConversation": "2026-05-12T00:00"
+      },
+      {
+        "id": "CRM-DEMO-ENGINEER-03-buyer",
+        "name": "Sam Patel",
+        "relationshipRole": "Technical Reviewer",
+        "email": "sam.patel@summit.grid.works.example",
+        "phone": "555-417-1109",
+        "title": "Technical Reviewer",
+        "jobTitle": "Technical Reviewer",
+        "description": "Coordinates commercial approval, contract details, and follow-up timing.",
+        "lastConversation": "Needs rate and scope confirmation before the next step."
+      },
+      {
+        "id": "CRM-DEMO-ENGINEER-03-influencer",
+        "name": "Avery Johnson",
+        "relationshipRole": "Buyer",
+        "email": "avery.johnson@summit.grid.works.example",
+        "phone": "555-417-1110",
+        "title": "Procurement Lead",
+        "jobTitle": "Procurement Lead",
+        "description": "Shapes requirements, validates candidate fit, and influences stakeholder feedback.",
+        "lastConversation": "Asked for clearer role requirements and next-step ownership."
+      }
+    ]
   },
   {
     "contact": "Summit Grid Works Sponsor",
-    "contacts": "Summit Grid Works Sponsor, sponsor@summit-grid-works.example",
+    "contacts": "Summit Grid Works Sponsor | Decision Maker | sponsor@summit-grid-works.example | 555-418-1109 | Executive Sponsor | Owns the business outcome and approves shortlist movement. | 2026-05-11T00:00\nAvery Johnson | Buyer | avery.johnson@summit.grid.works.example | 555-418-1110 | Procurement Lead | Coordinates commercial approval, contract details, and follow-up timing. | Needs rate and scope confirmation before the next step.\nMorgan Lee | Influencer | morgan.lee@summit.grid.works.example | 555-418-1111 | Operations Partner | Shapes requirements, validates candidate fit, and influences stakeholder feedback. | Asked for clearer role requirements and next-step ownership.",
     "createdAt": "2026-05-15T13:27:48Z",
     "customer": "Summit Grid Works",
     "domain": "engineer",
@@ -186,11 +474,47 @@
     "what": "Renewable Infrastructure demo relationship for Field Controls Engineer.",
     "when": "2026-05-11T00:00",
     "where": "Microsoft Teams",
-    "why": "Scenario: Onboarding pending."
+    "why": "Scenario: Onboarding pending.",
+    "phone": "555-418-1109",
+    "teamMembers": [
+      {
+        "id": "CRM-DEMO-ENGINEER-04-decision-maker",
+        "name": "Summit Grid Works Sponsor",
+        "relationshipRole": "Decision Maker",
+        "email": "sponsor@summit-grid-works.example",
+        "phone": "555-418-1109",
+        "title": "Executive Sponsor",
+        "jobTitle": "Executive Sponsor",
+        "description": "Owns the business outcome and approves shortlist movement.",
+        "lastConversation": "2026-05-11T00:00"
+      },
+      {
+        "id": "CRM-DEMO-ENGINEER-04-buyer",
+        "name": "Avery Johnson",
+        "relationshipRole": "Buyer",
+        "email": "avery.johnson@summit.grid.works.example",
+        "phone": "555-418-1110",
+        "title": "Procurement Lead",
+        "jobTitle": "Procurement Lead",
+        "description": "Coordinates commercial approval, contract details, and follow-up timing.",
+        "lastConversation": "Needs rate and scope confirmation before the next step."
+      },
+      {
+        "id": "CRM-DEMO-ENGINEER-04-influencer",
+        "name": "Morgan Lee",
+        "relationshipRole": "Influencer",
+        "email": "morgan.lee@summit.grid.works.example",
+        "phone": "555-418-1111",
+        "title": "Operations Partner",
+        "jobTitle": "Operations Partner",
+        "description": "Shapes requirements, validates candidate fit, and influences stakeholder feedback.",
+        "lastConversation": "Asked for clearer role requirements and next-step ownership."
+      }
+    ]
   },
   {
     "contact": "Summit Grid Works Sponsor",
-    "contacts": "Summit Grid Works Sponsor, sponsor@summit-grid-works.example",
+    "contacts": "Summit Grid Works Sponsor | Decision Maker | sponsor@summit-grid-works.example | 555-419-1110 | Executive Sponsor | Owns the business outcome and approves shortlist movement. | 2026-05-10T00:00\nMorgan Lee | Influencer | morgan.lee@summit.grid.works.example | 555-419-1111 | Operations Partner | Coordinates commercial approval, contract details, and follow-up timing. | Needs rate and scope confirmation before the next step.\nRiley Chen | Finance | riley.chen@summit.grid.works.example | 555-419-1112 | Finance Reviewer | Shapes requirements, validates candidate fit, and influences stakeholder feedback. | Asked for clearer role requirements and next-step ownership.",
     "createdAt": "2026-05-15T13:27:48Z",
     "customer": "Summit Grid Works",
     "domain": "engineer",
@@ -207,11 +531,47 @@
     "what": "Renewable Infrastructure demo relationship for Field Controls Engineer.",
     "when": "2026-05-10T00:00",
     "where": "Microsoft Teams",
-    "why": "Scenario: Exam retry."
+    "why": "Scenario: Exam retry.",
+    "phone": "555-419-1110",
+    "teamMembers": [
+      {
+        "id": "CRM-DEMO-ENGINEER-05-decision-maker",
+        "name": "Summit Grid Works Sponsor",
+        "relationshipRole": "Decision Maker",
+        "email": "sponsor@summit-grid-works.example",
+        "phone": "555-419-1110",
+        "title": "Executive Sponsor",
+        "jobTitle": "Executive Sponsor",
+        "description": "Owns the business outcome and approves shortlist movement.",
+        "lastConversation": "2026-05-10T00:00"
+      },
+      {
+        "id": "CRM-DEMO-ENGINEER-05-buyer",
+        "name": "Morgan Lee",
+        "relationshipRole": "Influencer",
+        "email": "morgan.lee@summit.grid.works.example",
+        "phone": "555-419-1111",
+        "title": "Operations Partner",
+        "jobTitle": "Operations Partner",
+        "description": "Coordinates commercial approval, contract details, and follow-up timing.",
+        "lastConversation": "Needs rate and scope confirmation before the next step."
+      },
+      {
+        "id": "CRM-DEMO-ENGINEER-05-influencer",
+        "name": "Riley Chen",
+        "relationshipRole": "Finance",
+        "email": "riley.chen@summit.grid.works.example",
+        "phone": "555-419-1112",
+        "title": "Finance Reviewer",
+        "jobTitle": "Finance Reviewer",
+        "description": "Shapes requirements, validates candidate fit, and influences stakeholder feedback.",
+        "lastConversation": "Asked for clearer role requirements and next-step ownership."
+      }
+    ]
   },
   {
     "contact": "Civic Harbor Legal Sponsor",
-    "contacts": "Civic Harbor Legal Sponsor, sponsor@civic-harbor-legal.example",
+    "contacts": "Civic Harbor Legal Sponsor | Decision Maker | sponsor@civic-harbor-legal.example | 720-420-1111 | Executive Sponsor | Owns the business outcome and approves shortlist movement. | 2026-05-14T00:00\nRiley Chen | Finance | riley.chen@civic.harbor.legal.example | 720-420-1112 | Finance Reviewer | Coordinates commercial approval, contract details, and follow-up timing. | Needs rate and scope confirmation before the next step.\nSam Patel | Technical Reviewer | sam.patel@civic.harbor.legal.example | 720-420-1113 | Technical Reviewer | Shapes requirements, validates candidate fit, and influences stakeholder feedback. | Asked for clearer role requirements and next-step ownership.",
     "createdAt": "2026-05-15T13:27:48Z",
     "customer": "Civic Harbor Legal",
     "domain": "law",
@@ -228,11 +588,47 @@
     "what": "Legal Operations demo relationship for Legal Operations Analyst.",
     "when": "2026-05-14T00:00",
     "where": "Microsoft Teams",
-    "why": "Scenario: A-Z complete."
+    "why": "Scenario: A-Z complete.",
+    "phone": "720-420-1111",
+    "teamMembers": [
+      {
+        "id": "CRM-DEMO-LAW-01-decision-maker",
+        "name": "Civic Harbor Legal Sponsor",
+        "relationshipRole": "Decision Maker",
+        "email": "sponsor@civic-harbor-legal.example",
+        "phone": "720-420-1111",
+        "title": "Executive Sponsor",
+        "jobTitle": "Executive Sponsor",
+        "description": "Owns the business outcome and approves shortlist movement.",
+        "lastConversation": "2026-05-14T00:00"
+      },
+      {
+        "id": "CRM-DEMO-LAW-01-buyer",
+        "name": "Riley Chen",
+        "relationshipRole": "Finance",
+        "email": "riley.chen@civic.harbor.legal.example",
+        "phone": "720-420-1112",
+        "title": "Finance Reviewer",
+        "jobTitle": "Finance Reviewer",
+        "description": "Coordinates commercial approval, contract details, and follow-up timing.",
+        "lastConversation": "Needs rate and scope confirmation before the next step."
+      },
+      {
+        "id": "CRM-DEMO-LAW-01-influencer",
+        "name": "Sam Patel",
+        "relationshipRole": "Technical Reviewer",
+        "email": "sam.patel@civic.harbor.legal.example",
+        "phone": "720-420-1113",
+        "title": "Technical Reviewer",
+        "jobTitle": "Technical Reviewer",
+        "description": "Shapes requirements, validates candidate fit, and influences stakeholder feedback.",
+        "lastConversation": "Asked for clearer role requirements and next-step ownership."
+      }
+    ]
   },
   {
     "contact": "Civic Harbor Legal Sponsor",
-    "contacts": "Civic Harbor Legal Sponsor, sponsor@civic-harbor-legal.example",
+    "contacts": "Civic Harbor Legal Sponsor | Decision Maker | sponsor@civic-harbor-legal.example | 720-421-1112 | Executive Sponsor | Owns the business outcome and approves shortlist movement. | 2026-05-13T00:00\nSam Patel | Technical Reviewer | sam.patel@civic.harbor.legal.example | 720-421-1113 | Technical Reviewer | Coordinates commercial approval, contract details, and follow-up timing. | Needs rate and scope confirmation before the next step.\nAvery Johnson | Buyer | avery.johnson@civic.harbor.legal.example | 720-421-1114 | Procurement Lead | Shapes requirements, validates candidate fit, and influences stakeholder feedback. | Asked for clearer role requirements and next-step ownership.",
     "createdAt": "2026-05-15T13:27:48Z",
     "customer": "Civic Harbor Legal",
     "domain": "law",
@@ -249,11 +645,47 @@
     "what": "Legal Operations demo relationship for Legal Operations Analyst.",
     "when": "2026-05-13T00:00",
     "where": "Microsoft Teams",
-    "why": "Scenario: Pending invite review."
+    "why": "Scenario: Pending invite review.",
+    "phone": "720-421-1112",
+    "teamMembers": [
+      {
+        "id": "CRM-DEMO-LAW-02-decision-maker",
+        "name": "Civic Harbor Legal Sponsor",
+        "relationshipRole": "Decision Maker",
+        "email": "sponsor@civic-harbor-legal.example",
+        "phone": "720-421-1112",
+        "title": "Executive Sponsor",
+        "jobTitle": "Executive Sponsor",
+        "description": "Owns the business outcome and approves shortlist movement.",
+        "lastConversation": "2026-05-13T00:00"
+      },
+      {
+        "id": "CRM-DEMO-LAW-02-buyer",
+        "name": "Sam Patel",
+        "relationshipRole": "Technical Reviewer",
+        "email": "sam.patel@civic.harbor.legal.example",
+        "phone": "720-421-1113",
+        "title": "Technical Reviewer",
+        "jobTitle": "Technical Reviewer",
+        "description": "Coordinates commercial approval, contract details, and follow-up timing.",
+        "lastConversation": "Needs rate and scope confirmation before the next step."
+      },
+      {
+        "id": "CRM-DEMO-LAW-02-influencer",
+        "name": "Avery Johnson",
+        "relationshipRole": "Buyer",
+        "email": "avery.johnson@civic.harbor.legal.example",
+        "phone": "720-421-1114",
+        "title": "Procurement Lead",
+        "jobTitle": "Procurement Lead",
+        "description": "Shapes requirements, validates candidate fit, and influences stakeholder feedback.",
+        "lastConversation": "Asked for clearer role requirements and next-step ownership."
+      }
+    ]
   },
   {
     "contact": "Civic Harbor Legal Sponsor",
-    "contacts": "Civic Harbor Legal Sponsor, sponsor@civic-harbor-legal.example",
+    "contacts": "Civic Harbor Legal Sponsor | Decision Maker | sponsor@civic-harbor-legal.example | 720-422-1113 | Executive Sponsor | Owns the business outcome and approves shortlist movement. | 2026-05-12T00:00\nAvery Johnson | Buyer | avery.johnson@civic.harbor.legal.example | 720-422-1114 | Procurement Lead | Coordinates commercial approval, contract details, and follow-up timing. | Needs rate and scope confirmation before the next step.\nMorgan Lee | Influencer | morgan.lee@civic.harbor.legal.example | 720-422-1115 | Operations Partner | Shapes requirements, validates candidate fit, and influences stakeholder feedback. | Asked for clearer role requirements and next-step ownership.",
     "createdAt": "2026-05-15T13:27:48Z",
     "customer": "Civic Harbor Legal",
     "domain": "law",
@@ -270,11 +702,47 @@
     "what": "Legal Operations demo relationship for Legal Operations Analyst.",
     "when": "2026-05-12T00:00",
     "where": "Microsoft Teams",
-    "why": "Scenario: Invite sent."
+    "why": "Scenario: Invite sent.",
+    "phone": "720-422-1113",
+    "teamMembers": [
+      {
+        "id": "CRM-DEMO-LAW-03-decision-maker",
+        "name": "Civic Harbor Legal Sponsor",
+        "relationshipRole": "Decision Maker",
+        "email": "sponsor@civic-harbor-legal.example",
+        "phone": "720-422-1113",
+        "title": "Executive Sponsor",
+        "jobTitle": "Executive Sponsor",
+        "description": "Owns the business outcome and approves shortlist movement.",
+        "lastConversation": "2026-05-12T00:00"
+      },
+      {
+        "id": "CRM-DEMO-LAW-03-buyer",
+        "name": "Avery Johnson",
+        "relationshipRole": "Buyer",
+        "email": "avery.johnson@civic.harbor.legal.example",
+        "phone": "720-422-1114",
+        "title": "Procurement Lead",
+        "jobTitle": "Procurement Lead",
+        "description": "Coordinates commercial approval, contract details, and follow-up timing.",
+        "lastConversation": "Needs rate and scope confirmation before the next step."
+      },
+      {
+        "id": "CRM-DEMO-LAW-03-influencer",
+        "name": "Morgan Lee",
+        "relationshipRole": "Influencer",
+        "email": "morgan.lee@civic.harbor.legal.example",
+        "phone": "720-422-1115",
+        "title": "Operations Partner",
+        "jobTitle": "Operations Partner",
+        "description": "Shapes requirements, validates candidate fit, and influences stakeholder feedback.",
+        "lastConversation": "Asked for clearer role requirements and next-step ownership."
+      }
+    ]
   },
   {
     "contact": "Civic Harbor Legal Sponsor",
-    "contacts": "Civic Harbor Legal Sponsor, sponsor@civic-harbor-legal.example",
+    "contacts": "Civic Harbor Legal Sponsor | Decision Maker | sponsor@civic-harbor-legal.example | 720-423-1114 | Executive Sponsor | Owns the business outcome and approves shortlist movement. | 2026-05-11T00:00\nMorgan Lee | Influencer | morgan.lee@civic.harbor.legal.example | 720-423-1115 | Operations Partner | Coordinates commercial approval, contract details, and follow-up timing. | Needs rate and scope confirmation before the next step.\nRiley Chen | Finance | riley.chen@civic.harbor.legal.example | 720-423-1116 | Finance Reviewer | Shapes requirements, validates candidate fit, and influences stakeholder feedback. | Asked for clearer role requirements and next-step ownership.",
     "createdAt": "2026-05-15T13:27:48Z",
     "customer": "Civic Harbor Legal",
     "domain": "law",
@@ -291,11 +759,47 @@
     "what": "Legal Operations demo relationship for Legal Operations Analyst.",
     "when": "2026-05-11T00:00",
     "where": "Microsoft Teams",
-    "why": "Scenario: Onboarding pending."
+    "why": "Scenario: Onboarding pending.",
+    "phone": "720-423-1114",
+    "teamMembers": [
+      {
+        "id": "CRM-DEMO-LAW-04-decision-maker",
+        "name": "Civic Harbor Legal Sponsor",
+        "relationshipRole": "Decision Maker",
+        "email": "sponsor@civic-harbor-legal.example",
+        "phone": "720-423-1114",
+        "title": "Executive Sponsor",
+        "jobTitle": "Executive Sponsor",
+        "description": "Owns the business outcome and approves shortlist movement.",
+        "lastConversation": "2026-05-11T00:00"
+      },
+      {
+        "id": "CRM-DEMO-LAW-04-buyer",
+        "name": "Morgan Lee",
+        "relationshipRole": "Influencer",
+        "email": "morgan.lee@civic.harbor.legal.example",
+        "phone": "720-423-1115",
+        "title": "Operations Partner",
+        "jobTitle": "Operations Partner",
+        "description": "Coordinates commercial approval, contract details, and follow-up timing.",
+        "lastConversation": "Needs rate and scope confirmation before the next step."
+      },
+      {
+        "id": "CRM-DEMO-LAW-04-influencer",
+        "name": "Riley Chen",
+        "relationshipRole": "Finance",
+        "email": "riley.chen@civic.harbor.legal.example",
+        "phone": "720-423-1116",
+        "title": "Finance Reviewer",
+        "jobTitle": "Finance Reviewer",
+        "description": "Shapes requirements, validates candidate fit, and influences stakeholder feedback.",
+        "lastConversation": "Asked for clearer role requirements and next-step ownership."
+      }
+    ]
   },
   {
     "contact": "Civic Harbor Legal Sponsor",
-    "contacts": "Civic Harbor Legal Sponsor, sponsor@civic-harbor-legal.example",
+    "contacts": "Civic Harbor Legal Sponsor | Decision Maker | sponsor@civic-harbor-legal.example | 720-424-1115 | Executive Sponsor | Owns the business outcome and approves shortlist movement. | 2026-05-10T00:00\nRiley Chen | Finance | riley.chen@civic.harbor.legal.example | 720-424-1116 | Finance Reviewer | Coordinates commercial approval, contract details, and follow-up timing. | Needs rate and scope confirmation before the next step.\nSam Patel | Technical Reviewer | sam.patel@civic.harbor.legal.example | 720-424-1117 | Technical Reviewer | Shapes requirements, validates candidate fit, and influences stakeholder feedback. | Asked for clearer role requirements and next-step ownership.",
     "createdAt": "2026-05-15T13:27:48Z",
     "customer": "Civic Harbor Legal",
     "domain": "law",
@@ -312,6 +816,42 @@
     "what": "Legal Operations demo relationship for Legal Operations Analyst.",
     "when": "2026-05-10T00:00",
     "where": "Microsoft Teams",
-    "why": "Scenario: Exam retry."
+    "why": "Scenario: Exam retry.",
+    "phone": "720-424-1115",
+    "teamMembers": [
+      {
+        "id": "CRM-DEMO-LAW-05-decision-maker",
+        "name": "Civic Harbor Legal Sponsor",
+        "relationshipRole": "Decision Maker",
+        "email": "sponsor@civic-harbor-legal.example",
+        "phone": "720-424-1115",
+        "title": "Executive Sponsor",
+        "jobTitle": "Executive Sponsor",
+        "description": "Owns the business outcome and approves shortlist movement.",
+        "lastConversation": "2026-05-10T00:00"
+      },
+      {
+        "id": "CRM-DEMO-LAW-05-buyer",
+        "name": "Riley Chen",
+        "relationshipRole": "Finance",
+        "email": "riley.chen@civic.harbor.legal.example",
+        "phone": "720-424-1116",
+        "title": "Finance Reviewer",
+        "jobTitle": "Finance Reviewer",
+        "description": "Coordinates commercial approval, contract details, and follow-up timing.",
+        "lastConversation": "Needs rate and scope confirmation before the next step."
+      },
+      {
+        "id": "CRM-DEMO-LAW-05-influencer",
+        "name": "Sam Patel",
+        "relationshipRole": "Technical Reviewer",
+        "email": "sam.patel@civic.harbor.legal.example",
+        "phone": "720-424-1117",
+        "title": "Technical Reviewer",
+        "jobTitle": "Technical Reviewer",
+        "description": "Shapes requirements, validates candidate fit, and influences stakeholder feedback.",
+        "lastConversation": "Asked for clearer role requirements and next-step ownership."
+      }
+    ]
   }
 ]

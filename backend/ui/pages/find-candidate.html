@@ -639,6 +639,8 @@
               .join("");
           if (savedJdId && (jds || []).some((j) => String(j.jd_id) === String(savedJdId))) {
             picker.value = savedJdId;
+            const saved = (jds || []).find((j) => String(j.jd_id) === String(savedJdId));
+            if (saved) rememberLoadedJob(savedJdId, saved);
           }
           const jdCount = (jds || []).length;
           status.textContent = activeJobId()
@@ -662,8 +664,32 @@
         );
       }
 
+      function rememberLoadedJob(jdId, jd = {}) {
+        if (!jdId) return;
+        const jobTitle = jd.title || "";
+        const jobCompany = jd.company || "";
+        const skillValues = Array.isArray(jd.skills)
+          ? jd.skills
+          : Array.isArray(jd.jd_skills)
+            ? jd.jd_skills
+            : Array.isArray(jd.skillList)
+              ? jd.skillList
+              : [];
+        const jobSkills = skillValues.filter(Boolean).join(", ");
+        sessionStorage.setItem("jobID", jdId);
+        sessionStorage.setItem("jobId", jdId);
+        sessionStorage.setItem("selectedJdId", jdId);
+        sessionStorage.setItem("jdId", jdId);
+        if (jobCompany) sessionStorage.setItem("jobCompany", jobCompany);
+        if (jobTitle) sessionStorage.setItem("jobTitle", jobTitle);
+        if (jobSkills) sessionStorage.setItem("jobSkills", jobSkills);
+        sessionStorage.setItem("jobDomain", sessionStorage.getItem("domain") || "dev");
+        sessionStorage.setItem("activeJobLoadedAt", new Date().toISOString());
+        if (typeof updateJob === "function") updateJob();
+      }
+
       function clearLoadedJobDescription() {
-        ["jobID", "jobId", "selectedJdId", "jdId", "jobCompany", "jobTitle", "jobSkills"].forEach((key) =>
+        ["jobID", "jobId", "selectedJdId", "jdId", "jobCompany", "jobTitle", "jobSkills", "jobDomain", "activeJobLoadedAt"].forEach((key) =>
           sessionStorage.removeItem(key),
         );
         const picker = document.getElementById("jdSelect");
@@ -715,17 +741,14 @@
               ? jd.skillList.filter(Boolean).join(", ")
             : "";
 
-          sessionStorage.setItem("jobID", picker.value);
-          sessionStorage.setItem("jobId", picker.value);
-          sessionStorage.setItem("selectedJdId", picker.value);
-          sessionStorage.setItem("jdId", picker.value);
-          sessionStorage.setItem("jobCompany", jobCompany);
-          sessionStorage.setItem("jobTitle", jobTitle);
-          sessionStorage.setItem("jobSkills", jobSkills);
+          rememberLoadedJob(picker.value, {
+            company: jobCompany,
+            title: jobTitle,
+            skills: jobSkills ? jobSkills.split(",").map((skill) => skill.trim()).filter(Boolean) : [],
+          });
           document.getElementById("findSearchBar").value = "";
           status.textContent = `Loaded ${jobCompany ? jobCompany + " - " : ""}${jobTitle || "job description"} for this process.`;
           updateMatchModeUI();
-          if (typeof updateJob === "function") updateJob();
         } catch (error) {
           status.textContent =
             `Load failed: ${error.message || error}. This JD may be deleted or saved under another domain.`;

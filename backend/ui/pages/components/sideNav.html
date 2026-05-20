@@ -14,6 +14,14 @@
     box-shadow: none;
   }
 
+  #pageNavInner .nav-group.nav-nested {
+    display: grid;
+    gap: 1px;
+    margin: 2px 0 4px;
+    padding: 2px 0 2px 8px;
+    border-left: 1px solid rgba(255, 255, 255, 0.14);
+  }
+
   #pageNavInner a,
   #pageNavInner a.nav-talent,
   #pageNavInner a.nav-find-in,
@@ -21,9 +29,14 @@
   #pageNavInner a.nav-profiles,
   #pageNavInner a.nav-jds,
   #pageNavInner a.crm-link,
+  #pageNavInner a.sales-crm-link,
   #pageNavInner a.recordings-link,
   #pageNavInner a.interviews-link,
   #pageNavInner a.status-link,
+  #pageNavInner a.reports-link,
+  #pageNavInner a.accounting-link,
+  #pageNavInner a.invoices-link,
+  #pageNavInner a.onboarding-link,
   #pageNavInner a.time-link,
   #pageNavInner a.test-challenge-link,
   #pageNavInner a.ai-cert-link,
@@ -65,6 +78,42 @@
     padding-left: 18px;
   }
 
+  #pageNavInner .nav-parent {
+    min-height: 40px;
+    padding-top: 9px !important;
+    padding-bottom: 9px !important;
+  }
+
+  #pageNavInner .nav-sub {
+    min-height: 34px !important;
+    margin-left: 26px;
+    padding: 7px 10px 7px 9px !important;
+    gap: 9px !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.18) !important;
+    border-radius: 0 8px 8px 0 !important;
+    color: rgba(255, 255, 255, 0.72) !important;
+    font-size: 12px !important;
+    font-weight: 760 !important;
+  }
+
+  #pageNavInner .nav-sub .nav-icon {
+    width: 16px;
+    height: 16px;
+    flex-basis: 16px;
+    opacity: 0.74;
+  }
+
+  #pageNavInner .nav-sub:hover,
+  #pageNavInner .nav-sub.active {
+    color: #fff !important;
+    border-left-color: rgba(255, 255, 255, 0.72) !important;
+  }
+
+  #pageNavInner .nav-sub.active {
+    background: rgba(255, 255, 255, 0.18) !important;
+    box-shadow: none;
+  }
+
   #pageNavInner .nav-icon {
     width: 21px;
     height: 21px;
@@ -88,9 +137,14 @@
   #pageNavInner a.nav-profiles,
   #pageNavInner a.nav-jds,
   #pageNavInner a.crm-link,
+  #pageNavInner a.sales-crm-link,
   #pageNavInner a.recordings-link,
   #pageNavInner a.interviews-link,
   #pageNavInner a.status-link,
+  #pageNavInner a.reports-link,
+  #pageNavInner a.accounting-link,
+  #pageNavInner a.invoices-link,
+  #pageNavInner a.onboarding-link,
   #pageNavInner a.time-link,
   #pageNavInner a.test-challenge-link,
   #pageNavInner a.ai-cert-link,
@@ -183,7 +237,7 @@
     margin: 16px 12px 8px;
   }
 
-  .nav-heading span {
+  .nav-heading > span {
     color: rgba(255, 255, 255, 0.56);
     font-size: 10px;
     font-weight: 800;
@@ -191,32 +245,70 @@
   }
 
   .nav-quick-hit {
-    display: inline-grid;
-    place-items: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
     flex: 0 0 auto;
-    width: 30px;
-    height: 30px;
-    border: 1px solid rgba(255, 255, 255, 0.42);
+    min-width: 88px;
+    min-height: 38px;
+    border: 1px solid rgba(236, 206, 128, 0.82);
     border-radius: 999px;
+    padding: 5px 10px 5px 5px;
     background:
-      radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.95) 0 17%, transparent 19%),
-      rgba(255, 255, 255, 0.14);
-    color: #fff;
+      linear-gradient(135deg, rgba(255, 248, 220, 0.26), rgba(116, 143, 176, 0.4) 48%, rgba(225, 230, 238, 0.25)),
+      rgba(10, 36, 50, 0.28);
+    color: #fffdf2;
     cursor: pointer;
-    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+    font-size: 12.5px;
+    font-weight: 1000;
+    letter-spacing: 0.01em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
+    box-shadow:
+      0 10px 22px rgba(0, 0, 0, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.28);
+    transition:
+      transform 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease;
   }
 
   .nav-quick-hit:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 224, 144, 0.98);
     background:
-      radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.95) 0 17%, transparent 19%),
-      rgba(255, 255, 255, 0.24);
+      linear-gradient(135deg, rgba(255, 248, 220, 0.34), rgba(116, 143, 176, 0.48) 48%, rgba(225, 230, 238, 0.31)),
+      rgba(10, 36, 50, 0.34);
+    box-shadow:
+      0 14px 26px rgba(0, 0, 0, 0.22),
+      0 0 22px rgba(132, 160, 197, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.32);
   }
 
   .nav-quick-hit svg {
-    width: 14px;
-    height: 14px;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    border-radius: 999px;
+    padding: 5px;
+    background:
+      radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.96) 0 10%, rgba(255, 255, 255, 0.34) 11% 24%, transparent 25%),
+      conic-gradient(from 140deg, #f1d477, #a9bbcc, #4e7196, #e4e8ef, #b58d38, #f1d477);
+    box-shadow:
+      inset -5px -6px 10px rgba(24, 38, 58, 0.3),
+      inset 5px 5px 9px rgba(255, 255, 255, 0.28);
     fill: currentColor;
-    transform: translateX(1px);
+    transform: none;
+  }
+
+  .nav-quick-hit span {
+    display: inline-block;
+    color: #fffdf2;
+    font-size: 12.5px;
+    font-weight: 1000;
+    letter-spacing: 0;
+    line-height: 1;
+    white-space: nowrap;
   }
 </style>
 
@@ -231,6 +323,9 @@
     <symbol id="nav-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path><path d="M8 21h8"></path></symbol>
     <symbol id="nav-interview" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path><circle cx="9" cy="15" r="2"></circle><path d="M13 17a3 3 0 0 0-6 0"></path><path d="M14.5 14h3.5"></path><path d="M14.5 17h2.5"></path></symbol>
     <symbol id="nav-status" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M9 7h6"></path><path d="M8 12l2 2 4-5"></path><path d="M8 18h8"></path></symbol>
+    <symbol id="nav-reports" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 16V9"></path><path d="M12 16v-4"></path><path d="M16 16V7"></path><path d="M7 20h10"></path></symbol>
+    <symbol id="nav-accounting" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 7h8"></path><path d="M8 11h8"></path><path d="M8 15h4"></path><path d="M16 15h.01"></path><path d="M16 18h.01"></path><path d="M12 18h.01"></path></symbol>
+    <symbol id="nav-onboarding" viewBox="0 0 24 24"><path d="M9 4h6l1 2h3v15H5V6h3z"></path><path d="M9 12h6"></path><path d="M9 16h4"></path><path d="m8 9 1.4 1.4L12 7.8"></path></symbol>
     <symbol id="nav-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></symbol>
     <symbol id="nav-code" viewBox="0 0 24 24"><path d="m8 9-4 3 4 3"></path><path d="m16 9 4 3-4 3"></path><path d="m14 5-4 14"></path></symbol>
     <symbol id="nav-cert" viewBox="0 0 24 24"><path d="M8 3h8l4 4v14H4V3z"></path><path d="M16 3v5h4"></path><path d="M8 11h8"></path><path d="M8 15h5"></path></symbol>
@@ -245,11 +340,12 @@
       class="nav-quick-hit"
       type="button"
       onclick="window.startQuickHitFlow ? startQuickHitFlow() : alert('Quick Hit is available from workflow pages that show the Process Flow.')"
-      data-hint="Start the one-off Quick Hit AI candidate finder. Numa asks for the job, confirms each step, creates the JD, finds one best candidate, and prepares schedule/status context."
-      title="Quick Hit AI candidate finder"
-      aria-label="Quick Hit AI candidate finder"
+      data-hint="Ask Egeria to guide a quick candidate-finding workflow. She collects the job need, confirms each step, creates the job description, ranks a candidate, and prepares scheduling context."
+      title="Ask Egeria"
+      aria-label="Ask Egeria"
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M4 19a5 5 0 0 1 10 0"></path><path d="M15 11h5"></path><path d="M17.5 8.5v5"></path></svg>
+      <span>Egeria</span>
     </button>
   </div>
   <a href="find-candidate.html" class="nav-talent" data-menu-key="talent" data-hint="Go to the main talent workspace. From there you can upload a resume, search existing profiles, pick a saved job description, and start a candidate shortlist in the current domain."><svg class="nav-icon"><use href="#nav-home"></use></svg>Talent</a>
@@ -289,42 +385,65 @@
     ><svg class="nav-icon"><use href="#nav-status"></use></svg>Status</a
   >
   <a
-    href="time-admin.html"
-    class="time-link"
-    data-menu-key="time_link"
-    data-hint="Review weekly time submitted through staff time-entry links, total hours by person, and mark entries ready for HR payment processing."
-    ><svg class="nav-icon"><use href="#nav-clock"></use></svg>Time</a
+    href="reports.html"
+    class="reports-link"
+    data-menu-key="reports"
+    data-hint="Open management reports for this domain: job descriptions, profile totals, onboarding, candidate sourcing, meetings, interviews, time, and overall company status."
+    ><svg class="nav-icon"><use href="#nav-reports"></use></svg>Reports</a
   >
   <a
-    href="test-challenge.html"
-    class="test-challenge-link"
-    data-menu-key="test_challenge"
-    data-hint="Send or review a candidate coding challenge, capture the result, and attach the outcome as evidence on the candidate profile."
-    ><svg class="nav-icon"><use href="#nav-code"></use></svg>Test Challenge</a
+    href="accounting.html"
+    class="accounting-link"
+    data-menu-key="accounting"
+    data-hint="Open Accounting reports for the active domain: Balance Sheet, P&L, and Income Statement by fiscal period."
+    ><svg class="nav-icon"><use href="#nav-accounting"></use></svg>Accounting</a
   >
-  <div class="nav-group cert-nav-group" aria-label="Certification badges">
+  <div class="nav-group nav-nested finance-nav-group" aria-label="Finance and operations">
+    <a
+      href="invoices.html"
+      class="invoices-link nav-sub"
+      data-menu-key="invoices"
+      data-hint="Create and track customer invoices from approved consultant time. Select a customer, review auto-loaded consultants and daily time, then send and monitor status."
+      ><svg class="nav-icon"><use href="#nav-accounting"></use></svg>Invoices</a
+    >
+    <a
+      href="onboarding-admin.html"
+      class="onboarding-link nav-sub"
+      data-menu-key="onboarding"
+      data-hint="Create the candidate onboarding link HR sends after a hire decision, then copy or email the matching paperwork and time-entry links."
+      ><svg class="nav-icon"><use href="#nav-onboarding"></use></svg>Onboarding</a
+    >
+    <a
+      href="time-admin.html"
+      class="time-link nav-sub"
+      data-menu-key="time_link"
+      data-hint="Review weekly time submitted through staff time-entry links, total hours by person, and mark entries ready for HR payment processing."
+      ><svg class="nav-icon"><use href="#nav-clock"></use></svg>Time</a
+    >
+  </div>
+  <div class="nav-group nav-nested cert-nav-group" aria-label="Certification badges">
     <a
       href="ai-cert.html"
-      class="ai-cert-link"
+      class="ai-cert-link nav-parent"
       data-menu-key="ai_cert"
       data-hint="Launch the AI certification test for the current domain and save the passed badge back to the candidate profile."
-      ><svg class="nav-icon"><use href="#nav-cert"></use></svg>Get AI Certified</a
+      ><svg class="nav-icon"><use href="#nav-cert"></use></svg>Certification</a
+    >
+    <a
+      href="test-challenge.html"
+      class="test-challenge-link nav-sub"
+      data-menu-key="test_challenge"
+      data-hint="Send or review a candidate coding challenge, capture the result, and attach the outcome as evidence on the candidate profile."
+      ><svg class="nav-icon"><use href="#nav-code"></use></svg>Test Challenge</a
     >
     <a
       href="badge-catalog.html"
-      class="badge-catalog-link"
+      class="badge-catalog-link nav-sub"
       data-menu-key="badges"
       data-hint="Browse the badge catalog by role and level, then choose the exact certification path the candidate should attempt."
       ><svg class="nav-icon"><use href="#nav-badge"></use></svg>View Badges</a
     >
   </div>
-  <a
-    href="agents.html"
-    class="agents-link"
-    data-menu-key="agents"
-    data-hint="Unlock protected Numa/page-agent administration with the Administrator password."
-    ><svg class="nav-icon"><use href="#nav-agents"></use></svg>Agents</a
-  >
   <a
     href="https://meridian-mvp-production.up.railway.app/"
     target="_blank"
@@ -334,13 +453,22 @@
     data-hint="Open the separate Meridian app in a new browser tab. This leaves VETCODE running and does not change the current candidate or job context."
     ><svg class="nav-icon"><use href="#nav-compass"></use></svg>Meridian</a
   >
-  <a
-    href="admin.html"
-    class="admin-link"
-    data-menu-key="admin"
-    data-hint="Create and edit user accounts, decide which menu items each user can see, block access, and manage candidate login details."
-    ><svg class="nav-icon"><use href="#nav-admin"></use></svg>Admin</a
-  >
+  <div class="nav-group nav-nested admin-nav-group" aria-label="Administration">
+    <a
+      href="admin.html"
+      class="admin-link nav-parent"
+      data-menu-key="admin"
+      data-hint="Create and edit user accounts, decide which menu items each user can see, block access, and manage candidate login details."
+      ><svg class="nav-icon"><use href="#nav-admin"></use></svg>Admin</a
+    >
+    <a
+      href="agents.html"
+      class="agents-link nav-sub"
+      data-menu-key="agents"
+      data-hint="Unlock protected Numa/page-agent administration with the Administrator password."
+      ><svg class="nav-icon"><use href="#nav-agents"></use></svg>Agents</a
+    >
+  </div>
 </nav>
 
 <script>

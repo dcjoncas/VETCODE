@@ -387,12 +387,10 @@
 
           console.log(j);
 
-          // Save job info for searching
-          sessionStorage.setItem("jobID", jd_id);
-          sessionStorage.setItem("jobCompany", j.jd.company);
-          sessionStorage.setItem("jobTitle", j.jd.title);
-          sessionStorage.setItem("jobSkills", j.skillList);
-          updateJob();
+          rememberLoadedJob(jd_id, {
+            ...(j.jd || {}),
+            skillList: Array.isArray(j.skillList) ? j.skillList : [],
+          });
 
           // Normalize + re-sort defensively (in case backend returns non-100 scale)
           matchLatestRank = (j.results || []).map((r) => ({
@@ -469,6 +467,52 @@
         }
       }
 
+      function rememberLoadedJob(jdId, jd = {}) {
+        if (!jdId) return;
+        sessionStorage.setItem("jobID", jdId);
+        sessionStorage.setItem("jobId", jdId);
+        sessionStorage.setItem("selectedJdId", jdId);
+        sessionStorage.setItem("jdId", jdId);
+        if (jd.company) sessionStorage.setItem("jobCompany", jd.company);
+        if (jd.title) sessionStorage.setItem("jobTitle", jd.title);
+        const skills = Array.isArray(jd.skills)
+          ? jd.skills
+          : Array.isArray(jd.jd_skills)
+            ? jd.jd_skills
+            : Array.isArray(jd.skillList)
+              ? jd.skillList
+              : [];
+        if (skills.length) sessionStorage.setItem("jobSkills", skills.filter(Boolean).join(", "));
+        sessionStorage.setItem("jobDomain", sessionStorage.getItem("domain") || "dev");
+        sessionStorage.setItem("activeJobLoadedAt", new Date().toISOString());
+        if (typeof updateJob === "function") updateJob();
+      }
+
+      async function hydrateSavedJobSelection() {
+        const domain = sessionStorage.getItem("domain") || "dev";
+        const savedJdId =
+          sessionStorage.getItem("selectedJdId") ||
+          sessionStorage.getItem("jdId") ||
+          sessionStorage.getItem("jobId") ||
+          sessionStorage.getItem("jobID") ||
+          "";
+        if (!savedJdId) return;
+        try {
+          const jd = await api(
+            `/api/azureJobs/getJob/${encodeURIComponent(savedJdId)}?domain=${encodeURIComponent(domain)}`,
+          );
+          const label = `${jd.company ? jd.company + " — " : ""}${jd.title || savedJdId}`;
+          const option = new Option(label, savedJdId, true, true);
+          $("#jdSelect").append(option).trigger("change");
+          rememberLoadedJob(savedJdId, jd);
+          selectedJdId = savedJdId;
+          const status = document.getElementById("matchStatus");
+          if (status) status.textContent = `JD loaded: ${label}. Click Search Profiles to rank candidates.`;
+        } catch (error) {
+          console.log("Could not auto-load selected JD: " + (error.message || error));
+        }
+      }
+
       document.addEventListener("DOMContentLoaded", () => {
         let domain = sessionStorage.getItem("domain");
         if (!domain) domain = "dev";
@@ -507,6 +551,7 @@
         document
           .getElementById("jdSelect")
           .addEventListener("change", enableJDButtons);
+        hydrateSavedJobSelection();
         //refreshExistingDescriptions();
 
         /*document

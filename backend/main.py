@@ -25,12 +25,16 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 import os, shutil, traceback, json, base64, hashlib, hmac, re
 import requests
+import xml.etree.ElementTree as ET
 from typing import Optional
 from datetime import datetime, timedelta
+from urllib.parse import quote_plus
 from openAI import pageAgents
+from openAI.client import getOpenAPIClient
 from azureUtils.storage import candidates, jobs
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UI_DIR = os.path.join(BASE_DIR, "ui")
 DEVMEET_BASE_URL = os.getenv("DEVMEET_BASE_URL", "https://web-production-268c2.up.railway.app").rstrip("/")
 
 # --- v2.5.0 helpers: scorecard + interview questions ---
@@ -206,6 +210,7 @@ DEMO_FIXTURE_DIR = os.path.join(os.path.dirname(BASE_DIR), "data", "demo_lifecyc
 PROFILE_BADGES_PATH = os.path.join(DATA_DIR, "profile_badges.json")
 ONBOARDING_RECORDS_PATH = os.path.join(DATA_DIR, "onboarding_records.json")
 TIME_ENTRIES_PATH = os.path.join(DATA_DIR, "time_entries.json")
+ACCOUNTING_RECORDS_PATH = os.path.join(DATA_DIR, "accounting_records.json")
 WORKFLOW_EVENTS_PATH = os.path.join(DATA_DIR, "workflow_events.json")
 INTERVIEW_ARCHIVE_PATH = os.path.join(DATA_DIR, "interview_archive.json")
 CRM_RECORDS_PATH = os.path.join(DATA_DIR, "crm_records.json")
@@ -224,13 +229,17 @@ MENU_ITEMS = [
     {"key": "meet", "label": "Meet", "href": "meet.html"},
     {"key": "interviews", "label": "Interviews", "href": "schedule-interview.html?interview=ready"},
     {"key": "status", "label": "Status", "href": "status-tracker.html"},
+    {"key": "reports", "label": "Reports", "href": "reports.html"},
+    {"key": "accounting", "label": "Accounting", "href": "accounting.html"},
+    {"key": "invoices", "label": "Invoices", "href": "invoices.html"},
+    {"key": "onboarding", "label": "Onboarding", "href": "onboarding-admin.html"},
     {"key": "time_link", "label": "Time Link", "href": "time-admin.html"},
     {"key": "test_challenge", "label": "Test Challenge", "href": "test-challenge.html"},
-    {"key": "ai_cert", "label": "Get AI Certified", "href": "ai-cert.html"},
+    {"key": "ai_cert", "label": "Certification", "href": "ai-cert.html"},
     {"key": "badges", "label": "View Badges", "href": "badge-catalog.html"},
-    {"key": "agents", "label": "Agents", "href": "agents.html"},
     {"key": "meridian", "label": "Meridian", "href": "https://meridian-mvp-production.up.railway.app/"},
     {"key": "admin", "label": "Admin", "href": "admin.html"},
+    {"key": "agents", "label": "Agents", "href": "agents.html"},
 ]
 DEFAULT_INTERNAL_MENU = [
     "talent",
@@ -242,12 +251,17 @@ DEFAULT_INTERNAL_MENU = [
     "meet",
     "interviews",
     "status",
+    "reports",
+    "accounting",
+    "invoices",
+    "onboarding",
     "time_link",
     "test_challenge",
     "ai_cert",
     "badges",
-    "agents",
     "meridian",
+    "admin",
+    "agents",
 ]
 DEFAULT_CANDIDATE_MENU = ["test_challenge", "ai_cert", "badges"]
 SUPER_MENU = [item["key"] for item in MENU_ITEMS]
@@ -791,7 +805,7 @@ os.makedirs(DATA_DIR, exist_ok=True)
 for _db_path in DOMAIN_DB_PATHS.values():
     storage.init_db(_db_path)
 
-app.mount("/ui", StaticFiles(directory="ui", html=True), name="ui")
+app.mount("/ui", StaticFiles(directory=UI_DIR, html=True), name="ui")
 
 
 @app.get("/api/devmeet/frame", response_class=HTMLResponse)
@@ -2305,6 +2319,362 @@ def list_crm_records(domain: str = "dev", limit: int = 200):
     return {"ok": True, "records": records[: max(1, min(limit, 500))]}
 
 
+def _strip_html(value: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", str(value or ""))
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _fetch_customer_news(customer: str, location: str = "", limit: int = 8) -> tuple[str, list[dict]]:
+    terms = [f'"{customer}"']
+    if location:
+        terms.append(location)
+    terms.append("(news OR expansion OR contract OR funding OR hiring OR acquisition OR lawsuit OR leadership)")
+    query = " ".join(terms)
+    url = f"https://news.google.com/rss/search?q={quote_plus(query)}&hl=en-US&gl=US&ceid=US:en"
+    response = requests.get(
+        url,
+        timeout=12,
+        headers={"User-Agent": "VETCODE CRM news scanner/1.0"},
+    )
+    response.raise_for_status()
+    root = ET.fromstring(response.content)
+    items = []
+    for item in root.findall(".//item")[: max(1, min(limit, 12))]:
+        source = item.find("source")
+        items.append(
+            {
+                "title": _strip_html(item.findtext("title", ""))[:260],
+                "link": item.findtext("link", ""),
+                "published": item.findtext("pubDate", ""),
+                "source": _strip_html(source.text if source is not None else "")[:120],
+                "summary": _strip_html(item.findtext("description", ""))[:500],
+            }
+        )
+    return query, items
+
+
+def _summarize_customer_news(customer: str, location: str, items: list[dict]) -> dict:
+    if not items:
+        return {
+            "headline": f"No recent web/news signal found for {customer}.",
+            "highlights": [],
+            "recommended_action": "Keep the normal follow-up cadence and scan again before the next client touch.",
+            "risk_level": "low",
+        }
+    fallback_highlights = [
+        f"{item.get('title')} ({item.get('source') or 'news source'})"
+        for item in items[:3]
+        if item.get("title")
+    ]
+    try:
+        client = getOpenAPIClient()
+        payload = json.dumps(items[:8], ensure_ascii=False)
+        response = client.chat.completions.create(
+            model=os.getenv("OPENAI_AGENT_MODEL", "gpt-4o-mini"),
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a CRM research assistant. Read recent web/news search results for a customer. "
+                        "Return compact JSON with headline, highlights array, recommended_action, and risk_level "
+                        "where risk_level is low, medium, or high. Do not invent facts beyond the provided results."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"Customer: {customer}\nLocation: {location or 'not specified'}\nNews results:\n{payload}",
+                },
+            ],
+            temperature=0.2,
+        )
+        content = response.choices[0].message.content or ""
+        match = re.search(r"\{.*\}", content, re.S)
+        parsed = json.loads(match.group(0) if match else content)
+        return {
+            "headline": _safe_action_text(parsed.get("headline"), 300) or f"Recent news scan for {customer}.",
+            "highlights": [_safe_action_text(item, 260) for item in parsed.get("highlights", [])[:5]],
+            "recommended_action": _safe_action_text(parsed.get("recommended_action"), 400) or "Review the linked results before the next touch.",
+            "risk_level": _safe_action_text(parsed.get("risk_level"), 40).lower() or "low",
+        }
+    except Exception:
+        return {
+            "headline": f"Recent news scan found {len(items)} possible signal(s) for {customer}.",
+            "highlights": fallback_highlights,
+            "recommended_action": "Review the linked results and decide whether the next CRM touch should reference one of these updates.",
+            "risk_level": "medium" if fallback_highlights else "low",
+        }
+
+
+@app.post("/api/crm/news-scan")
+def scan_crm_customer_news(
+    customer: str = Form(default=""),
+    location: str = Form(default=""),
+    domain: str = Form(default="dev"),
+):
+    clean_customer = _safe_action_text(customer, 240)
+    clean_location = _safe_action_text(location, 240)
+    if not clean_customer:
+        raise HTTPException(status_code=400, detail="Customer name is required for news scan.")
+    try:
+        query, items = _fetch_customer_news(clean_customer, clean_location)
+    except Exception as exc:
+        query = " ".join([part for part in [f'"{clean_customer}"', clean_location, "news customer update"] if part])
+        items = []
+        return {
+            "ok": True,
+            "domain": _domain_key(domain),
+            "customer": clean_customer,
+            "location": clean_location,
+            "query": query,
+            "scanned_at": _now_utc(),
+            "summary": {
+                "headline": f"News scan unavailable for {clean_customer}.",
+                "highlights": [],
+                "recommended_action": f"Web news lookup could not complete: {_safe_action_text(str(exc), 220)}",
+                "risk_level": "low",
+            },
+            "items": items,
+        }
+    summary = _summarize_customer_news(clean_customer, clean_location, items)
+    return {
+        "ok": True,
+        "domain": _domain_key(domain),
+        "customer": clean_customer,
+        "location": clean_location,
+        "query": query,
+        "scanned_at": _now_utc(),
+        "summary": summary,
+        "items": items,
+    }
+
+
+def _parse_crm_datetime(value: str) -> Optional[datetime]:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(raw.replace("Z", ""), fmt)
+        except Exception:
+            continue
+    try:
+        return datetime.fromisoformat(raw.replace("Z", ""))
+    except Exception:
+        return None
+
+
+def _crm_days_since(value: str) -> int:
+    parsed = _parse_crm_datetime(value)
+    if not parsed:
+        return 999
+    return max(0, (datetime.utcnow() - parsed).days)
+
+
+def _crm_contracts(record: dict) -> list[dict]:
+    deals = record.get("deals")
+    if isinstance(deals, list) and deals:
+        contracts = []
+        for deal in deals[:10]:
+            if not isinstance(deal, dict):
+                continue
+            contracts.append(
+                {
+                    "name": deal.get("name") or deal.get("title") or record.get("dealTitle") or "Contract",
+                    "stage": deal.get("stage") or record.get("dealStage") or "Discovery",
+                    "value": deal.get("value") or record.get("value") or 0,
+                    "owner": deal.get("owner") or record.get("owner") or "",
+                    "contact": deal.get("contact") or record.get("contact") or "",
+                    "probability": deal.get("probability") or record.get("dealProbability") or 0,
+                    "close_date": deal.get("closeDate") or deal.get("close_date") or "",
+                    "notes": deal.get("notes") or "",
+                }
+            )
+        if contracts:
+            return contracts
+    return [
+        {
+            "name": record.get("dealTitle") or record.get("customer") or "Relationship contract",
+            "stage": record.get("contractStatus") or record.get("dealStage") or "Discovery",
+            "value": record.get("value") or 0,
+            "owner": record.get("owner") or "",
+            "contact": record.get("contact") or "",
+            "probability": record.get("dealProbability") or 0,
+            "close_date": record.get("closeDate") or "",
+            "notes": record.get("what") or "",
+        }
+    ]
+
+
+def _sales_todo_for_record(record: dict) -> list[dict]:
+    tasks = []
+    days = _crm_days_since(record.get("lastTouched") or record.get("when"))
+    if days >= 7:
+        tasks.append(
+            {
+                "priority": "high" if days >= 14 else "medium",
+                "type": "touch",
+                "title": f"Touch {record.get('customer') or 'account'}",
+                "reason": f"No recorded touch in {days} days.",
+                "record_id": record.get("id", ""),
+            }
+        )
+    if not _safe_action_text(record.get("nextStep"), 240):
+        tasks.append(
+            {
+                "priority": "high",
+                "type": "next_step",
+                "title": f"Set next action for {record.get('customer') or 'account'}",
+                "reason": "Main CRM needs a clear next action.",
+                "record_id": record.get("id", ""),
+            }
+        )
+    if float(record.get("value") or 0) > 100000 and days >= 3:
+        tasks.append(
+            {
+                "priority": "medium",
+                "type": "contract",
+                "title": f"Advance contract for {record.get('customer') or 'account'}",
+                "reason": "High-value contract needs visible movement.",
+                "record_id": record.get("id", ""),
+            }
+        )
+    return tasks
+
+
+@app.get("/api/sales-crm/portal")
+def sales_crm_portal(domain: str = "dev", rep: str = "", territory: str = "", limit: int = 200):
+    records = _read_json_store_with_demo(CRM_RECORDS_PATH, [])
+    if not isinstance(records, list):
+        records = []
+    clean_domain = _domain_key(domain)
+    clean_rep = _safe_action_text(rep, 120).lower()
+    clean_territory = _safe_action_text(territory, 160).lower()
+    rows = []
+    reps = {}
+    for item in records:
+        if not isinstance(item, dict):
+            continue
+        if clean_domain != "all" and _domain_key(item.get("domain", "dev")) != clean_domain:
+            continue
+        owner = _safe_action_text(item.get("owner"), 120)
+        if owner:
+            reps[owner] = reps.get(owner, 0) + 1
+        row_territory = _safe_action_text(item.get("territory") or item.get("industry") or "", 160)
+        if clean_rep and owner.lower() != clean_rep:
+            continue
+        if clean_territory:
+            haystack = " ".join(
+                [
+                    row_territory,
+                    _safe_action_text(item.get("customer"), 240),
+                    _safe_action_text(item.get("what"), 500),
+                    _safe_action_text(item.get("why"), 500),
+                ]
+            ).lower()
+            if clean_territory not in haystack:
+                continue
+        enriched = {**item}
+        enriched["territory"] = row_territory or "Unassigned territory"
+        enriched["contracts"] = _crm_contracts(item)
+        enriched["daysSinceTouch"] = _crm_days_since(item.get("lastTouched") or item.get("when"))
+        rows.append(enriched)
+    rows = sorted(rows, key=lambda item: (item.get("daysSinceTouch", 0), item.get("value") or 0), reverse=True)
+    todos = []
+    for row in rows:
+        todos.extend(_sales_todo_for_record(row))
+    return {
+        "ok": True,
+        "domain": clean_domain,
+        "rep": rep,
+        "territory": territory,
+        "reps": [{"name": name, "accounts": count} for name, count in sorted(reps.items())],
+        "records": rows[: max(1, min(limit, 500))],
+        "todos": todos[:50],
+        "summary": {
+            "accounts": len(rows),
+            "contracts": sum(len(row.get("contracts") or []) for row in rows),
+            "pipeline": round(sum(float(row.get("value") or 0) for row in rows), 2),
+            "attention": sum(1 for row in rows if row.get("daysSinceTouch", 0) >= 7 or not row.get("nextStep")),
+        },
+    }
+
+
+@app.post("/api/sales-crm/account")
+def update_sales_crm_account(
+    record_id: str = Form(default=""),
+    domain: str = Form(default="dev"),
+    rep: str = Form(default=""),
+    territory: str = Form(default=""),
+    customer: str = Form(default=""),
+    contact: str = Form(default=""),
+    email: str = Form(default=""),
+    value: str = Form(default="0"),
+    contract_status: str = Form(default=""),
+    next_step: str = Form(default=""),
+    touch_channel: str = Form(default=""),
+    touch_outcome: str = Form(default=""),
+    touch_notes: str = Form(default=""),
+):
+    records = _read_json_store(CRM_RECORDS_PATH, [])
+    if not isinstance(records, list):
+        records = []
+    clean_domain = _domain_key(domain)
+    clean_id = _safe_action_text(record_id, 120) or _safe_token("CRM-SALES")
+    now = _now_utc()
+    record = None
+    for item in records:
+        if isinstance(item, dict) and item.get("id") == clean_id:
+            record = item
+            break
+    if record is None:
+        record = {"id": clean_id, "createdAt": now, "domain": clean_domain}
+        records.insert(0, record)
+    record["domain"] = clean_domain
+    if rep:
+        record["owner"] = _safe_action_text(rep, 120)
+    if territory:
+        record["territory"] = _safe_action_text(territory, 160)
+    if customer:
+        record["customer"] = _safe_action_text(customer, 240)
+    if contact:
+        record["contact"] = _safe_action_text(contact, 240)
+    if email:
+        record["email"] = _safe_action_text(email, 240)
+    if value:
+        try:
+            record["value"] = round(float(str(value).replace(",", "").replace("$", "") or 0), 2)
+        except Exception:
+            record["value"] = record.get("value") or 0
+    if contract_status:
+        record["contractStatus"] = _safe_action_text(contract_status, 80)
+        record["dealStage"] = record["contractStatus"]
+    if next_step:
+        record["nextStep"] = _safe_action_text(next_step, 500)
+    if touch_channel or touch_outcome or touch_notes:
+        record["lastTouched"] = now[:16]
+        record["when"] = now[:16]
+        history = record.get("touchHistory") if isinstance(record.get("touchHistory"), list) else []
+        history.insert(
+            0,
+            {
+                "at": now,
+                "channel": _safe_action_text(touch_channel, 80) or "Update",
+                "outcome": _safe_action_text(touch_outcome, 160),
+                "notes": _safe_action_text(touch_notes, 1200),
+                "rep": _safe_action_text(rep, 120),
+            },
+        )
+        record["touchHistory"] = history[:50]
+        note = _safe_action_text(touch_notes, 1200)
+        if note:
+            prior = _safe_action_text(record.get("history"), 3000)
+            record["history"] = f"{now} - {note}" + (f"\n{prior}" if prior else "")
+    record["updatedAt"] = now
+    record["salesPortalUpdatedAt"] = now
+    _write_json_store(CRM_RECORDS_PATH, records)
+    return {"ok": True, "record": record}
+
+
 @app.get("/api/meetings/archive")
 def list_meeting_records(domain: str = "dev", profile_id: str = "", limit: int = 200):
     records = _read_json_store_with_demo(MEETING_RECORDS_PATH, [])
@@ -2412,6 +2782,30 @@ def get_onboarding_admin(domain: str = "all"):
         "people": people,
         "count": len(people),
     }
+
+
+@app.get("/api/onboarding/candidates")
+def get_onboarding_candidates(domain: str = "dev", limit: int = 250):
+    clean_domain = _domain_key(domain)
+    safe_limit = max(10, min(int(limit or 250), 500))
+    try:
+        rows = candidates.listProfilesAlphabetical(clean_domain)
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Candidate list failed: {exc}")
+    people = []
+    for row in rows[:safe_limit]:
+        people.append(
+            {
+                "id": str(row.get("id") or ""),
+                "profile_id": str(row.get("id") or ""),
+                "name": row.get("name") or "Unnamed profile",
+                "email": row.get("email") or "",
+                "title": row.get("title") or "",
+                "domain": clean_domain,
+            }
+        )
+    return {"ok": True, "domain": clean_domain, "candidates": people}
 
 
 @app.get("/api/onboarding/{token}")
@@ -2702,6 +3096,499 @@ def get_time_entry_admin(
         "candidate_totals": candidate_total_rows,
         "candidate_total_hours": round(sum(row["total_hours"] for row in candidate_total_rows), 2),
     }
+
+
+def _money_float(value, default: float = 0) -> float:
+    try:
+        return round(float(str(value or "").replace("$", "").replace(",", "").strip() or default), 2)
+    except (TypeError, ValueError):
+        return round(default, 2)
+
+
+def _accounting_store() -> dict:
+    fixture = _read_demo_fixture(os.path.basename(ACCOUNTING_RECORDS_PATH), {})
+    local = _read_json_store(ACCOUNTING_RECORDS_PATH, {})
+    store = {}
+    for source in [fixture if isinstance(fixture, dict) else {}, local if isinstance(local, dict) else {}]:
+        for key in ["resources", "invoices", "expenses"]:
+            existing = {str(item.get("id") or json.dumps(item, sort_keys=True)): item for item in store.get(key, []) if isinstance(item, dict)}
+            for item in source.get(key, []) if isinstance(source.get(key, []), list) else []:
+                if isinstance(item, dict):
+                    existing[str(item.get("id") or json.dumps(item, sort_keys=True))] = item
+            store[key] = list(existing.values())
+    store.setdefault("resources", [])
+    store.setdefault("invoices", [])
+    store.setdefault("expenses", [])
+    return store
+
+
+def _accounting_domain_rows(rows: list, domain: str) -> list:
+    clean_domain = _domain_key(domain)
+    return [
+        item for item in rows if clean_domain == "all" or _domain_key(item.get("domain", "dev")) == clean_domain
+    ]
+
+
+def _date_in_period(value: str, period_start: str = "", period_end: str = "") -> bool:
+    raw = _safe_action_text(value, 40)[:10]
+    if not raw:
+        return True
+    if period_start and raw < period_start[:10]:
+        return False
+    if period_end and raw > period_end[:10]:
+        return False
+    return True
+
+
+def _resource_lookup(resources: list) -> dict:
+    resource_keyed = {}
+    for resource in resources:
+        for key in [resource.get("profile_id"), resource.get("token"), resource.get("email"), resource.get("name")]:
+            if key:
+                resource_keyed[str(key).strip().lower()] = resource
+    return resource_keyed
+
+
+def _resource_for_time_entry(entry: dict, resource_keyed: dict) -> dict:
+    for key in [entry.get("profile_id"), entry.get("token"), entry.get("email"), entry.get("candidate_name")]:
+        if key and str(key).strip().lower() in resource_keyed:
+            return resource_keyed[str(key).strip().lower()]
+    return {}
+
+
+def _time_row_from_entry(entry: dict, resource: dict) -> dict:
+    try:
+        hours = float(entry.get("hours") or 0)
+    except (TypeError, ValueError):
+        hours = 0
+    bill_rate = _money_float((resource or {}).get("bill_rate"))
+    cost_rate = _money_float((resource or {}).get("cost_rate"))
+    entry_cost = round(hours * cost_rate, 2)
+    entry_billable = round(hours * bill_rate, 2)
+    return {
+        "id": entry.get("id", ""),
+        "candidate_name": entry.get("candidate_name") or (resource or {}).get("name") or "Staff member",
+        "email": entry.get("email") or (resource or {}).get("email") or "",
+        "hours": round(hours, 2),
+        "bill_rate": bill_rate,
+        "cost_rate": cost_rate,
+        "billable_value": entry_billable,
+        "labor_cost": entry_cost,
+        "status": entry.get("status") or "",
+        "week_start": entry.get("week_start") or "",
+        "work_date": entry.get("work_date") or entry.get("week_start") or "",
+        "client": entry.get("client") or (resource or {}).get("client") or "",
+        "project": entry.get("project") or "",
+        "summary": entry.get("summary") or "",
+        "token": entry.get("token") or (resource or {}).get("token") or "",
+        "profile_id": entry.get("profile_id") or (resource or {}).get("profile_id") or "",
+    }
+
+
+def _accounting_summary_for_domain(domain: str = "dev", period_start: str = "", period_end: str = "") -> dict:
+    store = _accounting_store()
+    clean_domain = _domain_key(domain)
+    resources = _accounting_domain_rows(store.get("resources", []), clean_domain)
+    invoices_all = _accounting_domain_rows(store.get("invoices", []), clean_domain)
+    expenses_all = _accounting_domain_rows(store.get("expenses", []), clean_domain)
+    time_entries_all = _accounting_domain_rows(_read_json_store_with_demo(TIME_ENTRIES_PATH, []), clean_domain)
+    invoices = [
+        invoice for invoice in invoices_all
+        if _date_in_period(invoice.get("invoice_date") or invoice.get("created_at"), period_start, period_end)
+    ]
+    expenses = [
+        expense for expense in expenses_all
+        if _date_in_period(expense.get("date") or expense.get("created_at"), period_start, period_end)
+    ]
+    time_entries = [
+        entry for entry in time_entries_all
+        if _date_in_period(entry.get("work_date") or entry.get("week_start") or entry.get("created_at"), period_start, period_end)
+    ]
+    onboarding = _read_json_store_with_demo(ONBOARDING_RECORDS_PATH, {})
+    if isinstance(onboarding, dict):
+        onboarding_people = [
+            {**record, "token": token}
+            for token, record in onboarding.items()
+            if clean_domain == "all" or _domain_key(record.get("domain", "dev")) == clean_domain
+        ]
+    else:
+        onboarding_people = []
+
+    resource_keyed = _resource_lookup(resources)
+
+    labor_cost = 0.0
+    billable_value = 0.0
+    time_rows = []
+    for entry in time_entries:
+        row = _time_row_from_entry(entry, _resource_for_time_entry(entry, resource_keyed))
+        labor_cost += row["labor_cost"]
+        billable_value += row["billable_value"]
+        time_rows.append(row)
+
+    invoice_total = round(sum(_money_float(invoice.get("total")) for invoice in invoices if invoice.get("status") != "void"), 2)
+    paid_total = round(sum(_money_float(invoice.get("total")) for invoice in invoices if invoice.get("status") == "paid"), 2)
+    receivable_total = round(sum(_money_float(invoice.get("total")) for invoice in invoices if invoice.get("status") in {"draft", "sent", "viewed", "due", "overdue"}), 2)
+    expense_total = round(sum(_money_float(expense.get("amount")) for expense in expenses), 2)
+    gross_profit = round(invoice_total - labor_cost, 2)
+    net_income = round(gross_profit - expense_total, 2)
+    unpaid_labor = round(sum(row["labor_cost"] for row in time_rows if row.get("status") != "processed_for_payment"), 2)
+    assets = round(paid_total + receivable_total, 2)
+    liabilities = unpaid_labor
+    equity = round(assets - liabilities, 2)
+
+    return {
+        "ok": True,
+        "domain": clean_domain,
+        "period": {"start": period_start, "end": period_end},
+        "resources": resources,
+        "invoices": invoices,
+        "expenses": expenses,
+        "time_rows": time_rows,
+        "onboarding_people": onboarding_people,
+        "pnl": {
+            "revenue": invoice_total,
+            "billable_value_from_time": round(billable_value, 2),
+            "labor_cost": round(labor_cost, 2),
+            "expenses": expense_total,
+            "gross_profit": gross_profit,
+            "net_income": net_income,
+        },
+        "income_statement": {
+            "service_revenue": invoice_total,
+            "cost_of_services": round(labor_cost, 2),
+            "gross_profit": gross_profit,
+            "operating_expenses": expense_total,
+            "operating_income": net_income,
+            "net_income": net_income,
+        },
+        "balance_sheet": {
+            "cash": paid_total,
+            "accounts_receivable": receivable_total,
+            "assets": assets,
+            "unpaid_labor": unpaid_labor,
+            "liabilities": liabilities,
+            "equity": equity,
+        },
+        "counts": {
+            "resources": len(resources),
+            "invoices": len(invoices),
+            "time_rows": len(time_rows),
+            "onboarding_people": len(onboarding_people),
+        },
+    }
+
+
+@app.get("/api/accounting/summary")
+def get_accounting_summary(domain: str = "dev", period_start: str = "", period_end: str = ""):
+    return _accounting_summary_for_domain(domain, period_start, period_end)
+
+
+@app.post("/api/accounting/resource")
+def save_accounting_resource(
+    resource_id: str = Form(default=""),
+    domain: str = Form(default="dev"),
+    profile_id: str = Form(default=""),
+    token: str = Form(default=""),
+    name: str = Form(default=""),
+    email: str = Form(default=""),
+    role: str = Form(default=""),
+    client: str = Form(default=""),
+    bill_rate: str = Form(default="0"),
+    cost_rate: str = Form(default="0"),
+    start_date: str = Form(default=""),
+    status: str = Form(default="active"),
+    notes: str = Form(default=""),
+):
+    store = _accounting_store()
+    now = _now_utc()
+    resource_id = resource_id or _safe_token("RES")
+    resource = {
+        "id": resource_id,
+        "domain": _domain_key(domain),
+        "profile_id": _safe_action_text(profile_id, 80),
+        "token": _safe_action_text(token, 120),
+        "name": _safe_action_text(name, 240),
+        "email": _safe_action_text(email, 240),
+        "role": _safe_action_text(role, 240),
+        "client": _safe_action_text(client, 240),
+        "bill_rate": _money_float(bill_rate),
+        "cost_rate": _money_float(cost_rate),
+        "start_date": _safe_action_text(start_date, 40),
+        "status": _safe_action_text(status, 40) or "active",
+        "notes": _safe_action_text(notes, 1200),
+        "created_at": now,
+        "updated_at": now,
+    }
+    existing = False
+    for index, item in enumerate(store["resources"]):
+        if item.get("id") == resource_id:
+            resource["created_at"] = item.get("created_at") or now
+            store["resources"][index] = resource
+            existing = True
+            break
+    if not existing:
+        store["resources"].insert(0, resource)
+    _write_json_store(ACCOUNTING_RECORDS_PATH, store)
+    return {"ok": True, "resource": resource, "summary": _accounting_summary_for_domain(domain)}
+
+
+@app.post("/api/accounting/invoice")
+def save_accounting_invoice(
+    invoice_id: str = Form(default=""),
+    domain: str = Form(default="dev"),
+    client: str = Form(default=""),
+    client_email: str = Form(default=""),
+    client_address: str = Form(default=""),
+    invoice_number: str = Form(default=""),
+    invoice_date: str = Form(default=""),
+    due_date: str = Form(default=""),
+    status: str = Form(default="draft"),
+    payment_terms: str = Form(default="Net 15"),
+    po_number: str = Form(default=""),
+    period_start: str = Form(default=""),
+    period_end: str = Form(default=""),
+    time_entry_ids_json: str = Form(default="[]"),
+    line_items_json: str = Form(default="[]"),
+    notes: str = Form(default=""),
+):
+    store = _accounting_store()
+    now = _now_utc()
+    invoice_id = invoice_id or _safe_token("INV")
+    try:
+        line_items = json.loads(line_items_json or "[]")
+    except Exception:
+        raise HTTPException(status_code=400, detail="line_items_json must be valid JSON.")
+    if not isinstance(line_items, list):
+        raise HTTPException(status_code=400, detail="line_items_json must be a list.")
+    try:
+        time_entry_ids = json.loads(time_entry_ids_json or "[]")
+    except Exception:
+        time_entry_ids = []
+    if not isinstance(time_entry_ids, list):
+        time_entry_ids = []
+    clean_items = []
+    subtotal = 0.0
+    for item in line_items:
+        if not isinstance(item, dict):
+            continue
+        qty = _money_float(item.get("qty"), 0)
+        rate = _money_float(item.get("rate"), 0)
+        amount = _money_float(item.get("amount"), round(qty * rate, 2))
+        if not item.get("description") and amount <= 0:
+            continue
+        clean = {
+            "description": _safe_action_text(item.get("description"), 500),
+            "qty": qty,
+            "rate": rate,
+            "amount": amount,
+        }
+        subtotal += amount
+        clean_items.append(clean)
+    total = round(subtotal, 2)
+    invoice = {
+        "id": invoice_id,
+        "domain": _domain_key(domain),
+        "client": _safe_action_text(client, 240),
+        "client_email": _safe_action_text(client_email, 240),
+        "client_address": _safe_action_text(client_address, 1200),
+        "invoice_number": _safe_action_text(invoice_number, 80) or invoice_id,
+        "invoice_date": _safe_action_text(invoice_date, 40),
+        "due_date": _safe_action_text(due_date, 40),
+        "status": _safe_action_text(status, 40) or "draft",
+        "payment_terms": _safe_action_text(payment_terms, 120),
+        "po_number": _safe_action_text(po_number, 120),
+        "period_start": _safe_action_text(period_start, 40),
+        "period_end": _safe_action_text(period_end, 40),
+        "time_entry_ids": [_safe_action_text(item, 120) for item in time_entry_ids],
+        "line_items": clean_items,
+        "subtotal": total,
+        "tax": 0,
+        "total": total,
+        "notes": _safe_action_text(notes, 1200),
+        "created_at": now,
+        "updated_at": now,
+    }
+    existing = False
+    for index, item in enumerate(store["invoices"]):
+        if item.get("id") == invoice_id:
+            invoice["created_at"] = item.get("created_at") or now
+            store["invoices"][index] = invoice
+            existing = True
+            break
+    if not existing:
+        store["invoices"].insert(0, invoice)
+    _write_json_store(ACCOUNTING_RECORDS_PATH, store)
+    return {"ok": True, "invoice": invoice, "summary": _accounting_summary_for_domain(domain)}
+
+
+@app.post("/api/accounting/invoice/{invoice_id}/status")
+def update_accounting_invoice_status(invoice_id: str, status: str = Form(default="sent")):
+    store = _accounting_store()
+    allowed = {"draft", "sent", "viewed", "due", "paid", "overdue", "void"}
+    if status not in allowed:
+        raise HTTPException(status_code=400, detail="Unsupported invoice status.")
+    updated = None
+    for invoice in store["invoices"]:
+        if invoice.get("id") == invoice_id:
+            invoice["status"] = status
+            invoice["updated_at"] = _now_utc()
+            if status == "sent":
+                invoice["sent_at"] = invoice.get("sent_at") or invoice["updated_at"]
+            if status == "viewed":
+                invoice["viewed_at"] = invoice.get("viewed_at") or invoice["updated_at"]
+            if status == "paid":
+                invoice["paid_at"] = invoice.get("paid_at") or invoice["updated_at"]
+            updated = invoice
+            break
+    if not updated:
+        raise HTTPException(status_code=404, detail="Invoice not found.")
+    _write_json_store(ACCOUNTING_RECORDS_PATH, store)
+    return {"ok": True, "invoice": updated, "summary": _accounting_summary_for_domain(updated.get("domain", "dev"))}
+
+
+def _invoice_workbench(domain: str = "dev", client: str = "", period_start: str = "", period_end: str = "") -> dict:
+    clean_domain = _domain_key(domain)
+    store = _accounting_store()
+    resources = _accounting_domain_rows(store.get("resources", []), clean_domain)
+    resource_keyed = _resource_lookup(resources)
+    time_entries = _accounting_domain_rows(_read_json_store_with_demo(TIME_ENTRIES_PATH, []), clean_domain)
+    approved_statuses = {"approved_for_payment", "processed_for_payment", "approved"}
+    rows = []
+    clients = {}
+    consultants_by_client = {}
+    clean_client = _safe_action_text(client, 240).lower()
+    for entry in time_entries:
+        if (entry.get("status") or "") not in approved_statuses:
+            continue
+        if not _date_in_period(entry.get("work_date") or entry.get("week_start") or entry.get("created_at"), period_start, period_end):
+            continue
+        row = _time_row_from_entry(entry, _resource_for_time_entry(entry, resource_keyed))
+        row_client = row.get("client") or "Unassigned client"
+        clients[row_client] = clients.get(row_client, 0) + row["billable_value"]
+        consultants_by_client.setdefault(row_client, {})
+        consultants_by_client[row_client][row["candidate_name"]] = {
+            "name": row["candidate_name"],
+            "email": row["email"],
+            "bill_rate": row["bill_rate"],
+            "cost_rate": row["cost_rate"],
+        }
+        if clean_client and row_client.lower() != clean_client:
+            continue
+        rows.append(row)
+    invoices = [
+        invoice for invoice in _accounting_domain_rows(store.get("invoices", []), clean_domain)
+        if invoice.get("client") or invoice.get("line_items")
+    ]
+    crm_records = _accounting_domain_rows(_read_json_store_with_demo(CRM_RECORDS_PATH, []), clean_domain)
+    customers = []
+    for name, value in sorted(clients.items()):
+        crm = next((record for record in crm_records if _safe_action_text(record.get("customer"), 240).lower() == name.lower()), {})
+        client_invoices = [
+            invoice for invoice in invoices
+            if _safe_action_text(invoice.get("client"), 240).lower() == name.lower()
+        ]
+        po_numbers = []
+        payment_terms = []
+        for invoice in client_invoices:
+            po = _safe_action_text(invoice.get("po_number"), 120)
+            terms = _safe_action_text(invoice.get("payment_terms"), 120)
+            if po and po not in po_numbers:
+                po_numbers.append(po)
+            if terms and terms not in payment_terms:
+                payment_terms.append(terms)
+        customers.append(
+            {
+                "name": name,
+                "approved_billable": round(value, 2),
+                "email": crm.get("email") or (client_invoices[0].get("client_email") if client_invoices else "") or "",
+                "address": crm.get("billing_address") or crm.get("address") or (client_invoices[0].get("client_address") if client_invoices else "") or "",
+                "contact": crm.get("contact") or "",
+                "po_numbers": po_numbers,
+                "payment_terms": payment_terms,
+                "consultants": list(consultants_by_client.get(name, {}).values()),
+            }
+        )
+    line_items = [
+        {
+            "description": f"{row.get('work_date') or row.get('week_start')} - {row.get('candidate_name')} - {row.get('project') or 'Consulting services'}",
+            "qty": row["hours"],
+            "rate": row["bill_rate"],
+            "amount": row["billable_value"],
+            "time_entry_id": row["id"],
+            "consultant": row["candidate_name"],
+            "work_date": row.get("work_date") or row.get("week_start"),
+            "summary": row.get("summary") or "",
+        }
+        for row in rows
+        if row.get("bill_rate")
+    ]
+    return {
+        "ok": True,
+        "domain": clean_domain,
+        "client": client,
+        "period": {"start": period_start, "end": period_end},
+        "customers": customers,
+        "consultants": list(consultants_by_client.get(client, {}).values()) if client else [],
+        "time_rows": rows,
+        "line_items": line_items,
+        "invoices": sorted(invoices, key=lambda item: item.get("updated_at") or item.get("created_at") or "", reverse=True),
+    }
+
+
+@app.get("/api/invoices/workbench")
+def get_invoice_workbench(domain: str = "dev", client: str = "", period_start: str = "", period_end: str = ""):
+    return _invoice_workbench(domain, client, period_start, period_end)
+
+
+@app.post("/api/invoices/from-time")
+def save_invoice_from_time(
+    invoice_id: str = Form(default=""),
+    domain: str = Form(default="dev"),
+    client: str = Form(default=""),
+    client_email: str = Form(default=""),
+    client_address: str = Form(default=""),
+    invoice_number: str = Form(default=""),
+    invoice_date: str = Form(default=""),
+    due_date: str = Form(default=""),
+    status: str = Form(default="draft"),
+    payment_terms: str = Form(default="Net 15"),
+    po_number: str = Form(default=""),
+    period_start: str = Form(default=""),
+    period_end: str = Form(default=""),
+    time_entry_ids_json: str = Form(default="[]"),
+    notes: str = Form(default=""),
+):
+    workbench = _invoice_workbench(domain, client, period_start, period_end)
+    line_items = workbench.get("line_items", [])
+    try:
+        selected_time_ids = json.loads(time_entry_ids_json or "[]")
+    except Exception:
+        selected_time_ids = []
+    if isinstance(selected_time_ids, list) and selected_time_ids:
+        selected_set = {str(item) for item in selected_time_ids if item}
+        line_items = [item for item in line_items if str(item.get("time_entry_id") or "") in selected_set]
+    if not client:
+        raise HTTPException(status_code=400, detail="Customer is required.")
+    if not line_items:
+        raise HTTPException(status_code=400, detail="No approved billable time with consultant bill rates was found for this customer and period.")
+    return save_accounting_invoice(
+        invoice_id=invoice_id,
+        domain=domain,
+        client=client,
+        client_email=client_email,
+        client_address=client_address,
+        invoice_number=invoice_number or f"DR-{datetime.utcnow().strftime('%Y%m%d%H%M')}",
+        invoice_date=invoice_date,
+        due_date=due_date,
+        status=status,
+        payment_terms=payment_terms,
+        po_number=po_number,
+        period_start=period_start,
+        period_end=period_end,
+        time_entry_ids_json=json.dumps([item.get("time_entry_id") for item in line_items if item.get("time_entry_id")]),
+        line_items_json=json.dumps(line_items),
+        notes=notes,
+    )
 
 
 @app.post("/api/time-entry/{entry_id}/status")

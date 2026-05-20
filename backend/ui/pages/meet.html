@@ -207,6 +207,19 @@
         background: #fff;
       }
 
+      .meet-frame-fallback {
+        display: none;
+        border-top: 1px solid var(--line);
+        padding: 14px;
+        background:
+          linear-gradient(90deg, rgba(var(--primary-rgb), 0.08), rgba(255, 255, 255, 0.96)),
+          #fff;
+      }
+
+      .meet-frame-fallback.show {
+        display: block;
+      }
+
       @media (max-width: 900px) {
         .meet-intro {
           grid-template-columns: 1fr;
@@ -300,6 +313,16 @@
               allow="microphone; clipboard-read; clipboard-write"
               referrerpolicy="strict-origin-when-cross-origin"
             ></iframe>
+            <div id="meetFrameFallback" class="meet-frame-fallback">
+              <strong>Meet did not load cleanly in the embedded panel.</strong>
+              <p class="muted" style="margin: 6px 0 10px">
+                The live Meeting Agent is available. Open it in a new tab, or retry the local embedded frame.
+              </p>
+              <div class="row-actions">
+                <a id="openLiveMeetBtn" class="btn" href="#" target="_blank" rel="noopener">Open live Meet</a>
+                <button class="btn secondary" type="button" onclick="loadMeet()">Retry embedded Meet</button>
+              </div>
+            </div>
           </div>
         </section>
       </main>
@@ -311,6 +334,8 @@
       const meetStatus = document.getElementById("meetStatus");
       const refreshMeetBtn = document.getElementById("refreshMeetBtn");
       const openCrmBtn = document.getElementById("openCrmBtn");
+      const meetFrameFallback = document.getElementById("meetFrameFallback");
+      const openLiveMeetBtn = document.getElementById("openLiveMeetBtn");
       const meetFolderStatus = document.getElementById("meetFolderStatus");
       const meetOrigin = "https://web-production-268c2.up.railway.app";
       const domainMeetTheme = {
@@ -335,6 +360,13 @@
         meetUrl.searchParams.set("primaryRgb", primaryRgb);
         meetUrl.searchParams.set("v", "20260515-domain-theme");
         return meetUrl.href;
+      }
+
+      function buildLiveMeetUrl() {
+        const liveUrl = new URL(meetOrigin);
+        liveUrl.searchParams.set("crmHandoff", "parent");
+        liveUrl.searchParams.set("domain", currentDomain());
+        return liveUrl.href;
       }
 
       function currentDomain() {
@@ -387,7 +419,35 @@
 
       function loadMeet() {
         meetStatus.textContent = "Loading Meet with CRM handoff enabled...";
+        meetFrameFallback.classList.remove("show");
+        openLiveMeetBtn.href = buildLiveMeetUrl();
         meetFrame.src = buildMeetUrl();
+      }
+
+      function showMeetFallback(message) {
+        meetStatus.textContent = message || "Meet embed returned an error. Open live Meet or retry the embedded frame.";
+        meetFrameFallback.classList.add("show");
+        openLiveMeetBtn.href = buildLiveMeetUrl();
+      }
+
+      async function checkMeetFrameHealth() {
+        try {
+          const doc = meetFrame.contentDocument || meetFrame.contentWindow?.document;
+          const text = (doc?.body?.innerText || doc?.body?.textContent || "").trim();
+          if (!text) return false;
+          if (
+            text.includes('"detail":"Not Found"') ||
+            text.includes('"detail": "Not Found"') ||
+            text === "Not Found" ||
+            text.includes("DevMeet frame could not be loaded")
+          ) {
+            showMeetFallback("Meet embed returned Not Found. The live Meeting Agent is available in a new tab.");
+            return true;
+          }
+        } catch {
+          // Cross-origin frame means the live app loaded; no inspection needed.
+        }
+        return false;
       }
 
       function sectionStorageKey(section) {
@@ -448,6 +508,8 @@
         } catch {
           // Cross-origin while DevMeet is loaded; expected.
         }
+        setTimeout(checkMeetFrameHealth, 250);
+        setTimeout(checkMeetFrameHealth, 1500);
         meetStatus.textContent = "Meet is ready. Use Move Meeting to CRM after selecting a saved output.";
       });
 

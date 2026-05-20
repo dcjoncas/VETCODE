@@ -78,9 +78,9 @@
 
       #jdGroups {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
-        gap: 12px;
-        align-items: start;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+        gap: 14px;
+        align-items: stretch;
         max-width: 100%;
         overflow-x: hidden;
         overflow-y: visible;
@@ -96,6 +96,14 @@
           #fff;
         margin-top: 0;
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 560px;
+        max-height: 560px;
+      }
+
+      .client-group.has-expanded {
+        max-height: none;
       }
 
       .client-header {
@@ -125,12 +133,14 @@
 
       .jd-card-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, 205px), 1fr));
-        gap: 8px;
-        padding: 10px;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 12px;
         max-width: 100%;
         overflow-x: hidden;
-        overflow-y: visible;
+        overflow-y: hidden;
+        flex: 1 1 auto;
+        align-content: start;
       }
 
       .jd-row {
@@ -138,7 +148,8 @@
         flex-direction: column;
         gap: 8px;
         min-width: 0;
-        min-height: 172px;
+        min-height: 178px;
+        max-height: 230px;
         padding: 10px;
         border: 1px solid rgba(var(--primary-rgb), 0.18);
         border-radius: 8px;
@@ -164,6 +175,88 @@
         grid-column: 1 / -1;
         width: 100%;
         max-width: 100%;
+        max-height: none;
+      }
+
+      .jd-library-pager,
+      .client-pager {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 10px 12px;
+      }
+
+      .jd-library-pager {
+        border: 1px solid rgba(var(--primary-rgb), 0.22);
+        border-radius: 16px;
+        margin: 12px auto 2px;
+        width: min(520px, 100%);
+        background:
+          linear-gradient(90deg, rgba(var(--primary-rgb), 0.05), rgba(var(--primary-rgb), 0.12), rgba(var(--primary-rgb), 0.05)),
+          #fff;
+        box-shadow: 0 10px 24px rgba(16, 32, 24, 0.08);
+      }
+
+      .client-pager {
+        min-height: 54px;
+        justify-content: space-between;
+        border: 1px solid rgba(var(--primary-rgb), 0.22);
+        border-radius: 14px;
+        margin: 0 12px 12px;
+        background:
+          linear-gradient(90deg, rgba(255, 255, 255, 0.92), rgba(var(--primary-rgb), 0.09)),
+          #fff;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      }
+
+      .pager-arrow {
+        width: 38px;
+        height: 38px;
+        border-radius: 999px;
+        border: 1px solid rgba(var(--primary-rgb), 0.3);
+        background: #fff;
+        color: var(--primary-2);
+        font-weight: 950;
+        box-shadow: 0 6px 14px rgba(16, 32, 24, 0.1);
+        cursor: pointer;
+      }
+
+      .pager-arrow:not(:disabled):hover {
+        background: rgba(var(--primary-rgb), 0.1);
+        border-color: rgba(var(--primary-rgb), 0.48);
+      }
+
+      .pager-arrow:disabled {
+        opacity: 0.38;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+
+      .pager-status {
+        color: var(--primary-2);
+        font-size: 12px;
+        font-weight: 950;
+        min-width: 116px;
+        text-align: center;
+        border-radius: 999px;
+        padding: 7px 10px;
+        background: rgba(255, 255, 255, 0.88);
+        border: 1px solid rgba(var(--primary-rgb), 0.14);
+      }
+
+      .more-drill {
+        grid-column: 1 / -1;
+        border: 1px dashed rgba(var(--primary-rgb), 0.42);
+        border-radius: 12px;
+        padding: 8px 10px;
+        color: var(--primary-2);
+        background:
+          linear-gradient(90deg, rgba(var(--primary-rgb), 0.09), rgba(255, 255, 255, 0.9)),
+          #fff;
+        font-size: 12px;
+        font-weight: 900;
+        text-align: center;
       }
 
       .jd-card-head {
@@ -367,6 +460,11 @@
           overflow-x: visible;
         }
 
+        .client-group {
+          min-height: auto;
+          max-height: none;
+        }
+
         .jd-row.expanded {
           grid-column: auto;
         }
@@ -488,7 +586,12 @@
     <script>
       const expandedDetails = new Map();
       const jdById = new Map();
+      const clientJdPages = new Map();
+      let allJdGroups = [];
+      let jdLibraryPage = 0;
       let editingJdId = "";
+      const GROUPS_PER_LIBRARY_PAGE = 4;
+      const JDS_PER_CLIENT_PAGE = 2;
 
       function currentDomain() {
         return (
@@ -508,6 +611,14 @@
       function clientName(jd) {
         const company = (jd.company || "").trim();
         return company || "Client to be confirmed";
+      }
+
+      function jsString(value) {
+        return String(value || "")
+          .replace(/\\/g, "\\\\")
+          .replace(/'/g, "\\'")
+          .replace(/\r/g, "")
+          .replace(/\n/g, "\\n");
       }
 
       function formatDate(value) {
@@ -546,6 +657,27 @@
         return out;
       }
 
+      function setActiveJobDescription(jdId, jd = {}) {
+        if (!jdId) return;
+        const title = jd.title || "";
+        const client = jd.company || clientName(jd);
+        const skills = Array.isArray(jd.jd_skills)
+          ? jd.jd_skills
+          : Array.isArray(jd.skills)
+            ? jd.skills
+            : [];
+        sessionStorage.setItem("jdId", jdId);
+        sessionStorage.setItem("selectedJdId", jdId);
+        sessionStorage.setItem("jobId", jdId);
+        sessionStorage.setItem("jobID", jdId);
+        sessionStorage.setItem("jobTitle", title);
+        sessionStorage.setItem("jobCompany", client);
+        sessionStorage.setItem("jobDomain", currentDomain());
+        sessionStorage.setItem("activeJobLoadedAt", new Date().toISOString());
+        if (skills.length) sessionStorage.setItem("jobSkills", skills.filter(Boolean).join(", "));
+        if (typeof updateJob === "function") updateJob();
+      }
+
       function groupByClient(jds) {
         const grouped = new Map();
         jds.forEach((jd) => {
@@ -573,12 +705,16 @@
         status.style.display = "block";
         status.textContent = "Loading job descriptions...";
         groupsEl.innerHTML = "";
+        const existingPager = document.getElementById("jdLibraryPager");
+        if (existingPager) existingPager.innerHTML = "";
 
         try {
           const jds = await api(`/api/azureJobs/list/${encodeURIComponent(domain)}/200`);
           jdById.clear();
-          (jds || []).forEach((jd) => jdById.set(jd.jd_id, jd));
+          (jds || []).forEach((jd) => jdById.set(String(jd.jd_id), jd));
           const grouped = groupByClient(jds || []);
+          allJdGroups = grouped;
+          jdLibraryPage = Math.min(jdLibraryPage, Math.max(0, Math.ceil(grouped.length / GROUPS_PER_LIBRARY_PAGE) - 1));
           document.getElementById("jdCount").textContent = jds.length;
           document.getElementById("clientCount").textContent = grouped.length;
 
@@ -590,11 +726,46 @@
           }
 
           status.style.display = "none";
-          groupsEl.innerHTML = grouped.map(renderClientGroup).join("");
+          renderJobLibrary();
         } catch (error) {
           status.className = "empty-state";
           status.textContent = `Could not load job descriptions: ${error.message || error}`;
         }
+      }
+
+      function renderJobLibrary() {
+        const groupsEl = document.getElementById("jdGroups");
+        const totalPages = Math.max(1, Math.ceil(allJdGroups.length / GROUPS_PER_LIBRARY_PAGE));
+        jdLibraryPage = Math.max(0, Math.min(jdLibraryPage, totalPages - 1));
+        const start = jdLibraryPage * GROUPS_PER_LIBRARY_PAGE;
+        const groups = allJdGroups.slice(start, start + GROUPS_PER_LIBRARY_PAGE);
+        groupsEl.innerHTML = groups.map(renderClientGroup).join("");
+        renderLibraryPager(totalPages);
+      }
+
+      function renderLibraryPager(totalPages) {
+        let pager = document.getElementById("jdLibraryPager");
+        if (!pager) {
+          pager = document.createElement("div");
+          pager.id = "jdLibraryPager";
+          pager.className = "jd-library-pager";
+          document.querySelector(".jd-library-card").appendChild(pager);
+        }
+        if (totalPages <= 1) {
+          pager.innerHTML = "";
+          return;
+        }
+        pager.innerHTML = `
+          <button class="pager-arrow" type="button" onclick="changeLibraryPage(-1)" ${jdLibraryPage <= 0 ? "disabled" : ""} aria-label="Previous job-description page">&larr;</button>
+          <span class="pager-status">Page ${jdLibraryPage + 1} of ${totalPages}</span>
+          <button class="pager-arrow" type="button" onclick="changeLibraryPage(1)" ${jdLibraryPage >= totalPages - 1 ? "disabled" : ""} aria-label="Next job-description page">&rarr;</button>
+        `;
+      }
+
+      function changeLibraryPage(delta) {
+        const totalPages = Math.max(1, Math.ceil(allJdGroups.length / GROUPS_PER_LIBRARY_PAGE));
+        jdLibraryPage = Math.max(0, Math.min(jdLibraryPage + delta, totalPages - 1));
+        renderJobLibrary();
       }
 
       async function saveJobDescription() {
@@ -620,13 +791,19 @@
           const endpoint = editingJdId
             ? `/api/azureJobs/updateJob/${encodeURIComponent(editingJdId)}`
             : "/api/azureJobs/createJob";
-          await api(endpoint, {
+          const saved = await api(endpoint, {
             method: "POST",
             body: fd,
           });
+          const savedId = saved?.jd_id || editingJdId;
+          setActiveJobDescription(savedId, {
+            company,
+            title,
+            jd_skills: saved?.jd_skills || [],
+          });
           status.textContent = editingJdId
-            ? `Updated ${company} - ${title}.`
-            : `Saved ${company} - ${title}.`;
+            ? `Updated and loaded ${company} - ${title} for Find Candidates (In) and Find Candidates (Out).`
+            : `Saved and loaded ${company} - ${title} for Find Candidates (In) and Find Candidates (Out).`;
           document.getElementById("jdCompany").value = "";
           document.getElementById("jdTitle").value = "";
           document.getElementById("jdText").value = "";
@@ -667,11 +844,16 @@
         button.disabled = true;
         status.textContent = "Reading and saving job description file...";
         try {
-          await api("/api/azureJobs/uploadJob", {
+          const saved = await api("/api/azureJobs/uploadJob", {
             method: "POST",
             body: fd,
           });
-          status.textContent = `Saved ${company} - ${title} from ${file.name}.`;
+          setActiveJobDescription(saved?.jd_id, {
+            company,
+            title,
+            jd_skills: saved?.jd_skills || [],
+          });
+          status.textContent = `Saved and loaded ${company} - ${title} from ${file.name} for Find Candidates (In) and Find Candidates (Out).`;
           document.getElementById("jdCompany").value = "";
           document.getElementById("jdTitle").value = "";
           document.getElementById("jdText").value = "";
@@ -686,6 +868,13 @@
       }
 
       function renderClientGroup(group) {
+        const clientKey = group.client;
+        const totalPages = Math.max(1, Math.ceil(group.items.length / JDS_PER_CLIENT_PAGE));
+        const currentPage = Math.max(0, Math.min(clientJdPages.get(clientKey) || 0, totalPages - 1));
+        clientJdPages.set(clientKey, currentPage);
+        const start = currentPage * JDS_PER_CLIENT_PAGE;
+        const visibleItems = group.items.slice(start, start + JDS_PER_CLIENT_PAGE);
+        const remaining = Math.max(0, group.items.length - (start + visibleItems.length));
         return `
           <div class="client-group">
             <div class="client-header">
@@ -693,10 +882,34 @@
               <span class="count">${group.items.length} job description${group.items.length === 1 ? "" : "s"}</span>
             </div>
             <div class="jd-card-grid">
-              ${group.items.map(renderJdRow).join("")}
+              ${visibleItems.map(renderJdRow).join("")}
+              ${remaining ? `<div class="more-drill">+ ${remaining} more on next page</div>` : ""}
             </div>
+            ${renderClientPager(group.client, currentPage, totalPages)}
           </div>
         `;
+      }
+
+      function renderClientPager(client, currentPage, totalPages) {
+        if (totalPages <= 1) {
+          return `<div class="client-pager"><span class="pager-status">All roles shown</span></div>`;
+        }
+        return `
+          <div class="client-pager">
+            <button class="pager-arrow" type="button" onclick="changeClientJdPage('${jsString(client)}', -1)" ${currentPage <= 0 ? "disabled" : ""} aria-label="Previous roles for ${escapeHtml(client)}">&larr;</button>
+            <span class="pager-status">Roles ${currentPage + 1} of ${totalPages}</span>
+            <button class="pager-arrow" type="button" onclick="changeClientJdPage('${jsString(client)}', 1)" ${currentPage >= totalPages - 1 ? "disabled" : ""} aria-label="Next roles for ${escapeHtml(client)}">&rarr;</button>
+          </div>
+        `;
+      }
+
+      function changeClientJdPage(client, delta) {
+        const group = allJdGroups.find((item) => item.client === client);
+        if (!group) return;
+        const totalPages = Math.max(1, Math.ceil(group.items.length / JDS_PER_CLIENT_PAGE));
+        const current = clientJdPages.get(client) || 0;
+        clientJdPages.set(client, Math.max(0, Math.min(current + delta, totalPages - 1)));
+        renderJobLibrary();
       }
 
       function renderJdRow(jd) {
@@ -738,6 +951,9 @@
               ${skillPreview || `<span class="skill-pill">Skills pending</span>`}
             </div>
             <div class="jd-card-actions" onclick="event.stopPropagation()">
+              <button class="btn" type="button" onclick="selectJd('${escapeHtml(id)}')">
+                Use JD
+              </button>
               <button class="btn secondary" type="button" onclick="editJd('${escapeHtml(id)}')">
                 Edit
               </button>
@@ -763,10 +979,12 @@
         if (details.classList.contains("open")) {
           details.classList.remove("open");
           card?.classList.remove("expanded");
+          card?.closest(".client-group")?.classList.remove("has-expanded");
           return;
         }
 
         card?.classList.add("expanded");
+        card?.closest(".client-group")?.classList.add("has-expanded");
         details.classList.add("open");
         if (expandedDetails.has(jdId)) {
           details.innerHTML = expandedDetails.get(jdId);
@@ -837,7 +1055,7 @@
       }
 
       async function deleteJd(jdId) {
-        const jd = jdById.get(jdId) || {};
+        const jd = jdById.get(String(jdId)) || {};
         const title = jd.title || "this job description";
         const client = clientName(jd);
         const confirmed = confirm(
@@ -856,7 +1074,7 @@
             { method: "DELETE" },
           );
           expandedDetails.delete(jdId);
-          jdById.delete(jdId);
+          jdById.delete(String(jdId));
           status.textContent = `Deleted ${title}.`;
           await loadJobDescriptions();
         } catch (error) {
@@ -866,20 +1084,14 @@
       }
 
       function selectJd(jdId) {
-        const jd = jdById.get(jdId) || {};
+        const jd = jdById.get(String(jdId)) || {};
         const title = jd.title || "";
         const client = clientName(jd);
-        sessionStorage.setItem("jdId", jdId);
-        sessionStorage.setItem("selectedJdId", jdId);
-        sessionStorage.setItem("jobId", jdId);
-        sessionStorage.setItem("jobID", jdId);
-        sessionStorage.setItem("jobTitle", title);
-        sessionStorage.setItem("jobCompany", client);
-        if (typeof updateJob === "function") updateJob();
+        setActiveJobDescription(jdId, jd);
         const status = document.getElementById("jdStatus");
         status.className = "notice";
         status.style.display = "block";
-        status.textContent = `Selected ${title || "job description"} for ${client || "client"}.`;
+        status.textContent = `Loaded ${title || "job description"} for ${client || "client"}. It will auto-load on Find Candidates (In) and Find Candidates (Out).`;
       }
 
       function currentAgentUser() {

@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Reports</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html?v=20260515-reports-nav");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+    <style>
+      .reports-toolbar {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .report-filters,
+      .report-actions {
+        display: flex;
+        gap: 8px;
+        align-items: end;
+        flex-wrap: wrap;
+      }
+
+      .report-filters label {
+        display: grid;
+        gap: 5px;
+        font-weight: 850;
+      }
+
+      .report-icon-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 10px;
+      }
+
+      .report-icon-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px;
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb), 0.08), rgba(var(--primary-rgb), 0.02)),
+          #fff;
+        text-align: left;
+        color: var(--text);
+        cursor: pointer;
+        min-height: 118px;
+      }
+
+      .report-icon-card.active {
+        border-color: rgba(var(--primary-rgb), 0.45);
+        box-shadow: inset 0 0 0 2px rgba(var(--primary-rgb), 0.12);
+      }
+
+      .report-icon-card .icon {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: var(--primary-2);
+        color: #fff;
+        margin-bottom: 10px;
+      }
+
+      .report-icon-card svg {
+        width: 20px;
+        height: 20px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .report-icon-card strong {
+        display: block;
+        font-size: 15px;
+      }
+
+      .report-icon-card span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .report-icon-card .number {
+        margin-top: 10px;
+        color: var(--primary-2);
+        font-size: 22px;
+        font-weight: 950;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .summary-tile {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px;
+        background: #fff;
+      }
+
+      .summary-tile strong {
+        display: block;
+        color: var(--primary-2);
+        font-size: 25px;
+      }
+
+      .summary-tile span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .report-panel {
+        display: none;
+      }
+
+      .report-panel.active {
+        display: block;
+      }
+
+      details.report-drill {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        margin-top: 10px;
+        overflow: hidden;
+      }
+
+      details.report-drill summary {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        cursor: pointer;
+        padding: 12px;
+        font-weight: 900;
+        background: rgba(var(--primary-rgb), 0.06);
+      }
+
+      details.report-drill summary span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .report-table-wrap {
+        overflow-x: auto;
+      }
+
+      .report-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .report-table th,
+      .report-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .report-table th {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .report-table td.num,
+      .report-table th.num {
+        text-align: right;
+      }
+
+      .pill {
+        display: inline-flex;
+        width: fit-content;
+        border-radius: 999px;
+        padding: 3px 8px;
+        background: rgba(var(--primary-rgb), 0.1);
+        color: var(--primary-2);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .pill.warn {
+        background: #fff0d8;
+        color: #8a4b08;
+      }
+
+      .pill.danger {
+        background: #fff1f2;
+        color: #9f1d2c;
+      }
+
+      @media (max-width: 960px) {
+        .summary-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 640px) {
+        .summary-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media print {
+        #siteSidebar,
+        #searchBar,
+        .report-actions,
+        .report-icon-grid,
+        .topbar select,
+        .topbar label,
+        .btn {
+          display: none !important;
+        }
+
+        .container,
+        .main {
+          display: block;
+          width: 100%;
+        }
+
+        .card,
+        details.report-drill {
+          break-inside: avoid;
+          box-shadow: none;
+        }
+
+        .report-panel {
+          display: block;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Reports</div>
+            <div class="breadcrumb">Domain reporting - Excel and PDF-ready summaries</div>
+          </div>
+          <div class="report-filters">
+            <label>
+              Workspace
+              <select id="domainSelect" onchange="switchReportsDomain()">
+                <option value="dev">Technology Domain</option>
+                <option value="engineer">Engineer Domain</option>
+                <option value="law">Law Domain</option>
+                <option value="all">All Domains</option>
+              </select>
+            </label>
+            <label>
+              Week starting
+              <input id="weekStart" type="date" onchange="loadReports()" />
+            </label>
+            <div id="searchBar"></div>
+          </div>
+        </div>
+
+        <section class="card">
+          <div class="reports-toolbar">
+            <div>
+              <h2>Report library</h2>
+              <p>Pick a report card to view the drill-down. Export sends the active report to CSV for Excel; PDF uses the browser print dialog.</p>
+            </div>
+            <div class="report-actions">
+              <button class="btn secondary" type="button" onclick="loadReports()">Refresh</button>
+              <button class="btn secondary" type="button" onclick="exportActiveCsv()">Export CSV</button>
+              <button class="btn secondary" type="button" onclick="window.print()">Save PDF</button>
+            </div>
+          </div>
+          <div id="reportStatus" class="notice" style="margin: 12px 0">Loading reports...</div>
+          <div id="reportCards" class="report-icon-grid"></div>
+        </section>
+
+        <section class="card">
+          <h2 id="activeReportTitle">Overall company status</h2>
+          <div id="companySummary" class="summary-grid"></div>
+        </section>
+
+        <section id="reportPanels"></section>
+      </main>
+    </div>
+
+    <script src="JS/apiScripts.js"></script>
+    <script>
+      const reportDefs = [
+        { key: "overall", title: "Overall company status", icon: "chart", hint: "Summary across profiles, jobs, onboarding, interviews, meetings, and time." },
+        { key: "jobs", title: "Job descriptions", icon: "briefcase", hint: "Active, inactive, stale, and recently updated job descriptions." },
+        { key: "profiles", title: "Profiles", icon: "profile", hint: "Profile totals, recent records, assignment signals, and domain counts." },
+        { key: "onboarding", title: "Onboarding", icon: "clipboard", hint: "Started, completed, stale, and missing paperwork records." },
+        { key: "candidates", title: "Candidate in/out", icon: "search", hint: "Internal profile totals and external TEMP candidate pipeline counts." },
+        { key: "meetings", title: "Meetings", icon: "mic", hint: "Meeting totals by day and week, with client/candidate context." },
+        { key: "interviews", title: "Interviews", icon: "calendar", hint: "Candidate review and client interview scheduling totals." },
+        { key: "time", title: "Time entry", icon: "clock", hint: "Weekly submitted hours, processed hours, missing time, and staff list." },
+      ];
+
+      let reportState = {};
+      let activeReport = "overall";
+
+      function escapeLocal(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function normalizeDomain(value) {
+        if (value === "technology") return "dev";
+        return ["dev", "engineer", "law", "all"].includes(value) ? value : "dev";
+      }
+
+      function currentDomain() {
+        return normalizeDomain(document.getElementById("domainSelect")?.value || sessionStorage.getItem("domain") || "dev");
+      }
+
+      function domainLabel(domain) {
+        if (domain === "engineer") return "Engineer";
+        if (domain === "law") return "Law";
+        if (domain === "all") return "All domains";
+        return "Technology";
+      }
+
+      function iconSvg(name) {
+        const paths = {
+          chart: '<rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 16V9"></path><path d="M12 16v-4"></path><path d="M16 16V7"></path>',
+          briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5h8v2"></path><path d="M3 12h18"></path>',
+          profile: '<rect x="4" y="3" width="16" height="18" rx="2"></rect><circle cx="12" cy="9" r="3"></circle><path d="M7.5 17a4.5 4.5 0 0 1 9 0"></path>',
+          clipboard: '<path d="M9 4h6l1 2h3v15H5V6h3z"></path><path d="M9 12h6"></path><path d="M9 16h4"></path>',
+          search: '<circle cx="10" cy="10" r="6"></circle><path d="m14.5 14.5 5 5"></path><path d="M18 5h3v3"></path>',
+          mic: '<rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path>',
+          calendar: '<rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path>',
+          clock: '<circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path>',
+        };
+        return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || paths.chart}</svg>`;
+      }
+
+      function isoDate(value) {
+        if (!value) return "";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value || "");
+        return date.toISOString().slice(0, 10);
+      }
+
+      function displayDate(value) {
+        if (!value) return "-";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return date.toLocaleDateString();
+      }
+
+      function ageDays(value) {
+        if (!value) return 9999;
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return 9999;
+        return Math.floor((Date.now() - date.getTime()) / 86400000);
+      }
+
+      function localDateString(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+
+      function startOfWeek(date = new Date()) {
+        const d = new Date(date);
+        const day = d.getDay() || 7;
+        d.setDate(d.getDate() - day + 1);
+        return localDateString(d);
+      }
+
+      function weekKey(value) {
+        const date = value ? new Date(value) : new Date();
+        if (Number.isNaN(date.getTime())) return "";
+        return startOfWeek(date);
+      }
+
+      async function safeApi(path, fallback) {
+        try {
+          return await api(path);
+        } catch (error) {
+          console.warn("Report API failed", path, error);
+          return fallback;
+        }
+      }
+
+      async function loadJsonBundle(domain) {
+        const week = document.getElementById("weekStart").value || startOfWeek();
+        const queryDomain = encodeURIComponent(domain);
+        const [profileCount, recentProfileCount, profiles, jobs, onboarding, time, meetings, interviews, temp] = await Promise.all([
+          safeApi(`/api/profile/count?domain=${queryDomain}`, 0),
+          safeApi(`/api/profile/count/recent?domain=${queryDomain}`, 0),
+          safeApi(`/api/profile/list?domain=${queryDomain}`, []),
+          safeApi(`/api/jd/list?domain=${queryDomain}`, []),
+          safeApi(`/api/onboarding/admin?domain=${queryDomain}`, { people: [], count: 0 }),
+          safeApi(`/api/time-entry/admin?domain=${queryDomain}&status=all&week_start=${encodeURIComponent(week)}`, { groups: [], entries: [], candidate_totals: [] }),
+          safeApi(`/api/meetings/archive?domain=${queryDomain}&limit=500`, { records: [] }),
+          safeApi(`/api/interviews/archive?domain=${queryDomain}&limit=250`, { records: [] }),
+          safeApi(`/api/azureJobs/external/temp?domain=${queryDomain}&limit=200`, { profiles: [], records: [], count: 0 }),
+        ]);
+        return {
+          domain,
+          week,
+          profileCount: Number(profileCount || 0),
+          recentProfileCount: Number(recentProfileCount || 0),
+          profiles: Array.isArray(profiles) ? profiles : [],
+          jobs: Array.isArray(jobs) ? jobs : [],
+          onboardingPeople: onboarding.people || [],
+          timeGroups: time.groups || [],
+          timeEntries: time.entries || [],
+          candidateTotals: time.candidate_totals || [],
+          timeTotals: time,
+          meetings: meetings.records || [],
+          interviews: interviews.records || [],
+          tempProfiles: temp.profiles || temp.records || temp.people || [],
+          tempCount: Number(temp.count || (temp.profiles || temp.records || temp.people || []).length || 0),
+        };
+      }
+
+      function profileName(profile) {
+        return profile.full_name || profile.name || profile.candidate_name || profile.contact?.full_name || profile.contact?.name || "Candidate";
+      }
+
+      function profileEmail(profile) {
+        return profile.email || profile.contact?.email || "";
+      }
+
+      function profileId(profile) {
+        return profile.profile_id || profile.profileId || profile.id || profile.meta?.profile_id || "";
+      }
+
+      function jobDate(job) {
+        return job.updated_at || job.updatedAt || job.created_at || job.createdAt || "";
+      }
+
+      function jobTitle(job) {
+        return job.title || job.role || job.job_title || "Untitled role";
+      }
+
+      function jobCompany(job) {
+        return job.company || job.client || "No client";
+      }
+
+      function interviewKind(record) {
+        const raw = String(record.interviewType || record.readyPurpose || record.purpose || record.type || "").toLowerCase();
+        if (raw.includes("client")) return "Client interview";
+        if (raw.includes("candidate") || raw.includes("role")) return "Candidate review";
+        return "Unclassified";
+      }
+
+      function buildReports(bundle) {
+        const assignedKeys = new Set();
+        bundle.onboardingPeople.forEach((person) => assignedKeys.add(person.profile_id || person.email || person.candidate_name));
+        bundle.candidateTotals.forEach((person) => assignedKeys.add(person.profile_id || person.email || person.candidate_name));
+
+        const activeJobs = bundle.jobs.filter((job) => ageDays(jobDate(job)) <= 90);
+        const staleJobs = bundle.jobs.filter((job) => ageDays(jobDate(job)) > 90);
+        const completedOnboarding = bundle.onboardingPeople.filter((person) => person.status === "paperwork_submitted");
+        const staleOnboarding = bundle.onboardingPeople.filter((person) => person.status !== "paperwork_submitted" && ageDays(person.updated_at || person.created_at) > 7);
+        const clientInterviews = bundle.interviews.filter((record) => interviewKind(record) === "Client interview");
+        const candidateInterviews = bundle.interviews.filter((record) => interviewKind(record) === "Candidate review");
+        const missingTime = bundle.onboardingPeople.filter((person) => {
+          const key = person.profile_id || person.email || person.candidate_name;
+          return !bundle.timeGroups.some((group) => (group.profile_id || group.email || group.candidate_name) === key);
+        });
+        const meetingDayCounts = countsBy(bundle.meetings, (record) => isoDate(record.meetingAt || record.createdAt || record.updatedAt));
+        const meetingWeekCounts = countsBy(bundle.meetings, (record) => weekKey(record.meetingAt || record.createdAt || record.updatedAt));
+        const interviewCounts = countsBy(bundle.interviews, interviewKind);
+        const timeStatusCounts = countsBy(bundle.timeEntries, (entry) => entry.status || "submitted_to_devready");
+
+        return {
+          overall: {
+            count: bundle.profileCount,
+            rows: [
+              ["Metric", "Value", "Notes"],
+              ["Profiles", bundle.profileCount, `${bundle.recentProfileCount} recent`],
+              ["Job descriptions", bundle.jobs.length, `${activeJobs.length} active, ${staleJobs.length} stale/inactive`],
+              ["On assignment", assignedKeys.size, "Onboarding or time activity"],
+              ["Missing time this week", missingTime.length, bundle.week],
+              ["Meetings", bundle.meetings.length, "Archived meeting records"],
+              ["Interviews", bundle.interviews.length, `${candidateInterviews.length} candidate review, ${clientInterviews.length} client interview`],
+            ],
+          },
+          jobs: {
+            count: bundle.jobs.length,
+            activeJobs,
+            staleJobs,
+            rows: [
+              ["JD ID", "Company", "Title", "Status", "Updated"],
+              ...bundle.jobs.map((job) => [job.jd_id || job.id || "", jobCompany(job), jobTitle(job), ageDays(jobDate(job)) <= 90 ? "Active" : "Inactive / stale", displayDate(jobDate(job))]),
+            ],
+          },
+          profiles: {
+            count: bundle.profileCount,
+            rows: [
+              ["Profile ID", "Name", "Email", "Assignment signal"],
+              ...bundle.profiles.slice(0, 500).map((profile) => {
+                const key = profileId(profile) || profileEmail(profile) || profileName(profile);
+                return [profileId(profile), profileName(profile), profileEmail(profile), assignedKeys.has(key) ? "On assignment / active" : "No assignment signal"];
+              }),
+            ],
+          },
+          onboarding: {
+            count: bundle.onboardingPeople.length,
+            completedOnboarding,
+            staleOnboarding,
+            rows: [
+              ["Candidate", "Email", "Title", "Status", "Updated", "Start day"],
+              ...bundle.onboardingPeople.map((person) => [person.candidate_name || person.legal_name || "", person.email || "", person.title || "", person.status || "", displayDate(person.updated_at || person.created_at), person.start_day || ""]),
+            ],
+          },
+          candidates: {
+            count: bundle.profileCount + bundle.tempCount,
+            rows: [
+              ["Source", "Total", "Notes"],
+              ["Find Candidates (In)", bundle.profileCount, "Internal profiles in selected domain"],
+              ["Find Candidates (Out)", bundle.tempCount, "External TEMP profiles available for review"],
+              ["Recent internal profiles", bundle.recentProfileCount, "Recent profile count from backend"],
+            ],
+          },
+          meetings: {
+            count: bundle.meetings.length,
+            dayCounts: meetingDayCounts,
+            weekCounts: meetingWeekCounts,
+            rows: [
+              ["Meeting", "When", "Client", "Profile", "Status"],
+              ...bundle.meetings.map((record) => [record.title || record.name || "Meeting", displayDate(record.meetingAt || record.createdAt || record.updatedAt), record.clientName || record.client || record.company || "", record.profileId || record.candidateId || "", record.status || "Saved"]),
+            ],
+          },
+          interviews: {
+            count: bundle.interviews.length,
+            interviewCounts,
+            rows: [
+              ["When", "Candidate", "Type", "Company", "Provider", "Status"],
+              ...bundle.interviews.map((record) => [displayDate(record.scheduledStart || record.windowStart || record.createdAt), record.candidateName || record.candidateEmail || "", interviewKind(record), record.clientCompany || record.company || "", record.provider || "", record.status || "Recorded"]),
+            ],
+          },
+          time: {
+            count: bundle.timeTotals.total_hours || 0,
+            missingTime,
+            timeStatusCounts,
+            rows: [
+              ["Candidate", "Email", "Week", "Hours", "Status", "Client / Project"],
+              ...bundle.timeGroups.map((group) => [group.candidate_name || "Staff member", group.email || "", group.week_start || "", group.total_hours || 0, group.status || "", [group.client, group.project].filter(Boolean).join(" / ")]),
+            ],
+          },
+        };
+      }
+
+      function countsBy(items, getter) {
+        const counts = {};
+        items.forEach((item) => {
+          const key = getter(item) || "Unknown";
+          counts[key] = (counts[key] || 0) + 1;
+        });
+        return counts;
+      }
+
+      function renderCards() {
+        const cards = document.getElementById("reportCards");
+        cards.innerHTML = reportDefs.map((def) => {
+          const report = reportState[def.key] || {};
+          return `
+            <button class="report-icon-card ${activeReport === def.key ? "active" : ""}" type="button" onclick="setActiveReport('${def.key}')">
+              <span class="icon">${iconSvg(def.icon)}</span>
+              <strong>${escapeLocal(def.title)}</strong>
+              <span>${escapeLocal(def.hint)}</span>
+              <div class="number">${escapeLocal(report.count ?? "-")}</div>
+            </button>
+          `;
+        }).join("");
+      }
+
+      function renderSummary() {
+        const summaryRows = reportState.overall?.rows?.slice(1) || [];
+        document.getElementById("companySummary").innerHTML = summaryRows.slice(0, 8).map((row) => `
+          <div class="summary-tile">
+            <strong>${escapeLocal(row[1])}</strong>
+            <span>${escapeLocal(row[0])}</span>
+            <div class="muted">${escapeLocal(row[2])}</div>
+          </div>
+        `).join("");
+      }
+
+      function tableHtml(rows) {
+        if (!rows || rows.length <= 1) return '<div class="notice" style="margin:12px">No rows available for this report.</div>';
+        const [header, ...body] = rows;
+        return `
+          <div class="report-table-wrap">
+            <table class="report-table">
+              <thead><tr>${header.map((cell) => `<th>${escapeLocal(cell)}</th>`).join("")}</tr></thead>
+              <tbody>
+                ${body.map((row) => `<tr>${row.map((cell) => `<td>${escapeLocal(cell)}</td>`).join("")}</tr>`).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      function countTable(title, counts) {
+        const rows = Object.entries(counts || {}).sort((a, b) => b[1] - a[1]);
+        if (!rows.length) return '<div class="notice" style="margin:12px">No totals available.</div>';
+        return `
+          <div class="report-table-wrap">
+            <table class="report-table">
+              <thead><tr><th>${escapeLocal(title)}</th><th class="num">Total</th></tr></thead>
+              <tbody>${rows.map(([key, value]) => `<tr><td>${escapeLocal(key)}</td><td class="num">${escapeLocal(value)}</td></tr>`).join("")}</tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      function renderPanels() {
+        const panels = {
+          overall: `
+            <section class="card report-panel ${activeReport === "overall" ? "active" : ""}" data-report-panel="overall">
+              <h2>Overall company status</h2>
+              <details class="report-drill" open><summary>Company status drill-down <span>${domainLabel(currentDomain())}</span></summary>${tableHtml(reportState.overall?.rows)}</details>
+            </section>
+          `,
+          jobs: `
+            <section class="card report-panel ${activeReport === "jobs" ? "active" : ""}" data-report-panel="jobs">
+              <h2>Job description reports</h2>
+              <details class="report-drill" open><summary>All job descriptions <span>${reportState.jobs?.count || 0} total</span></summary>${tableHtml(reportState.jobs?.rows)}</details>
+              <details class="report-drill"><summary>Active roles <span>${reportState.jobs?.activeJobs?.length || 0} updated within 90 days</span></summary>${tableHtml([["JD ID", "Company", "Title", "Updated"], ...(reportState.jobs?.activeJobs || []).map((job) => [job.jd_id || job.id || "", jobCompany(job), jobTitle(job), displayDate(jobDate(job))])])}</details>
+              <details class="report-drill"><summary>Inactive or stale roles <span>${reportState.jobs?.staleJobs?.length || 0} need review</span></summary>${tableHtml([["JD ID", "Company", "Title", "Updated"], ...(reportState.jobs?.staleJobs || []).map((job) => [job.jd_id || job.id || "", jobCompany(job), jobTitle(job), displayDate(jobDate(job))])])}</details>
+            </section>
+          `,
+          profiles: `
+            <section class="card report-panel ${activeReport === "profiles" ? "active" : ""}" data-report-panel="profiles">
+              <h2>Profile reports</h2>
+              <details class="report-drill" open><summary>Profile totals and assignment signals <span>${reportState.profiles?.count || 0} total profiles</span></summary>${tableHtml(reportState.profiles?.rows)}</details>
+            </section>
+          `,
+          onboarding: `
+            <section class="card report-panel ${activeReport === "onboarding" ? "active" : ""}" data-report-panel="onboarding">
+              <h2>Onboarding reports</h2>
+              <details class="report-drill" open><summary>All onboarding records <span>${reportState.onboarding?.count || 0} total</span></summary>${tableHtml(reportState.onboarding?.rows)}</details>
+              <details class="report-drill"><summary>Completed onboarding <span>${reportState.onboarding?.completedOnboarding?.length || 0} paperwork submitted</span></summary>${tableHtml([["Candidate", "Email", "Title", "Updated"], ...(reportState.onboarding?.completedOnboarding || []).map((person) => [person.candidate_name || person.legal_name || "", person.email || "", person.title || "", displayDate(person.updated_at || person.created_at)])])}</details>
+              <details class="report-drill"><summary>Stale onboarding <span>${reportState.onboarding?.staleOnboarding?.length || 0} older than 7 days</span></summary>${tableHtml([["Candidate", "Email", "Title", "Status", "Updated"], ...(reportState.onboarding?.staleOnboarding || []).map((person) => [person.candidate_name || person.legal_name || "", person.email || "", person.title || "", person.status || "", displayDate(person.updated_at || person.created_at)])])}</details>
+            </section>
+          `,
+          candidates: `
+            <section class="card report-panel ${activeReport === "candidates" ? "active" : ""}" data-report-panel="candidates">
+              <h2>Candidate in/out reports</h2>
+              <details class="report-drill" open><summary>Source totals <span>Internal and external</span></summary>${tableHtml(reportState.candidates?.rows)}</details>
+            </section>
+          `,
+          meetings: `
+            <section class="card report-panel ${activeReport === "meetings" ? "active" : ""}" data-report-panel="meetings">
+              <h2>Meeting reports</h2>
+              <details class="report-drill" open><summary>All meetings <span>${reportState.meetings?.count || 0} total</span></summary>${tableHtml(reportState.meetings?.rows)}</details>
+              <details class="report-drill"><summary>Day-over-day meeting totals <span>Grouped by day</span></summary>${countTable("Day", reportState.meetings?.dayCounts)}</details>
+              <details class="report-drill"><summary>Week totals <span>Grouped by week</span></summary>${countTable("Week starting", reportState.meetings?.weekCounts)}</details>
+            </section>
+          `,
+          interviews: `
+            <section class="card report-panel ${activeReport === "interviews" ? "active" : ""}" data-report-panel="interviews">
+              <h2>Interview reports</h2>
+              <details class="report-drill" open><summary>Scheduled interviews <span>${reportState.interviews?.count || 0} total</span></summary>${tableHtml(reportState.interviews?.rows)}</details>
+              <details class="report-drill"><summary>Candidate vs client totals <span>By interview type</span></summary>${countTable("Type", reportState.interviews?.interviewCounts)}</details>
+            </section>
+          `,
+          time: `
+            <section class="card report-panel ${activeReport === "time" ? "active" : ""}" data-report-panel="time">
+              <h2>Time-entry reports</h2>
+              <details class="report-drill" open><summary>Weekly time entries <span>${reportState.time?.count || 0} hours</span></summary>${tableHtml(reportState.time?.rows)}</details>
+              <details class="report-drill"><summary>Missing time this week <span>${reportState.time?.missingTime?.length || 0} people</span></summary>${tableHtml([["Candidate", "Email", "Title", "Status"], ...(reportState.time?.missingTime || []).map((person) => [person.candidate_name || person.legal_name || "", person.email || "", person.title || "", person.status || ""])])}</details>
+              <details class="report-drill"><summary>Time status totals <span>Submitted, approved, processed, review</span></summary>${countTable("Status", reportState.time?.timeStatusCounts)}</details>
+            </section>
+          `,
+        };
+        document.getElementById("reportPanels").innerHTML = reportDefs.map((def) => panels[def.key]).join("");
+      }
+
+      function setActiveReport(key) {
+        activeReport = key;
+        document.getElementById("activeReportTitle").textContent = reportDefs.find((def) => def.key === key)?.title || "Reports";
+        renderCards();
+        renderPanels();
+      }
+
+      function csvValue(value) {
+        return `"${String(value ?? "").replace(/"/g, '""')}"`;
+      }
+
+      function exportActiveCsv() {
+        const rows = reportState[activeReport]?.rows || [];
+        if (!rows.length) {
+          alert("No rows available to export yet.");
+          return;
+        }
+        const csv = rows.map((row) => row.map(csvValue).join(",")).join("\r\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const link = document.createElement("a");
+        const reportName = reportDefs.find((def) => def.key === activeReport)?.title || activeReport;
+        link.href = URL.createObjectURL(blob);
+        link.download = `vetcode-${currentDomain()}-${reportName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(link.href);
+      }
+
+      function switchReportsDomain() {
+        const domain = currentDomain();
+        sessionStorage.setItem("domain", domain === "all" ? "dev" : domain);
+        const url = new URL(window.location.href);
+        url.searchParams.set("domain", domain);
+        window.history.replaceState({}, "", url.toString());
+        if (domain !== "all" && typeof domainUpdate === "function") domainUpdate(domain);
+        loadReports();
+      }
+
+      async function loadReports() {
+        const domain = currentDomain();
+        document.getElementById("reportStatus").textContent = `Loading ${domainLabel(domain)} reports...`;
+        const bundle = await loadJsonBundle(domain);
+        reportState = buildReports(bundle);
+        renderCards();
+        renderSummary();
+        renderPanels();
+        document.getElementById("reportStatus").textContent = `${domainLabel(domain)} reports loaded for week starting ${bundle.week}.`;
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const params = new URLSearchParams(window.location.search);
+        const domain = normalizeDomain(params.get("domain") || sessionStorage.getItem("domain") || "dev");
+        document.getElementById("domainSelect").value = domain;
+        document.getElementById("weekStart").value = startOfWeek();
+        loadReports();
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Sales CRM</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : ["dev", "engineer", "law"].includes(requested) ? requested : "dev";
+        sessionStorage.setItem("domain", domain);
+        document.documentElement.dataset.domain = domain;
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <style>
+      .sales-hero,
+      .sales-panel,
+      .sales-card {
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.16);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 16px 38px rgba(15, 23, 42, 0.07);
+      }
+
+      body.sales-mini-workspace {
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 18% 8%, rgba(var(--primary-rgb, 47, 125, 75), 0.12), transparent 28%),
+          linear-gradient(180deg, #fbfcfb 0%, #eef3ef 100%);
+      }
+
+      .sales-mini-workspace .main {
+        width: min(1440px, calc(100% - 28px));
+        margin: 0 auto;
+        padding: 18px 0 34px;
+      }
+
+      .mini-link-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 14px;
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.16);
+        border-radius: 10px;
+        padding: 12px 14px;
+        background: rgba(255, 255, 255, 0.88);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+      }
+
+      .mini-link-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--text, #102015);
+        font-weight: 1000;
+      }
+
+      .mini-link-brand img {
+        width: 34px;
+        height: 34px;
+      }
+
+      .mini-link-note {
+        color: var(--muted, #5d6b62);
+        font-size: 12px;
+        font-weight: 800;
+        text-align: right;
+      }
+
+      .sales-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: end;
+        padding: 18px;
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb, 47, 125, 75), 0.12), rgba(255, 255, 255, 0.92)),
+          #fff;
+      }
+
+      .sales-hero h1 {
+        margin: 0;
+        font-size: clamp(28px, 3.8vw, 48px);
+        line-height: 1;
+        color: var(--text, #102015);
+      }
+
+      .sales-hero p {
+        margin: 8px 0 0;
+        max-width: 780px;
+        color: var(--muted, #5d6b62);
+      }
+
+      .sales-filter {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(150px, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .sales-filter label,
+      .update-grid label {
+        display: grid;
+        gap: 5px;
+        font-size: 12px;
+        font-weight: 900;
+        color: var(--text, #102015);
+      }
+
+      .sales-filter input,
+      .sales-filter select,
+      .update-grid input,
+      .update-grid select,
+      .update-grid textarea {
+        width: 100%;
+        min-height: 36px;
+        border: 1px solid var(--line, #dfe7e2);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font: inherit;
+        background: #fff;
+      }
+
+      .sales-filter button {
+        align-self: end;
+      }
+
+      .sales-stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin: 14px 0;
+      }
+
+      .sales-stat {
+        min-height: 76px;
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.12);
+        border-radius: 9px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.86);
+      }
+
+      .sales-stat strong {
+        display: block;
+        font-size: 26px;
+        color: var(--primary-2, #2f7d4b);
+      }
+
+      .sales-stat span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted, #5d6b62);
+        font-size: 12px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .sales-grid {
+        display: grid;
+        grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .sales-panel {
+        padding: 14px;
+      }
+
+      .sales-panel h2 {
+        margin: 0 0 8px;
+        color: var(--text, #102015);
+      }
+
+      .todo-list,
+      .account-list,
+      .contract-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .todo-item,
+      .account-row,
+      .contract-row {
+        border: 1px solid var(--line, #dfe7e2);
+        border-radius: 8px;
+        padding: 10px;
+        background: #fff;
+      }
+
+      .todo-item strong,
+      .account-row strong,
+      .contract-row strong {
+        color: var(--text, #102015);
+      }
+
+      .todo-item span,
+      .account-row span,
+      .contract-row span {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted, #5d6b62);
+        font-size: 12px;
+      }
+
+      .todo-item.high {
+        border-color: rgba(204, 58, 58, 0.32);
+        background: #fff7f7;
+      }
+
+      .todo-item.medium {
+        border-color: rgba(164, 106, 36, 0.28);
+        background: #fffbf2;
+      }
+
+      .account-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .account-row.selected {
+        border-color: rgba(var(--primary-rgb, 47, 125, 75), 0.45);
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.08);
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.24);
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.08);
+        color: var(--primary-2, #2f7d4b);
+        font-size: 11px;
+        font-weight: 950;
+      }
+
+      .update-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .update-grid .full {
+        grid-column: 1 / -1;
+      }
+
+      .notice {
+        margin-top: 10px;
+      }
+
+      @media (max-width: 980px) {
+        .sales-hero,
+        .sales-grid,
+        .sales-filter,
+        .sales-stats,
+        .update-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body class="sales-mini-workspace">
+    <main class="main">
+      <header class="mini-link-header">
+        <div class="mini-link-brand">
+          <img class="domainLogo" src="../assets/devLogo.svg" alt="DevReady" />
+          <span>DevReady Sales Workspace</span>
+        </div>
+        <div class="mini-link-note">Focused rep link - updates save back to the shared CRM</div>
+      </header>
+      <section class="page-shell">
+        <div class="page-head">
+          <div>
+            <div class="page-title">Sales CRM</div>
+            <div class="page-subtitle">Rep relationship link - territory, contracts, daily priorities</div>
+          </div>
+          <div class="top-controls">
+            <select id="domainSelect" onchange="switchDomain()">
+              <option value="dev">Technology Domain</option>
+              <option value="engineer">Engineer Domain</option>
+              <option value="law">Law Domain</option>
+            </select>
+          </div>
+        </div>
+
+        <section class="sales-hero">
+          <div>
+            <span class="pill">Sales Numa workspace</span>
+            <h1>Rep book of business</h1>
+            <p>
+              Give each sales rep a focused link for their territory. They can update account touches, contract stage,
+              next action, and notes here; every save writes back to the shared CRM record.
+            </p>
+          </div>
+          <div class="crm-actions">
+            <button class="btn secondary" type="button" onclick="copyRepLink()">Copy rep link</button>
+            <button class="btn primary" type="button" onclick="loadPortal()">Refresh</button>
+          </div>
+        </section>
+
+        <section class="sales-filter" aria-label="Sales rep filters">
+          <label>
+            Sales rep
+            <input id="repInput" list="repList" placeholder="Heidi" />
+            <datalist id="repList"></datalist>
+          </label>
+          <label>
+            Territory
+            <input id="territoryInput" placeholder="Healthcare, West, Strategic..." />
+          </label>
+          <label>
+            Relationship link
+            <input id="repLinkInput" readonly />
+          </label>
+          <button class="btn primary" type="button" onclick="loadPortal()">Load rep CRM</button>
+        </section>
+
+        <section class="sales-stats" aria-label="Sales summary">
+          <div class="sales-stat"><strong id="statAccounts">0</strong><span>Accounts</span></div>
+          <div class="sales-stat"><strong id="statContracts">0</strong><span>Contracts</span></div>
+          <div class="sales-stat"><strong id="statPipeline">$0</strong><span>Pipeline</span></div>
+          <div class="sales-stat"><strong id="statAttention">0</strong><span>Need attention</span></div>
+        </section>
+
+        <section class="sales-grid">
+          <aside class="sales-panel">
+            <h2>Daily to-do list</h2>
+            <div id="todoList" class="todo-list"></div>
+          </aside>
+
+          <section class="sales-panel">
+            <h2>Territory accounts and contracts</h2>
+            <div id="accountList" class="account-list"></div>
+          </section>
+        </section>
+
+        <section class="sales-panel" style="margin-top: 14px">
+          <h2>Update selected account</h2>
+          <div class="update-grid">
+            <label>
+              Account
+              <input id="updateCustomer" placeholder="Client name" />
+            </label>
+            <label>
+              Contract value
+              <input id="updateValue" inputmode="decimal" placeholder="125000" />
+            </label>
+            <label>
+              Contact
+              <input id="updateContact" placeholder="Name, title" />
+            </label>
+            <label>
+              Contact email
+              <input id="updateEmail" type="email" placeholder="contact@client.com" />
+            </label>
+            <label>
+              Contract stage
+              <select id="updateStage">
+                <option>Discovery</option>
+                <option>Qualified</option>
+                <option>Candidate Review</option>
+                <option>Shortlist Sent</option>
+                <option>Client Interview</option>
+                <option>Contract / SOW</option>
+                <option>Won</option>
+                <option>Lost</option>
+                <option>On Hold</option>
+              </select>
+            </label>
+            <label>
+              Touch type
+              <select id="touchChannel">
+                <option>Email</option>
+                <option>Call</option>
+                <option>Meeting</option>
+                <option>Text</option>
+                <option>LinkedIn</option>
+              </select>
+            </label>
+            <label class="full">
+              Next action
+              <input id="updateNextStep" placeholder="Schedule follow-up, send shortlist, prepare SOW..." />
+            </label>
+            <label class="full">
+              Touch outcome / notes
+              <textarea id="touchNotes" rows="4" placeholder="What happened, what changed, what Sales Numa should remember..."></textarea>
+            </label>
+          </div>
+          <div class="crm-actions" style="margin-top: 12px">
+            <button class="btn primary" type="button" onclick="saveAccountUpdate()">Save back to main CRM</button>
+            <button class="btn secondary" type="button" onclick="clearSelection()">Clear selection</button>
+          </div>
+          <div id="salesStatus" class="notice">Select an account to update, or enter a new account and save it to this rep.</div>
+        </section>
+      </section>
+    </main>
+
+    <script>
+      let portalData = { records: [], todos: [], reps: [], summary: {} };
+      let selectedRecordId = "";
+
+      function currentDomain() {
+        return new URLSearchParams(window.location.search).get("domain") || sessionStorage.getItem("domain") || "dev";
+      }
+
+      function money(value) {
+        return Number(value || 0).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function apiPostForm(url, payload) {
+        const form = new URLSearchParams();
+        Object.entries(payload).forEach(([key, value]) => form.append(key, value ?? ""));
+        return fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: form.toString(),
+        }).then(async (response) => {
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.detail || "Request failed");
+          return data;
+        });
+      }
+
+      function switchDomain() {
+        const domain = document.getElementById("domainSelect").value;
+        sessionStorage.setItem("domain", domain);
+        const url = new URL(window.location.href);
+        url.searchParams.set("domain", domain);
+        window.location.href = url.toString();
+      }
+
+      function seedFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const user = (() => {
+          try {
+            return JSON.parse(sessionStorage.getItem("devreadyUser") || localStorage.getItem("devreadyUser") || "null");
+          } catch {
+            return null;
+          }
+        })();
+        document.querySelectorAll("img.domainLogo").forEach((img) => {
+          img.src = `../assets/${currentDomain()}Logo.svg`;
+        });
+        document.getElementById("domainSelect").value = currentDomain();
+        document.getElementById("repInput").value = params.get("rep") || user?.display_name || user?.username || "";
+        document.getElementById("territoryInput").value = params.get("territory") || "";
+        updateRepLink();
+      }
+
+      function updateRepLink() {
+        const url = new URL(window.location.href);
+        url.searchParams.set("domain", currentDomain());
+        const rep = document.getElementById("repInput").value.trim();
+        const territory = document.getElementById("territoryInput").value.trim();
+        if (rep) url.searchParams.set("rep", rep);
+        else url.searchParams.delete("rep");
+        if (territory) url.searchParams.set("territory", territory);
+        else url.searchParams.delete("territory");
+        document.getElementById("repLinkInput").value = url.toString();
+      }
+
+      async function copyRepLink() {
+        updateRepLink();
+        const value = document.getElementById("repLinkInput").value;
+        await navigator.clipboard?.writeText(value);
+        document.getElementById("salesStatus").textContent = "Sales CRM relationship link copied.";
+      }
+
+      async function loadPortal() {
+        updateRepLink();
+        const rep = document.getElementById("repInput").value.trim();
+        const territory = document.getElementById("territoryInput").value.trim();
+        const params = new URLSearchParams({ domain: currentDomain(), rep, territory, limit: "250" });
+        const response = await fetch(`/api/sales-crm/portal?${params.toString()}`, { cache: "no-store" });
+        portalData = await response.json();
+        renderPortal();
+      }
+
+      function renderPortal() {
+        const summary = portalData.summary || {};
+        document.getElementById("statAccounts").textContent = summary.accounts || 0;
+        document.getElementById("statContracts").textContent = summary.contracts || 0;
+        document.getElementById("statPipeline").textContent = money(summary.pipeline || 0);
+        document.getElementById("statAttention").textContent = summary.attention || 0;
+        document.getElementById("repList").innerHTML = (portalData.reps || [])
+          .map((rep) => `<option value="${escapeHtml(rep.name)}">${escapeHtml(rep.accounts)} accounts</option>`)
+          .join("");
+
+        document.getElementById("todoList").innerHTML = (portalData.todos || []).length
+          ? portalData.todos
+              .map(
+                (todo) => `<button class="todo-item ${escapeHtml(todo.priority)}" type="button" onclick="selectAccount('${escapeHtml(todo.record_id)}')">
+                  <strong>${escapeHtml(todo.title)}</strong>
+                  <span>${escapeHtml(todo.reason)}</span>
+                </button>`,
+              )
+              .join("")
+          : '<div class="notice">No urgent to-dos. Sales Numa will keep watching for stale accounts and missing next steps.</div>';
+
+        document.getElementById("accountList").innerHTML = (portalData.records || []).length
+          ? portalData.records.map(renderAccount).join("")
+          : '<div class="notice">No accounts found for this rep or territory.</div>';
+      }
+
+      function renderAccount(record) {
+        const contracts = (record.contracts || [])
+          .map(
+            (contract) => `<div class="contract-row">
+              <strong>${escapeHtml(contract.name)} - ${escapeHtml(contract.stage)}</strong>
+              <span>${money(contract.value)} | ${escapeHtml(contract.contact || record.contact || "No contact")} | ${escapeHtml(contract.close_date || "No close date")}</span>
+            </div>`,
+          )
+          .join("");
+        return `<article class="account-row ${record.id === selectedRecordId ? "selected" : ""}">
+          <div>
+            <strong>${escapeHtml(record.customer || "Unnamed account")}</strong>
+            <span>${escapeHtml(record.territory || "Unassigned territory")} | Owner: ${escapeHtml(record.owner || "Unassigned")} | Last touch: ${escapeHtml(record.lastTouched || "None")}</span>
+            <span>Next: ${escapeHtml(record.nextStep || "No next action")}</span>
+            <div class="contract-list" style="margin-top:8px">${contracts}</div>
+          </div>
+          <button class="btn secondary" type="button" onclick="selectAccount('${escapeHtml(record.id)}')">Update</button>
+        </article>`;
+      }
+
+      function selectAccount(id) {
+        const record = (portalData.records || []).find((item) => item.id === id);
+        if (!record) return;
+        selectedRecordId = id;
+        document.getElementById("updateCustomer").value = record.customer || "";
+        document.getElementById("updateContact").value = record.contact || "";
+        document.getElementById("updateEmail").value = record.email || "";
+        document.getElementById("updateValue").value = record.value || "";
+        document.getElementById("updateStage").value = record.contractStatus || record.dealStage || "Discovery";
+        document.getElementById("updateNextStep").value = record.nextStep || "";
+        document.getElementById("touchNotes").value = "";
+        renderPortal();
+      }
+
+      function clearSelection() {
+        selectedRecordId = "";
+        ["updateCustomer", "updateContact", "updateEmail", "updateValue", "updateNextStep", "touchNotes"].forEach((id) => {
+          document.getElementById(id).value = "";
+        });
+        document.getElementById("updateStage").value = "Discovery";
+        renderPortal();
+      }
+
+      async function saveAccountUpdate() {
+        const payload = {
+          record_id: selectedRecordId,
+          domain: currentDomain(),
+          rep: document.getElementById("repInput").value.trim(),
+          territory: document.getElementById("territoryInput").value.trim(),
+          customer: document.getElementById("updateCustomer").value.trim(),
+          contact: document.getElementById("updateContact").value.trim(),
+          email: document.getElementById("updateEmail").value.trim(),
+          value: document.getElementById("updateValue").value.trim(),
+          contract_status: document.getElementById("updateStage").value,
+          next_step: document.getElementById("updateNextStep").value.trim(),
+          touch_channel: document.getElementById("touchChannel").value,
+          touch_outcome: document.getElementById("updateStage").value,
+          touch_notes: document.getElementById("touchNotes").value.trim(),
+        };
+        if (!payload.customer) {
+          document.getElementById("salesStatus").textContent = "Account name is required.";
+          return;
+        }
+        const data = await apiPostForm("/api/sales-crm/account", payload);
+        selectedRecordId = data.record.id;
+        document.getElementById("salesStatus").textContent = "Saved back to the main CRM.";
+        await loadPortal();
+      }
+
+      document.addEventListener("input", (event) => {
+        if (event.target && ["repInput", "territoryInput"].includes(event.target.id)) updateRepLink();
+      });
+
+      seedFromUrl();
+      loadPortal();
+    </script>
+  </body>
+</html>

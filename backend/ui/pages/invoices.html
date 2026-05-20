@@ -1,0 +1,944 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Invoices</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : ["dev", "engineer", "law"].includes(requested) ? requested : "dev";
+        sessionStorage.setItem("domain", domain);
+        document.documentElement.dataset.domain = domain;
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <style>
+      .invoice-shell {
+        display: grid;
+        gap: 14px;
+      }
+
+      .invoice-toolbar,
+      .invoice-grid,
+      .invoice-card,
+      .invoice-preview {
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.16);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 16px 38px rgba(15, 23, 42, 0.07);
+      }
+
+      .invoice-toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: end;
+        padding: 16px;
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb, 47, 125, 75), 0.12), rgba(255, 255, 255, 0.94)),
+          #fff;
+      }
+
+      .invoice-toolbar h2,
+      .invoice-card h2 {
+        margin: 0;
+        color: var(--text, #102015);
+      }
+
+      .invoice-toolbar p,
+      .mini-note {
+        color: var(--muted, #5d6b62);
+        font-size: 12px;
+      }
+
+      .invoice-filters,
+      .invoice-form {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .invoice-form .wide,
+      .invoice-filters .wide {
+        grid-column: 1 / -1;
+      }
+
+      label {
+        display: grid;
+        gap: 5px;
+        color: var(--text, #102015);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        min-height: 36px;
+        border: 1px solid var(--line, #dfe7e2);
+        border-radius: 8px;
+        padding: 8px 10px;
+        background: #fff;
+        font: inherit;
+      }
+
+      input[readonly],
+      textarea[readonly] {
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.06);
+        color: var(--text, #102015);
+        cursor: default;
+      }
+
+      .invoice-grid {
+        display: grid;
+        grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+        gap: 14px;
+        padding: 14px;
+      }
+
+      .invoice-card {
+        padding: 14px;
+      }
+
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin: 10px 0;
+      }
+
+      .stat {
+        border: 1px solid var(--line, #dfe7e2);
+        border-radius: 8px;
+        padding: 10px;
+        background: #fff;
+      }
+
+      .stat strong {
+        display: block;
+        color: var(--primary-2, #2f7d4b);
+        font-size: 22px;
+      }
+
+      .stat span {
+        color: var(--muted, #5d6b62);
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .consultant-list,
+      .time-line-list,
+      .line-list,
+      .invoice-history {
+        display: grid;
+        gap: 8px;
+      }
+
+      .row-box {
+        border: 1px solid var(--line, #dfe7e2);
+        border-radius: 8px;
+        padding: 9px 10px;
+        background: #fff;
+      }
+
+      .row-box strong {
+        color: var(--text, #102015);
+      }
+
+      .row-box span {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted, #5d6b62);
+        font-size: 12px;
+      }
+
+      .time-line {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: start;
+      }
+
+      .time-line input {
+        width: auto;
+        min-height: auto;
+        margin-top: 4px;
+      }
+
+      .invoice-preview {
+        padding: 0;
+        overflow: hidden;
+      }
+
+      .preview-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        padding: 22px;
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb, 47, 125, 75), 0.14), rgba(255, 255, 255, 0.92)),
+          #fff;
+        border-bottom: 1px solid var(--line, #dfe7e2);
+      }
+
+      .preview-head h2 {
+        margin: 0;
+        font-size: 34px;
+      }
+
+      .preview-body {
+        padding: 20px 22px;
+      }
+
+      .invoice-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 14px;
+      }
+
+      .invoice-table th,
+      .invoice-table td {
+        border-bottom: 1px solid var(--line, #dfe7e2);
+        padding: 9px 6px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .invoice-table .num {
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .invoice-total {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 16px;
+        color: var(--primary-2, #2f7d4b);
+        font-size: 24px;
+        font-weight: 950;
+      }
+
+      .pill {
+        display: inline-flex;
+        width: fit-content;
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.24);
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.09);
+        color: var(--primary-2, #2f7d4b);
+        font-size: 11px;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      .row-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      @media print {
+        body > :not(.invoice-print-root),
+        #siteSidebar,
+        .topbar,
+        .invoice-toolbar,
+        .invoice-grid > .invoice-card:first-child,
+        .invoice-history-card {
+          display: none !important;
+        }
+        .main,
+        .container,
+        .invoice-shell,
+        .invoice-grid {
+          display: block !important;
+          margin: 0;
+          padding: 0;
+          background: #fff;
+        }
+        .invoice-preview {
+          box-shadow: none;
+          border: 0;
+        }
+      }
+
+      @media (max-width: 980px) {
+        .invoice-toolbar,
+        .invoice-grid,
+        .invoice-filters,
+        .invoice-form,
+        .stat-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Invoices</div>
+            <div class="breadcrumb">Customer billing from approved consultant time</div>
+          </div>
+          <div class="domain-tools">
+            <label>
+              Workspace
+              <select id="domainSelect" onchange="switchDomain()">
+                <option value="dev">Technology Domain</option>
+                <option value="engineer">Engineer Domain</option>
+                <option value="law">Law Domain</option>
+              </select>
+            </label>
+            <div id="searchBar"></div>
+          </div>
+        </div>
+
+        <div class="invoice-shell">
+          <section class="invoice-toolbar">
+            <div>
+              <h2>Create customer invoice</h2>
+              <p>
+                Start by selecting the customer and fiscal period. Approved daily time for onboarded consultants is added automatically
+                using each consultant bill rate.
+              </p>
+            </div>
+            <div class="row-actions">
+              <a class="btn secondary" href="accounting.html" id="openRatesLink">Resource rates</a>
+              <button class="btn secondary" type="button" onclick="window.print()">Print / PDF</button>
+              <button class="btn" type="button" onclick="copyInvoiceEmail()">Copy email</button>
+              <button class="btn primary" type="button" onclick="saveInvoiceFromTime()">Save invoice</button>
+            </div>
+          </section>
+
+          <section class="invoice-card">
+            <div class="invoice-filters">
+              <label>
+                Existing invoice
+                <select id="invoiceSelect" onchange="loadInvoiceFromSelect()">
+                  <option value="">Create new invoice</option>
+                </select>
+              </label>
+              <label>
+                Fiscal period
+                <select id="periodPreset" onchange="setPeriodPreset(this.value)">
+                  <option value="this_month">This month</option>
+                  <option value="last_month">Last month</option>
+                  <option value="this_week">This week</option>
+                  <option value="last_week">Last week</option>
+                  <option value="custom">Custom dates</option>
+                </select>
+              </label>
+              <label>
+                Customer
+                <select id="customerSelect" onchange="selectCustomer()">
+                  <option value="">Select customer</option>
+                </select>
+              </label>
+              <label>
+                Fiscal period start
+                <input id="periodStart" type="date" onchange="loadWorkbench()" />
+              </label>
+              <label>
+                Fiscal period end
+                <input id="periodEnd" type="date" onchange="loadWorkbench()" />
+              </label>
+            </div>
+          </section>
+
+          <section class="invoice-grid">
+            <section class="invoice-card">
+              <h2>Invoice details</h2>
+              <div class="stat-grid">
+                <div class="stat"><strong id="statHours">0</strong><span>Hours</span></div>
+                <div class="stat"><strong id="statConsultants">0</strong><span>Consultants</span></div>
+                <div class="stat"><strong id="statTotal">$0</strong><span>Billable</span></div>
+              </div>
+              <form class="invoice-form">
+                <input id="invoiceId" type="hidden" />
+                <label>
+                  Linked customer
+                  <input id="clientName" placeholder="Select customer above" readonly />
+                </label>
+                <label>
+                  AP email
+                  <input id="clientEmail" type="email" placeholder="Linked AP email" readonly />
+                </label>
+                <label>
+                  Invoice #
+                  <input id="invoiceNumber" placeholder="Auto-generated" readonly />
+                </label>
+                <label>
+                  Invoice date rule
+                  <select id="invoiceDatePreset" onchange="applyInvoiceDatePreset()">
+                    <option value="today">Today</option>
+                    <option value="period_end">Period end</option>
+                    <option value="period_start">Period start</option>
+                  </select>
+                </label>
+                <label>
+                  Invoice date
+                  <input id="invoiceDate" type="date" readonly />
+                </label>
+                <label>
+                  Due date rule
+                  <select id="duePreset" onchange="applyDuePreset()">
+                    <option value="15">Net 15</option>
+                    <option value="30">Net 30</option>
+                    <option value="45">Net 45</option>
+                    <option value="0">Due on receipt</option>
+                    <option value="custom">Custom due date</option>
+                  </select>
+                </label>
+                <label>
+                  Status
+                  <select id="invoiceStatus">
+                    <option value="draft">Draft</option>
+                    <option value="sent">Sent</option>
+                    <option value="viewed">Viewed / read</option>
+                    <option value="due">Due</option>
+                    <option value="overdue">Overdue</option>
+                    <option value="paid">Paid</option>
+                    <option value="void">Void</option>
+                  </select>
+                </label>
+                <label>
+                  Payment terms
+                  <select id="paymentTerms" onchange="syncDuePresetFromTerms()">
+                    <option>Net 15</option>
+                    <option>Net 30</option>
+                    <option>Net 45</option>
+                    <option>Due on receipt</option>
+                  </select>
+                </label>
+                <label>
+                  Due date
+                  <input id="dueDate" type="date" readonly />
+                </label>
+                <label>
+                  PO / contract #
+                  <select id="poNumber">
+                    <option value="">No PO on file</option>
+                  </select>
+                </label>
+                <label class="wide">
+                  Customer billing address
+                  <textarea id="clientAddress" rows="3" placeholder="Linked customer billing address" readonly></textarea>
+                </label>
+                <label class="wide">
+                  Invoice memo
+                  <textarea id="invoiceNotes" rows="3" placeholder="Generated from approved time" readonly></textarea>
+                </label>
+              </form>
+              <div class="row-actions" style="margin-top: 12px">
+                <button class="btn secondary" type="button" onclick="renderPreview()">Refresh preview</button>
+                <button class="btn primary" type="button" onclick="saveInvoiceFromTime()">Save invoice</button>
+              </div>
+              <div id="invoiceStatusText" class="notice" style="margin-top: 10px">Select a customer to begin.</div>
+
+              <h2 style="margin-top: 18px">Current consultants</h2>
+              <div id="consultantList" class="consultant-list"></div>
+              <h2 style="margin-top: 18px">Approved time to invoice</h2>
+              <div class="row-actions" style="margin: 8px 0">
+                <button class="btn secondary" type="button" onclick="selectAllTimeRows(true)">Select all</button>
+                <button class="btn secondary" type="button" onclick="selectAllTimeRows(false)">Clear all</button>
+              </div>
+              <div id="timeLineList" class="time-line-list"></div>
+            </section>
+
+            <section class="invoice-preview">
+              <div class="preview-head">
+                <div>
+                  <div class="pill">DevReady invoice</div>
+                  <h2>Invoice</h2>
+                  <div class="mini-note">DevReady Inc. | Talent and consulting services</div>
+                </div>
+                <div style="text-align:right">
+                  <div id="previewNumber" style="font-weight:950"></div>
+                  <div id="previewStatus" class="pill" style="margin-top:6px"></div>
+                </div>
+              </div>
+              <div class="preview-body">
+                <div id="invoicePreview"></div>
+              </div>
+            </section>
+          </section>
+
+          <section class="invoice-card invoice-history-card">
+            <h2>Invoice tracking</h2>
+            <p class="mini-note">Track invoices as draft, sent, viewed/read, due, overdue, paid, or void.</p>
+            <div id="invoiceHistory" class="invoice-history"></div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      $("#siteSidebar").load("components/sidebar.html?v=20260519-invoices");
+      $("#searchBar").load("components/searchBar.html");
+
+      let workbench = null;
+      let latestInvoice = null;
+      let selectedTimeEntryIds = new Set();
+
+      function currentDomain() {
+        return document.getElementById("domainSelect")?.value || sessionStorage.getItem("domain") || "dev";
+      }
+
+      function money(value) {
+        return Number(value || 0).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function today(offsetDays = 0) {
+        const date = new Date();
+        date.setDate(date.getDate() + offsetDays);
+        return date.toISOString().slice(0, 10);
+      }
+
+      function dateOnly(date) {
+        return date.toISOString().slice(0, 10);
+      }
+
+      function monthStart() {
+        const date = new Date();
+        date.setDate(1);
+        return dateOnly(date);
+      }
+
+      function setPeriodPreset(value) {
+        const now = new Date();
+        const start = new Date(now);
+        const end = new Date(now);
+        if (value === "this_week" || value === "last_week") {
+          const day = start.getDay();
+          const mondayOffset = day === 0 ? -6 : 1 - day;
+          start.setDate(start.getDate() + mondayOffset);
+          if (value === "last_week") start.setDate(start.getDate() - 7);
+          end.setTime(start.getTime());
+          end.setDate(start.getDate() + 6);
+        } else if (value === "last_month") {
+          start.setMonth(start.getMonth() - 1, 1);
+          end.setDate(0);
+        } else if (value === "this_month") {
+          start.setDate(1);
+          end.setMonth(start.getMonth() + 1, 0);
+        } else {
+          loadWorkbench();
+          return;
+        }
+        document.getElementById("periodStart").value = dateOnly(start);
+        document.getElementById("periodEnd").value = dateOnly(end);
+        applyInvoiceDatePreset();
+        loadWorkbench();
+      }
+
+      function applyDuePreset(preserveInvoice = false) {
+        const preset = document.getElementById("duePreset").value;
+        const invoiceDate = document.getElementById("invoiceDate").value || today();
+        if (preset === "custom") return;
+        const days = Number(preset || 0);
+        const date = new Date(`${invoiceDate}T00:00:00`);
+        date.setDate(date.getDate() + days);
+        document.getElementById("dueDate").value = dateOnly(date);
+        document.getElementById("paymentTerms").value = days === 0 ? "Due on receipt" : `Net ${days}`;
+        if (!preserveInvoice) latestInvoice = null;
+        renderPreview();
+      }
+
+      function applyInvoiceDatePreset() {
+        const preset = document.getElementById("invoiceDatePreset").value;
+        if (preset === "period_start") {
+          document.getElementById("invoiceDate").value = document.getElementById("periodStart").value || today();
+        } else if (preset === "period_end") {
+          document.getElementById("invoiceDate").value = document.getElementById("periodEnd").value || today();
+        } else {
+          document.getElementById("invoiceDate").value = today();
+        }
+        applyDuePreset();
+      }
+
+      function syncDuePresetFromTerms(preserveInvoice = false) {
+        const terms = document.getElementById("paymentTerms").value;
+        const map = { "Net 15": "15", "Net 30": "30", "Net 45": "45", "Due on receipt": "0" };
+        document.getElementById("duePreset").value = map[terms] || "custom";
+        applyDuePreset(preserveInvoice);
+      }
+
+      function apiPostForm(url, payload) {
+        const form = new URLSearchParams();
+        Object.entries(payload).forEach(([key, value]) => form.append(key, value ?? ""));
+        return fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: form.toString(),
+        }).then(async (response) => {
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.detail || "Request failed");
+          return data;
+        });
+      }
+
+      function switchDomain() {
+        const domain = currentDomain();
+        sessionStorage.setItem("domain", domain);
+        const url = new URL(window.location.href);
+        url.searchParams.set("domain", domain);
+        window.history.replaceState({}, "", url.toString());
+        if (typeof domainUpdate === "function") domainUpdate(domain);
+        loadWorkbench();
+      }
+
+      async function loadWorkbench() {
+        const client = document.getElementById("customerSelect").value;
+        const params = new URLSearchParams({
+          domain: currentDomain(),
+          client,
+          period_start: document.getElementById("periodStart").value,
+          period_end: document.getElementById("periodEnd").value,
+        });
+        const response = await fetch(`/api/invoices/workbench?${params.toString()}`, { cache: "no-store" });
+        workbench = await response.json();
+        renderCustomerSelect(client);
+        renderInvoiceSelect();
+        if (!latestInvoice) {
+          selectedTimeEntryIds = new Set((workbench?.line_items || []).map((item) => item.time_entry_id).filter(Boolean));
+        }
+        hydrateCustomer(client);
+        renderConsultants();
+        renderTimeLines();
+        renderPreview();
+        renderHistory();
+      }
+
+      function renderCustomerSelect(selected) {
+        const select = document.getElementById("customerSelect");
+        const customers = workbench?.customers || [];
+        select.innerHTML = '<option value="">Select customer</option>' + customers.map((customer) => {
+          const chosen = customer.name === selected ? " selected" : "";
+          const amount = Number(customer.approved_billable || 0) > 0 ? money(customer.approved_billable) : "missing bill rate";
+          return `<option value="${escapeHtml(customer.name)}"${chosen}>${escapeHtml(customer.name)} - ${amount}</option>`;
+        }).join("");
+      }
+
+      function hydrateCustomer(client) {
+        const customer = (workbench?.customers || []).find((item) => item.name === client);
+        if (!client) return;
+        document.getElementById("clientName").value = client;
+        if (customer) {
+          document.getElementById("clientEmail").value = customer.email || "";
+          document.getElementById("clientAddress").value = customer.address || "";
+          renderPoSelect(customer);
+          const terms = (customer.payment_terms || [])[0];
+          if (terms) {
+            document.getElementById("paymentTerms").value = terms;
+            syncDuePresetFromTerms();
+          }
+          document.getElementById("invoiceNotes").value = `Generated from approved ${client} time for ${document.getElementById("periodStart").value || "selected period"} to ${document.getElementById("periodEnd").value || "selected period"}.`;
+        }
+      }
+
+      function renderPoSelect(customer, selected = "") {
+        const poValues = customer?.po_numbers || [];
+        document.getElementById("poNumber").innerHTML = poValues.length
+          ? poValues.map((po) => `<option value="${escapeHtml(po)}"${po === selected ? " selected" : ""}>${escapeHtml(po)}</option>`).join("")
+          : '<option value="">No PO on file</option>';
+      }
+
+      function selectCustomer() {
+        const client = document.getElementById("customerSelect").value;
+        latestInvoice = null;
+        document.getElementById("invoiceId").value = "";
+        document.getElementById("invoiceNumber").value = "";
+        document.getElementById("clientName").value = client;
+        document.getElementById("clientEmail").value = "";
+        document.getElementById("clientAddress").value = "";
+        document.getElementById("poNumber").innerHTML = '<option value="">No PO on file</option>';
+        document.getElementById("invoiceNotes").value = "";
+        loadWorkbench();
+      }
+
+      function renderInvoiceSelect() {
+        const select = document.getElementById("invoiceSelect");
+        const invoices = workbench?.invoices || [];
+        const selected = latestInvoice?.id || document.getElementById("invoiceId").value;
+        select.innerHTML = '<option value="">Create new invoice</option>' + invoices.map((invoice) => {
+          const chosen = invoice.id === selected ? " selected" : "";
+          return `<option value="${escapeHtml(invoice.id)}"${chosen}>${escapeHtml(invoice.invoice_number || invoice.id)} - ${escapeHtml(invoice.client || "No customer")} - ${money(invoice.total)}</option>`;
+        }).join("");
+      }
+
+      function hydrateInvoice(invoice) {
+        latestInvoice = invoice;
+        document.getElementById("invoiceId").value = invoice.id || "";
+        document.getElementById("customerSelect").value = invoice.client || "";
+        document.getElementById("clientName").value = invoice.client || "";
+        document.getElementById("clientEmail").value = invoice.client_email || "";
+        document.getElementById("clientAddress").value = invoice.client_address || "";
+        document.getElementById("invoiceNumber").value = invoice.invoice_number || "";
+        document.getElementById("invoiceDate").value = invoice.invoice_date || today();
+        document.getElementById("dueDate").value = invoice.due_date || today(15);
+        document.getElementById("invoiceStatus").value = invoice.status || "draft";
+        document.getElementById("paymentTerms").value = invoice.payment_terms || "Net 15";
+        syncDuePresetFromTerms(true);
+        renderPoSelect((workbench?.customers || []).find((item) => item.name === invoice.client), invoice.po_number || "");
+        document.getElementById("invoiceNotes").value = invoice.notes || "";
+        selectedTimeEntryIds = new Set((invoice.time_entry_ids || []).filter(Boolean));
+        document.getElementById("invoiceStatusText").textContent = `Loaded invoice ${invoice.invoice_number || invoice.id}.`;
+        renderPreview();
+        renderInvoiceSelect();
+        renderTimeLines();
+      }
+
+      function loadInvoiceFromSelect() {
+        const id = document.getElementById("invoiceSelect").value;
+        if (!id) {
+          latestInvoice = null;
+          document.getElementById("invoiceId").value = "";
+          document.getElementById("invoiceNumber").value = "";
+          renderPreview();
+          return;
+        }
+        const invoice = (workbench?.invoices || []).find((item) => item.id === id);
+        if (invoice) hydrateInvoice(invoice);
+      }
+
+      function lineItems() {
+        const lines = workbench?.line_items || [];
+        if (!selectedTimeEntryIds.size) return [];
+        return lines.filter((item) => selectedTimeEntryIds.has(item.time_entry_id));
+      }
+
+      function totals() {
+        const lines = lineItems();
+        return {
+          hours: lines.reduce((sum, item) => sum + Number(item.qty || 0), 0),
+          total: lines.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+          consultants: new Set(lines.map((item) => item.consultant).filter(Boolean)).size,
+        };
+      }
+
+      function renderConsultants() {
+        const consultants = workbench?.consultants || [];
+        document.getElementById("consultantList").innerHTML = consultants.length
+          ? consultants.map((person) => {
+              const rate = Number(person.bill_rate || 0) > 0 ? `Bill rate ${money(person.bill_rate)} / hr` : 'Missing bill rate - add it in Accounting > Resource rates';
+              return `<div class="row-box"><strong>${escapeHtml(person.name)}</strong><span>${escapeHtml(person.email || "")} | ${escapeHtml(rate)}</span></div>`;
+            }).join("")
+          : '<div class="notice">No onboarded consultants with approved time for this customer and period.</div>';
+      }
+
+      function renderTimeLines() {
+        const lines = workbench?.line_items || [];
+        document.getElementById("timeLineList").innerHTML = lines.length
+          ? lines.map((item) => {
+              const checked = selectedTimeEntryIds.has(item.time_entry_id) ? " checked" : "";
+              return `<label class="row-box time-line">
+                <input type="checkbox" value="${escapeHtml(item.time_entry_id)}"${checked} onchange="toggleTimeRow(this)" />
+                <span>
+                  <strong>${escapeHtml(item.consultant || "Consultant")} - ${escapeHtml(item.work_date || "")}</strong>
+                  <span>${Number(item.qty || 0).toFixed(1)} hours x ${money(item.rate)} / hr = ${money(item.amount)}</span>
+                  <span>${escapeHtml(item.summary || item.description || "")}</span>
+                </span>
+                <strong>${money(item.amount)}</strong>
+              </label>`;
+            }).join("")
+          : '<div class="notice">No approved time rows with a saved bill rate. Add the consultant rate in Accounting, then approve time.</div>';
+      }
+
+      function toggleTimeRow(input) {
+        if (input.checked) selectedTimeEntryIds.add(input.value);
+        else selectedTimeEntryIds.delete(input.value);
+        latestInvoice = null;
+        renderPreview();
+      }
+
+      function selectAllTimeRows(checked) {
+        selectedTimeEntryIds = checked
+          ? new Set((workbench?.line_items || []).map((item) => item.time_entry_id).filter(Boolean))
+          : new Set();
+        latestInvoice = null;
+        renderTimeLines();
+        renderPreview();
+      }
+
+      function invoiceDraft() {
+        const lines = lineItems();
+        return {
+          client: document.getElementById("clientName").value.trim(),
+          client_email: document.getElementById("clientEmail").value.trim(),
+          client_address: document.getElementById("clientAddress").value.trim(),
+          invoice_number: document.getElementById("invoiceNumber").value.trim() || `DR-${Date.now().toString().slice(-8)}`,
+          invoice_date: document.getElementById("invoiceDate").value,
+          due_date: document.getElementById("dueDate").value,
+          status: document.getElementById("invoiceStatus").value,
+          payment_terms: document.getElementById("paymentTerms").value.trim(),
+          po_number: document.getElementById("poNumber").value.trim(),
+          notes: document.getElementById("invoiceNotes").value.trim(),
+          line_items: lines,
+          total: lines.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+        };
+      }
+
+      function renderPreview() {
+        const invoice = latestInvoice || invoiceDraft();
+        const lines = invoice.line_items || [];
+        const summary = totals();
+        document.getElementById("statHours").textContent = summary.hours.toFixed(1);
+        document.getElementById("statConsultants").textContent = summary.consultants;
+        document.getElementById("statTotal").textContent = money(summary.total);
+        document.getElementById("previewNumber").textContent = invoice.invoice_number || "";
+        document.getElementById("previewStatus").textContent = invoice.status || "draft";
+        document.getElementById("invoicePreview").innerHTML = `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+            <div>
+              <strong>Bill to</strong>
+              <div>${escapeHtml(invoice.client || "Select customer")}</div>
+              <div class="mini-note">${escapeHtml(invoice.client_email || "")}</div>
+              <div class="mini-note" style="white-space:pre-wrap">${escapeHtml(invoice.client_address || "")}</div>
+            </div>
+            <div>
+              <strong>Terms</strong>
+              <div class="mini-note">Invoice date: ${escapeHtml(invoice.invoice_date || "")}</div>
+              <div class="mini-note">Due date: ${escapeHtml(invoice.due_date || "")}</div>
+              <div class="mini-note">Payment terms: ${escapeHtml(invoice.payment_terms || "")}</div>
+              <div class="mini-note">PO / Contract: ${escapeHtml(invoice.po_number || "")}</div>
+            </div>
+          </div>
+          <table class="invoice-table">
+            <thead><tr><th>Date / Consultant / Work</th><th class="num">Hours</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+            <tbody>
+              ${lines.length ? lines.map((item) => `<tr>
+                <td><strong>${escapeHtml(item.description)}</strong><div class="mini-note">${escapeHtml(item.summary || "")}</div></td>
+                <td class="num">${Number(item.qty || 0).toFixed(1)}</td>
+                <td class="num">${money(item.rate)}</td>
+                <td class="num">${money(item.amount)}</td>
+              </tr>`).join("") : '<tr><td colspan="4">No approved billable time selected.</td></tr>'}
+            </tbody>
+          </table>
+          <div class="invoice-total">Total ${money(invoice.total || summary.total)}</div>
+          <p class="mini-note" style="white-space:pre-wrap">${escapeHtml(invoice.notes || "Thank you for working with DevReady.")}</p>
+        `;
+        if (invoice.client && !latestInvoice) {
+          document.getElementById("invoiceStatusText").textContent = lines.length
+            ? "Approved time loaded. Review customer details, then save invoice."
+            : "No approved billable time with consultant bill rates found for this customer and period.";
+        }
+      }
+
+      async function saveInvoiceFromTime() {
+        const draft = invoiceDraft();
+        if (!draft.client) {
+          document.getElementById("invoiceStatusText").textContent = "Select a customer first.";
+          return;
+        }
+        try {
+          const data = await apiPostForm("/api/invoices/from-time", {
+            invoice_id: document.getElementById("invoiceId").value,
+            domain: currentDomain(),
+            client: draft.client,
+            client_email: draft.client_email,
+            client_address: draft.client_address,
+            invoice_number: draft.invoice_number,
+            invoice_date: draft.invoice_date,
+            due_date: draft.due_date,
+            status: draft.status,
+            payment_terms: draft.payment_terms,
+            po_number: draft.po_number,
+            period_start: document.getElementById("periodStart").value,
+            period_end: document.getElementById("periodEnd").value,
+            time_entry_ids_json: JSON.stringify(Array.from(selectedTimeEntryIds)),
+            notes: draft.notes,
+          });
+          latestInvoice = data.invoice;
+          document.getElementById("invoiceId").value = latestInvoice.id;
+          document.getElementById("invoiceNumber").value = latestInvoice.invoice_number;
+          document.getElementById("invoiceStatusText").textContent = "Invoice saved.";
+          renderPreview();
+          await loadWorkbench();
+        } catch (error) {
+          document.getElementById("invoiceStatusText").textContent = error.message || "Could not save invoice.";
+        }
+      }
+
+      async function setInvoiceStatus(id, status) {
+        const data = await apiPostForm(`/api/accounting/invoice/${encodeURIComponent(id)}/status`, { status });
+        latestInvoice = data.invoice;
+        await loadWorkbench();
+      }
+
+      function renderHistory() {
+        const invoices = workbench?.invoices || [];
+        document.getElementById("invoiceHistory").innerHTML = invoices.length
+          ? invoices.map((invoice) => `<div class="row-box">
+              <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center">
+                <div>
+                  <strong>${escapeHtml(invoice.invoice_number || invoice.id)} - ${escapeHtml(invoice.client || "")}</strong>
+                  <span>${money(invoice.total)} | ${escapeHtml(invoice.status || "draft")} | Due ${escapeHtml(invoice.due_date || "")}</span>
+                  <span>Sent: ${escapeHtml(invoice.sent_at || "not sent")} | Read: ${escapeHtml(invoice.viewed_at || "not read")} | Paid: ${escapeHtml(invoice.paid_at || "not paid")}</span>
+                </div>
+                <div class="row-actions">
+                  <button class="btn secondary" type="button" onclick="hydrateInvoiceById('${escapeHtml(invoice.id)}')">Open</button>
+                  ${["sent", "viewed", "due", "overdue", "paid"].map((status) => `<button class="btn secondary" type="button" onclick="setInvoiceStatus('${escapeHtml(invoice.id)}','${status}')">${status}</button>`).join("")}
+                </div>
+              </div>
+            </div>`).join("")
+          : '<div class="notice">No invoices saved yet.</div>';
+      }
+
+      function hydrateInvoiceById(id) {
+        const invoice = (workbench?.invoices || []).find((item) => item.id === id);
+        if (invoice) hydrateInvoice(invoice);
+      }
+
+      function invoiceEmailText() {
+        const invoice = latestInvoice || invoiceDraft();
+        return `Hi,\n\nDevReady invoice ${invoice.invoice_number || ""} is ready for ${money(invoice.total || totals().total)}.\n\nCustomer: ${invoice.client || ""}\nPayment terms: ${invoice.payment_terms || ""}\nDue date: ${invoice.due_date || ""}\n\n${invoice.notes || "Thank you,\nDevReady"}`;
+      }
+
+      async function copyInvoiceEmail() {
+        await navigator.clipboard?.writeText(invoiceEmailText());
+        document.getElementById("invoiceStatusText").textContent = "Invoice email copied.";
+      }
+
+      function init() {
+        const params = new URLSearchParams(window.location.search);
+        document.getElementById("domainSelect").value = currentDomain();
+        document.getElementById("openRatesLink").href = `accounting.html?domain=${encodeURIComponent(currentDomain())}`;
+        document.getElementById("periodStart").value = params.get("period_start") || monthStart();
+        document.getElementById("periodEnd").value = params.get("period_end") || today();
+        document.getElementById("invoiceDate").value = today();
+        document.getElementById("paymentTerms").value = "Net 15";
+        applyDuePreset();
+        loadWorkbench();
+      }
+
+      ["invoiceStatus", "paymentTerms", "poNumber"].forEach((id) => {
+        document.addEventListener("input", (event) => {
+          if (event.target?.id === id) {
+            latestInvoice = null;
+            renderPreview();
+          }
+        });
+      });
+
+      init();
+    </script>
+  </body>
+</html>

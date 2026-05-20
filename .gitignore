@@ -13,3 +13,4 @@ backend/devready_testcopy.db
 backend/*token.json
 backend/calendar_tokens/
 backend/google_client_secret.json
+google_client_secret.json

@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Onboarding</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html?v=20260515-onboarding-nav");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+    <style>
+      .onboarding-shell {
+        display: grid;
+        gap: 14px;
+      }
+
+      .time-toolbar {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .domain-switch {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .domain-switch label,
+      .onboarding-form label {
+        display: grid;
+        gap: 5px;
+        font-weight: 850;
+      }
+
+      .onboarding-form {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        align-items: end;
+      }
+
+      .onboarding-form .wide {
+        grid-column: 1 / -1;
+      }
+
+      .onboarding-form input[readonly] {
+        background: rgba(var(--primary-rgb), 0.06);
+        color: var(--text);
+        cursor: default;
+      }
+
+      .onboarding-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(330px, 0.95fr);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .send-details {
+        display: none;
+        border: 1px solid rgba(var(--primary-rgb), 0.22);
+        border-radius: 14px;
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb), 0.08), rgba(var(--primary-rgb), 0.02)),
+          #fff;
+        padding: 14px;
+      }
+
+      .send-details.show {
+        display: block;
+      }
+
+      .link-stack {
+        display: grid;
+        gap: 10px;
+        margin: 12px 0;
+      }
+
+      .link-box {
+        display: grid;
+        gap: 5px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        background: #fbfcfb;
+      }
+
+      .link-box strong {
+        color: var(--primary-2);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .link-box a {
+        overflow-wrap: anywhere;
+      }
+
+      .hr-message {
+        width: 100%;
+        min-height: 210px;
+        resize: vertical;
+        font-family: inherit;
+        line-height: 1.45;
+      }
+
+      .people-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .person-card {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px;
+        background: #fff;
+      }
+
+      .person-card-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: start;
+      }
+
+      .person-card h3 {
+        margin: 0;
+      }
+
+      .person-links {
+        display: grid;
+        gap: 5px;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .person-links a {
+        overflow-wrap: anywhere;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        width: fit-content;
+        border-radius: 999px;
+        padding: 4px 9px;
+        font-size: 12px;
+        font-weight: 900;
+        background: rgba(var(--primary-rgb), 0.11);
+        color: var(--primary-2);
+      }
+
+      .notice-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .notice-step {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fff;
+      }
+
+      .notice-step strong {
+        display: block;
+        color: var(--primary-2);
+        margin-bottom: 5px;
+      }
+
+      @media (max-width: 980px) {
+        .onboarding-grid,
+        .onboarding-form,
+        .notice-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Onboarding</div>
+            <div class="breadcrumb">HR candidate link and start paperwork handoff</div>
+          </div>
+          <div class="domain-switch">
+            <label>
+              Workspace
+              <select id="domainSelect" onchange="switchDomain()">
+                <option value="dev">Technology Domain</option>
+                <option value="engineer">Engineer Domain</option>
+                <option value="law">Law Domain</option>
+              </select>
+            </label>
+            <div id="searchBar"></div>
+          </div>
+        </div>
+
+        <div class="onboarding-shell">
+          <section class="card">
+            <h2>What HR sends</h2>
+            <p>
+              Create one candidate onboarding link after the hire decision. The email draft includes the onboarding form, the weekly time-entry link, start details, and the DevReady HR contact.
+            </p>
+            <div class="notice-grid">
+              <div class="notice-step">
+                <strong>1. Create link</strong>
+                Enter the candidate name, email, role, and start day for the current domain.
+              </div>
+              <div class="notice-step">
+                <strong>2. Send packet</strong>
+                Use the email draft or copy the links into Outlook, Gmail, or your HR message.
+              </div>
+              <div class="notice-step">
+                <strong>3. Track completion</strong>
+                Completed paperwork stays with the candidate and their time entries.
+              </div>
+            </div>
+          </section>
+
+          <div class="onboarding-grid">
+            <section class="card">
+              <div class="time-toolbar">
+                <div>
+                  <h2>Create candidate onboarding link</h2>
+                  <p>The candidate receives this public link. HR keeps this page for resend, copy, and status checks.</p>
+                </div>
+                <span id="currentDomainPill" class="status-pill">Current workspace</span>
+              </div>
+
+              <form id="onboardingForm" class="onboarding-form">
+                <label class="wide">
+                  Select candidate
+                  <select id="candidateSelect" onchange="selectCandidate()">
+                    <option value="">Load candidates from this domain...</option>
+                  </select>
+                </label>
+                <label>
+                  Candidate name
+                  <input id="candidateName" type="text" placeholder="Select candidate above" readonly />
+                </label>
+                <label>
+                  Candidate email
+                  <input id="candidateEmail" type="email" placeholder="Linked candidate email" readonly />
+                </label>
+                <label>
+                  Role / title
+                  <input id="candidateTitle" type="text" placeholder="Linked candidate role" readonly />
+                </label>
+                <label>
+                  Start day
+                  <select id="startDay">
+                    <option value="">Select start day</option>
+                  </select>
+                </label>
+                <label>
+                  Profile ID
+                  <input id="profileId" type="text" placeholder="Linked profile id" readonly />
+                </label>
+                <button class="btn" type="submit">Create onboarding link</button>
+                <label class="wide">
+                  HR note for the email draft
+                  <textarea id="hrNote" placeholder="Add equipment notes, first-day instructions, payroll reminders, or client-specific details."></textarea>
+                </label>
+              </form>
+              <div id="createStatus" class="notice" style="margin-top: 12px">
+                Fill in the candidate details, then create the onboarding packet.
+              </div>
+            </section>
+
+            <section id="sendDetails" class="send-details">
+              <h2 id="sendTitle">Candidate onboarding packet</h2>
+              <p id="sendSubtitle">Use these details for the HR message.</p>
+              <div class="link-stack">
+                <div class="link-box">
+                  <strong>Onboarding link</strong>
+                  <a id="onboardingLink" href="#" target="_blank" rel="noopener"></a>
+                </div>
+                <div class="link-box">
+                  <strong>Weekly time-entry link</strong>
+                  <a id="timeEntryLink" href="#" target="_blank" rel="noopener"></a>
+                </div>
+              </div>
+              <label style="display: grid; gap: 6px; font-weight: 850">
+                Email body
+                <textarea id="emailBody" class="hr-message" readonly></textarea>
+              </label>
+              <div class="row-actions" style="margin-top: 10px">
+                <button class="btn" type="button" onclick="copyOnboardingLink()">Copy onboarding link</button>
+                <button class="btn secondary" type="button" onclick="copyEmailBody()">Copy email body</button>
+                <button class="btn secondary" type="button" onclick="emailOnboardingPacket()">Email packet</button>
+                <a id="openOnboardingLink" class="btn secondary" href="#" target="_blank" rel="noopener">Open form</a>
+              </div>
+            </section>
+          </div>
+
+          <section class="card">
+            <div class="time-toolbar">
+              <div>
+                <h2>Existing onboarding records</h2>
+                <p>Use this when HR needs to resend a packet or confirm which link belongs to which candidate.</p>
+              </div>
+              <button class="btn secondary" type="button" onclick="loadPeople()">Refresh</button>
+            </div>
+            <div id="peopleStatus" class="notice" style="margin-top: 12px">Loading onboarding records...</div>
+            <div id="peopleList" class="people-list"></div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="JS/apiScripts.js"></script>
+    <script>
+      let people = [];
+      let candidatesForOnboarding = [];
+      let latestPacket = null;
+
+      function escapeLocal(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function normalizeDomain(value) {
+        if (value === "technology") return "dev";
+        return ["dev", "engineer", "law"].includes(value) ? value : "dev";
+      }
+
+      function currentDomain() {
+        return normalizeDomain(document.getElementById("domainSelect")?.value || sessionStorage.getItem("domain") || "dev");
+      }
+
+      function domainLabel(domain) {
+        if (domain === "engineer") return "Engineer";
+        if (domain === "law") return "Law";
+        return "Technology";
+      }
+
+      function absoluteLink(path) {
+        return new URL(path || "", window.location.origin).href;
+      }
+
+      function statusLabel(status) {
+        return String(status || "hire_started").replaceAll("_", " ");
+      }
+
+      function loadStartDayOptions() {
+        const select = document.getElementById("startDay");
+        const options = ['<option value="">Select start day</option>'];
+        const date = new Date();
+        for (let offset = 0; offset <= 90; offset += 1) {
+          const next = new Date(date);
+          next.setDate(date.getDate() + offset);
+          const day = next.getDay();
+          if (day === 0 || day === 6) continue;
+          const value = next.toISOString().slice(0, 10);
+          const label = next.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+          options.push(`<option value="${value}">${escapeLocal(label)}</option>`);
+        }
+        select.innerHTML = options.join("");
+      }
+
+      function setInitialState() {
+        const params = new URLSearchParams(window.location.search);
+        const domain = normalizeDomain(params.get("domain") || sessionStorage.getItem("domain") || "dev");
+        sessionStorage.setItem("domain", domain);
+        document.getElementById("domainSelect").value = domain;
+        document.getElementById("currentDomainPill").textContent = `${domainLabel(domain)} workspace`;
+        document.getElementById("candidateName").value = sessionStorage.getItem("candidateName") || "";
+        document.getElementById("candidateEmail").value = sessionStorage.getItem("candidateEmail") || "";
+        document.getElementById("candidateTitle").value = sessionStorage.getItem("jobTitle") || "";
+        document.getElementById("profileId").value = sessionStorage.getItem("candidateId") || "";
+      }
+
+      async function loadCandidateChoices() {
+        const select = document.getElementById("candidateSelect");
+        select.innerHTML = '<option value="">Loading candidates...</option>';
+        try {
+          const response = await fetch(`/api/onboarding/candidates?domain=${encodeURIComponent(currentDomain())}&limit=500`, { cache: "no-store" });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || "Could not load candidates.");
+          candidatesForOnboarding = data.candidates || [];
+          select.innerHTML = '<option value="">Select linked candidate</option>' + candidatesForOnboarding.map((candidate, index) => {
+            const label = `${candidate.name || "Unnamed"}${candidate.email ? " - " + candidate.email : ""}${candidate.title ? " - " + candidate.title : ""}`;
+            return `<option value="${index}">${escapeLocal(label)}</option>`;
+          }).join("");
+          const sessionId = sessionStorage.getItem("candidateId") || "";
+          const foundIndex = candidatesForOnboarding.findIndex((candidate) => String(candidate.id) === String(sessionId) || String(candidate.profile_id) === String(sessionId));
+          if (foundIndex >= 0) {
+            select.value = String(foundIndex);
+            selectCandidate();
+          }
+        } catch (error) {
+          select.innerHTML = '<option value="">Candidate list unavailable</option>';
+          document.getElementById("createStatus").textContent = error.message || "Candidate list unavailable.";
+        }
+      }
+
+      function selectCandidate() {
+        const index = document.getElementById("candidateSelect").value;
+        const candidate = candidatesForOnboarding[Number(index)];
+        if (!candidate) {
+          ["candidateName", "candidateEmail", "candidateTitle", "profileId"].forEach((id) => {
+            document.getElementById(id).value = "";
+          });
+          return;
+        }
+        document.getElementById("candidateName").value = candidate.name || "";
+        document.getElementById("candidateEmail").value = candidate.email || "";
+        document.getElementById("candidateTitle").value = candidate.title || "";
+        document.getElementById("profileId").value = candidate.profile_id || candidate.id || "";
+        document.getElementById("createStatus").textContent = "Candidate linked from profile data. Add a start day, then create the onboarding packet.";
+      }
+
+      function switchDomain() {
+        const domain = currentDomain();
+        sessionStorage.setItem("domain", domain);
+        const url = new URL(window.location.href);
+        url.searchParams.set("domain", domain);
+        window.history.replaceState({}, "", url.toString());
+        if (typeof domainUpdate === "function") domainUpdate(domain);
+        document.getElementById("currentDomainPill").textContent = `${domainLabel(domain)} workspace`;
+        document.getElementById("sendDetails").classList.remove("show");
+        loadCandidateChoices();
+        loadPeople();
+      }
+
+      function emailBodyFor(record, onboardingLink, timeEntryLink, extraNote = "") {
+        const name = record.candidate_name || record.legal_name || record.email || "there";
+        const role = record.title ? ` for the ${record.title} role` : "";
+        const start = record.start_day ? `\nStart day: ${record.start_day}` : "";
+        const hrName = record.recipient || "DevReady HR";
+        const hrEmail = record.recipient_email || "hr@devready.io";
+        const note = extraNote ? `\n\nAdditional details:\n${extraNote}` : "";
+        return `Hi ${name},\n\nWelcome to DevReady. Please complete your onboarding paperwork${role} using this link:\n\n${onboardingLink}\n\nAfter onboarding, use this weekly time-entry link to submit hours:\n\n${timeEntryLink}${start}${note}\n\nQuestions can go to ${hrName} at ${hrEmail}.\n\nThank you,\nDevReady`;
+      }
+
+      function renderPacket(data) {
+        const record = data.record || {};
+        const onboardingLink = absoluteLink(data.onboarding_link || record.onboarding_link);
+        const timeEntryLink = absoluteLink(data.time_entry_link || record.time_entry_link);
+        latestPacket = { record, onboardingLink, timeEntryLink };
+        document.getElementById("sendTitle").textContent = `Onboarding packet${record.candidate_name ? " for " + record.candidate_name : ""}`;
+        document.getElementById("sendSubtitle").textContent = `${domainLabel(record.domain || currentDomain())} domain - ${statusLabel(record.status)}`;
+        document.getElementById("onboardingLink").href = onboardingLink;
+        document.getElementById("onboardingLink").textContent = onboardingLink;
+        document.getElementById("timeEntryLink").href = timeEntryLink;
+        document.getElementById("timeEntryLink").textContent = timeEntryLink;
+        document.getElementById("openOnboardingLink").href = onboardingLink;
+        document.getElementById("emailBody").value = emailBodyFor(record, onboardingLink, timeEntryLink, document.getElementById("hrNote").value.trim());
+        document.getElementById("sendDetails").classList.add("show");
+      }
+
+      async function createOnboardingLink(event) {
+        event.preventDefault();
+        const name = document.getElementById("candidateName").value.trim();
+        const email = document.getElementById("candidateEmail").value.trim();
+        const title = document.getElementById("candidateTitle").value.trim();
+        const startDay = document.getElementById("startDay").value;
+        const profileId = document.getElementById("profileId").value.trim();
+        const status = document.getElementById("createStatus");
+        if (!name && !email) {
+          status.textContent = "Add at least a candidate name or email before creating the onboarding packet.";
+          return;
+        }
+        status.textContent = "Creating onboarding packet...";
+        try {
+          const data = await apiPostForm("/api/onboarding/start", {
+            profile_id: profileId,
+            candidate_name: name || email || "Candidate",
+            email,
+            title,
+            domain: currentDomain(),
+            start_day: startDay,
+            source_record_json: JSON.stringify({ source: "onboarding-admin", note: document.getElementById("hrNote").value.trim() }),
+          });
+          sessionStorage.setItem("candidateName", name || sessionStorage.getItem("candidateName") || "");
+          sessionStorage.setItem("candidateEmail", email || sessionStorage.getItem("candidateEmail") || "");
+          if (profileId) sessionStorage.setItem("candidateId", profileId);
+          renderPacket(data);
+          status.textContent = "Onboarding packet is ready. Copy or email it from the panel.";
+          await loadPeople();
+        } catch (error) {
+          status.textContent = error.message || "Could not create onboarding packet.";
+        }
+      }
+
+      async function copyText(value, statusId = "createStatus", success = "Copied.") {
+        try {
+          await navigator.clipboard.writeText(value || "");
+          document.getElementById(statusId).textContent = success;
+        } catch {
+          document.getElementById(statusId).textContent = "Copy failed. Select the text and copy it manually.";
+        }
+      }
+
+      function copyOnboardingLink() {
+        if (!latestPacket) return;
+        copyText(latestPacket.onboardingLink, "createStatus", "Onboarding link copied.");
+      }
+
+      function copyEmailBody() {
+        copyText(document.getElementById("emailBody").value, "createStatus", "Email body copied.");
+      }
+
+      function emailPacket(record, onboardingLink, timeEntryLink, bodyText) {
+        const email = record.email || "";
+        const subject = "DevReady onboarding details";
+        const body = bodyText || emailBodyFor(record, onboardingLink, timeEntryLink);
+        window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      }
+
+      function emailOnboardingPacket() {
+        if (!latestPacket) return;
+        emailPacket(latestPacket.record, latestPacket.onboardingLink, latestPacket.timeEntryLink, document.getElementById("emailBody").value);
+      }
+
+      function personLinks(person) {
+        return {
+          onboarding: absoluteLink(person.onboarding_link || `/ui/pages/onboarding.html?token=${person.token || ""}`),
+          time: absoluteLink(person.time_entry_link || `/ui/pages/time-entry.html?token=${person.token || ""}`),
+        };
+      }
+
+      async function copyPersonOnboarding(index) {
+        const links = personLinks(people[index] || {});
+        await copyText(links.onboarding, "peopleStatus", "Onboarding link copied.");
+      }
+
+      async function copyPersonTime(index) {
+        const links = personLinks(people[index] || {});
+        await copyText(links.time, "peopleStatus", "Time-entry link copied.");
+      }
+
+      function emailPersonOnboarding(index) {
+        const person = people[index];
+        if (!person) return;
+        const links = personLinks(person);
+        emailPacket(person, links.onboarding, links.time);
+      }
+
+      function renderPeople() {
+        const target = document.getElementById("peopleList");
+        if (!people.length) {
+          target.innerHTML = "";
+          document.getElementById("peopleStatus").textContent = `No onboarding records found for ${domainLabel(currentDomain())}.`;
+          return;
+        }
+        document.getElementById("peopleStatus").textContent = `${people.length} onboarding record(s) loaded for ${domainLabel(currentDomain())}.`;
+        target.innerHTML = people.map((person, index) => {
+          const links = personLinks(person);
+          const name = person.candidate_name || person.legal_name || person.email || "Candidate";
+          const details = [person.email, person.title, person.start_day ? `Start ${person.start_day}` : ""].filter(Boolean).join(" - ");
+          return `
+            <article class="person-card">
+              <div class="person-card-head">
+                <div>
+                  <h3>${escapeLocal(name)}</h3>
+                  <div class="muted">${escapeLocal(details || "No email or title captured yet")}</div>
+                </div>
+                <span class="status-pill">${escapeLocal(statusLabel(person.status))}</span>
+              </div>
+              <div class="person-links">
+                <div>Onboarding: <a href="${escapeLocal(links.onboarding)}" target="_blank" rel="noopener">${escapeLocal(links.onboarding)}</a></div>
+                <div>Time entry: <a href="${escapeLocal(links.time)}" target="_blank" rel="noopener">${escapeLocal(links.time)}</a></div>
+              </div>
+              <div class="row-actions" style="margin-top: 10px">
+                <button class="btn secondary" type="button" onclick="copyPersonOnboarding(${index})">Copy onboarding</button>
+                <button class="btn secondary" type="button" onclick="emailPersonOnboarding(${index})">Email packet</button>
+                <button class="btn secondary" type="button" onclick="copyPersonTime(${index})">Copy time link</button>
+                <a class="btn secondary" href="${escapeLocal(links.onboarding)}" target="_blank" rel="noopener">Open form</a>
+                <a class="btn secondary" href="${escapeLocal(links.time)}" target="_blank" rel="noopener">Open time</a>
+              </div>
+            </article>
+          `;
+        }).join("");
+      }
+
+      async function loadPeople() {
+        document.getElementById("peopleStatus").textContent = "Loading onboarding records...";
+        try {
+          const data = await api(`/api/onboarding/admin?${new URLSearchParams({ domain: currentDomain() }).toString()}`);
+          people = data.people || [];
+          renderPeople();
+        } catch (error) {
+          document.getElementById("peopleStatus").textContent = error.message || "Could not load onboarding records.";
+        }
+      }
+
+      document.getElementById("onboardingForm").addEventListener("submit", createOnboardingLink);
+      loadStartDayOptions();
+      setInitialState();
+      loadCandidateChoices();
+      loadPeople();
+    </script>
+  </body>
+</html>

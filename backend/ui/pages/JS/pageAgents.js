@@ -61,6 +61,16 @@
       prompt: "Owns client relationship memory and turns hiring activity into account context.",
     },
     {
+      key: "salescrm",
+      name: "Sales Numa",
+      page: "Sales CRM",
+      href: "sales-crm.html",
+      color: "#2563eb",
+      specialty: "Rep territory, contracts, daily sales priorities, account touches, and sync back to the main CRM.",
+      canDo: ["Prioritize today's account work", "Suggest the next relationship touch", "Help update contracts without losing main CRM context"],
+      prompt: "Owns the sales-rep relationship link. Keep the rep focused on their territory, contracts, contacts, and daily follow-up list while preserving updates for the main CRM.",
+    },
+    {
       key: "meet",
       name: "Numa",
       page: "Meet",
@@ -99,6 +109,26 @@
       specialty: "Time-entry links, submitted hours, approvals, review flags, and HR processing.",
       canDo: ["Explain pending time status", "Guide approval or review", "Find staff time-entry context"],
       prompt: "Owns weekly time review and keeps approval states precise.",
+    },
+    {
+      key: "accounting",
+      name: "Numa",
+      page: "Accounting",
+      href: "accounting.html",
+      color: "#0f766e",
+      specialty: "Resource rates, internal cost, invoices, receivables, P&L, and balance sheet checks.",
+      canDo: ["Check missing bill or cost rates", "Explain invoice and margin status", "Guide P&L and balance sheet review"],
+      prompt: "Owns financial workflow context and protects sensitive rate, cost, invoice, and margin details.",
+    },
+    {
+      key: "invoices",
+      name: "Numa",
+      page: "Invoices",
+      href: "invoices.html",
+      color: "#0f766e",
+      specialty: "Customer invoice creation from approved time, consultant bill rates, payment terms, and invoice status tracking.",
+      canDo: ["Find approved time ready to bill", "Check missing consultant rates", "Prepare invoice status follow-up"],
+      prompt: "Owns invoice creation from approved consultant time and keeps customer billing details, payment terms, and status tracking clear.",
     },
     {
       key: "challenge",
@@ -540,10 +570,13 @@
       "profile-search-results": "profile",
       "job-descriptions": "jobs",
       crm: "crm",
+      "sales-crm": "salescrm",
       meet: "meet",
       "schedule-interview": "schedule",
       "client-comm": "clientcomms",
       "status-tracker": "schedule",
+      accounting: "accounting",
+      invoices: "invoices",
       "time-admin": "time",
       "time-entry": "time",
       "test-challenge": "challenge",
@@ -578,10 +611,12 @@
     const style = document.createElement("style");
     style.id = "pageAgentWidgetStyles";
     style.textContent = `
-      body .agent-orb-button{position:fixed;top:var(--agent-dock-top,16px);left:var(--agent-dock-left,50%);right:var(--agent-dock-right,auto);transform:var(--agent-dock-transform,translateX(-50%));z-index:9000;display:none;width:auto;min-width:0;min-height:50px;align-items:center;justify-content:flex-start;gap:10px;border:1px solid rgba(255,255,255,.62);border-radius:999px;padding:7px 12px 7px 7px;background:rgba(255,255,255,.92);color:#101827;box-shadow:0 18px 40px rgba(15,23,42,.18);cursor:pointer;font:inherit}
+      body .agent-orb-button{position:fixed;top:var(--agent-dock-top,16px);left:var(--agent-dock-left,50%);right:var(--agent-dock-right,auto);transform:var(--agent-dock-transform,translateX(-50%));z-index:9000;display:none;width:auto;min-width:0;min-height:54px;align-items:center;justify-content:flex-start;gap:10px;border:1px solid rgba(255,255,255,.72);border-radius:999px;padding:7px 14px 7px 7px;background:linear-gradient(135deg,rgba(255,255,255,.96),rgba(255,255,255,.84));color:#101827;box-shadow:0 18px 40px rgba(15,23,42,.18),0 0 0 1px color-mix(in srgb,var(--primary-2,#2f7d4b),transparent 78%);cursor:pointer;font:inherit;backdrop-filter:blur(8px)}
       body .agent-orb-button.visible{display:inline-flex}
-      body .agent-orb{--agent-color:#2f7d4b;display:grid;place-items:center;width:50px;height:50px;border-radius:999px;background:radial-gradient(circle at 28% 24%,rgba(255,255,255,.96) 0 9%,rgba(255,255,255,.24) 10% 22%,transparent 23%),radial-gradient(circle at 68% 72%,rgba(0,0,0,.24),transparent 38%),radial-gradient(circle at 36% 34%,color-mix(in srgb,var(--agent-color),white 36%),var(--agent-color) 52%,color-mix(in srgb,var(--agent-color),black 35%) 100%);box-shadow:inset -10px -12px 18px rgba(0,0,0,.24),inset 9px 9px 15px rgba(255,255,255,.26),0 10px 22px color-mix(in srgb,var(--agent-color),transparent 64%)}
-      body .agent-orb svg{width:46%;height:46%;fill:none;stroke:#fff;stroke-width:2.35;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.28))}
+      body .agent-orb{--agent-color:#2f7d4b;position:relative;display:grid;place-items:center;width:52px;height:52px;border-radius:999px;background:radial-gradient(circle at 29% 23%,rgba(255,255,255,.98) 0 8%,rgba(255,255,255,.28) 9% 21%,transparent 22%),radial-gradient(circle at 70% 75%,rgba(0,0,0,.24),transparent 38%),conic-gradient(from 142deg,color-mix(in srgb,var(--agent-color),white 30%),var(--agent-color),color-mix(in srgb,var(--agent-color),black 33%),color-mix(in srgb,var(--agent-color),white 22%));box-shadow:inset -10px -12px 18px rgba(0,0,0,.24),inset 9px 9px 15px rgba(255,255,255,.28),0 10px 22px color-mix(in srgb,var(--agent-color),transparent 62%)}
+      body .agent-orb::before{content:"";position:absolute;inset:5px;border-radius:inherit;border:1px solid rgba(255,255,255,.42);box-shadow:0 0 0 1px color-mix(in srgb,var(--agent-color),white 16%)}
+      body .agent-orb::after{content:"";position:absolute;right:7px;top:8px;width:7px;height:7px;border-radius:999px;background:#fff;box-shadow:-20px 18px 0 -2px rgba(255,255,255,.72),-10px 28px 0 -3px rgba(255,255,255,.58)}
+      body .agent-orb svg{position:relative;z-index:1;width:46%;height:46%;fill:none;stroke:#fff;stroke-width:2.35;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.28))}
       body .agent-orb-button span{display:inline-block;flex:0 0 auto;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:900}
       body .agent-chat-panel{position:fixed;top:var(--agent-panel-top,74px);left:var(--agent-panel-left,50%);right:var(--agent-panel-right,auto);transform:var(--agent-panel-transform,translateX(-50%));z-index:9001;display:none;width:min(390px,calc(100vw - 28px));border:1px solid var(--line,#dfe7e2);border-radius:14px;background:#fff;color:var(--text,#101827);box-shadow:0 22px 60px rgba(15,23,42,.22);overflow:hidden}
       .agent-chat-panel.open{display:block}
@@ -733,13 +768,18 @@
       orb.style.setProperty("--agent-color", domainColor());
       orb.innerHTML = iconSvg(agent.key);
     });
-    document.getElementById("agentOrbLabel").textContent = "Ask Numa";
-    document.getElementById("agentPanelName").textContent = "Numa";
+    const agentName = agent.name || "Numa";
+    document.getElementById("agentOrbLabel").textContent = `Ask ${agentName}`;
+    document.getElementById("agentPanelName").textContent = agentName;
     document.getElementById("agentPanelPage").textContent = `${agent.page} specialist`;
+    document.getElementById("agentOrbButton")?.setAttribute("aria-label", `Ask ${agentName}`);
+    document.getElementById("agentChatPanel")?.setAttribute("aria-label", `Ask ${agentName}`);
+    const input = document.getElementById("agentChatInput");
+    if (input) input.placeholder = `Ask ${agentName}...`;
     const log = document.getElementById("agentChatLog");
     if (log && log.dataset.agentKey !== agent.key) {
       log.dataset.agentKey = agent.key;
-      log.innerHTML = `<div class="agent-msg">Ask Numa.</div>`;
+      log.innerHTML = `<div class="agent-msg">Ask ${agentName}.</div>`;
     }
   }
 

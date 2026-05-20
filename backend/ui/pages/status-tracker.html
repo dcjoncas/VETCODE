@@ -34,16 +34,54 @@
     <style>
       .tracking-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+        grid-template-columns: minmax(620px, 1fr) minmax(300px, 0.72fr);
         gap: 14px;
         align-items: start;
       }
 
       .tracking-panel {
+        min-width: 0;
         border: 1px solid var(--line);
         border-radius: 14px;
         padding: 14px;
         background: #fff;
+      }
+
+      .tracking-table-wrap {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+      }
+
+      .tracking-table {
+        min-width: 760px;
+        table-layout: fixed;
+      }
+
+      .tracking-table th,
+      .tracking-table td {
+        overflow-wrap: anywhere;
+        vertical-align: middle;
+      }
+
+      .tracking-table .next-action-cell {
+        line-height: 1.35;
+      }
+
+      .tracking-table .tracking-action-cell {
+        width: 78px;
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .tracking-open-link {
+        display: inline-flex;
+        justify-content: center;
+        min-width: 62px;
+        padding: 8px 12px;
+        position: relative;
+        z-index: 1;
       }
 
       .tracking-kpis {
@@ -101,8 +139,14 @@
         display: block;
       }
 
-      @media (max-width: 980px) {
+      @media (max-width: 1320px) {
         .tracking-grid,
+        .detail-list {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 980px) {
         .tracking-kpis,
         .detail-list {
           grid-template-columns: 1fr;
@@ -150,23 +194,33 @@
           <div class="tracking-grid" style="margin-top: 14px">
             <div class="tracking-panel">
               <h2>Scheduling history</h2>
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>When</th>
-                    <th>Candidate</th>
-                    <th>Provider</th>
-                    <th>Status</th>
-                    <th>Next action</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody id="trackingBody">
-                  <tr>
-                    <td colspan="6">No scheduling activity recorded yet.</td>
-                  </tr>
-                </tbody>
-              </table>
+              <div class="tracking-table-wrap">
+                <table class="table tracking-table">
+                  <colgroup>
+                    <col style="width: 150px" />
+                    <col style="width: 180px" />
+                    <col style="width: 115px" />
+                    <col style="width: 145px" />
+                    <col />
+                    <col style="width: 82px" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>When</th>
+                      <th>Candidate</th>
+                      <th>Provider</th>
+                      <th>Status</th>
+                      <th>Next action</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="trackingBody">
+                    <tr>
+                      <td colspan="6">No scheduling activity recorded yet.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
               <div class="row-actions">
                 <a class="btn secondary" href="schedule-interview.html?interview=ready">Candidate Review</a>
                 <a class="btn secondary" href="schedule-interview.html?interview=client">Client Interview</a>
@@ -296,9 +350,9 @@
             <td><strong>${escapeHtml(candidateLabel(record) || "Candidate")}</strong></td>
             <td>${escapeHtml(record.provider || "-")}</td>
             <td><span class="pill">${escapeHtml(record.status || "Recorded")}</span></td>
-            <td>${escapeHtml(record.nextAction || "Follow up")}</td>
-            <td>
-              <a class="btn secondary" href="${statusHref}" style="padding: 8px 12px">
+            <td class="next-action-cell">${escapeHtml(record.nextAction || "Follow up")}</td>
+            <td class="tracking-action-cell">
+              <a class="btn secondary tracking-open-link" href="${statusHref}">
                 Open
               </a>
             </td>

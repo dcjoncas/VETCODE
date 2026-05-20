@@ -295,10 +295,47 @@
       }
 
       function rememberJob(jdId, jd) {
+        if (!jdId) return;
         sessionStorage.setItem("jobID", jdId);
+        sessionStorage.setItem("jobId", jdId);
+        sessionStorage.setItem("selectedJdId", jdId);
+        sessionStorage.setItem("jdId", jdId);
         if (jd.company) sessionStorage.setItem("jobCompany", jd.company);
         if (jd.title) sessionStorage.setItem("jobTitle", jd.title);
+        const skills = Array.isArray(jd.skills)
+          ? jd.skills
+          : Array.isArray(jd.jd_skills)
+            ? jd.jd_skills
+            : Array.isArray(jd.skillList)
+              ? jd.skillList
+              : [];
+        if (skills.length) sessionStorage.setItem("jobSkills", skills.filter(Boolean).join(", "));
+        sessionStorage.setItem("jobDomain", currentDomain());
+        sessionStorage.setItem("activeJobLoadedAt", new Date().toISOString());
         updateJob();
+      }
+
+      async function hydrateSavedJobSelection() {
+        const savedJdId =
+          sessionStorage.getItem("selectedJdId") ||
+          sessionStorage.getItem("jdId") ||
+          sessionStorage.getItem("jobId") ||
+          sessionStorage.getItem("jobID") ||
+          "";
+        if (!savedJdId) return;
+        try {
+          const jd = await api(
+            `/api/azureJobs/getJob/${encodeURIComponent(savedJdId)}?domain=${encodeURIComponent(currentDomain())}`,
+          );
+          const label = `${jd.company ? jd.company + " - " : ""}${jd.title || savedJdId}`;
+          const option = new Option(label, savedJdId, true, true);
+          $("#jdSelect").append(option).trigger("change");
+          rememberJob(savedJdId, jd);
+          document.getElementById("mineStatus").textContent =
+            `JD loaded: ${label}. Choose People Data Labs or GitHub, then Find Candidates (Out).`;
+        } catch (error) {
+          console.log("Could not auto-load selected JD: " + (error.message || error));
+        }
       }
 
       function renderResults(results) {
@@ -657,6 +694,7 @@
         } else {
           loadTempProfiles();
         }
+        hydrateSavedJobSelection();
       });
     </script>
   </body>

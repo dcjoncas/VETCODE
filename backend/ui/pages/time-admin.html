@@ -266,9 +266,12 @@
           <div class="time-toolbar">
             <div>
               <h2>Send time-entry link</h2>
-              <p>Create the worker's weekly time link, then copy it or open an email draft from here.</p>
+              <p>Create the worker's weekly time link here. Use Onboarding when HR needs the full candidate paperwork packet.</p>
             </div>
-            <span class="status-pill" id="linkDomain">Current workspace</span>
+            <div class="row-actions tight">
+              <a class="btn secondary" href="onboarding-admin.html" id="openOnboardingAdmin">Open Onboarding</a>
+              <span class="status-pill" id="linkDomain">Current workspace</span>
+            </div>
           </div>
           <div class="link-builder-grid">
             <label>
@@ -434,6 +437,8 @@
         sessionStorage.setItem("domain", domain);
         document.getElementById("domainSelect").value = domain;
         document.getElementById("linkDomain").textContent = `${domainLabel(domain)} workspace`;
+        const onboardingAdmin = document.getElementById("openOnboardingAdmin");
+        if (onboardingAdmin) onboardingAdmin.href = `onboarding-admin.html?domain=${encodeURIComponent(domain)}`;
         document.getElementById("linkPersonName").value = sessionStorage.getItem("candidateName") || "";
         document.getElementById("linkPersonEmail").value = sessionStorage.getItem("candidateEmail") || "";
         document.getElementById("linkPersonTitle").value = sessionStorage.getItem("jobTitle") || "";

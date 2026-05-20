@@ -33,8 +33,13 @@ GOOGLE_SCOPES = [
     "https://www.googleapis.com/auth/calendar.events",
     "https://www.googleapis.com/auth/calendar.readonly",
 ]
-GOOGLE_CLIENT_SECRET_FILE = Path(os.getenv("GOOGLE_CLIENT_SECRET_FILE", str(BASE_DIR / "google_client_secret.json")))
 GOOGLE_TOKEN_FILE = Path(os.getenv("GOOGLE_TOKEN_FILE", str(BASE_DIR / "google_token.json")))
+DEVREADY_LOCAL_CONFIG_DIR = Path(
+    os.getenv("DEVREADY_LOCAL_CONFIG_DIR", str(Path.home() / ".devready"))
+).expanduser()
+GOOGLE_CLIENT_SECRET_FILE = Path(
+    os.getenv("GOOGLE_CLIENT_SECRET_FILE", str(DEVREADY_LOCAL_CONFIG_DIR / "google_client_secret.json"))
+).expanduser()
 
 OUTLOOK_TOKEN_FILE = Path(os.getenv("OUTLOOK_TOKEN_FILE", str(BASE_DIR / "outlook_token.json")))
 OUTLOOK_TOKEN_DIR = Path(os.getenv("OUTLOOK_TOKEN_DIR", str(BASE_DIR / "calendar_tokens" / "outlook")))
@@ -104,6 +109,38 @@ def _valid_session_id(value: str) -> bool:
     return bool(value) and len(value) <= 80 and all(ch.isalnum() or ch in {"-", "_"} for ch in value)
 
 
+def _google_secret_candidates() -> list[Path]:
+    candidates = [
+        GOOGLE_CLIENT_SECRET_FILE,
+        DEVREADY_LOCAL_CONFIG_DIR / "google_client_secret.json",
+        BASE_DIR / "google_client_secret.json",
+        BASE_DIR.parent / "google_client_secret.json",
+    ]
+    appdata = os.getenv("APPDATA", "").strip()
+    if appdata:
+        candidates.append(Path(appdata) / "DevReady" / "google_client_secret.json")
+
+    unique: list[Path] = []
+    seen = set()
+    for path in candidates:
+        resolved_key = str(path.expanduser())
+        if resolved_key not in seen:
+            seen.add(resolved_key)
+            unique.append(path.expanduser())
+    return unique
+
+
+def _google_secret_path() -> Optional[Path]:
+    for path in _google_secret_candidates():
+        if path.exists():
+            return path
+    return None
+
+
+def _google_secret_configured() -> bool:
+    return bool(_google_secret_path() or os.getenv("GOOGLE_CLIENT_SECRET_JSON", "").strip())
+
+
 def _calendar_session_id(request: Request) -> str:
     session_id = request.cookies.get(CALENDAR_SESSION_COOKIE, "")
     if _valid_session_id(session_id):
@@ -156,16 +193,22 @@ def _pop_outlook_state(state: str) -> Optional[str]:
         return None
 
 
-def _ensure_google_secret_file():
-    if GOOGLE_CLIENT_SECRET_FILE.exists():
-        return
+def _ensure_google_secret_file() -> Path:
+    existing_path = _google_secret_path()
+    if existing_path:
+        return existing_path
     secret_json = os.getenv("GOOGLE_CLIENT_SECRET_JSON", "").strip()
     if secret_json:
+        GOOGLE_CLIENT_SECRET_FILE.parent.mkdir(parents=True, exist_ok=True)
         GOOGLE_CLIENT_SECRET_FILE.write_text(secret_json, encoding="utf-8")
-        return
+        return GOOGLE_CLIENT_SECRET_FILE
     raise HTTPException(
         status_code=500,
-        detail="Missing Google OAuth client secrets. Set GOOGLE_CLIENT_SECRET_JSON or GOOGLE_CLIENT_SECRET_FILE.",
+        detail=(
+            "Missing Google OAuth client secrets. Set GOOGLE_CLIENT_SECRET_JSON or "
+            "GOOGLE_CLIENT_SECRET_FILE, or save google_client_secret.json in "
+            f"{DEVREADY_LOCAL_CONFIG_DIR}."
+        ),
     )
 
 
@@ -326,9 +369,11 @@ def _fallback_email(draft: Dict[str, Any]) -> str:
 @router.get("/api/calendar/health")
 def calendar_health(request: Request):
     session_id = _calendar_session_id(request)
+    google_secret_path = _google_secret_path()
     payload = {
         "ok": True,
-        "google_secret_found": GOOGLE_CLIENT_SECRET_FILE.exists() or bool(os.getenv("GOOGLE_CLIENT_SECRET_JSON", "").strip()),
+        "google_secret_found": _google_secret_configured(),
+        "google_secret_location": str(google_secret_path) if google_secret_path else None,
         "google": _google_status(refresh=False),
         "outlook": {
             **_outlook_status(refresh=False, session_id=session_id),
@@ -346,20 +391,20 @@ def calendar_health(request: Request):
 
 @router.get("/auth/google")
 def auth_google(request: Request):
-    _ensure_google_secret_file()
+    google_secret_file = _ensure_google_secret_file()
     _allow_loopback_http(request)
     redirect_uri = _public_url_for(request, "auth_google_callback")
-    flow = Flow.from_client_secrets_file(str(GOOGLE_CLIENT_SECRET_FILE), scopes=GOOGLE_SCOPES, redirect_uri=redirect_uri)
+    flow = Flow.from_client_secrets_file(str(google_secret_file), scopes=GOOGLE_SCOPES, redirect_uri=redirect_uri)
     auth_url, _ = flow.authorization_url(access_type="offline", include_granted_scopes="true", prompt="consent")
     return RedirectResponse(auth_url)
 
 
 @router.get("/auth/google/callback", name="auth_google_callback")
 def auth_google_callback(request: Request):
-    _ensure_google_secret_file()
+    google_secret_file = _ensure_google_secret_file()
     _allow_loopback_http(request)
     redirect_uri = _public_url_for(request, "auth_google_callback")
-    flow = Flow.from_client_secrets_file(str(GOOGLE_CLIENT_SECRET_FILE), scopes=GOOGLE_SCOPES, redirect_uri=redirect_uri)
+    flow = Flow.from_client_secrets_file(str(google_secret_file), scopes=GOOGLE_SCOPES, redirect_uri=redirect_uri)
     callback_url = f"{redirect_uri}?{request.url.query}" if request.url.query else redirect_uri
     try:
         flow.fetch_token(authorization_response=callback_url)

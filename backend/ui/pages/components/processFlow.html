@@ -529,6 +529,101 @@
     return sessionStorage.getItem("domain") || document.documentElement.dataset.domain || "dev";
   }
 
+  function quickHitDomainProfile() {
+    const domain = quickHitDomain();
+    if (domain === "engineer") {
+      return {
+        domainName: "BuildReady",
+        prompt: "What engineering role should Numa fill?",
+        placeholder:
+          "Example: CivicBridge needs a civil project engineer who can support municipal infrastructure work, coordinate drawings, understand permitting, and communicate with field teams.",
+        fallbackCompany: "Engineering Client",
+        fallbackTitle: "Civil Project Engineer",
+        overview:
+          "is seeking a practical engineering professional to support technical delivery, coordinate with project stakeholders, and help move field or infrastructure work forward safely and clearly.",
+        responsibilities: [
+          "Review project requirements, drawings, specifications, and field constraints.",
+          "Coordinate with engineers, contractors, inspectors, and client stakeholders.",
+          "Support schedule, permitting, documentation, and change tracking.",
+          "Identify constructability, compliance, safety, or quality risks early.",
+          "Communicate project progress, blockers, and next steps clearly.",
+        ],
+        required: [
+          "Engineering project experience in civil, mechanical, electrical, construction, or infrastructure environments.",
+          "Ability to read technical drawings, specifications, or project documentation.",
+          "Strong coordination, documentation, and stakeholder communication skills.",
+          "Working knowledge of safety, quality, permitting, or compliance expectations.",
+        ],
+        preferred: [
+          "PE, EIT, PMP, OSHA, AutoCAD, Civil 3D, Revit, Bluebeam, Primavera, Procore, or similar project tools.",
+          "Experience with municipal, industrial, transportation, utilities, facilities, or construction delivery.",
+        ],
+        success:
+          "The best candidate is field-aware, detail-oriented, calm under project pressure, and comfortable translating technical requirements into practical next actions.",
+      };
+    }
+    if (domain === "law") {
+      return {
+        domainName: "LegalReady",
+        prompt: "What legal role should Numa fill?",
+        placeholder:
+          "Example: Northstar Legal needs a contract review specialist who can support commercial agreements, redline clauses, track risks, and prepare attorney-ready summaries.",
+        fallbackCompany: "Legal Client",
+        fallbackTitle: "Contract Review Specialist",
+        overview:
+          "is seeking a legal operations professional to support matter work, organize legal documentation, and prepare clear summaries for attorneys, clients, or compliance stakeholders.",
+        responsibilities: [
+          "Review legal documents, contracts, matter files, or intake materials for completeness.",
+          "Summarize key risks, deadlines, obligations, and follow-up items.",
+          "Coordinate with attorneys, clients, internal stakeholders, and support teams.",
+          "Maintain accurate records, status notes, document versions, and matter details.",
+          "Escalate legal, compliance, or confidentiality concerns promptly.",
+        ],
+        required: [
+          "Experience in legal operations, contracts, compliance, paralegal support, or matter management.",
+          "Strong writing, document review, organization, and confidentiality judgment.",
+          "Ability to track deadlines, details, risks, and client communications accurately.",
+          "Comfort working with legal terminology, workflow tools, and structured review processes.",
+        ],
+        preferred: [
+          "Paralegal certificate, CLM tools, eDiscovery, contract lifecycle management, litigation support, or compliance workflow experience.",
+          "Experience with commercial agreements, employment, healthcare, privacy, corporate, or regulatory matters.",
+        ],
+        success:
+          "The best candidate is precise, discreet, organized, and able to turn complex legal material into clear next steps without overstepping attorney judgment.",
+      };
+    }
+    return {
+      domainName: "DevReady",
+      prompt: "What technology role should Numa fill?",
+      placeholder:
+        "Example: BrightCart needs an AI platform engineer who can build TypeScript services, integrate APIs, support prompt workflows, and collaborate with product teams.",
+      fallbackCompany: "Technology Client",
+      fallbackTitle: "AI Platform Engineer",
+      overview:
+        "is seeking a technology professional to support application delivery, collaborate with product and engineering teams, and turn business requirements into reliable software or AI-enabled workflows.",
+      responsibilities: [
+        "Build, test, and maintain application, data, or AI-enabled features.",
+        "Work with team members to clarify requirements and implementation options.",
+        "Participate in code reviews, release planning, and delivery ceremonies.",
+        "Troubleshoot defects, integration issues, and performance concerns.",
+        "Communicate progress, blockers, and risks early.",
+      ],
+      required: [
+        "Programming experience with modern software, data, cloud, or AI tooling.",
+        "Ability to work with APIs, databases, version control, and deployment workflows.",
+        "Clear written and verbal communication with technical and business stakeholders.",
+        "Good debugging, documentation, and team collaboration habits.",
+      ],
+      preferred: [
+        "Experience with Python, TypeScript, React, Node.js, cloud platforms, LLM tooling, data pipelines, or automation frameworks.",
+        "Product-minded delivery experience in SaaS, internal tools, analytics, or AI-enabled workflows.",
+      ],
+      success:
+        "The best candidate is curious, collaborative, detail-oriented, and comfortable turning ambiguous business needs into working technical solutions.",
+    };
+  }
+
   function quickHitApi(path, opts = {}) {
     return fetch(path, opts).then(async (response) => {
       const text = await response.text();
@@ -560,36 +655,29 @@
   }
 
   function quickHitFallbackPayload(jobRequest) {
+    const profile = quickHitDomainProfile();
     const clean = String(jobRequest || "").trim();
     const companyMatch = clean.match(/\b(?:for|at)\s+([A-Za-z0-9&.\- ]{2,40})/i);
-    const company = (companyMatch && companyMatch[1].replace(/\b(?:as|with|who|that|and)\b.*$/i, "").trim()) || "Client";
+    const company = (companyMatch && companyMatch[1].replace(/\b(?:as|with|who|that|and)\b.*$/i, "").trim()) || profile.fallbackCompany;
     const titleMatch = clean.match(/\b(?:need|needs|for|as|hire|hiring)\s+(?:an?\s+)?([A-Za-z0-9 /+#.\-]{4,70}?)(?:\s+(?:for|at|with|who|that|and)|$)/i);
-    const title = (titleMatch && titleMatch[1].trim()) || clean.slice(0, 70) || "Developer";
+    const title = (titleMatch && titleMatch[1].trim()) || clean.slice(0, 70) || profile.fallbackTitle;
     const jdText = `Job Title: ${title}
 Company: ${company}
 
 Overview:
-${company} is seeking a motivated ${title} to support application delivery, collaborate with team members, and help turn business requirements into reliable software.
+${company} ${profile.overview}
 
 Responsibilities:
-- Build, test, and maintain application features.
-- Work with senior team members to clarify requirements and implementation options.
-- Participate in code reviews and team ceremonies.
-- Troubleshoot defects and document fixes clearly.
-- Communicate progress, blockers, and risks early.
+${profile.responsibilities.map((item) => `- ${item}`).join("\n")}
 
 Required Skills:
-- Foundational programming experience.
-- Ability to learn quickly and work well in a team.
-- Clear written and verbal communication.
-- Basic understanding of APIs, databases, and version control.
+${profile.required.map((item) => `- ${item}`).join("\n")}
 
 Preferred Skills:
-- Exposure to cloud, AI-enabled tools, data workflows, or modern web frameworks.
-- Internship, bootcamp, certification, or project experience.
+${profile.preferred.map((item) => `- ${item}`).join("\n")}
 
 Success Profile:
-The best candidate is curious, collaborative, detail-oriented, and comfortable asking good questions while growing into the role.`;
+${profile.success}`;
     return { company, job_title: title, jd_text: jdText };
   }
 
@@ -606,10 +694,11 @@ The best candidate is curious, collaborative, detail-oriented, and comfortable a
   }
 
   async function startQuickHitFlow() {
+    const profile = quickHitDomainProfile();
     document.getElementById("quickHitOverlay").hidden = false;
     quickHitSet(
       `<div class="quick-hit-steps"><span>1 Ask</span><span>2 Draft JD</span><span>3 Save JD</span><span>4 Rank</span><span>5 Schedule</span><span>6 Status</span></div>
-       <label><strong>What job should Numa fill?</strong><textarea id="quickHitJobInput" placeholder="Example: Telus needs a junior AI developer who can work well with a team and knows Python, APIs, and front-end basics."></textarea></label>`,
+       <label><strong>${quickHitEscape(profile.prompt)}</strong><textarea id="quickHitJobInput" placeholder="${quickHitEscape(profile.placeholder)}"></textarea></label>`,
       `<button class="btn secondary" type="button" onclick="closeQuickHitFlow()">Cancel</button><button class="btn" type="button" onclick="quickHitDraftJob()">Build JD</button>`,
     );
   }
@@ -634,7 +723,7 @@ The best candidate is curious, collaborative, detail-oriented, and comfortable a
     const form = new FormData();
     form.append("agent_key", "jobs");
     form.append("domain", quickHitDomain());
-    form.append("message", `Create a complete job description and create_job_description action for this quick candidate search. ${jobRequest}`);
+    form.append("message", `Create a complete ${quickHitDomainProfile().domainName} domain job description and create_job_description action for this quick candidate search. Keep the role, examples, skills, and responsibilities specific to the ${quickHitDomain()} domain. ${jobRequest}`);
     form.append("context_json", JSON.stringify(context));
     form.append("numa_change_mode", "off");
     try {

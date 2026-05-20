@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Accounting</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html?v=20260518-accounting-nav");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+    <style>
+      .accounting-shell {
+        display: grid;
+        gap: 14px;
+      }
+
+      .accounting-toolbar,
+      .domain-tools,
+      .row-actions {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .domain-tools {
+        justify-content: flex-start;
+      }
+
+      .accounting-grid {
+        display: grid;
+        grid-template-columns: minmax(340px, 0.82fr) minmax(0, 1.18fr);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .accounting-form {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        align-items: end;
+      }
+
+      .accounting-form .wide {
+        grid-column: 1 / -1;
+      }
+
+      .accounting-form label,
+      .domain-tools label {
+        display: grid;
+        gap: 5px;
+        font-weight: 850;
+      }
+
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .kpi {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px;
+        background: #fff;
+      }
+
+      .kpi strong {
+        display: block;
+        color: var(--primary-2);
+        font-size: 25px;
+      }
+
+      .kpi span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .report-tabs {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .report-tabs button {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 12px;
+        background: #fff;
+        color: var(--text);
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .report-tabs button.active {
+        border-color: rgba(var(--primary-rgb), 0.38);
+        background: rgba(var(--primary-rgb), 0.11);
+        color: var(--primary-2);
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+      }
+
+      .accounting-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .accounting-table th,
+      .accounting-table td {
+        padding: 9px 10px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .accounting-table th {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .accounting-table .num {
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .invoice-preview {
+        border: 1px solid rgba(var(--primary-rgb), 0.18);
+        border-radius: 12px;
+        background: #fff;
+        overflow: hidden;
+      }
+
+      .invoice-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px;
+        background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.12), #fff);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .invoice-head h2 {
+        margin: 0;
+      }
+
+      .invoice-body {
+        padding: 16px;
+      }
+
+      .invoice-total {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 12px;
+        font-size: 20px;
+        font-weight: 950;
+      }
+
+      .pill {
+        display: inline-flex;
+        width: fit-content;
+        border-radius: 999px;
+        padding: 4px 9px;
+        background: rgba(var(--primary-rgb), 0.1);
+        color: var(--primary-2);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .report-panel {
+        display: none;
+      }
+
+      .report-panel.active {
+        display: block;
+      }
+
+      .mini-note {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      @media print {
+        .sidebar,
+        .topbar,
+        .accounting-toolbar,
+        .accounting-grid > .card:not(.print-keep),
+        .report-tabs,
+        .row-actions {
+          display: none !important;
+        }
+
+        .container,
+        .main {
+          display: block;
+          margin: 0;
+          padding: 0;
+          background: #fff;
+        }
+
+        .invoice-preview {
+          border: 0;
+        }
+      }
+
+      @media (max-width: 980px) {
+        .accounting-grid,
+        .accounting-form,
+        .kpi-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Accounting</div>
+            <div class="breadcrumb">Resource rates - financial statements - fiscal period reporting</div>
+          </div>
+          <div class="domain-tools">
+            <label>
+              Workspace
+              <select id="domainSelect" onchange="switchAccountingDomain()">
+                <option value="dev">Technology Domain</option>
+                <option value="engineer">Engineer Domain</option>
+                <option value="law">Law Domain</option>
+              </select>
+            </label>
+            <div id="searchBar"></div>
+          </div>
+        </div>
+
+        <div class="accounting-shell">
+          <section class="card accounting-toolbar">
+            <div>
+              <h2 style="margin: 0">Financial control center</h2>
+              <p class="mini-note" style="margin: 4px 0 0">
+                Track resource bill rates and internal cost, then review Balance Sheet, P&L, and Income Statement by fiscal period.
+              </p>
+            </div>
+            <div class="row-actions">
+              <label>
+                Fiscal start
+                <input id="periodStart" type="date" onchange="loadAccounting()" />
+              </label>
+              <label>
+                Fiscal end
+                <input id="periodEnd" type="date" onchange="loadAccounting()" />
+              </label>
+              <button class="btn secondary" type="button" onclick="loadAccounting()">Refresh</button>
+              <button class="btn secondary" type="button" onclick="window.print()">Print / PDF</button>
+              <a class="btn" href="invoices.html" id="openInvoicesLink">Open Invoices</a>
+            </div>
+          </section>
+
+          <section class="kpi-grid" aria-label="Accounting summary">
+            <div class="kpi"><strong id="kpiRevenue">$0</strong><span>Invoice revenue</span></div>
+            <div class="kpi"><strong id="kpiLabor">$0</strong><span>Resource cost</span></div>
+            <div class="kpi"><strong id="kpiNet">$0</strong><span>Net income</span></div>
+            <div class="kpi"><strong id="kpiAR">$0</strong><span>Accounts receivable</span></div>
+          </section>
+
+          <div class="accounting-grid">
+            <section class="card">
+              <h2>Resource rate and cost</h2>
+              <p class="mini-note">Add the bill rate and internal cost rate for each onboarded resource.</p>
+              <form id="resourceForm" class="accounting-form">
+                <input id="resourceId" type="hidden" />
+                <input id="resourceProfileId" type="hidden" />
+                <input id="resourceToken" type="hidden" />
+                <label class="wide">
+                  Pull from onboarding
+                  <select id="onboardingSelect" onchange="fillResourceFromOnboarding()">
+                    <option value="">Select onboarded person</option>
+                  </select>
+                </label>
+                <label>
+                  Resource name
+                  <input id="resourceName" placeholder="Select onboarded person above" readonly />
+                </label>
+                <label>
+                  Email
+                  <input id="resourceEmail" type="email" placeholder="Linked resource email" readonly />
+                </label>
+                <label>
+                  Role
+                  <input id="resourceRole" placeholder="Linked role" readonly />
+                </label>
+                <label>
+                  Client
+                  <select id="resourceClient">
+                    <option value="">Select client</option>
+                  </select>
+                </label>
+                <label>
+                  Bill rate / hr
+                  <select id="billRate">
+                    <option value="">Select bill rate</option>
+                  </select>
+                </label>
+                <label>
+                  Cost rate / hr
+                  <select id="costRate">
+                    <option value="">Select cost rate</option>
+                  </select>
+                </label>
+                <label>
+                  Start date
+                  <input id="startDate" type="date" readonly />
+                </label>
+                <label>
+                  Status
+                  <select id="resourceStatus">
+                    <option value="active">Active</option>
+                    <option value="pending">Pending</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </label>
+                <label class="wide">
+                  Notes
+                  <textarea id="resourceNotes" placeholder="Rate approvals, contract notes, payroll notes..."></textarea>
+                </label>
+                <div class="wide row-actions">
+                  <button class="btn" type="submit">Save resource financials</button>
+                  <button class="btn secondary" type="button" onclick="clearResourceForm()">Clear</button>
+                </div>
+              </form>
+              <div id="resourceStatusText" class="notice" style="margin-top: 12px">Loading resource records...</div>
+            </section>
+
+            <section class="card">
+              <h2>Invoices are now separate</h2>
+              <p class="mini-note">
+                Customer invoices start from the Invoices page. Select a customer, fiscal period, and the approved consultant
+                time will load automatically with the consultant bill rate.
+              </p>
+              <div class="row-actions" style="margin-top: 12px">
+                <a class="btn primary" href="invoices.html" id="openInvoicesCardLink">Open Invoices</a>
+              </div>
+            </section>
+          </div>
+
+          <section class="card">
+            <div class="accounting-toolbar">
+              <div>
+                <h2 style="margin: 0">Accounting reports</h2>
+                <p class="mini-note" style="margin: 4px 0 0">Use these as operational financial views. Export-grade accounting can come later.</p>
+              </div>
+              <div class="report-tabs">
+                <button id="tabResources" class="active" type="button" onclick="showPanel('resources')">Resources</button>
+                <button id="tabPnl" type="button" onclick="showPanel('pnl')">P&L</button>
+                <button id="tabIncome" type="button" onclick="showPanel('income')">Income Statement</button>
+                <button id="tabBalance" type="button" onclick="showPanel('balance')">Balance Sheet</button>
+              </div>
+            </div>
+            <div id="panelResources" class="report-panel active"></div>
+            <div id="panelPnl" class="report-panel"></div>
+            <div id="panelIncome" class="report-panel"></div>
+            <div id="panelBalance" class="report-panel"></div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="JS/apiScripts.js"></script>
+    <script>
+      let accountingState = null;
+      let latestInvoice = null;
+      const BILL_RATE_OPTIONS = [95, 110, 125, 140, 150, 165, 175, 190, 200, 220, 250, 275, 300];
+      const COST_RATE_OPTIONS = [45, 55, 65, 75, 85, 95, 105, 118, 132, 150, 175, 200];
+
+      function currentDomain() {
+        return document.getElementById("domainSelect")?.value || sessionStorage.getItem("domain") || "dev";
+      }
+
+      function money(value) {
+        const numeric = Number(value || 0);
+        return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(numeric);
+      }
+
+      function escapeLocal(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function numberValue(value) {
+        return Number(String(value || "").replace(/[$,\s]/g, "")) || 0;
+      }
+
+      function selectOptions(values, selected, placeholder) {
+        const cleanSelected = String(selected ?? "");
+        const unique = [...new Set(values.filter((value) => value !== null && value !== undefined && String(value) !== "").map((value) => String(value)))];
+        if (cleanSelected && !unique.includes(cleanSelected)) unique.unshift(cleanSelected);
+        return `<option value="">${escapeLocal(placeholder)}</option>` + unique.map((value) => {
+          const chosen = value === cleanSelected ? " selected" : "";
+          return `<option value="${escapeLocal(value)}"${chosen}>${escapeLocal(value)}</option>`;
+        }).join("");
+      }
+
+      function renderControlledResourceChoices(selectedClient = "", selectedBillRate = "", selectedCostRate = "") {
+        const clients = new Set();
+        (accountingState?.resources || []).forEach((item) => {
+          if (item.client) clients.add(item.client);
+        });
+        (accountingState?.time_rows || []).forEach((item) => {
+          if (item.client) clients.add(item.client);
+          if (item.project) clients.add(item.project);
+        });
+        (accountingState?.invoices || []).forEach((item) => {
+          if (item.client) clients.add(item.client);
+        });
+        document.getElementById("resourceClient").innerHTML = selectOptions([...clients].sort(), selectedClient, "Select client");
+        document.getElementById("billRate").innerHTML = selectOptions(BILL_RATE_OPTIONS, selectedBillRate, "Select bill rate");
+        document.getElementById("costRate").innerHTML = selectOptions(COST_RATE_OPTIONS, selectedCostRate, "Select cost rate");
+      }
+
+      function today(offsetDays = 0) {
+        const date = new Date();
+        date.setDate(date.getDate() + offsetDays);
+        return date.toISOString().slice(0, 10);
+      }
+
+      function switchAccountingDomain() {
+        const domain = currentDomain();
+        sessionStorage.setItem("domain", domain);
+        const url = new URL(window.location.href);
+        url.searchParams.set("domain", domain);
+        window.history.replaceState({}, "", url.toString());
+        if (typeof domainUpdate === "function") domainUpdate(domain);
+        document.getElementById("openInvoicesLink").href = `invoices.html?domain=${encodeURIComponent(domain)}`;
+        document.getElementById("openInvoicesCardLink").href = `invoices.html?domain=${encodeURIComponent(domain)}`;
+        clearResourceForm();
+        loadAccounting();
+      }
+
+      function tableHtml(headers, rows) {
+        if (!rows.length) return '<div class="notice" style="margin-top: 10px">No records yet.</div>';
+        return `
+          <div class="table-wrap">
+            <table class="accounting-table">
+              <thead><tr>${headers.map((h) => `<th${h.num ? ' class="num"' : ""}>${escapeLocal(h.label)}</th>`).join("")}</tr></thead>
+              <tbody>${rows.join("")}</tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      function fillOnboardingSelect() {
+        const select = document.getElementById("onboardingSelect");
+        const people = accountingState?.onboarding_people || [];
+        select.innerHTML = '<option value="">Select onboarded person</option>' + people.map((person, index) => {
+          const name = person.candidate_name || person.legal_name || person.email || "Onboarded person";
+          return `<option value="${index}">${escapeLocal(name)} - ${escapeLocal(person.email || "")}</option>`;
+        }).join("");
+      }
+
+      function fillResourceFromOnboarding() {
+        const index = document.getElementById("onboardingSelect").value;
+        if (index === "") return;
+        const person = accountingState.onboarding_people[Number(index)];
+        if (!person) return;
+        document.getElementById("resourceId").value = "";
+        document.getElementById("resourceProfileId").value = person.profile_id || "";
+        document.getElementById("resourceToken").value = person.token || "";
+        document.getElementById("resourceName").value = person.candidate_name || person.legal_name || "";
+        document.getElementById("resourceEmail").value = person.email || "";
+        document.getElementById("resourceRole").value = person.title || "";
+        document.getElementById("startDate").value = person.start_day || "";
+        renderControlledResourceChoices(person.client || "", "", "");
+        document.getElementById("resourceNotes").value = `Onboarding token: ${person.token || ""}`;
+        document.getElementById("resourceStatusText").textContent = "Onboarded person loaded. Add bill rate and internal cost rate, then save.";
+      }
+
+      function clearResourceForm() {
+        ["resourceId", "resourceProfileId", "resourceToken", "resourceName", "resourceEmail", "resourceRole", "startDate", "resourceNotes"].forEach((id) => {
+          const field = document.getElementById(id);
+          if (field) field.value = "";
+        });
+        renderControlledResourceChoices();
+        document.getElementById("resourceStatus").value = "active";
+      }
+
+      function editResource(id) {
+        const record = (accountingState?.resources || []).find((item) => item.id === id);
+        if (!record) return;
+        document.getElementById("resourceId").value = record.id || "";
+        document.getElementById("resourceProfileId").value = record.profile_id || "";
+        document.getElementById("resourceToken").value = record.token || "";
+        document.getElementById("resourceName").value = record.name || "";
+        document.getElementById("resourceEmail").value = record.email || "";
+        document.getElementById("resourceRole").value = record.role || "";
+        renderControlledResourceChoices(record.client || "", record.bill_rate || "", record.cost_rate || "");
+        document.getElementById("startDate").value = record.start_date || "";
+        document.getElementById("resourceStatus").value = record.status || "active";
+        document.getElementById("resourceNotes").value = record.notes || "";
+        document.getElementById("resourceStatusText").textContent = `Editing ${record.name || "resource"}.`;
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      async function saveResource(event) {
+        event.preventDefault();
+        const status = document.getElementById("resourceStatusText");
+        if (!document.getElementById("resourceName").value || !document.getElementById("resourceEmail").value) {
+          status.textContent = "Select an onboarded person before saving resource financials.";
+          return;
+        }
+        if (!document.getElementById("resourceClient").value) {
+          status.textContent = "Select a linked client before saving resource financials.";
+          return;
+        }
+        if (!document.getElementById("billRate").value || !document.getElementById("costRate").value) {
+          status.textContent = "Select controlled bill and cost rates before saving.";
+          return;
+        }
+        const payload = {
+          resource_id: document.getElementById("resourceId").value,
+          domain: currentDomain(),
+          profile_id: document.getElementById("resourceProfileId").value,
+          token: document.getElementById("resourceToken").value,
+          name: document.getElementById("resourceName").value,
+          email: document.getElementById("resourceEmail").value,
+          role: document.getElementById("resourceRole").value,
+          client: document.getElementById("resourceClient").value,
+          bill_rate: document.getElementById("billRate").value,
+          cost_rate: document.getElementById("costRate").value,
+          start_date: document.getElementById("startDate").value,
+          status: document.getElementById("resourceStatus").value,
+          notes: document.getElementById("resourceNotes").value,
+        };
+        try {
+          const data = await apiPostForm("/api/accounting/resource", payload);
+          accountingState = data.summary;
+          document.getElementById("resourceStatusText").textContent = "Resource financials saved.";
+          clearResourceForm();
+          renderAccounting();
+        } catch (error) {
+          document.getElementById("resourceStatusText").textContent = error.message || "Could not save resource.";
+        }
+      }
+
+      function selectedTimeRows() {
+        const selected = Array.from(document.getElementById("timeRowsSelect").selectedOptions).map((option) => option.value);
+        return (accountingState?.time_rows || []).filter((row) => selected.includes(row.id));
+      }
+
+      function invoiceLineItems() {
+        const fromTime = selectedTimeRows().map((row) => ({
+          description: `${row.candidate_name} - ${row.client || row.project || "billable services"} - ${row.week_start || "time entry"}`,
+          qty: row.hours,
+          rate: row.bill_rate,
+          amount: row.billable_value,
+        })).filter((item) => item.amount > 0);
+        const manual = document.getElementById("manualLines").value
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .map((line) => {
+            const [description, qty, rate] = line.split("|").map((part) => part.trim());
+            const cleanQty = numberValue(qty || 1);
+            const cleanRate = numberValue(rate || 0);
+            return { description, qty: cleanQty, rate: cleanRate, amount: cleanQty * cleanRate };
+          });
+        return [...fromTime, ...manual].filter((item) => item.description && item.amount > 0);
+      }
+
+      function invoicePayload() {
+        return {
+          invoice_id: document.getElementById("invoiceId").value,
+          domain: currentDomain(),
+          client: document.getElementById("invoiceClient").value,
+          client_email: document.getElementById("invoiceEmail").value,
+          invoice_number: document.getElementById("invoiceNumber").value || `DR-${Date.now().toString().slice(-6)}`,
+          invoice_date: document.getElementById("invoiceDate").value,
+          due_date: document.getElementById("dueDate").value,
+          status: document.getElementById("invoiceStatus").value,
+          notes: document.getElementById("invoiceNotes").value,
+          line_items_json: JSON.stringify(invoiceLineItems()),
+        };
+      }
+
+      function renderInvoicePreview(invoice) {
+        if (!invoice) {
+          document.getElementById("invoicePreview").innerHTML = '<div class="invoice-body mini-note">Preview will appear here.</div>';
+          return;
+        }
+        const lines = invoice.line_items || [];
+        document.getElementById("invoicePreview").innerHTML = `
+          <div class="invoice-head">
+            <div>
+              <h2>DevReady Invoice</h2>
+              <div class="mini-note">Invoice ${escapeLocal(invoice.invoice_number || "")}</div>
+            </div>
+            <div style="text-align: right">
+              <span class="pill">${escapeLocal(invoice.status || "draft")}</span>
+              <div class="mini-note">Date: ${escapeLocal(invoice.invoice_date || "")}</div>
+              <div class="mini-note">Due: ${escapeLocal(invoice.due_date || "")}</div>
+            </div>
+          </div>
+          <div class="invoice-body">
+            <strong>Bill to: ${escapeLocal(invoice.client || "Client")}</strong>
+            <div class="mini-note">${escapeLocal(invoice.client_email || "")}</div>
+            ${tableHtml(
+              [{ label: "Description" }, { label: "Qty", num: true }, { label: "Rate", num: true }, { label: "Amount", num: true }],
+              lines.map((item) => `<tr><td>${escapeLocal(item.description)}</td><td class="num">${item.qty}</td><td class="num">${money(item.rate)}</td><td class="num">${money(item.amount)}</td></tr>`)
+            )}
+            <div class="invoice-total">Total ${money(invoice.total || 0)}</div>
+            <p class="mini-note">${escapeLocal(invoice.notes || "Thank you for working with DevReady.")}</p>
+          </div>
+        `;
+      }
+
+      function previewInvoice() {
+        const payload = invoicePayload();
+        const lines = invoiceLineItems();
+        latestInvoice = {
+          ...payload,
+          line_items: lines,
+          total: lines.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+        };
+        renderInvoicePreview(latestInvoice);
+      }
+
+      async function saveInvoice(event) {
+        event.preventDefault();
+        try {
+          const data = await apiPostForm("/api/accounting/invoice", invoicePayload());
+          latestInvoice = data.invoice;
+          accountingState = data.summary;
+          document.getElementById("invoiceId").value = latestInvoice.id;
+          document.getElementById("invoiceNumber").value = latestInvoice.invoice_number;
+          document.getElementById("invoiceStatusText").textContent = "Invoice saved.";
+          renderInvoicePreview(latestInvoice);
+          renderAccounting();
+        } catch (error) {
+          document.getElementById("invoiceStatusText").textContent = error.message || "Could not save invoice.";
+        }
+      }
+
+      function editInvoice(id) {
+        const invoice = (accountingState?.invoices || []).find((item) => item.id === id);
+        if (!invoice) return;
+        latestInvoice = invoice;
+        document.getElementById("invoiceId").value = invoice.id || "";
+        document.getElementById("invoiceClient").value = invoice.client || "";
+        document.getElementById("invoiceEmail").value = invoice.client_email || "";
+        document.getElementById("invoiceNumber").value = invoice.invoice_number || "";
+        document.getElementById("invoiceDate").value = invoice.invoice_date || "";
+        document.getElementById("dueDate").value = invoice.due_date || "";
+        document.getElementById("invoiceStatus").value = invoice.status || "draft";
+        document.getElementById("invoiceNotes").value = invoice.notes || "";
+        document.getElementById("manualLines").value = (invoice.line_items || []).map((item) => `${item.description} | ${item.qty} | ${item.rate}`).join("\n");
+        renderInvoicePreview(invoice);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      async function markInvoice(id, status) {
+        try {
+          const data = await apiPostForm(`/api/accounting/invoice/${encodeURIComponent(id)}/status`, { status });
+          accountingState = data.summary;
+          latestInvoice = data.invoice;
+          renderAccounting();
+          renderInvoicePreview(latestInvoice);
+        } catch (error) {
+          document.getElementById("invoiceStatusText").textContent = error.message || "Could not update invoice.";
+        }
+      }
+
+      function invoiceEmailText() {
+        const invoice = latestInvoice || invoicePayload();
+        const lines = latestInvoice?.line_items || invoiceLineItems();
+        const total = latestInvoice?.total || lines.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+        return `Hi,\n\nAttached below is DevReady invoice ${invoice.invoice_number || ""} for ${money(total)}.\n\n${lines.map((item) => `- ${item.description}: ${item.qty} x ${money(item.rate)} = ${money(item.amount)}`).join("\n")}\n\nTotal: ${money(total)}\nDue: ${invoice.due_date || ""}\n\n${invoice.notes || "Thank you,\nDevReady"}`;
+      }
+
+      async function copyInvoiceEmail() {
+        try {
+          await navigator.clipboard.writeText(invoiceEmailText());
+          document.getElementById("invoiceStatusText").textContent = "Invoice email copied.";
+        } catch {
+          document.getElementById("invoiceStatusText").textContent = "Copy failed. Use Email invoice to open your email app.";
+        }
+      }
+
+      function emailInvoice() {
+        const email = document.getElementById("invoiceEmail").value.trim();
+        const invoiceNumber = document.getElementById("invoiceNumber").value || "DevReady invoice";
+        window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(invoiceNumber)}&body=${encodeURIComponent(invoiceEmailText())}`;
+      }
+
+      function fillTimeRows() {
+        const rows = accountingState?.time_rows || [];
+        document.getElementById("timeRowsSelect").innerHTML = rows.map((row) => {
+          const disabled = row.bill_rate ? "" : " disabled";
+          return `<option value="${escapeLocal(row.id)}"${disabled}>${escapeLocal(row.candidate_name)} - ${row.hours}h - ${money(row.billable_value)} ${row.bill_rate ? "" : "(missing bill rate)"}</option>`;
+        }).join("");
+      }
+
+      function renderResources() {
+        const resources = accountingState?.resources || [];
+        document.getElementById("panelResources").innerHTML = tableHtml(
+          [{ label: "Resource" }, { label: "Client" }, { label: "Bill/hr", num: true }, { label: "Cost/hr", num: true }, { label: "Margin/hr", num: true }, { label: "Status" }, { label: "Actions" }],
+          resources.map((row) => {
+            const margin = Number(row.bill_rate || 0) - Number(row.cost_rate || 0);
+            return `<tr>
+              <td><strong>${escapeLocal(row.name || "Resource")}</strong><div class="mini-note">${escapeLocal(row.email || row.role || "")}</div></td>
+              <td>${escapeLocal(row.client || "")}</td>
+              <td class="num">${money(row.bill_rate)}</td>
+              <td class="num">${money(row.cost_rate)}</td>
+              <td class="num">${money(margin)}</td>
+              <td><span class="pill">${escapeLocal(row.status || "active")}</span></td>
+              <td><button class="btn secondary" type="button" onclick="editResource('${escapeLocal(row.id)}')">Edit</button></td>
+            </tr>`;
+          })
+        );
+        document.getElementById("resourceStatusText").textContent = `${resources.length} resource financial record(s).`;
+      }
+
+      function renderInvoices() {
+        const invoices = accountingState?.invoices || [];
+        document.getElementById("panelInvoices").innerHTML = tableHtml(
+          [{ label: "Invoice" }, { label: "Client" }, { label: "Status" }, { label: "Date" }, { label: "Due" }, { label: "Total", num: true }, { label: "Actions" }],
+          invoices.map((row) => `<tr>
+            <td><strong>${escapeLocal(row.invoice_number || row.id)}</strong></td>
+            <td>${escapeLocal(row.client || "")}<div class="mini-note">${escapeLocal(row.client_email || "")}</div></td>
+            <td><span class="pill">${escapeLocal(row.status || "draft")}</span></td>
+            <td>${escapeLocal(row.invoice_date || "")}</td>
+            <td>${escapeLocal(row.due_date || "")}</td>
+            <td class="num">${money(row.total)}</td>
+            <td class="row-actions">
+              <button class="btn secondary" type="button" onclick="editInvoice('${escapeLocal(row.id)}')">Edit</button>
+              <button class="btn secondary" type="button" onclick="markInvoice('${escapeLocal(row.id)}','sent')">Sent</button>
+              <button class="btn secondary" type="button" onclick="markInvoice('${escapeLocal(row.id)}','paid')">Paid</button>
+            </td>
+          </tr>`)
+        );
+      }
+
+      function renderStatements() {
+        const pnl = accountingState?.pnl || {};
+        const balance = accountingState?.balance_sheet || {};
+        document.getElementById("panelPnl").innerHTML = tableHtml(
+          [{ label: "Line" }, { label: "Amount", num: true }],
+          [
+            ["Revenue", pnl.revenue],
+            ["Billable value from time not yet invoiced", pnl.billable_value_from_time],
+            ["Resource cost", -pnl.labor_cost],
+            ["Expenses", -pnl.expenses],
+            ["Gross profit", pnl.gross_profit],
+            ["Net income", pnl.net_income],
+          ].map(([label, value]) => `<tr><td>${escapeLocal(label)}</td><td class="num">${money(value)}</td></tr>`)
+        );
+        const income = accountingState?.income_statement || {};
+        document.getElementById("panelIncome").innerHTML = tableHtml(
+          [{ label: "Line" }, { label: "Amount", num: true }],
+          [
+            ["Service revenue", income.service_revenue],
+            ["Cost of services", -income.cost_of_services],
+            ["Gross profit", income.gross_profit],
+            ["Operating expenses", -income.operating_expenses],
+            ["Operating income", income.operating_income],
+            ["Net income", income.net_income],
+          ].map(([label, value]) => `<tr><td>${escapeLocal(label)}</td><td class="num">${money(value)}</td></tr>`)
+        );
+        document.getElementById("panelBalance").innerHTML = tableHtml(
+          [{ label: "Line" }, { label: "Amount", num: true }],
+          [
+            ["Cash", balance.cash],
+            ["Accounts receivable", balance.accounts_receivable],
+            ["Total assets", balance.assets],
+            ["Unpaid resource labor", -balance.unpaid_labor],
+            ["Total liabilities", -balance.liabilities],
+            ["Equity", balance.equity],
+          ].map(([label, value]) => `<tr><td>${escapeLocal(label)}</td><td class="num">${money(value)}</td></tr>`)
+        );
+      }
+
+      function renderAccounting() {
+        const pnl = accountingState?.pnl || {};
+        const balance = accountingState?.balance_sheet || {};
+        document.getElementById("kpiRevenue").textContent = money(pnl.revenue);
+        document.getElementById("kpiLabor").textContent = money(pnl.labor_cost);
+        document.getElementById("kpiNet").textContent = money(pnl.net_income);
+        document.getElementById("kpiAR").textContent = money(balance.accounts_receivable);
+        fillOnboardingSelect();
+        renderControlledResourceChoices(
+          document.getElementById("resourceClient")?.value || "",
+          document.getElementById("billRate")?.value || "",
+          document.getElementById("costRate")?.value || "",
+        );
+        renderResources();
+        renderStatements();
+      }
+
+      function showPanel(key) {
+        ["Resources", "Pnl", "Income", "Balance"].forEach((name) => {
+          const normalized = name.toLowerCase();
+          document.getElementById(`panel${name}`).classList.toggle("active", normalized === key);
+          document.getElementById(`tab${name}`).classList.toggle("active", normalized === key);
+        });
+      }
+
+      async function loadAccounting() {
+        try {
+          const params = new URLSearchParams({
+            domain: currentDomain(),
+            period_start: document.getElementById("periodStart")?.value || "",
+            period_end: document.getElementById("periodEnd")?.value || "",
+          });
+          accountingState = await api(`/api/accounting/summary?${params.toString()}`);
+          renderAccounting();
+        } catch (error) {
+          document.getElementById("resourceStatusText").textContent = error.message || "Could not load accounting.";
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const params = new URLSearchParams(window.location.search);
+        const domain = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        document.getElementById("domainSelect").value = domain;
+        document.getElementById("periodStart").value = params.get("period_start") || "";
+        document.getElementById("periodEnd").value = params.get("period_end") || "";
+        document.getElementById("openInvoicesLink").href = `invoices.html?domain=${encodeURIComponent(domain)}`;
+        document.getElementById("openInvoicesCardLink").href = `invoices.html?domain=${encodeURIComponent(domain)}`;
+        document.getElementById("resourceForm").addEventListener("submit", saveResource);
+        loadAccounting();
+      });
+    </script>
+  </body>
+</html>
