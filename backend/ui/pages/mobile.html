@@ -356,7 +356,7 @@
 
       <section class="panel">
         <h2>Pick the job</h2>
-        <p>Use a saved job from the current workspace. New job descriptions stay in the full web app.</p>
+        <p>Use a saved job from the current workspace. If none are saved yet, pick a starter role and finish the detailed JD in the full web app later.</p>
         <label>
           Saved job
           <select id="jobSelect">
@@ -474,6 +474,33 @@
         byId("stepOnboard").classList.toggle("on", canOnboard());
       }
 
+      function starterJobs(domain) {
+        const rows = {
+          dev: [
+            ["MOBILE-DEV-001", "DevReady", "AI Platform Engineer"],
+            ["MOBILE-DEV-002", "DevReady", "Product Automation Lead"],
+            ["MOBILE-DEV-003", "DevReady", "Data Integration Consultant"],
+          ],
+          engineer: [
+            ["MOBILE-ENG-001", "BuildReady", "Civil Project Engineer"],
+            ["MOBILE-ENG-002", "BuildReady", "Controls Engineering Lead"],
+            ["MOBILE-ENG-003", "BuildReady", "Project Controls Consultant"],
+          ],
+          law: [
+            ["MOBILE-LAW-001", "LegalReady", "Legal Operations Consultant"],
+            ["MOBILE-LAW-002", "LegalReady", "Contract Lifecycle Specialist"],
+            ["MOBILE-LAW-003", "LegalReady", "Compliance Program Advisor"],
+          ],
+        };
+        return (rows[domain] || rows.dev).map(([jd_id, company, title]) => ({
+          jd_id,
+          company,
+          title,
+          domain,
+          starter: true,
+        }));
+      }
+
       function selectedJob() {
         return state.jobs.find((item) => String(item.jd_id) === String(state.selectedJobId)) || null;
       }
@@ -505,12 +532,11 @@
 
       function renderJobs() {
         const select = byId("jobSelect");
-        if (!state.jobs.length) {
-          select.innerHTML = `<option value="">No saved jobs in ${escapeHtml(domainMeta[state.domain].label)}</option>`;
-          return;
-        }
-        select.innerHTML = `<option value="">Select a saved job</option>` + state.jobs
-          .map((job) => `<option value="${escapeHtml(job.jd_id)}">${escapeHtml(job.company || "Client")} - ${escapeHtml(job.title || "Role")}</option>`)
+        select.innerHTML = `<option value="">Select a job or starter role</option>` + state.jobs
+          .map((job) => {
+            const suffix = job.starter ? " · starter" : "";
+            return `<option value="${escapeHtml(job.jd_id)}">${escapeHtml(job.company || "Client")} - ${escapeHtml(job.title || "Role")}${suffix}</option>`;
+          })
           .join("");
         select.value = state.selectedJobId;
       }
@@ -534,7 +560,7 @@
       function renderSummaries() {
         const job = selectedJob();
         byId("jobSummary").innerHTML = job
-          ? `<strong>${escapeHtml(job.title || "Selected role")}</strong><span>${escapeHtml(job.company || "Client")} · ${escapeHtml(domainMeta[state.domain].label)}</span>`
+          ? `<strong>${escapeHtml(job.title || "Selected role")}</strong><span>${escapeHtml(job.company || "Client")} · ${escapeHtml(domainMeta[state.domain].label)}${job.starter ? " · starter role" : ""}</span>`
           : `<strong>No job selected</strong><span>Choose the role this candidate is being picked for.</span>`;
 
         const candidate = selectedCandidate();
@@ -591,7 +617,8 @@
             fetchJson(`/api/onboarding/candidates?domain=${encodeURIComponent(state.domain)}&limit=100`),
             fetchJson(`/api/onboarding/admin?domain=${encodeURIComponent(state.domain)}`),
           ]);
-          state.jobs = Array.isArray(jobsRaw) ? jobsRaw : jobsRaw.value || [];
+          const savedJobs = Array.isArray(jobsRaw) ? jobsRaw : jobsRaw.value || [];
+          state.jobs = savedJobs.length ? savedJobs : starterJobs(state.domain);
           state.candidates = candidatesRaw.candidates || [];
           state.recent = recentRaw.people || [];
           renderJobs();
