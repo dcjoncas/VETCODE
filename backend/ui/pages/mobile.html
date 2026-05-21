@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>VETCODE Mobile</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : ["dev", "engineer", "law"].includes(requested) ? requested : "dev";
+        sessionStorage.setItem("domain", domain);
+        document.documentElement.dataset.domain = domain;
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+      })();
+    </script>
+    <style>
+      :root {
+        color-scheme: light;
+        --mobile-bg: #f3f7f4;
+        --mobile-card: #ffffff;
+        --mobile-line: rgba(var(--primary-rgb, 47, 125, 75), 0.18);
+        --mobile-soft: rgba(var(--primary-rgb, 47, 125, 75), 0.08);
+        --mobile-shadow: 0 18px 44px rgba(15, 23, 42, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          linear-gradient(180deg, rgba(var(--primary-rgb, 47, 125, 75), 0.12), rgba(255, 255, 255, 0) 320px),
+          var(--mobile-bg);
+        color: var(--text, #14221b);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      button,
+      select,
+      input {
+        font: inherit;
+      }
+
+      .mobile-app {
+        width: min(100%, 520px);
+        min-height: 100vh;
+        margin: 0 auto;
+        padding: max(14px, env(safe-area-inset-top)) 14px max(22px, env(safe-area-inset-bottom));
+      }
+
+      .hero {
+        position: sticky;
+        top: 0;
+        z-index: 4;
+        display: grid;
+        gap: 12px;
+        padding: 10px 0 12px;
+        background:
+          linear-gradient(180deg, var(--mobile-bg) 72%, rgba(255, 255, 255, 0)),
+          transparent;
+      }
+
+      .brand-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .brand-mark {
+        width: 44px;
+        height: 44px;
+        flex: 0 0 44px;
+        border-radius: 14px;
+        background:
+          radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0) 34%),
+          var(--primary, #2f7d4b);
+        box-shadow: 0 12px 28px rgba(var(--primary-rgb, 47, 125, 75), 0.25);
+        display: grid;
+        place-items: center;
+        color: #fff;
+        font-weight: 950;
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 23px;
+        line-height: 1;
+      }
+
+      .brand p {
+        margin: 3px 0 0;
+        color: var(--muted, #58675e);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .domain-select {
+        width: 150px;
+        min-height: 42px;
+        border: 1px solid var(--mobile-line);
+        border-radius: 999px;
+        padding: 0 12px;
+        background: #fff;
+        color: var(--primary-2, #145c32);
+        font-weight: 900;
+      }
+
+      .step-strip {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 7px;
+      }
+
+      .step-chip {
+        border: 1px solid var(--mobile-line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.76);
+        color: var(--muted, #58675e);
+        padding: 8px 4px;
+        text-align: center;
+        font-size: 11px;
+        font-weight: 950;
+      }
+
+      .step-chip.on {
+        background: var(--primary, #2f7d4b);
+        color: #fff;
+        border-color: transparent;
+        box-shadow: 0 8px 22px rgba(var(--primary-rgb, 47, 125, 75), 0.24);
+      }
+
+      .panel {
+        border: 1px solid var(--mobile-line);
+        border-radius: 18px;
+        background: var(--mobile-card);
+        box-shadow: var(--mobile-shadow);
+        padding: 14px;
+        margin: 12px 0;
+      }
+
+      .panel h2 {
+        margin: 0;
+        font-size: 18px;
+        letter-spacing: 0;
+      }
+
+      .panel p {
+        margin: 6px 0 0;
+        color: var(--muted, #58675e);
+        line-height: 1.38;
+        font-size: 13px;
+      }
+
+      label {
+        display: grid;
+        gap: 7px;
+        margin-top: 12px;
+        color: var(--text, #14221b);
+        font-size: 12px;
+        font-weight: 950;
+      }
+
+      select,
+      input[type="date"] {
+        width: 100%;
+        min-height: 48px;
+        border: 1px solid var(--line, #d9e5dc);
+        border-radius: 13px;
+        background: #fff;
+        color: var(--text, #14221b);
+        padding: 0 12px;
+        font-weight: 820;
+      }
+
+      select:focus,
+      input:focus {
+        outline: 3px solid rgba(var(--primary-rgb, 47, 125, 75), 0.18);
+        border-color: rgba(var(--primary-rgb, 47, 125, 75), 0.46);
+      }
+
+      .button-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 9px;
+        margin-top: 12px;
+      }
+
+      .btn {
+        min-height: 48px;
+        border: 0;
+        border-radius: 999px;
+        padding: 0 15px;
+        background: var(--primary, #2f7d4b);
+        color: #fff;
+        font-weight: 950;
+        box-shadow: 0 12px 28px rgba(var(--primary-rgb, 47, 125, 75), 0.25);
+      }
+
+      .btn.secondary {
+        background: #fff;
+        color: var(--primary-2, #145c32);
+        border: 1px solid var(--mobile-line);
+        box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+      }
+
+      .btn:disabled {
+        opacity: 0.55;
+        box-shadow: none;
+      }
+
+      .summary-card {
+        border: 1px solid var(--mobile-line);
+        border-radius: 14px;
+        padding: 12px;
+        background:
+          linear-gradient(135deg, var(--mobile-soft), rgba(255, 255, 255, 0.92)),
+          #fff;
+        margin-top: 12px;
+      }
+
+      .summary-card strong {
+        display: block;
+        font-size: 15px;
+        overflow-wrap: anywhere;
+      }
+
+      .summary-card span {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted, #58675e);
+        font-size: 12px;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+
+      .notice {
+        border: 1px dashed rgba(var(--primary-rgb, 47, 125, 75), 0.34);
+        border-radius: 14px;
+        padding: 11px 12px;
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.07);
+        color: var(--primary-2, #145c32);
+        font-size: 13px;
+        line-height: 1.38;
+        font-weight: 800;
+      }
+
+      .notice.warn {
+        border-color: rgba(183, 116, 0, 0.38);
+        background: #fff7e4;
+        color: #7b4a00;
+      }
+
+      .result {
+        display: none;
+      }
+
+      .result.show {
+        display: block;
+      }
+
+      .link-box {
+        display: grid;
+        gap: 7px;
+        border: 1px solid var(--mobile-line);
+        border-radius: 14px;
+        padding: 12px;
+        background: #fff;
+        margin-top: 12px;
+      }
+
+      .link-box a {
+        color: var(--primary-2, #145c32);
+        font-weight: 900;
+        overflow-wrap: anywhere;
+      }
+
+      .mini {
+        font-size: 12px;
+        color: var(--muted, #58675e);
+      }
+
+      .footer {
+        padding: 12px 0 4px;
+        text-align: center;
+      }
+
+      .footer a {
+        color: var(--primary-2, #145c32);
+        font-weight: 900;
+        text-decoration: none;
+      }
+
+      @media (min-width: 620px) {
+        body::before {
+          content: "Mobile preview";
+          position: fixed;
+          inset: 0 auto auto 0;
+          padding: 8px 10px;
+          color: var(--muted, #58675e);
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        .mobile-app {
+          border-left: 1px solid rgba(15, 23, 42, 0.06);
+          border-right: 1px solid rgba(15, 23, 42, 0.06);
+          background: rgba(255, 255, 255, 0.2);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="mobile-app">
+      <header class="hero">
+        <div class="brand-row">
+          <div class="brand">
+            <div class="brand-mark">✓</div>
+            <div>
+              <h1 id="brandTitle">DevReady</h1>
+              <p>Mobile pick + onboard</p>
+            </div>
+          </div>
+          <select id="domainSelect" class="domain-select" aria-label="Domain">
+            <option value="dev">Technology</option>
+            <option value="engineer">Engineering</option>
+            <option value="law">Law</option>
+          </select>
+        </div>
+        <div class="step-strip" aria-label="Mobile process">
+          <div id="stepJob" class="step-chip on">1 Job</div>
+          <div id="stepCandidate" class="step-chip">2 Candidate</div>
+          <div id="stepOnboard" class="step-chip">3 Onboard</div>
+        </div>
+      </header>
+
+      <section class="panel">
+        <h2>Pick the job</h2>
+        <p>Use a saved job from the current workspace. New job descriptions stay in the full web app.</p>
+        <label>
+          Saved job
+          <select id="jobSelect">
+            <option value="">Loading jobs...</option>
+          </select>
+        </label>
+        <div id="jobSummary" class="summary-card">
+          <strong>No job selected</strong>
+          <span>Choose the role this candidate is being picked for.</span>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Pick the candidate</h2>
+        <p>Only completed profiles are shown, so onboarding cannot start from an unfinished profile.</p>
+        <label>
+          Completed profile
+          <select id="candidateSelect">
+            <option value="">Loading candidates...</option>
+          </select>
+        </label>
+        <div id="candidateSummary" class="summary-card">
+          <strong>No candidate selected</strong>
+          <span>Select the completed profile to move forward.</span>
+        </div>
+        <div class="button-row">
+          <button id="profileButton" class="btn secondary" type="button" disabled>Open profile</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Create onboarding link</h2>
+        <p>This creates the HR onboarding packet from the completed profile and selected job.</p>
+        <label>
+          Start date
+          <input id="startDate" type="date" />
+        </label>
+        <div id="readyNotice" class="notice warn">Choose a job and a completed candidate to unlock onboarding.</div>
+        <div class="button-row">
+          <button id="onboardButton" class="btn" type="button" disabled>Create onboarding link</button>
+        </div>
+        <div id="resultPanel" class="result">
+          <div class="link-box">
+            <strong>Candidate onboarding</strong>
+            <a id="onboardingLink" href="#"></a>
+            <button id="copyOnboarding" class="btn secondary" type="button">Copy onboarding link</button>
+          </div>
+          <div class="link-box">
+            <strong>Time entry</strong>
+            <a id="timeEntryLink" href="#"></a>
+            <button id="copyTime" class="btn secondary" type="button">Copy time link</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Recent onboarding</h2>
+        <p>Quick check for the current domain.</p>
+        <div id="recentList" class="notice">Loading recent onboarding records...</div>
+      </section>
+
+      <div class="footer">
+        <a id="desktopLink" href="find-candidate.html">Open full web app</a>
+      </div>
+    </main>
+
+    <script>
+      const domainMeta = {
+        dev: { title: "DevReady", label: "Technology" },
+        engineer: { title: "BuildReady", label: "Engineering" },
+        law: { title: "LegalReady", label: "Law" },
+      };
+
+      const state = {
+        domain: "dev",
+        jobs: [],
+        candidates: [],
+        recent: [],
+        selectedJobId: "",
+        selectedCandidateId: "",
+      };
+
+      const byId = (id) => document.getElementById(id);
+
+      function normalizeDomain(value) {
+        const clean = value === "technology" ? "dev" : value;
+        return ["dev", "engineer", "law"].includes(clean) ? clean : "dev";
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function absoluteUrl(path) {
+        return new URL(path || "", window.location.origin).href;
+      }
+
+      function setBusy(isBusy) {
+        byId("onboardButton").disabled = isBusy || !canOnboard();
+        byId("onboardButton").textContent = isBusy ? "Creating..." : "Create onboarding link";
+      }
+
+      function canOnboard() {
+        return Boolean(state.selectedJobId && state.selectedCandidateId);
+      }
+
+      function setStep() {
+        byId("stepJob").classList.toggle("on", !state.selectedJobId);
+        byId("stepCandidate").classList.toggle("on", Boolean(state.selectedJobId && !state.selectedCandidateId));
+        byId("stepOnboard").classList.toggle("on", canOnboard());
+      }
+
+      function selectedJob() {
+        return state.jobs.find((item) => String(item.jd_id) === String(state.selectedJobId)) || null;
+      }
+
+      function selectedCandidate() {
+        return state.candidates.find((item) => String(item.id || item.profile_id) === String(state.selectedCandidateId)) || null;
+      }
+
+      async function fetchJson(url, options = {}) {
+        const response = await fetch(url, { cache: "no-store", ...options });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.detail || data.error || "Request failed");
+        return data;
+      }
+
+      function applyDomain(domain) {
+        state.domain = normalizeDomain(domain);
+        sessionStorage.setItem("domain", state.domain);
+        document.documentElement.dataset.domain = state.domain;
+        byId("domainSelect").value = state.domain;
+        byId("brandTitle").textContent = domainMeta[state.domain].title;
+        byId("desktopLink").href = `find-candidate.html?domain=${encodeURIComponent(state.domain)}`;
+        const css = byId("domainCss");
+        if (css) css.href = `../assets/${state.domain}Styles.css`;
+        const url = new URL(window.location.href);
+        url.searchParams.set("domain", state.domain);
+        window.history.replaceState({}, "", url.toString());
+      }
+
+      function renderJobs() {
+        const select = byId("jobSelect");
+        if (!state.jobs.length) {
+          select.innerHTML = `<option value="">No saved jobs in ${escapeHtml(domainMeta[state.domain].label)}</option>`;
+          return;
+        }
+        select.innerHTML = `<option value="">Select a saved job</option>` + state.jobs
+          .map((job) => `<option value="${escapeHtml(job.jd_id)}">${escapeHtml(job.company || "Client")} - ${escapeHtml(job.title || "Role")}</option>`)
+          .join("");
+        select.value = state.selectedJobId;
+      }
+
+      function renderCandidates() {
+        const select = byId("candidateSelect");
+        if (!state.candidates.length) {
+          select.innerHTML = `<option value="">No completed profiles ready</option>`;
+          return;
+        }
+        select.innerHTML = `<option value="">Select a completed profile</option>` + state.candidates
+          .map((candidate) => {
+            const id = candidate.id || candidate.profile_id;
+            const title = candidate.title ? ` - ${candidate.title}` : "";
+            return `<option value="${escapeHtml(id)}">${escapeHtml(candidate.name || "Candidate")}${escapeHtml(title)}</option>`;
+          })
+          .join("");
+        select.value = state.selectedCandidateId;
+      }
+
+      function renderSummaries() {
+        const job = selectedJob();
+        byId("jobSummary").innerHTML = job
+          ? `<strong>${escapeHtml(job.title || "Selected role")}</strong><span>${escapeHtml(job.company || "Client")} · ${escapeHtml(domainMeta[state.domain].label)}</span>`
+          : `<strong>No job selected</strong><span>Choose the role this candidate is being picked for.</span>`;
+
+        const candidate = selectedCandidate();
+        byId("candidateSummary").innerHTML = candidate
+          ? `<strong>${escapeHtml(candidate.name || "Candidate")}</strong><span>${escapeHtml(candidate.title || "Completed profile")} · Profile ${escapeHtml(candidate.id || candidate.profile_id)}</span>`
+          : `<strong>No candidate selected</strong><span>Select the completed profile to move forward.</span>`;
+
+        byId("profileButton").disabled = !candidate;
+        byId("profileButton").onclick = () => {
+          if (!candidate) return;
+          window.location.href = `profile-preview.html?domain=${encodeURIComponent(state.domain)}&profileId=${encodeURIComponent(candidate.id || candidate.profile_id)}`;
+        };
+
+        const ready = canOnboard();
+        byId("readyNotice").classList.toggle("warn", !ready);
+        byId("readyNotice").textContent = ready
+          ? "Ready. This will create or refresh the onboarding link for the selected completed profile."
+          : "Choose a job and a completed candidate to unlock onboarding.";
+        byId("onboardButton").disabled = !ready;
+        setStep();
+      }
+
+      function renderRecent() {
+        const target = byId("recentList");
+        if (!state.recent.length) {
+          target.textContent = "No onboarding records yet for this domain.";
+          return;
+        }
+        target.classList.remove("warn");
+        target.innerHTML = state.recent
+          .slice(0, 5)
+          .map(
+            (item) => `
+              <div class="summary-card" style="margin-top:8px">
+                <strong>${escapeHtml(item.candidate_name || item.legal_name || "Candidate")}</strong>
+                <span>${escapeHtml(item.title || "Onboarding")} · ${escapeHtml(item.status || "Started")}</span>
+              </div>
+            `,
+          )
+          .join("");
+      }
+
+      async function loadData() {
+        byId("jobSelect").innerHTML = `<option value="">Loading jobs...</option>`;
+        byId("candidateSelect").innerHTML = `<option value="">Loading candidates...</option>`;
+        byId("recentList").textContent = "Loading recent onboarding records...";
+        state.selectedJobId = "";
+        state.selectedCandidateId = "";
+        byId("resultPanel").classList.remove("show");
+        renderSummaries();
+        try {
+          const [jobsRaw, candidatesRaw, recentRaw] = await Promise.all([
+            fetchJson(`/api/jd/list?domain=${encodeURIComponent(state.domain)}`),
+            fetchJson(`/api/onboarding/candidates?domain=${encodeURIComponent(state.domain)}&limit=100`),
+            fetchJson(`/api/onboarding/admin?domain=${encodeURIComponent(state.domain)}`),
+          ]);
+          state.jobs = Array.isArray(jobsRaw) ? jobsRaw : jobsRaw.value || [];
+          state.candidates = candidatesRaw.candidates || [];
+          state.recent = recentRaw.people || [];
+          renderJobs();
+          renderCandidates();
+          renderRecent();
+          renderSummaries();
+        } catch (error) {
+          byId("jobSelect").innerHTML = `<option value="">Could not load jobs</option>`;
+          byId("candidateSelect").innerHTML = `<option value="">Could not load candidates</option>`;
+          byId("recentList").classList.add("warn");
+          byId("recentList").textContent = error.message || "Mobile data load failed.";
+        }
+      }
+
+      async function createOnboarding() {
+        const job = selectedJob();
+        const candidate = selectedCandidate();
+        if (!job || !candidate) return;
+        setBusy(true);
+        byId("readyNotice").classList.remove("warn");
+        byId("readyNotice").textContent = "Creating onboarding link...";
+        try {
+          const form = new FormData();
+          form.append("profile_id", candidate.id || candidate.profile_id);
+          form.append("candidate_name", candidate.name || "");
+          form.append("email", candidate.email || "");
+          form.append("title", candidate.title || job.title || "");
+          form.append("domain", state.domain);
+          form.append("start_day", byId("startDate").value || "");
+          form.append(
+            "source_record_json",
+            JSON.stringify({
+              source: "mobile",
+              job_id: job.jd_id,
+              client: job.company || "",
+              job_title: job.title || "",
+              picked_at: new Date().toISOString(),
+            }),
+          );
+          const result = await fetchJson("/api/onboarding/start", { method: "POST", body: form });
+          const onboardingUrl = absoluteUrl(result.onboarding_link);
+          const timeUrl = absoluteUrl(result.time_entry_link);
+          byId("onboardingLink").href = onboardingUrl;
+          byId("onboardingLink").textContent = onboardingUrl;
+          byId("timeEntryLink").href = timeUrl;
+          byId("timeEntryLink").textContent = timeUrl;
+          byId("resultPanel").classList.add("show");
+          byId("readyNotice").textContent = "Onboarding link is ready.";
+          await loadRecentOnly();
+        } catch (error) {
+          byId("readyNotice").classList.add("warn");
+          byId("readyNotice").textContent = error.message || "Could not create onboarding link.";
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function loadRecentOnly() {
+        try {
+          const recentRaw = await fetchJson(`/api/onboarding/admin?domain=${encodeURIComponent(state.domain)}`);
+          state.recent = recentRaw.people || [];
+          renderRecent();
+        } catch {
+          renderRecent();
+        }
+      }
+
+      async function copyLink(id) {
+        const link = byId(id).href;
+        if (!link || link.endsWith("#")) return;
+        await navigator.clipboard.writeText(link);
+      }
+
+      function init() {
+        const params = new URLSearchParams(window.location.search);
+        applyDomain(params.get("domain") || sessionStorage.getItem("domain") || "dev");
+        byId("startDate").value = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+        byId("domainSelect").addEventListener("change", (event) => {
+          applyDomain(event.target.value);
+          loadData();
+        });
+        byId("jobSelect").addEventListener("change", (event) => {
+          state.selectedJobId = event.target.value;
+          renderSummaries();
+        });
+        byId("candidateSelect").addEventListener("change", (event) => {
+          state.selectedCandidateId = event.target.value;
+          renderSummaries();
+        });
+        byId("onboardButton").addEventListener("click", createOnboarding);
+        byId("copyOnboarding").addEventListener("click", () => copyLink("onboardingLink"));
+        byId("copyTime").addEventListener("click", () => copyLink("timeEntryLink"));
+        loadData();
+      }
+
+      init();
+    </script>
+  </body>
+</html>
