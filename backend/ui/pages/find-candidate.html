@@ -37,14 +37,34 @@
       }
 
       function loadTalentSidebar() {
-        $("#siteSidebar").load("components/sidebar.html?v=20260515-jd-nav-flow", bindTalentDomainRefresh);
+        $("#siteSidebar").load("components/sidebar.html?v=20260521-egeria-flow", bindTalentDomainRefresh);
+      }
+
+      function activateTalentProcessFlowScripts(root) {
+        const host = root || document.getElementById("processFlow");
+        if (!host || host.dataset.scriptsActivated === "1") return;
+        host.dataset.scriptsActivated = "1";
+        host.querySelectorAll("script").forEach((oldScript) => {
+          const inlineCode = oldScript.text || oldScript.textContent || oldScript.innerHTML || "";
+          if (!oldScript.src && inlineCode.trim()) {
+            (0, eval)(inlineCode);
+            return;
+          }
+          const script = document.createElement("script");
+          Array.from(oldScript.attributes || []).forEach((attr) => script.setAttribute(attr.name, attr.value));
+          script.text = inlineCode;
+          document.body.appendChild(script);
+          if (!script.src) script.remove();
+        });
       }
 
       $(function () {
         if (!document.getElementById("siteSidebar")?.dataset.loaded) {
           loadTalentSidebar();
         }
-        $("#processFlow").load("components/processFlow.html");
+        $("#processFlow").load("components/processFlow.html?v=20260521-egeria-flow", function () {
+          activateTalentProcessFlowScripts(this);
+        });
         $("#searchBar").load("components/searchBar.html");
       });
     </script>

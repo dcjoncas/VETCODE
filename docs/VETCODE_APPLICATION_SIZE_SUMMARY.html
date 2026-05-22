@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VETCODE Application Size Summary</title>
+  <style>
+    :root{--bg:#f3f7f5;--paper:#fff;--ink:#102018;--muted:#5d6b63;--line:#d9e6df;--green:#2f7d4b;--blue:#145db2;--gold:#b88727;--code:#edf4f0}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:Arial,Helvetica,sans-serif;line-height:1.5}
+    .shell{max-width:1320px;margin:0 auto;padding:28px 18px 72px} .hero{border:1px solid var(--line);border-radius:16px;padding:30px;background:linear-gradient(135deg,#fff,#eef8f0 55%,#edf3ff);box-shadow:0 18px 48px rgba(16,32,24,.08)}
+    h1,h2,h3{margin:0;line-height:1.15} h1{font-size:36px} h2{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);font-size:24px} h3{font-size:17px} p{margin:8px 0 0} .muted{color:var(--muted)}
+    .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:18px} .metric{border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff} .metric strong{display:block;font-size:30px;color:var(--green);line-height:1} .metric span{display:block;margin-top:6px;color:var(--muted);font-size:13px}
+    .card{margin-top:14px;border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--paper);box-shadow:0 10px 26px rgba(16,32,24,.05)} .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+    table{display:block;width:100%;margin-top:12px;border-collapse:collapse;overflow-x:auto;font-size:13px} th,td{border:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top} th{background:#edf7ef;color:#183c24} code{border:1px solid #d8e4dc;border-radius:5px;padding:1px 5px;background:var(--code);font-family:Consolas,'Courier New',monospace;font-size:.92em}
+    .pill{display:inline-block;margin:4px 5px 0 0;border:1px solid #cfe4d5;border-radius:999px;padding:4px 9px;background:#edf8ef;color:var(--green);font-size:12px;font-weight:800} .pill.blue{border-color:#c8d9f5;background:#edf5ff;color:var(--blue)} .pill.gold{border-color:#efd48d;background:#fff7e3;color:#7a550a}
+    .callout{margin-top:14px;border-left:5px solid var(--blue);border-radius:10px;padding:13px 14px;background:#edf5ff} .toc{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px} .toc a{border:1px solid var(--line);border-radius:999px;padding:8px 11px;background:#fff;color:var(--green);font-weight:800;text-decoration:none;font-size:13px}
+    @media(max-width:720px){.hero{padding:22px} h1{font-size:30px}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <span class="pill gold">Application Size Sheet</span><span class="pill blue">Generated 2026-05-21 16:30</span>
+      <h1>VETCODE Application Size Summary</h1>
+      <p class="muted">Counts app-owned source files and runtime data stores while excluding libraries, virtual environments, caches, uploaded resumes, and build artifacts. Regenerate with <code>python docs/generate_application_summary.py</code>.</p>
+      <div class="toc">
+        <a href="#source">Source Code</a><a href="#databases">Databases and Fields</a><a href="#routes">API Routes</a><a href="#frontend">Frontend</a><a href="#largest">Largest Files</a><a href="#notes">Counting Rules</a>
+      </div>
+      <div class="metric-grid">
+        <div class="metric"><strong>134</strong><span>developed/source files counted</span></div>
+        <div class="metric"><strong>58,119</strong><span>total lines of source</span></div>
+        <div class="metric"><strong>52,741</strong><span>nonblank source lines</span></div>
+        <div class="metric"><strong>29</strong><span>database-like stores counted</span></div>
+        <div class="metric"><strong>83</strong><span>tables plus JSON stores</span></div>
+        <div class="metric"><strong>1,110</strong><span>columns plus JSON field names</span></div>
+      </div>
+    </section>
+
+    <section id="source">
+      <h2>Source Code Inventory</h2>
+      <div class="card">
+        <p>App-owned files are grouped by extension and purpose. Runtime data and uploaded documents are not counted as source LOC.</p>
+        <table><thead><tr><th>Type</th><th>Meaning</th><th>Files</th><th>Total LOC</th><th>Nonblank LOC</th><th>Size</th></tr></thead><tbody><tr><td><code>.html</code></td><td>HTML pages / components</td><td>54</td><td>34,662</td><td>31,946</td><td>1,395.8 KB</td></tr>
+<tr><td><code>.py</code></td><td>Python backend / scripts</td><td>53</td><td>15,581</td><td>13,653</td><td>665.3 KB</td></tr>
+<tr><td><code>.css</code></td><td>CSS domain styling</td><td>5</td><td>4,391</td><td>4,225</td><td>91.9 KB</td></tr>
+<tr><td><code>.md</code></td><td>Markdown documentation</td><td>3</td><td>1,715</td><td>1,297</td><td>52.0 KB</td></tr>
+<tr><td><code>.js</code></td><td>JavaScript browser logic</td><td>10</td><td>1,670</td><td>1,531</td><td>68.9 KB</td></tr>
+<tr><td><code>.txt</code></td><td>Prompt / text fixtures</td><td>6</td><td>74</td><td>63</td><td>25.2 KB</td></tr>
+<tr><td><code>.svg</code></td><td>SVG visual assets</td><td>3</td><td>26</td><td>26</td><td>1.3 KB</td></tr></tbody></table>
+      </div>
+      <div class="card">
+        <h3>By Application Area</h3>
+        <table><thead><tr><th>Area</th><th>Files</th><th>Total LOC</th><th>Nonblank LOC</th></tr></thead><tbody><tr><td>README.txt</td><td>1</td><td>22</td><td>18</td></tr>
+<tr><td>backend</td><td>100</td><td>49,432</td><td>44,873</td></tr>
+<tr><td>docs</td><td>9</td><td>6,416</td><td>5,819</td></tr>
+<tr><td>frontend</td><td>7</td><td>105</td><td>93</td></tr>
+<tr><td>navigation.js</td><td>1</td><td>8</td><td>7</td></tr>
+<tr><td>requirements.txt</td><td>1</td><td>14</td><td>14</td></tr>
+<tr><td>scripts</td><td>6</td><td>2,055</td><td>1,858</td></tr>
+<tr><td>ui</td><td>8</td><td>63</td><td>56</td></tr>
+<tr><td>views.html</td><td>1</td><td>4</td><td>3</td></tr></tbody></table>
+      </div>
+      <div class="card">
+        <h3>Python Structure</h3>
+        <table><thead><tr><th>Python Modules</th><th>Classes</th><th>Functions</th><th>Async Functions</th></tr></thead><tbody><tr><td>53</td><td>10</td><td>552</td><td>35</td></tr></tbody></table><table><thead><tr><th>Python File</th><th>Classes</th><th>Functions</th><th>Async Functions</th></tr></thead><tbody><tr><td><code>backend/main.py</code></td><td>1</td><td>147</td><td>5</td></tr>
+<tr><td><code>backend/azureUtils/storage/candidates.py</code></td><td>2</td><td>50</td><td>0</td></tr>
+<tr><td><code>backend/calendar_router.py</code></td><td>0</td><td>45</td><td>2</td></tr>
+<tr><td><code>backend/azureUtils/routes/azureEndpoints.py</code></td><td>2</td><td>25</td><td>16</td></tr>
+<tr><td><code>backend/azureUtils/routes/azureJobEndpoints.py</code></td><td>0</td><td>32</td><td>2</td></tr>
+<tr><td><code>docs/generate_application_summary.py</code></td><td>0</td><td>24</td><td>0</td></tr>
+<tr><td><code>scripts/seed_devready_client_examples.py</code></td><td>0</td><td>23</td><td>0</td></tr>
+<tr><td><code>backend/azureUtils/storage/chatLogs.py</code></td><td>0</td><td>20</td><td>0</td></tr>
+<tr><td><code>backend/storage.py</code></td><td>0</td><td>19</td><td>0</td></tr>
+<tr><td><code>docs/generate_database_ai_reference.py</code></td><td>0</td><td>16</td><td>0</td></tr>
+<tr><td><code>backend/openAI/pageAgents.py</code></td><td>0</td><td>14</td><td>0</td></tr>
+<tr><td><code>backend/renderers.py</code></td><td>0</td><td>12</td><td>0</td></tr>
+<tr><td><code>scripts/copy_azure_prod_to_dev.py</code></td><td>0</td><td>12</td><td>0</td></tr>
+<tr><td><code>scripts/seed_demo_lifecycle_scenarios.py</code></td><td>0</td><td>11</td><td>0</td></tr>
+<tr><td><code>backend/deterministic_profile.py</code></td><td>0</td><td>10</td><td>0</td></tr></tbody></table>
+      </div>
+    </section>
+
+    <section id="databases">
+      <h2>Databases, Columns, and Fields</h2>
+      <div class="metric-grid">
+        <div class="metric"><strong>51</strong><span>Azure PostgreSQL tables counted</span></div>
+        <div class="metric"><strong>285</strong><span>Azure PostgreSQL columns counted</span></div>
+        <div class="metric"><strong>3</strong><span>local SQLite DB files</span></div>
+        <div class="metric"><strong>53</strong><span>local SQLite columns</span></div>
+        <div class="metric"><strong>25</strong><span>JSON operational stores</span></div>
+        <div class="metric"><strong>772</strong><span>distinct JSON field names</span></div>
+      </div>
+      <div class="card"><h3>Azure PostgreSQL</h3><table><thead><tr><th>Database</th><th>Configured</th><th>Tables</th><th>Columns</th><th>Note</th></tr></thead><tbody><tr><td>Azure PostgreSQL</td><td>Yes</td><td>51</td><td>285</td><td>Connected and counted schema metadata only.</td></tr></tbody></table><table><thead><tr><th>Largest PostgreSQL Tables by Column Count</th><th>Columns</th></tr></thead><tbody><tr><td>vettinginfo</td><td>21</td></tr>
+<tr><td>aipersonalityassessment</td><td>14</td></tr>
+<tr><td>professional</td><td>13</td></tr>
+<tr><td>mailingaddress</td><td>12</td></tr>
+<tr><td>person</td><td>12</td></tr>
+<tr><td>address</td><td>10</td></tr>
+<tr><td>platformactivity</td><td>10</td></tr>
+<tr><td>professionalexperience</td><td>9</td></tr>
+<tr><td>screeninginfo</td><td>9</td></tr>
+<tr><td>digitalfile</td><td>8</td></tr>
+<tr><td>jobdescription</td><td>7</td></tr>
+<tr><td>phonecontact</td><td>7</td></tr>
+<tr><td>platformactivityoverride</td><td>7</td></tr>
+<tr><td>salaryrequirement</td><td>7</td></tr>
+<tr><td>additionaldata</td><td>6</td></tr>
+<tr><td>aichatlogs</td><td>6</td></tr>
+<tr><td>category</td><td>6</td></tr>
+<tr><td>contract</td><td>6</td></tr>
+<tr><td>emergencycontact</td><td>6</td></tr>
+<tr><td>notfoundskills</td><td>6</td></tr></tbody></table></div>
+      <div class="card"><h3>Local SQLite Databases</h3><table><thead><tr><th>SQLite DB</th><th>Tables</th><th>Columns</th><th>Size</th><th>Note</th></tr></thead><tbody><tr><td><code>backend/buildready.db</code></td><td>2</td><td>15</td><td>100.0 KB</td><td></td></tr>
+<tr><td><code>backend/devready.db</code></td><td>3</td><td>23</td><td>592.0 KB</td><td></td></tr>
+<tr><td><code>backend/legalready.db</code></td><td>2</td><td>15</td><td>100.0 KB</td><td></td></tr></tbody></table></div>
+      <div class="card"><h3>JSON Runtime Stores</h3><table><thead><tr><th>JSON Store</th><th>Top-level Records</th><th>Distinct Field Names</th><th>Size</th><th>Common Fields</th></tr></thead><tbody><tr><td><code>backend/data/time_entries.json</code></td><td>403</td><td>22</td><td>296.9 KB</td><td>blockers, candidate_name, client, created_at, domain, email</td></tr>
+<tr><td><code>backend/data/interview_archive.json</code></td><td>78</td><td>28</td><td>106.7 KB</td><td>archiveType, archivedAt, attendees, candidateEmail, candidateId, candidateInterviewerEmail</td></tr>
+<tr><td><code>backend/data/crm_records.json</code></td><td>76</td><td>30</td><td>94.3 KB</td><td>contact, createdAt, customer, domain, email, history</td></tr>
+<tr><td><code>data/demo_lifecycle_fixtures/crm_records.json</code></td><td>23</td><td>31</td><td>63.8 KB</td><td>email, id, phone, name, relationshipRole, title</td></tr>
+<tr><td><code>backend/data/meeting_records.json</code></td><td>75</td><td>14</td><td>62.1 KB</td><td>actionItems, candidateId, candidateName, clientCompany, createdAt, decisions</td></tr>
+<tr><td><code>backend/data/onboarding_records.json</code></td><td>87</td><td>165</td><td>57.4 KB</td><td>domain, email, profile_id, status, title, candidate_name</td></tr>
+<tr><td><code>data/demo_lifecycle_fixtures/time_entries.json</code></td><td>75</td><td>22</td><td>53.4 KB</td><td>blockers, candidate_name, client, created_at, domain, email</td></tr>
+<tr><td><code>backend/data/workflow_events.json</code></td><td>91</td><td>16</td><td>50.1 KB</td><td>candidate_name, created_at, domain, email, event_type, id</td></tr>
+<tr><td><code>backend/data/profile_completion_chats.json</code></td><td>4</td><td>16</td><td>38.8 KB</td><td>role, content, urlCode, personId, firstName, lastName</td></tr>
+<tr><td><code>backend/data/profile_badges.json</code></td><td>76</td><td>85</td><td>28.9 KB</td><td>notes, score, status, updatedAt, aiCertification, certificateId</td></tr>
+<tr><td><code>data/demo_lifecycle_fixtures/accounting_records.json</code></td><td>3</td><td>44</td><td>25.6 KB</td><td>amount, description, qty, rate, created_at, domain</td></tr>
+<tr><td><code>backend/data/engineering_survey_answers.json</code></td><td>4</td><td>68</td><td>19.6 KB</td><td>answer, question, section, answers, 1, 2</td></tr>
+<tr><td><code>data/demo_lifecycle_fixtures/interview_archive.json</code></td><td>15</td><td>27</td><td>19.5 KB</td><td>archiveType, archivedAt, attendees, candidateEmail, candidateId, candidateInterviewerEmail</td></tr>
+<tr><td><code>backend/data/seed_devready_clients_manifest.json</code></td><td>60</td><td>9</td><td>18.5 KB</td><td>client, domain, email, jd_id, name, profile_id</td></tr>
+<tr><td><code>backend/data/accounting_records.json</code></td><td>3</td><td>45</td><td>10.6 KB</td><td>created_at, domain, id, updated_at, client, notes</td></tr>
+<tr><td><code>data/demo_lifecycle_fixtures/meeting_records.json</code></td><td>15</td><td>13</td><td>10.4 KB</td><td>actionItems, candidateId, candidateName, clientCompany, createdAt, decisions</td></tr>
+<tr><td><code>data/demo_lifecycle_fixtures/onboarding_records.json</code></td><td>15</td><td>40</td><td>9.8 KB</td><td>candidate_name, created_at, domain, email, profile_id, recipient</td></tr>
+<tr><td><code>backend/data/demo_lifecycle_manifest.json</code></td><td>15</td><td>15</td><td>8.8 KB</td><td>stage, domain, email, index, job_id, name</td></tr>
+<tr><td><code>data/demo_lifecycle_fixtures/demo_lifecycle_manifest.json</code></td><td>15</td><td>15</td><td>8.8 KB</td><td>stage, domain, email, index, job_id, name</td></tr>
+<tr><td><code>data/demo_lifecycle_fixtures/workflow_events.json</code></td><td>15</td><td>14</td><td>8.1 KB</td><td>candidate_name, created_at, domain, email, event_type, id</td></tr>
+<tr><td><code>data/demo_lifecycle_fixtures/profile_badges.json</code></td><td>15</td><td>24</td><td>7.3 KB</td><td>notes, score, status, updatedAt, aiCertification, certificateId</td></tr>
+<tr><td><code>data/sample_resumes/manifest.json</code></td><td>6</td><td>6</td><td>1.6 KB</td><td>profile_id, domain, name, email, resume, db</td></tr>
+<tr><td><code>backend/data/access_users.json</code></td><td>2</td><td>13</td><td>1.5 KB</td><td>allowed_menu, created_at, display_name, email, id, last_login_at</td></tr>
+<tr><td><code>backend/data/access_candidates.json</code></td><td>1</td><td>6</td><td>0.2 KB</td><td>12, candidate_email, candidate_id, notes, status, updated_at</td></tr>
+<tr><td><code>data/sample_profile.json</code></td><td>4</td><td>4</td><td>0.1 KB</td><td>profile_id, full_name, email, skills</td></tr></tbody></table></div>
+    </section>
+
+    <section id="routes">
+      <h2>Backend API Surface</h2>
+      <div class="card">
+        <p>FastAPI routes discovered from <code>backend/main.py</code> and <code>backend/azureUtils/routes/*.py</code>.</p>
+        <table><thead><tr><th>FastAPI Route Count</th><th>By Method</th></tr></thead><tbody><tr><td>125</td><td>DELETE: 3, GET: 60, POST: 62</td></tr></tbody></table><table><thead><tr><th>Method</th><th>Route</th><th>File</th></tr></thead><tbody><tr><td><code>GET</code></td><td><code>/api/devmeet/frame</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>GET</code></td><td><code>/api/debug/dbinfo</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>GET</code></td><td><code>/api/health</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>GET</code></td><td><code>/api/environment</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>GET</code></td><td><code>/api/access/menu</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>POST</code></td><td><code>/api/agents/ask</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>POST</code></td><td><code>/api/agents/action</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>POST</code></td><td><code>/api/access/login</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>POST</code></td><td><code>/api/access/admin-login</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>POST</code></td><td><code>/api/access/admin-check</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>POST</code></td><td><code>/api/access/register</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>GET</code></td><td><code>/api/admin/users</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>GET</code></td><td><code>/api/admin/candidates/search</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>POST</code></td><td><code>/api/admin/users</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>POST</code></td><td><code>/api/admin/users/{user_id}/block</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>DELETE</code></td><td><code>/api/admin/users/{user_id}</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>POST</code></td><td><code>/api/admin/users/{user_id}/send-login</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>POST</code></td><td><code>/api/admin/candidates/access</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>POST</code></td><td><code>/api/resume/upload</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>GET</code></td><td><code>/api/profiles</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>POST</code></td><td><code>/api/profiles/skillSearch</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>GET</code></td><td><code>/api/profiles/{profile_id}</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>GET</code></td><td><code>/api/profiles/{profile_id}/html</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>GET</code></td><td><code>/api/profiles/{profile_id}/docx</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>POST</code></td><td><code>/api/resume/bulk_upload</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>POST</code></td><td><code>/api/jd/upload</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>POST</code></td><td><code>/api/jd/normalize</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>GET</code></td><td><code>/api/profile/list</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>GET</code></td><td><code>/api/profile/count</code></td><td><code>backend/main.py</code></td></tr>
+<tr><td><code>GET</code></td><td><code>/api/profile/count/recent</code></td><td><code>backend/main.py</code></td></tr></tbody></table>
+      </div>
+    </section>
+
+    <section id="frontend">
+      <h2>Frontend Surface</h2>
+      <div class="card">
+        <table><thead><tr><th>Backend UI Pages</th><th>Backend UI Components</th><th>HTML Files</th><th>JS Files</th><th>CSS Files</th></tr></thead><tbody><tr><td>31</td><td>4</td><td>54</td><td>10</td><td>5</td></tr></tbody></table>
+      </div>
+    </section>
+
+    <section id="largest">
+      <h2>Largest Source Files</h2>
+      <div class="card"><table><thead><tr><th>File</th><th>Type</th><th>Total LOC</th><th>Nonblank LOC</th></tr></thead><tbody><tr><td><code>backend/main.py</code></td><td><code>.py</code></td><td>3,959</td><td>3,580</td></tr>
+<tr><td><code>backend/ui/pages/crm.html</code></td><td><code>.html</code></td><td>3,422</td><td>3,138</td></tr>
+<tr><td><code>docs/VETCODE_TECHNICAL_DEVELOPER_GUIDE.html</code></td><td><code>.html</code></td><td>2,209</td><td>2,207</td></tr>
+<tr><td><code>backend/azureUtils/storage/candidates.py</code></td><td><code>.py</code></td><td>1,937</td><td>1,650</td></tr>
+<tr><td><code>backend/ui/index-old.html</code></td><td><code>.html</code></td><td>1,661</td><td>1,440</td></tr>
+<tr><td><code>backend/ui/pages/schedule-interview.html</code></td><td><code>.html</code></td><td>1,575</td><td>1,449</td></tr>
+<tr><td><code>backend/ui/pages/invoices.html</code></td><td><code>.html</code></td><td>1,546</td><td>1,425</td></tr>
+<tr><td><code>backend/ui/assets/devStyles.css</code></td><td><code>.css</code></td><td>1,481</td><td>1,427</td></tr>
+<tr><td><code>backend/ui/assets/engineerStyles.css</code></td><td><code>.css</code></td><td>1,463</td><td>1,407</td></tr>
+<tr><td><code>backend/ui/assets/lawStyles.css</code></td><td><code>.css</code></td><td>1,443</td><td>1,387</td></tr>
+<tr><td><code>backend/ui/pages/find-candidate.html</code></td><td><code>.html</code></td><td>1,263</td><td>1,140</td></tr>
+<tr><td><code>backend/ui/pages/profile-preview-edit.html</code></td><td><code>.html</code></td><td>1,245</td><td>1,115</td></tr>
+<tr><td><code>backend/ui/pages/profile-preview.html</code></td><td><code>.html</code></td><td>1,233</td><td>1,142</td></tr>
+<tr><td><code>backend/ui/pages/components/sidebar.html</code></td><td><code>.html</code></td><td>1,198</td><td>1,106</td></tr>
+<tr><td><code>backend/ui/pages/reports.html</code></td><td><code>.html</code></td><td>1,188</td><td>1,088</td></tr>
+<tr><td><code>backend/ui/pages/job-descriptions.html</code></td><td><code>.html</code></td><td>1,174</td><td>1,061</td></tr>
+<tr><td><code>backend/ui/pages/components/processFlow.html</code></td><td><code>.html</code></td><td>1,158</td><td>1,077</td></tr>
+<tr><td><code>backend/ui/pages/ai-cert.html</code></td><td><code>.html</code></td><td>1,136</td><td>1,037</td></tr>
+<tr><td><code>backend/azureUtils/routes/azureJobEndpoints.py</code></td><td><code>.py</code></td><td>1,129</td><td>1,029</td></tr>
+<tr><td><code>docs/VETCODE_TECHNICAL_DEVELOPER_GUIDE.md</code></td><td><code>.md</code></td><td>1,119</td><td>887</td></tr></tbody></table></div>
+    </section>
+
+    <section id="notes">
+      <h2>Counting Rules</h2>
+      <div class="grid">
+        <div class="card"><h3>Included</h3><p><code>.py</code>, <code>.html</code>, <code>.js</code>, <code>.css</code>, <code>.svg</code>, <code>.txt</code>, and <code>.md</code> files under app-owned roots such as <code>backend</code>, <code>scripts</code>, <code>frontend</code>, <code>ui</code>, and <code>docs</code>.</p></div>
+        <div class="card"><h3>Excluded</h3><p><code>.venv</code>, <code>node_modules</code>, <code>.git</code>, caches, export folders, calendar tokens, QA artifacts, and uploaded resume/document files. These are runtime/generated/user files, not application source.</p></div>
+        <div class="card"><h3>Database Definition</h3><p>The database-like store count includes configured Azure PostgreSQL, local SQLite <code>.db</code> files, and JSON operational stores. JSON “fields” are distinct key names recursively found in those stores.</p></div>
+        <div class="card"><h3>Keep Updated</h3><p>Run <code>python docs/generate_application_summary.py</code> from the repo root after major changes to refresh this page.</p></div>
+      </div>
+      <div class="callout"><strong>Privacy:</strong> The generator checks schema metadata and file sizes/counts only. It does not print database passwords, API keys, OAuth secrets, or private credential values.</div>
+    </section>
+  </main>
+</body>
+</html>

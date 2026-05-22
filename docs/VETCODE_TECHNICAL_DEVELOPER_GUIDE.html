@@ -1,0 +1,2209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VETCODE Technical Developer Guide</title>
+  <style>
+:root {
+  --bg: #f5f7f4;
+  --paper: #ffffff;
+  --ink: #142016;
+  --muted: #5f6f65;
+  --line: #dce6dc;
+  --accent: #2f7d45;
+  --accent-soft: #e8f5e9;
+  --code-bg: #f0f4f1;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.55;
+}
+.page-shell {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 32px 18px 64px;
+}
+.doc-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(16, 35, 24, 0.08);
+  overflow: hidden;
+}
+.doc-topbar {
+  padding: 18px 28px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(90deg, var(--accent-soft), #fff);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+.doc-label {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.doc-actions a {
+  display: inline-block;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+  background: #fff;
+}
+.content {
+  padding: 30px 36px 48px;
+}
+h1, h2, h3, h4 {
+  line-height: 1.2;
+  margin: 1.45em 0 .55em;
+}
+h1 { margin-top: 0; font-size: 34px; }
+h2 {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 24px;
+}
+h3 { font-size: 19px; }
+p { margin: 0 0 14px; }
+a { color: var(--accent); }
+ul, ol { padding-left: 24px; }
+li { margin: 4px 0; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0 22px;
+  font-size: 14px;
+  display: block;
+  overflow-x: auto;
+}
+th, td {
+  border: 1px solid var(--line);
+  padding: 9px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--accent-soft); }
+code {
+  font-family: Consolas, 'Courier New', monospace;
+  background: var(--code-bg);
+  border: 1px solid #dbe4de;
+  border-radius: 5px;
+  padding: 1px 5px;
+  font-size: .92em;
+}
+pre {
+  background: #102018;
+  color: #f2fff5;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+pre code {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  padding: 0;
+}
+blockquote {
+  margin: 16px 0;
+  padding: 10px 16px;
+  border-left: 4px solid var(--accent);
+  background: var(--accent-soft);
+}
+hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0; }
+@media print {
+  body { background: #fff; }
+  .page-shell { max-width: none; padding: 0; }
+  .doc-card { box-shadow: none; border: 0; }
+  .doc-actions { display: none; }
+}
+@media (max-width: 720px) {
+  .content { padding: 22px 18px 34px; }
+  .doc-topbar { padding: 14px 18px; align-items: flex-start; flex-direction: column; }
+  h1 { font-size: 28px; }
+}
+</style>
+</head>
+<body>
+  <main class="page-shell">
+    <article class="doc-card">
+      <header class="doc-topbar">
+        <div>
+          <div class="doc-label">VETCODE Documentation</div>
+          <strong>VETCODE Technical Developer Guide</strong>
+        </div>
+        <nav class="doc-actions" aria-label="Document actions">
+          <a href="VETCODE_TECHNICAL_DEVELOPER_GUIDE.md">Open Markdown Source</a>
+        </nav>
+      </header>
+      <section class="content">
+<h1 id="vetcode-technical-developer-guide">VETCODE Technical Developer Guide</h1>
+<p>Updated: 2026-05-21</p>
+<h2 id="purpose">Purpose</h2>
+<p>This guide explains how the VETCODE application is structured, where code lives, how the AI features work, how data is stored, what the database schema looks like, and how to run, test, and deploy the system.</p>
+<p>VETCODE currently combines:</p>
+<ul>
+<li>FastAPI backend.</li>
+<li>Static HTML/CSS/JavaScript frontend.</li>
+<li>Azure PostgreSQL candidate/job/profile database.</li>
+<li>Local SQLite fallback databases.</li>
+<li>JSON operational stores for workflow, CRM, accounting, time, onboarding, badges, and demo fixtures.</li>
+<li>OpenAI-powered extraction, agent, summarization, certification, chat, and scheduling support.</li>
+<li>Railway dev deployment.</li>
+</ul>
+<h2 id="repository-layout">Repository Layout</h2>
+<p>Root:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>backend/</code></td>
+<td>Main FastAPI app, API routes, UI assets, storage, AI modules</td>
+</tr>
+<tr>
+<td><code>backend/main.py</code></td>
+<td>Primary application entry point and most app-specific APIs</td>
+</tr>
+<tr>
+<td><code>backend/calendar_router.py</code></td>
+<td>Google/Outlook calendar OAuth, invite draft, invite creation</td>
+</tr>
+<tr>
+<td><code>backend/storage.py</code></td>
+<td>Local SQLite profile/JD fallback store</td>
+</tr>
+<tr>
+<td><code>backend/azureUtils/</code></td>
+<td>Azure PostgreSQL storage and API routers</td>
+</tr>
+<tr>
+<td><code>backend/openAI/</code></td>
+<td>OpenAI/Numa/chat/job/email/page-agent logic</td>
+</tr>
+<tr>
+<td><code>backend/ui/</code></td>
+<td>Static frontend served at <code>/ui</code></td>
+</tr>
+<tr>
+<td><code>backend/ui/pages/</code></td>
+<td>Main app pages</td>
+</tr>
+<tr>
+<td><code>backend/ui/pages/components/</code></td>
+<td>Shared sidebar, process flow, search bar</td>
+</tr>
+<tr>
+<td><code>backend/ui/pages/JS/</code></td>
+<td>Shared frontend JavaScript helpers</td>
+</tr>
+<tr>
+<td><code>backend/ui/assets/</code></td>
+<td>Domain CSS and logos</td>
+</tr>
+<tr>
+<td><code>data/demo_lifecycle_fixtures/</code></td>
+<td>Deployable demo JSON fixtures</td>
+</tr>
+<tr>
+<td><code>docs/</code></td>
+<td>Project documentation and QA artifacts</td>
+</tr>
+<tr>
+<td><code>scripts/</code></td>
+<td>Seeding, copy, and QA scripts</td>
+</tr>
+<tr>
+<td><code>requirements.txt</code></td>
+<td>Python dependencies</td>
+</tr>
+</tbody>
+</table>
+<p>Legacy/static experiments also exist under root <code>frontend/</code>, <code>ui/</code>, and <code>static/</code>. The actively deployed app is under <code>backend/</code>.</p>
+<h2 id="runtime-entry-point">Runtime Entry Point</h2>
+<p>The app is served from:</p>
+<p><code>backend/main.py</code></p>
+<p>Static frontend mount:</p>
+<pre><code class="language-python">app.mount(&quot;/ui&quot;, StaticFiles(directory=UI_DIR, html=True), name=&quot;ui&quot;)
+</code></pre>
+<p>Root redirect:</p>
+<pre><code class="language-text">/ -&gt; /ui/index.html
+/{page_name}.html -&gt; /ui/pages/{page_name}.html
+</code></pre>
+<p>Local command:</p>
+<pre><code class="language-powershell">cd C:\Users\darri\Documents\GitHub\VETCODE\backend
+.\.venv\Scripts\activate
+python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+</code></pre>
+<p>Railway deploy command from repo root:</p>
+<pre><code class="language-powershell">cd C:\Users\darri\Documents\GitHub\VETCODE
+railway status
+railway up
+</code></pre>
+<p>Current Railway dev service:</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Project</td>
+<td><code>VETCODE</code></td>
+</tr>
+<tr>
+<td>Environment</td>
+<td><code>dev</code></td>
+</tr>
+<tr>
+<td>Service</td>
+<td><code>VETCODE</code></td>
+</tr>
+<tr>
+<td>Public domain</td>
+<td><code>vetcode-dev.up.railway.app</code></td>
+</tr>
+<tr>
+<td>Runtime port</td>
+<td><code>8080</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="domains">Domains</h2>
+<p>VETCODE has three domain keys:</p>
+<table>
+<thead>
+<tr>
+<th>Domain Key</th>
+<th>Brand</th>
+<th>Storage Domain Value</th>
+<th>Color</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dev</code></td>
+<td>DevReady / Technology</td>
+<td><code>technology</code> in some profile/JD records</td>
+<td>Green</td>
+</tr>
+<tr>
+<td><code>engineer</code></td>
+<td>BuildReady / Engineering</td>
+<td><code>engineer</code></td>
+<td>Blue</td>
+</tr>
+<tr>
+<td><code>law</code></td>
+<td>LegalReady / Law</td>
+<td><code>law</code></td>
+<td>Brown/gold</td>
+</tr>
+</tbody>
+</table>
+<p>Relevant code:</p>
+<ul>
+<li><code>backend/main.py</code></li>
+<li><code>_domain_key</code></li>
+<li><code>_storage_domain</code></li>
+<li><code>_domain_db_path</code></li>
+<li><code>_jd_db_path</code></li>
+<li><code>_profile_db_path</code></li>
+<li><code>backend/ui/assets/devStyles.css</code></li>
+<li><code>backend/ui/assets/engineerStyles.css</code></li>
+<li><code>backend/ui/assets/lawStyles.css</code></li>
+</ul>
+<p>Important behavior:</p>
+<ul>
+<li>UI pages read <code>?domain=...</code> first.</li>
+<li>Domain is also saved in <code>sessionStorage.domain</code>.</li>
+<li>Domain-specific CSS is swapped using the domain key.</li>
+<li>Domain isolation must be preserved across profiles, JDs, certification paths, badges, time, accounting, CRM, and reports.</li>
+</ul>
+<h2 id="frontend-page-map">Frontend Page Map</h2>
+<p>Active pages live in <code>backend/ui/pages/</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Page</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>find-candidate.html</code></td>
+<td>Talent intake, saved profile search, resume upload, job context</td>
+</tr>
+<tr>
+<td><code>job-descriptions.html</code></td>
+<td>JD upload, paste, normalize, edit, save, use JD</td>
+</tr>
+<tr>
+<td><code>match-role.html</code></td>
+<td>Internal candidate matching against active JD</td>
+</tr>
+<tr>
+<td><code>mine-candidate-external.html</code></td>
+<td>External sourcing and temporary profile import</td>
+</tr>
+<tr>
+<td><code>profile-preview.html</code></td>
+<td>Candidate profile review, shortlist, public profile</td>
+</tr>
+<tr>
+<td><code>profile-preview-edit.html</code></td>
+<td>Profile editing</td>
+</tr>
+<tr>
+<td><code>profile-public.html</code></td>
+<td>Client-safe public profile</td>
+</tr>
+<tr>
+<td><code>candidate-chat.html</code></td>
+<td>Candidate personality/culture chat</td>
+</tr>
+<tr>
+<td><code>client-comm.html</code></td>
+<td>Shortlist/client communication workflow</td>
+</tr>
+<tr>
+<td><code>schedule-interview.html</code></td>
+<td>Candidate review and client interview scheduling</td>
+</tr>
+<tr>
+<td><code>status-tracker.html</code></td>
+<td>Workflow status</td>
+</tr>
+<tr>
+<td><code>onboarding-admin.html</code></td>
+<td>HR onboarding link creation and status</td>
+</tr>
+<tr>
+<td><code>onboarding.html</code></td>
+<td>Candidate-facing onboarding form</td>
+</tr>
+<tr>
+<td><code>time-admin.html</code></td>
+<td>Time review, approval, processing, reports</td>
+</tr>
+<tr>
+<td><code>time-entry.html</code></td>
+<td>Candidate/staff time-entry form</td>
+</tr>
+<tr>
+<td><code>accounting.html</code></td>
+<td>Resource rates, costs, accounting setup</td>
+</tr>
+<tr>
+<td><code>invoices.html</code></td>
+<td>Invoice workbench and invoice status</td>
+</tr>
+<tr>
+<td><code>crm.html</code></td>
+<td>CRM client team cards, contacts, deals, touches</td>
+</tr>
+<tr>
+<td><code>sales-crm.html</code></td>
+<td>Sales-rep-specific CRM portal</td>
+</tr>
+<tr>
+<td><code>meet.html</code></td>
+<td>Meeting recording/output/CRM handoff</td>
+</tr>
+<tr>
+<td><code>reports.html</code></td>
+<td>Operational reports</td>
+</tr>
+<tr>
+<td><code>ai-cert.html</code></td>
+<td>Certification link management</td>
+</tr>
+<tr>
+<td><code>badge-catalog.html</code></td>
+<td>Domain-specific badges</td>
+</tr>
+<tr>
+<td><code>test-challenge.html</code></td>
+<td>Technical challenge workflow</td>
+</tr>
+<tr>
+<td><code>admin.html</code></td>
+<td>Admin users, access, settings</td>
+</tr>
+<tr>
+<td><code>agents.html</code></td>
+<td>Page-aware agent configuration</td>
+</tr>
+<tr>
+<td><code>mobile.html</code></td>
+<td>Simple mobile pick-and-onboard flow</td>
+</tr>
+</tbody>
+</table>
+<p>Shared UI:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>components/sidebar.html</code></td>
+<td>Loads sidebar, access rules, hints, Numa/Egeria surfaces</td>
+</tr>
+<tr>
+<td><code>components/sideNav.html</code></td>
+<td>Navigation definitions and grouping</td>
+</tr>
+<tr>
+<td><code>components/processFlow.html</code></td>
+<td>Process flow bar, FastBoard actions</td>
+</tr>
+<tr>
+<td><code>components/searchBar.html</code></td>
+<td>Global search</td>
+</tr>
+<tr>
+<td><code>JS/shortlist.js</code></td>
+<td>Browser-session shortlist state</td>
+</tr>
+<tr>
+<td><code>JS/pageAgents.js</code></td>
+<td>Frontend agent context and Numa behavior</td>
+</tr>
+<tr>
+<td><code>JS/profileCompletion.js</code></td>
+<td>Profile completion utilities</td>
+</tr>
+<tr>
+<td><code>JS/updateProcessFlow.js</code></td>
+<td>Process flow update helpers</td>
+</tr>
+<tr>
+<td><code>JS/apiScripts.js</code></td>
+<td>General API helper scripts</td>
+</tr>
+</tbody>
+</table>
+<h2 id="backend-route-map">Backend Route Map</h2>
+<h3 id="core-health-environment-and-static">Core Health, Environment, And Static</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Function</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/api/health</code></td>
+<td><code>health</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/environment</code></td>
+<td><code>environment</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/debug/dbinfo</code></td>
+<td><code>dbinfo</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/</code></td>
+<td><code>root</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/{page_name}.html</code></td>
+<td><code>legacy_page_redirect</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="access-and-admin">Access And Admin</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/api/access/menu</code></td>
+<td>Return current/default menu config</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/access/login</code></td>
+<td>Login user</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/access/admin-login</code></td>
+<td>Admin login</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/access/admin-check</code></td>
+<td>Validate admin token</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/access/register</code></td>
+<td>Register access user</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/admin/users</code></td>
+<td>List users</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/users</code></td>
+<td>Create/update user</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/users/{user_id}/block</code></td>
+<td>Block/unblock user</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/admin/users/{user_id}</code></td>
+<td>Delete user</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/users/{user_id}/send-login</code></td>
+<td>Generate login info</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/admin/candidates/search</code></td>
+<td>Search candidate access</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/candidates/access</code></td>
+<td>Block/delete candidate access</td>
+</tr>
+</tbody>
+</table>
+<h3 id="profiles-and-resumes">Profiles And Resumes</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/api/resume/upload</code></td>
+<td>Local/fallback resume upload</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/resume/bulk_upload</code></td>
+<td>Bulk upload resumes</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/profiles</code></td>
+<td>List local profiles</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/profiles/skillSearch</code></td>
+<td>Local skill search</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/profiles/{profile_id}</code></td>
+<td>Local profile detail</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/profiles/{profile_id}/html</code></td>
+<td>Render profile HTML</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/profiles/{profile_id}/docx</code></td>
+<td>Export profile DOCX</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/profile/list</code></td>
+<td>Domain profile list</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/profile/count</code></td>
+<td>Domain profile count</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/profile/count/recent</code></td>
+<td>Recent profile count</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/profile/search</code></td>
+<td>Profile search</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/profile/pageCount</code></td>
+<td>Profile search count</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/profile/pageSearch</code></td>
+<td>Paged profile search</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/profile/{profile_id}</code></td>
+<td>Profile detail</td>
+</tr>
+</tbody>
+</table>
+<p>Azure router profile routes in <code>backend/azureUtils/routes/azureEndpoints.py</code> include:</p>
+<ul>
+<li><code>/skills</code></li>
+<li><code>/skills/{searchQuery}</code></li>
+<li><code>/countCandidates</code></li>
+<li><code>/countCandidates/recent</code></li>
+<li><code>/countCandidates/status</code></li>
+<li><code>/countCandidates/all</code></li>
+<li><code>/profile/discovery</code></li>
+<li><code>/profiles/alphabetical</code></li>
+<li><code>/searchNameEmail</code></li>
+<li><code>/searchSkills</code></li>
+<li><code>/pageCount</code></li>
+<li><code>/pageSearch</code></li>
+<li><code>/getProfile/{profileId}</code></li>
+<li><code>/profile/completionStatus/{profileId}</code></li>
+<li><code>/public/{profileUrl}</code></li>
+<li><code>/public/getPublicUrl/{profileId}</code></li>
+<li><code>/getProfile/short/{profileId}</code></li>
+<li><code>/getProfile/short/score/{jobId}</code></li>
+<li><code>/profile/update</code></li>
+<li><code>/profile/updateSkills</code></li>
+<li><code>/profile/updateFeatures</code></li>
+<li><code>/profile/updatePortfolio</code></li>
+<li><code>/resume/upload</code></li>
+<li><code>/resume/{profileId}</code></li>
+</ul>
+<h3 id="job-descriptions-and-matching">Job Descriptions And Matching</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/api/jd/upload</code></td>
+<td>Upload JD file</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/jd/normalize</code></td>
+<td>Normalize pasted JD</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/jd/list</code></td>
+<td>List local JDs</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/jd/{jd_id}</code></td>
+<td>Get local JD</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/jd/{jd_id}/html</code></td>
+<td>Render JD HTML</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/jd/{jd_id}/docx</code></td>
+<td>Export JD DOCX</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/jd/latest</code></td>
+<td>Latest or selected JD</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/match/run</code></td>
+<td>Run matching</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/match/scorecard</code></td>
+<td>Build match scorecard</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/match/interview_questions</code></td>
+<td>Generate interview questions</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/match/explain</code></td>
+<td>Explain match/gaps</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/match/report/html</code></td>
+<td>Match report HTML</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/match/report/docx</code></td>
+<td>Match report DOCX</td>
+</tr>
+</tbody>
+</table>
+<p>Azure job router in <code>backend/azureUtils/routes/azureJobEndpoints.py</code> includes:</p>
+<ul>
+<li><code>/createJob</code></li>
+<li><code>/uploadJob</code></li>
+<li><code>/updateJob/{jobId}</code></li>
+<li><code>/list/{domain}/{amount}</code></li>
+<li><code>/list/search/{domain}/{query}/{amount}</code></li>
+<li><code>/getJob/{jobId}</code></li>
+<li><code>/deleteJob/{jobId}</code></li>
+<li><code>/match/run</code></li>
+<li><code>/external/search</code></li>
+<li><code>/external/search-direct</code></li>
+<li><code>/external/import</code></li>
+<li><code>/external/temp</code></li>
+<li><code>/external/temp/{person_id}/make-permanent</code></li>
+<li><code>/external/temp/{person_id}</code></li>
+</ul>
+<h3 id="workflow-interviews-onboarding-and-time">Workflow, Interviews, Onboarding, And Time</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/api/workflow/events</code></td>
+<td>Record workflow event</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/workflow/events/{profile_id}</code></td>
+<td>Profile workflow events</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/interviews/archive</code></td>
+<td>Save interview archive record</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/interviews/archive</code></td>
+<td>List interview archive</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/onboarding/start</code></td>
+<td>Create onboarding link from completed profile</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/onboarding/admin</code></td>
+<td>List onboarding records</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/onboarding/candidates</code></td>
+<td>Completed profiles ready for onboarding</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/onboarding/{token}</code></td>
+<td>Candidate onboarding record</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/onboarding/{token}</code></td>
+<td>Submit onboarding form</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/time-entry</code></td>
+<td>Submit weekly time</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/time-entry/admin</code></td>
+<td>Admin time report</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/time-entry/{entry_id}/status</code></td>
+<td>Update time status</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/time-entry/{token}</code></td>
+<td>Candidate/staff time records</td>
+</tr>
+</tbody>
+</table>
+<h3 id="crm-sales-crm-meetings">CRM, Sales CRM, Meetings</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/api/crm/records</code></td>
+<td>CRM account/contact/deal records</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/crm/news-scan</code></td>
+<td>Web/news scan for customer updates</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/sales-crm/portal</code></td>
+<td>Sales rep portal data</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/sales-crm/account</code></td>
+<td>Update sales CRM account</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/meetings/archive</code></td>
+<td>Saved meeting outputs</td>
+</tr>
+</tbody>
+</table>
+<h3 id="accounting-and-invoices">Accounting And Invoices</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/api/accounting/summary</code></td>
+<td>Domain accounting report data</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/accounting/resource</code></td>
+<td>Save resource bill/cost rates</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/accounting/invoice</code></td>
+<td>Save invoice</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/accounting/invoice/{invoice_id}/status</code></td>
+<td>Update invoice status</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/invoices/workbench</code></td>
+<td>Invoice workbench data</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/invoices/from-time</code></td>
+<td>Create invoice from approved time</td>
+</tr>
+</tbody>
+</table>
+<h3 id="calendar">Calendar</h3>
+<p>Defined in <code>backend/calendar_router.py</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/api/calendar/health</code></td>
+<td>Calendar provider status</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/auth/google</code></td>
+<td>Start Google OAuth</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/auth/google/callback</code></td>
+<td>Google OAuth callback</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/auth/outlook</code></td>
+<td>Start Outlook OAuth</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/auth/outlook/callback</code></td>
+<td>Outlook OAuth callback</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/calendar/invite/draft</code></td>
+<td>AI-assisted invite/email draft</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/calendar/invite/create</code></td>
+<td>Create calendar event</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ai-and-agents">AI And Agents</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/api/agents/ask</code></td>
+<td>Ask Numa/page agent</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/agents/action</code></td>
+<td>Execute limited agent actions</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/ai/clientEmail/shortlist</code></td>
+<td>Generate shortlist email</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/aiChat/scheduleChat</code></td>
+<td>Create candidate chat</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/aiChat/getChat/{urlcode}</code></td>
+<td>Load candidate chat</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/aiChat/sendChat</code></td>
+<td>Continue chat</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/aiChat/sendChat/{questionNumber}</code></td>
+<td>Continue deterministic numbered chat</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/aiChat/saveProgress</code></td>
+<td>Save partial chat progress</td>
+</tr>
+</tbody>
+</table>
+<p>Router prefixes are set in the route files. For example, Azure profile endpoints are exposed by included routers rather than all being directly declared in <code>main.py</code>.</p>
+<h2 id="ai-capabilities">AI Capabilities</h2>
+<h3 id="resume-profile-extraction">Resume Profile Extraction</h3>
+<p>Files:</p>
+<ul>
+<li><code>backend/resume_ai_profile.py</code></li>
+<li><code>backend/resume_ingest.py</code></li>
+<li><code>backend/deterministic_profile.py</code></li>
+<li><code>backend/azureUtils/routes/azureEndpoints.py</code></li>
+</ul>
+<p>Behavior:</p>
+<ul>
+<li>Extracts text from PDF/DOCX/TXT uploads.</li>
+<li>Uses deterministic parsing as a fallback.</li>
+<li>If <code>OPENAI_API_KEY</code> is present, <code>resume_ai_profile.normalize_ai_resume_profile</code> uses OpenAI to extract:</li>
+<li>Contact.</li>
+<li>Headline.</li>
+<li>Summary.</li>
+<li>Skills and years.</li>
+<li>Culture/domain experience.</li>
+<li>Portfolio/work history rows.</li>
+<li>Portfolio rows are written into Azure tables such as <code>professionalexperience</code>, <code>portfolioskill</code>, and <code>portfoliofeature</code>.</li>
+</ul>
+<p>Model setting:</p>
+<pre><code class="language-text">OPENAI_MODEL
+</code></pre>
+<p>Default in code:</p>
+<pre><code class="language-text">gpt-4o-mini
+</code></pre>
+<h3 id="job-description-processing">Job Description Processing</h3>
+<p>Files:</p>
+<ul>
+<li><code>backend/jd_match.py</code></li>
+<li><code>backend/openAI/jobProcessing.py</code></li>
+<li><code>backend/azureUtils/storage/jobs.py</code></li>
+<li><code>backend/azureUtils/routes/azureJobEndpoints.py</code></li>
+</ul>
+<p>Behavior:</p>
+<ul>
+<li>Normalizes job descriptions into skill groups.</li>
+<li>Writes jobs to <code>jobdescription</code>.</li>
+<li>Writes required skills to <code>jobskills</code>.</li>
+<li>Uses <code>openAI.jobProcessing.processPersonalities</code> to infer personality fit rows in <code>jobpersonalities</code>.</li>
+<li>Matching uses skills from JD and candidate profile tables.</li>
+</ul>
+<h3 id="candidate-chat-personality-survey">Candidate Chat / Personality Survey</h3>
+<p>Files:</p>
+<ul>
+<li><code>backend/openAI/candidateChat.py</code></li>
+<li><code>backend/openAI/engineeringSurvey.py</code></li>
+<li><code>backend/azureUtils/storage/chatLogs.py</code></li>
+<li><code>backend/azureUtils/routes/aiChatEndpoints.py</code></li>
+</ul>
+<p>Behavior:</p>
+<ul>
+<li>Candidate chat is deterministic by question number.</li>
+<li>Progress can be saved before completion.</li>
+<li>Chat output updates profile personality/culture completion state.</li>
+<li>Completion matters for onboarding eligibility.</li>
+</ul>
+<h3 id="numa-page-agents">Numa Page Agents</h3>
+<p>Files:</p>
+<ul>
+<li><code>backend/openAI/pageAgents.py</code></li>
+<li><code>backend/ui/pages/JS/pageAgents.js</code></li>
+<li><code>backend/main.py</code> agent endpoints.</li>
+</ul>
+<p>Numa is page-aware. Built-in agent keys include:</p>
+<table>
+<thead>
+<tr>
+<th>Agent Key</th>
+<th>Page Focus</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>talent</code></td>
+<td>Candidate intake</td>
+</tr>
+<tr>
+<td><code>match</code></td>
+<td>Internal matching</td>
+</tr>
+<tr>
+<td><code>external</code></td>
+<td>External sourcing</td>
+</tr>
+<tr>
+<td><code>profile</code></td>
+<td>Profile review and completion</td>
+</tr>
+<tr>
+<td><code>jobs</code></td>
+<td>Job descriptions</td>
+</tr>
+<tr>
+<td><code>crm</code></td>
+<td>CRM</td>
+</tr>
+<tr>
+<td><code>meet</code></td>
+<td>Meetings</td>
+</tr>
+<tr>
+<td><code>schedule</code></td>
+<td>Interviews</td>
+</tr>
+<tr>
+<td><code>clientcomms</code></td>
+<td>Client communication</td>
+</tr>
+<tr>
+<td><code>time</code></td>
+<td>Time</td>
+</tr>
+<tr>
+<td><code>challenge</code></td>
+<td>Test challenge</td>
+</tr>
+<tr>
+<td><code>cert</code></td>
+<td>AI certification</td>
+</tr>
+<tr>
+<td><code>badges</code></td>
+<td>Badge catalog</td>
+</tr>
+<tr>
+<td><code>admin</code></td>
+<td>Admin</td>
+</tr>
+</tbody>
+</table>
+<p>Important policy:</p>
+<ul>
+<li>Numa should not expose sensitive financial details unless admin/super-user access permits it.</li>
+<li>Numa should not claim destructive or database-changing actions occurred unless the app confirms the change.</li>
+<li>Numa uses app context such as domain, page, candidate, job, shortlist count, and current URL.</li>
+</ul>
+<h3 id="calendar-draft-ai">Calendar Draft AI</h3>
+<p>File:</p>
+<ul>
+<li><code>backend/calendar_router.py</code></li>
+</ul>
+<p>Behavior:</p>
+<ul>
+<li>Uses OpenAI to draft interview invitation text.</li>
+<li>Expects strict JSON schema in <code>DRAFT_SCHEMA</code>.</li>
+<li>Creates Google or Outlook events after OAuth/token checks.</li>
+</ul>
+<h3 id="crm-news-scan">CRM News Scan</h3>
+<p>File:</p>
+<ul>
+<li><code>backend/main.py</code>, function <code>_fetch_customer_news</code> and route <code>/api/crm/news-scan</code>.</li>
+</ul>
+<p>Behavior:</p>
+<ul>
+<li>Searches Google News RSS for customer updates.</li>
+<li>Optionally summarizes using OpenAI if configured.</li>
+<li>Returns customer update signals for CRM touches.</li>
+</ul>
+<h3 id="client-shortlist-email">Client Shortlist Email</h3>
+<p>Files:</p>
+<ul>
+<li><code>backend/openAI/routes/aiEndpoints.py</code></li>
+<li><code>backend/openAI/emailProcessing.py</code></li>
+<li><code>backend/ui/pages/client-comm.html</code></li>
+</ul>
+<p>Behavior:</p>
+<ul>
+<li>Generates client-ready shortlist email text from selected job and candidate score context.</li>
+</ul>
+<h2 id="storage-architecture">Storage Architecture</h2>
+<p>VETCODE uses three storage patterns:</p>
+<ol>
+<li>Azure PostgreSQL for core candidate/profile/job data.</li>
+<li>SQLite fallback files for local profile/JD storage.</li>
+<li>JSON stores for workflow and operational app data.</li>
+</ol>
+<h3 id="azure-postgresql">Azure PostgreSQL</h3>
+<p>Connection code:</p>
+<p><code>backend/azureUtils/storage/client.py</code></p>
+<p>Required environment variables:</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AZURE_DATABASE_HOST</code></td>
+<td>PostgreSQL host</td>
+</tr>
+<tr>
+<td><code>AZURE_DATABASE_PORT</code></td>
+<td>PostgreSQL port</td>
+</tr>
+<tr>
+<td><code>AZURE_DATABASE_NAME</code></td>
+<td>Database name; dev is <code>devready</code></td>
+</tr>
+<tr>
+<td><code>AZURE_DATABASE_USER</code></td>
+<td>Database user</td>
+</tr>
+<tr>
+<td><code>AZURE_DATABASE_PASSWORD</code></td>
+<td>Database password</td>
+</tr>
+</tbody>
+</table>
+<p>Connection uses:</p>
+<pre><code class="language-python">sslmode=&quot;require&quot;
+</code></pre>
+<p>Core storage files:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>azureUtils/storage/candidates.py</code></td>
+<td>Candidate/profile reads and writes</td>
+</tr>
+<tr>
+<td><code>azureUtils/storage/jobs.py</code></td>
+<td>Job description reads and writes</td>
+</tr>
+<tr>
+<td><code>azureUtils/storage/chatLogs.py</code></td>
+<td>AI chat and survey persistence</td>
+</tr>
+<tr>
+<td><code>azureUtils/storage/resumes.py</code></td>
+<td>Azure Blob resume storage</td>
+</tr>
+</tbody>
+</table>
+<h3 id="local-sqlite">Local SQLite</h3>
+<p>Local database paths:</p>
+<table>
+<thead>
+<tr>
+<th>Domain</th>
+<th>Env Var</th>
+<th>Default File</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Technology</td>
+<td><code>DEVREADY_DB_PATH</code></td>
+<td><code>backend/devready.db</code></td>
+</tr>
+<tr>
+<td>Engineering</td>
+<td><code>BUILDREADY_DB_PATH</code></td>
+<td><code>backend/buildready.db</code></td>
+</tr>
+<tr>
+<td>Law</td>
+<td><code>LEGALREADY_DB_PATH</code></td>
+<td><code>backend/legalready.db</code></td>
+</tr>
+</tbody>
+</table>
+<p>SQLite initialization:</p>
+<p><code>backend/storage.py:init_db</code></p>
+<p>SQLite schema:</p>
+<pre><code class="language-sql">CREATE TABLE IF NOT EXISTS profiles (
+  profile_id TEXT PRIMARY KEY,
+  domain TEXT,
+  full_name TEXT,
+  email TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  data_json TEXT
+);
+
+CREATE TABLE IF NOT EXISTS jds (
+  jd_id TEXT PRIMARY KEY,
+  domain TEXT,
+  company TEXT,
+  title TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  jd_text TEXT,
+  jd_skills_json TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_domain ON profiles(domain);
+CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
+CREATE INDEX IF NOT EXISTS idx_jds_domain ON jds(domain);
+CREATE INDEX IF NOT EXISTS idx_jds_created ON jds(created_at);
+CREATE INDEX IF NOT EXISTS idx_jds_updated ON jds(updated_at);
+</code></pre>
+<h3 id="json-stores">JSON Stores</h3>
+<p>Runtime JSON data lives in <code>backend/data/</code>. Deployable demo fixtures live in <code>data/demo_lifecycle_fixtures/</code>.</p>
+<p>Relevant constants in <code>backend/main.py</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Constant</th>
+<th>Store</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ACCESS_USERS_PATH</code></td>
+<td>User/access records</td>
+</tr>
+<tr>
+<td><code>ACCESS_CANDIDATES_PATH</code></td>
+<td>Candidate access block/delete records</td>
+</tr>
+<tr>
+<td><code>PROFILE_BADGES_PATH</code></td>
+<td>Badge/certification state</td>
+</tr>
+<tr>
+<td><code>WORKFLOW_EVENTS_PATH</code></td>
+<td>Workflow event timeline</td>
+</tr>
+<tr>
+<td><code>INTERVIEW_ARCHIVE_PATH</code></td>
+<td>Interview archive records</td>
+</tr>
+<tr>
+<td><code>MEETING_RECORDS_PATH</code></td>
+<td>Meeting output records</td>
+</tr>
+<tr>
+<td><code>ONBOARDING_RECORDS_PATH</code></td>
+<td>Onboarding records</td>
+</tr>
+<tr>
+<td><code>TIME_ENTRIES_PATH</code></td>
+<td>Time-entry records</td>
+</tr>
+<tr>
+<td><code>CRM_RECORDS_PATH</code></td>
+<td>CRM team/contact/deal records</td>
+</tr>
+<tr>
+<td><code>ACCOUNTING_RECORDS_PATH</code></td>
+<td>Accounting resources, expenses, invoices</td>
+</tr>
+</tbody>
+</table>
+<p>Important helper:</p>
+<p><code>_read_json_store_with_demo(path, fallback)</code></p>
+<p>This merges runtime JSON data with deployable demo fixtures. Runtime records override demo records by id/token when keys match.</p>
+<h2 id="azure-postgresql-schema-snapshot">Azure PostgreSQL Schema Snapshot</h2>
+<p>The following schema was read from the dev PostgreSQL <code>public</code> schema on 2026-05-21. It does not include credentials.</p>
+<h3 id="table-list">Table List</h3>
+<pre><code class="language-text">__EFMigrationsHistory
+additionaldata
+address
+aichatlogs
+aipersonalityassessment
+category
+contract
+country
+digitalfile
+emergencycontact
+jobdescription
+jobpersonalities
+jobskills
+mailingaddress
+notfoundskills
+person
+personality
+personalitygroup
+phonecontact
+platformactivity
+platformactivityoverride
+platformuser
+portfoliocategory
+portfoliofeature
+portfolioskill
+professional
+professionalcategory
+professionalculturalexperience
+professionalexperience
+professionalfeature
+professionalpersonality
+professionalprofile
+professionalskill
+professionalsurvey
+professionalsurveyquestion
+programminglanguage
+publicprofessionalprofile
+question
+resumeskill
+salaryrequirement
+screeninginfo
+skill
+socialmedia
+socialmediaperson
+survey
+surveyquestion
+techcategory
+technicalindicator
+technicalindicatorscore
+techskill
+vettinginfo
+</code></pre>
+<h3 id="core-candidateprofile-tables">Core Candidate/Profile Tables</h3>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Key Columns / Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>person</code></td>
+<td><code>id</code>, <code>firstname</code>, <code>middlename</code>, <code>goesbyname</code>, <code>urlimage</code>, <code>citizenship</code>, <code>lastname</code>, <code>birthday</code>, <code>leadsource</code>, <code>updatedurlimage</code>, <code>deletedat</code>, <code>domain</code></td>
+</tr>
+<tr>
+<td><code>professional</code></td>
+<td><code>id</code>, <code>maindescription</code>, <code>personid</code>, <code>creationdate</code>, <code>modifieddate</code>, <code>url</code>, <code>status</code>, <code>email</code>, <code>linkedinurl</code>, <code>title</code>, <code>hubspotcontactid</code>, <code>hubspotdeveloperid</code>, <code>referredby</code></td>
+</tr>
+<tr>
+<td><code>professionalprofile</code></td>
+<td><code>id</code>, <code>professionalid</code>, <code>deletedat</code></td>
+</tr>
+<tr>
+<td><code>address</code></td>
+<td><code>id</code>, <code>city</code>, <code>country</code>, <code>latitude</code>, <code>longitude</code>, <code>timezone</code>, <code>personid</code>, <code>state</code>, <code>location</code>, <code>placeid</code></td>
+</tr>
+<tr>
+<td><code>professionalexperience</code></td>
+<td><code>id</code>, <code>profileid</code>, <code>description</code>, <code>mainrole</code>, <code>workexperience</code>, <code>companyname</code>, <code>startdate</code>, <code>finishdate</code>, <code>ispresent</code></td>
+</tr>
+<tr>
+<td><code>professionalskill</code></td>
+<td><code>id</code>, <code>profileid</code>, <code>years</code>, <code>skillid</code>, <code>type</code></td>
+</tr>
+<tr>
+<td><code>resumeskill</code></td>
+<td><code>id</code>, <code>profileid</code>, <code>skillid</code></td>
+</tr>
+<tr>
+<td><code>skill</code></td>
+<td><code>id</code>, <code>title</code>, <code>description</code>, <code>type</code>, <code>active</code>, <code>deletedat</code></td>
+</tr>
+<tr>
+<td><code>professionalculturalexperience</code></td>
+<td><code>id</code>, <code>profileid</code>, <code>level</code>, <code>title</code></td>
+</tr>
+<tr>
+<td><code>professionalfeature</code></td>
+<td><code>id</code>, <code>profileid</code>, <code>level</code>, <code>title</code></td>
+</tr>
+<tr>
+<td><code>portfoliofeature</code></td>
+<td><code>professionalexperienceid</code>, <code>id</code>, <code>title</code></td>
+</tr>
+<tr>
+<td><code>portfolioskill</code></td>
+<td><code>professionalexperienceid</code>, <code>skillid</code></td>
+</tr>
+<tr>
+<td><code>portfoliocategory</code></td>
+<td><code>professionalexperienceid</code>, <code>categoryid</code></td>
+</tr>
+<tr>
+<td><code>professionalcategory</code></td>
+<td><code>profileid</code>, <code>categoryid</code></td>
+</tr>
+<tr>
+<td><code>techskill</code></td>
+<td><code>id</code>, <code>profileid</code>, <code>level</code>, <code>skillid</code>, <code>type</code></td>
+</tr>
+<tr>
+<td><code>techcategory</code></td>
+<td><code>profileid</code>, <code>categoryid</code></td>
+</tr>
+<tr>
+<td><code>publicprofessionalprofile</code></td>
+<td><code>id</code>, <code>slug</code>, <code>profiledata</code>, <code>deletedat</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="job-tables">Job Tables</h3>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Columns / Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>jobdescription</code></td>
+<td><code>id</code>, <code>domain</code>, <code>company</code>, <code>jobtitle</code>, <code>createdat</code>, <code>updatedat</code>, <code>description</code></td>
+</tr>
+<tr>
+<td><code>jobskills</code></td>
+<td><code>id</code>, <code>jobid</code>, <code>skillid</code>, <code>years</code></td>
+</tr>
+<tr>
+<td><code>jobpersonalities</code></td>
+<td><code>id</code>, <code>personalityid</code>, <code>jobid</code>, <code>score</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="personality-survey-chat">Personality, Survey, Chat</h3>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Columns / Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>aichatlogs</code></td>
+<td><code>id</code>, <code>personid</code>, <code>enddate</code>, <code>completed</code>, <code>transcript</code>, <code>urlcode</code></td>
+</tr>
+<tr>
+<td><code>aipersonalityassessment</code></td>
+<td><code>id</code>, <code>personid</code>, <code>independent</code>, <code>collaborative</code>, <code>trailblazer</code>, <code>conservative</code>, <code>generalist</code>, <code>specialist</code>, <code>planner</code>, <code>doer</code>, <code>idealist</code>, <code>pragmatist</code>, <code>abstraction</code>, <code>control</code></td>
+</tr>
+<tr>
+<td><code>personality</code></td>
+<td><code>id</code>, <code>title</code>, <code>description</code></td>
+</tr>
+<tr>
+<td><code>personalitygroup</code></td>
+<td><code>id</code>, <code>leftpersonalityid</code>, <code>rightpersonalityid</code>, <code>sequence</code></td>
+</tr>
+<tr>
+<td><code>professionalpersonality</code></td>
+<td><code>id</code>, <code>profileid</code>, <code>personalityid</code>, <code>percentvalue</code></td>
+</tr>
+<tr>
+<td><code>professionalsurvey</code></td>
+<td><code>id</code>, <code>profileid</code>, <code>token</code></td>
+</tr>
+<tr>
+<td><code>professionalsurveyquestion</code></td>
+<td><code>id</code>, <code>surveyquestionid</code>, <code>professionalsurveyid</code>, <code>answer</code></td>
+</tr>
+<tr>
+<td><code>survey</code></td>
+<td><code>id</code>, <code>title</code></td>
+</tr>
+<tr>
+<td><code>surveyquestion</code></td>
+<td><code>id</code>, <code>surveyid</code>, <code>questionid</code></td>
+</tr>
+<tr>
+<td><code>question</code></td>
+<td><code>id</code>, <code>description</code>, <code>personalityid</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="administrative-vetting-tables">Administrative / Vetting Tables</h3>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Columns / Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>platformactivity</code></td>
+<td><code>id</code>, <code>profileid</code>, <code>step</code>, <code>notes</code>, <code>result</code>, <code>date</code>, <code>platformuserid</code>, <code>username</code>, <code>userrole</code>, <code>creationdate</code></td>
+</tr>
+<tr>
+<td><code>platformactivityoverride</code></td>
+<td><code>id</code>, <code>profileid</code>, <code>pipeline</code>, <code>reason</code>, <code>result</code>, <code>date</code>, <code>platformuserid</code></td>
+</tr>
+<tr>
+<td><code>platformuser</code></td>
+<td><code>id</code>, <code>userid</code>, <code>active</code>, <code>name</code></td>
+</tr>
+<tr>
+<td><code>vettinginfo</code></td>
+<td><code>id</code>, <code>profileid</code>, <code>technology</code>, <code>role</code>, <code>maturesoftwaredevelopmentteamexperience</code>, <code>leadershipexperienceyears</code>, <code>leadershipexperienceteamsize</code>, <code>appropriatepersonalityprofiletype</code>, <code>programminglanguageid</code>, <code>communicationproficiency</code>, <code>communicationintelligibility</code>, <code>professionallevel</code>, <code>professionaltitle</code>, <code>leadexperience</code>, <code>roledifferentiator</code>, <code>technicalcodeinterviewrating</code>, <code>technicalcodeinterviewnotes</code>, <code>extranotes</code>, <code>responsibleid</code>, <code>date</code>, <code>roletype</code></td>
+</tr>
+<tr>
+<td><code>screeninginfo</code></td>
+<td><code>id</code>, <code>profileid</code>, <code>rejectedreasonnotes</code>, <code>communicationproficiency</code>, <code>communicationintelligibility</code>, <code>generalnote</code>, <code>responsibleid</code>, <code>date</code>, <code>rejectedreason</code></td>
+</tr>
+<tr>
+<td><code>notfoundskills</code></td>
+<td><code>id</code>, <code>profileid</code>, <code>platformuserid</code>, <code>type</code>, <code>value</code>, <code>date</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="contact-contract-compensation-file-tables">Contact, Contract, Compensation, File Tables</h3>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Columns / Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>phonecontact</code></td>
+<td><code>id</code>, <code>personid</code>, <code>type</code>, <code>countrycode</code>, <code>number</code>, <code>numberiswhatsapp</code>, <code>sameaspersonalphonenumber</code></td>
+</tr>
+<tr>
+<td><code>socialmedia</code></td>
+<td><code>id</code>, <code>title</code>, <code>description</code></td>
+</tr>
+<tr>
+<td><code>socialmediaperson</code></td>
+<td><code>id</code>, <code>personid</code>, <code>socialmediaid</code>, <code>url</code></td>
+</tr>
+<tr>
+<td><code>mailingaddress</code></td>
+<td><code>id</code>, <code>personid</code>, <code>type</code>, <code>addressline1</code>, <code>addressline2</code>, <code>zipcode</code>, <code>companyname</code>, <code>sameaspersonalmailingaddress</code>, <code>city</code>, <code>countryid</code>, <code>stateprovince</code>, <code>countryname</code></td>
+</tr>
+<tr>
+<td><code>emergencycontact</code></td>
+<td><code>id</code>, <code>personid</code>, <code>name</code>, <code>relationship</code>, <code>countrycode</code>, <code>number</code></td>
+</tr>
+<tr>
+<td><code>contract</code></td>
+<td><code>id</code>, <code>issameaspersonalprofile</code>, <code>legalfirstname</code>, <code>legalmiddlename</code>, <code>legallastname</code>, <code>professionalid</code></td>
+</tr>
+<tr>
+<td><code>salaryrequirement</code></td>
+<td><code>id</code>, <code>professionalid</code>, <code>desiredhourlyrate</code>, <code>minimumicarate</code>, <code>projecthourlyrate</code>, <code>desiredannualsalary</code>, <code>minimumannualsalary</code></td>
+</tr>
+<tr>
+<td><code>digitalfile</code></td>
+<td><code>id</code>, <code>profileid</code>, <code>type</code>, <code>name</code>, <code>link</code>, <code>creationdate</code>, <code>size</code>, <code>deletedat</code></td>
+</tr>
+<tr>
+<td><code>additionaldata</code></td>
+<td><code>id</code>, <code>professionalid</code>, <code>employernoticerequirement</code>, <code>commutepreference</code>, <code>availability</code>, <code>preferredcommunication</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="reference-tables">Reference Tables</h3>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Columns / Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>category</code></td>
+<td><code>id</code>, <code>title</code>, <code>description</code>, <code>iconreference</code>, <code>active</code>, <code>deletedat</code></td>
+</tr>
+<tr>
+<td><code>country</code></td>
+<td><code>id</code>, <code>name</code></td>
+</tr>
+<tr>
+<td><code>programminglanguage</code></td>
+<td><code>id</code>, <code>title</code></td>
+</tr>
+<tr>
+<td><code>technicalindicator</code></td>
+<td><code>id</code>, <code>description</code>, <code>deletedat</code></td>
+</tr>
+<tr>
+<td><code>technicalindicatorscore</code></td>
+<td><code>id</code>, <code>technicalindicatorid</code>, <code>vettinginfoid</code>, <code>score</code></td>
+</tr>
+<tr>
+<td><code>__EFMigrationsHistory</code></td>
+<td><code>MigrationId</code>, <code>ProductVersion</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="important-relationships">Important Relationships</h3>
+<p>Common profile relationship chain:</p>
+<pre><code class="language-text">person.id
+  -&gt; professional.personid
+  -&gt; professionalprofile.professionalid
+  -&gt; professionalprofile.id
+  -&gt; professionalskill.profileid
+  -&gt; professionalexperience.profileid
+  -&gt; professionalculturalexperience.profileid
+  -&gt; professionalfeature.profileid
+  -&gt; professionalsurvey.profileid
+</code></pre>
+<p>Job relationship chain:</p>
+<pre><code class="language-text">jobdescription.id
+  -&gt; jobskills.jobid
+  -&gt; skill.id
+  -&gt; jobpersonalities.jobid
+  -&gt; personality.id
+</code></pre>
+<p>Portfolio relationship chain:</p>
+<pre><code class="language-text">professionalprofile.id
+  -&gt; professionalexperience.profileid
+  -&gt; portfolioskill.professionalexperienceid
+  -&gt; portfoliofeature.professionalexperienceid
+</code></pre>
+<h2 id="json-store-schemas">JSON Store Schemas</h2>
+<p>JSON stores are flexible, but the current app expects these shapes.</p>
+<h3 id="onboarding_recordsjson"><code>onboarding_records.json</code></h3>
+<p>Top-level object keyed by token.</p>
+<p>Important fields:</p>
+<ul>
+<li><code>token</code></li>
+<li><code>profile_id</code></li>
+<li><code>candidate_name</code></li>
+<li><code>email</code></li>
+<li><code>title</code></li>
+<li><code>domain</code></li>
+<li><code>start_day</code></li>
+<li><code>status</code></li>
+<li><code>profile_completion</code></li>
+<li><code>profile_source</code></li>
+<li><code>source_record</code></li>
+<li><code>recipient</code></li>
+<li><code>recipient_email</code></li>
+<li><code>created_at</code></li>
+<li><code>updated_at</code></li>
+</ul>
+<h3 id="time_entriesjson"><code>time_entries.json</code></h3>
+<p>Array of time entry rows.</p>
+<p>Important fields:</p>
+<ul>
+<li><code>id</code></li>
+<li><code>token</code></li>
+<li><code>profile_id</code></li>
+<li><code>candidate_name</code></li>
+<li><code>email</code></li>
+<li><code>domain</code></li>
+<li><code>week_start</code></li>
+<li><code>days</code></li>
+<li><code>total_hours</code></li>
+<li><code>status</code></li>
+<li><code>processed_by</code></li>
+<li><code>payment_batch</code></li>
+<li><code>processing_note</code></li>
+<li><code>client</code></li>
+<li><code>project</code></li>
+</ul>
+<h3 id="accounting_recordsjson"><code>accounting_records.json</code></h3>
+<p>Object with arrays:</p>
+<ul>
+<li><code>resources</code></li>
+<li><code>expenses</code></li>
+<li><code>invoices</code></li>
+</ul>
+<p>Resource fields:</p>
+<ul>
+<li><code>id</code></li>
+<li><code>domain</code></li>
+<li><code>name</code></li>
+<li><code>email</code></li>
+<li><code>profile_id</code></li>
+<li><code>token</code></li>
+<li><code>role</code></li>
+<li><code>client</code></li>
+<li><code>bill_rate</code></li>
+<li><code>cost_rate</code></li>
+<li><code>start_date</code></li>
+<li><code>status</code></li>
+</ul>
+<p>Invoice fields:</p>
+<ul>
+<li><code>id</code></li>
+<li><code>domain</code></li>
+<li><code>client</code></li>
+<li><code>client_email</code></li>
+<li><code>client_address</code></li>
+<li><code>invoice_number</code></li>
+<li><code>invoice_date</code></li>
+<li><code>due_date</code></li>
+<li><code>period_start</code></li>
+<li><code>period_end</code></li>
+<li><code>status</code></li>
+<li><code>payment_terms</code></li>
+<li><code>po_number</code></li>
+<li><code>line_items</code></li>
+<li><code>subtotal</code></li>
+<li><code>tax</code></li>
+<li><code>total</code></li>
+<li><code>sent_at</code></li>
+<li><code>viewed_at</code></li>
+</ul>
+<h3 id="crm_recordsjson"><code>crm_records.json</code></h3>
+<p>Array of CRM records.</p>
+<p>Important fields:</p>
+<ul>
+<li><code>id</code></li>
+<li><code>domain</code></li>
+<li><code>customer</code></li>
+<li><code>contact</code></li>
+<li><code>email</code></li>
+<li><code>phone</code></li>
+<li><code>billing_email</code></li>
+<li><code>billing_address</code></li>
+<li><code>owner</code></li>
+<li><code>value</code></li>
+<li><code>strength</code></li>
+<li><code>where</code></li>
+<li><code>when</code></li>
+<li><code>lastTouched</code></li>
+<li><code>what</code></li>
+<li><code>why</code></li>
+<li><code>history</code></li>
+<li><code>nextStep</code></li>
+<li><code>teamMembers</code></li>
+<li><code>contacts</code></li>
+</ul>
+<p><code>teamMembers</code> should contain real people at the customer, not generic entities.</p>
+<h3 id="other-json-stores">Other JSON Stores</h3>
+<table>
+<thead>
+<tr>
+<th>Store</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>workflow_events.json</code></td>
+<td>Timeline of workflow actions</td>
+</tr>
+<tr>
+<td><code>interview_archive.json</code></td>
+<td>Interview and scheduling records</td>
+</tr>
+<tr>
+<td><code>meeting_records.json</code></td>
+<td>Meeting outputs and saved notes</td>
+</tr>
+<tr>
+<td><code>profile_badges.json</code></td>
+<td>Badge/certification status by profile</td>
+</tr>
+<tr>
+<td><code>access_users.json</code></td>
+<td>Internal/candidate/admin access records</td>
+</tr>
+<tr>
+<td><code>access_candidates.json</code></td>
+<td>Candidate access block/delete status</td>
+</tr>
+</tbody>
+</table>
+<h2 id="environment-variables">Environment Variables</h2>
+<h3 id="core">Core</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OPENAI_API_KEY</code></td>
+<td>Enables OpenAI extraction, agents, summaries, drafts</td>
+</tr>
+<tr>
+<td><code>OPENAI_MODEL</code></td>
+<td>Model for resume extraction; defaults to <code>gpt-4o-mini</code> in code</td>
+</tr>
+<tr>
+<td><code>AZURE_DATABASE_HOST</code></td>
+<td>Azure PostgreSQL host</td>
+</tr>
+<tr>
+<td><code>AZURE_DATABASE_PORT</code></td>
+<td>Azure PostgreSQL port</td>
+</tr>
+<tr>
+<td><code>AZURE_DATABASE_NAME</code></td>
+<td>Azure PostgreSQL database name</td>
+</tr>
+<tr>
+<td><code>AZURE_DATABASE_USER</code></td>
+<td>Azure PostgreSQL user</td>
+</tr>
+<tr>
+<td><code>AZURE_DATABASE_PASSWORD</code></td>
+<td>Azure PostgreSQL password</td>
+</tr>
+</tbody>
+</table>
+<h3 id="azure-blob-storage">Azure Blob Storage</h3>
+<p>Used by <code>backend/azureUtils/storage/resumes.py</code>.</p>
+<p>Typical variables:</p>
+<ul>
+<li>Azure Storage connection string variable used by storage module.</li>
+<li>Container names for resume/file storage.</li>
+</ul>
+<p>Confirm exact variable names in <code>backend/azureUtils/storage/resumes.py</code> before deployment.</p>
+<h3 id="calendar_1">Calendar</h3>
+<p>Google:</p>
+<ul>
+<li><code>GOOGLE_CLIENT_SECRET_JSON</code></li>
+<li><code>GOOGLE_CLIENT_SECRET_FILE</code></li>
+</ul>
+<p>Outlook:</p>
+<ul>
+<li><code>OUTLOOK_CLIENT_ID</code></li>
+<li><code>OUTLOOK_CLIENT_SECRET</code></li>
+<li><code>OUTLOOK_TENANT_ID</code></li>
+<li>Redirect URI settings if configured.</li>
+</ul>
+<h3 id="apphr-defaults">App/HR Defaults</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>HEIDI_NAME</code></td>
+<td>Default onboarding recipient name</td>
+</tr>
+<tr>
+<td><code>HEIDI_EMAIL</code></td>
+<td>Default onboarding recipient email</td>
+</tr>
+</tbody>
+</table>
+<h2 id="data-flow-by-feature">Data Flow By Feature</h2>
+<h3 id="resume-upload-to-profile">Resume Upload To Profile</h3>
+<ol>
+<li>UI uploads resume.</li>
+<li>Backend extracts text.</li>
+<li>AI extraction runs if OpenAI key exists.</li>
+<li>Deterministic fallback fills missing pieces.</li>
+<li>Azure profile tables are written:
+   - <code>person</code>
+   - <code>professional</code>
+   - <code>professionalprofile</code>
+   - <code>professionalskill</code>
+   - <code>resumeskill</code>
+   - <code>professionalexperience</code>
+   - <code>portfolioskill</code>
+   - <code>portfoliofeature</code>
+   - <code>professionalculturalexperience</code></li>
+<li>UI shows profile preview.</li>
+</ol>
+<h3 id="jd-upload-to-matching">JD Upload To Matching</h3>
+<ol>
+<li>UI uploads or pastes job description.</li>
+<li>Backend extracts text.</li>
+<li><code>normalize_jd</code> identifies skills.</li>
+<li>Azure job tables are written:
+   - <code>jobdescription</code>
+   - <code>jobskills</code>
+   - <code>jobpersonalities</code></li>
+<li>Matching compares job skills with profile skills.</li>
+<li>UI ranks candidates and exposes gaps.</li>
+</ol>
+<h3 id="candidate-to-onboarding">Candidate To Onboarding</h3>
+<ol>
+<li>User selects completed profile.</li>
+<li><code>/api/onboarding/start</code> verifies:
+   - regular profile exists,
+   - personality survey exists,
+   - culture profile exists,
+   - domain matches.</li>
+<li>Creates or updates onboarding token in JSON store.</li>
+<li>Returns:
+   - <code>/ui/pages/onboarding.html?token=...</code>
+   - <code>/ui/pages/time-entry.html?token=...</code></li>
+</ol>
+<h3 id="time-to-invoice">Time To Invoice</h3>
+<ol>
+<li>Candidate submits time through tokenized time-entry link.</li>
+<li>Time Admin reviews and approves rows.</li>
+<li>Accounting resource must exist with bill rate/cost rate.</li>
+<li>Invoice workbench loads approved billable rows.</li>
+<li>Invoice is saved to accounting JSON store.</li>
+<li>Reports and invoice status use that invoice data.</li>
+</ol>
+<h3 id="crm-to-invoice">CRM To Invoice</h3>
+<ol>
+<li>CRM customer records supply customer name, AP email, billing address, contacts.</li>
+<li>Accounting resources link consultants to CRM customer.</li>
+<li>Invoices require CRM customer selection.</li>
+<li>Reports link invoice rows back to CRM and customer status.</li>
+</ol>
+<h2 id="deployment-workflow">Deployment Workflow</h2>
+<p>Recommended:</p>
+<pre><code class="language-powershell">cd C:\Users\darri\Documents\GitHub\VETCODE
+git status
+git add &lt;changed files&gt;
+git commit -m &quot;Describe change&quot;
+git push origin Development
+railway status
+railway up
+</code></pre>
+<p>Confirm dev:</p>
+<pre><code class="language-powershell">Invoke-RestMethod &quot;https://vetcode-dev.up.railway.app/api/environment&quot;
+</code></pre>
+<p>Expected:</p>
+<ul>
+<li><code>environment</code>: <code>Development</code></li>
+<li><code>railway_environment</code>: <code>dev</code></li>
+<li><code>public_domain</code>: <code>vetcode-dev.up.railway.app</code></li>
+</ul>
+<h2 id="local-development-checklist">Local Development Checklist</h2>
+<ol>
+<li>Activate backend venv.</li>
+<li>Confirm <code>.env</code> exists under <code>backend/</code>.</li>
+<li>Confirm Azure DB variables are present if using real dev DB.</li>
+<li>Start Uvicorn.</li>
+<li>Open <code>http://127.0.0.1:8000/ui/pages/find-candidate.html</code>.</li>
+<li>Check <code>/api/environment</code>.</li>
+<li>Test one page in each domain.</li>
+</ol>
+<p>Useful commands:</p>
+<pre><code class="language-powershell">python -m py_compile backend\main.py backend\calendar_router.py
+node --check backend\ui\pages\.tmp_some_page.js
+git status --short
+railway logs --deployment --latest --lines 80
+</code></pre>
+<h2 id="security-and-safety-notes">Security And Safety Notes</h2>
+<ul>
+<li>Do not commit <code>.env</code>.</li>
+<li>Do not print or document passwords, OAuth secrets, storage connection strings, or API keys.</li>
+<li>Admin and agent features must not expose financial details to non-admin users.</li>
+<li>Candidate onboarding must require completed profiles.</li>
+<li>Domain isolation is a business rule, not just a UI preference.</li>
+<li>External temporary profiles should not become permanent without review.</li>
+<li>Blank email handling is important because Azure has unique email constraints in some profile paths.</li>
+<li>Destructive operations should require confirmation.</li>
+</ul>
+<h2 id="known-technical-risks">Known Technical Risks</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Area</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mixed storage patterns</td>
+<td>Azure PostgreSQL, SQLite, JSON</td>
+<td>Keep docs current and avoid duplicating data models unnecessarily</td>
+</tr>
+<tr>
+<td>Domain drift</td>
+<td>Session storage and query params</td>
+<td>Always read/write <code>domain</code> carefully and refresh domain-scoped data on switch</td>
+</tr>
+<tr>
+<td>Empty remote JDs</td>
+<td>Mobile/Railway dev</td>
+<td>Mobile includes starter role fallback; full app should seed/save real JDs</td>
+</tr>
+<tr>
+<td>OAuth missing locally</td>
+<td>Calendar</td>
+<td>Validate Google/Outlook env variables before testing</td>
+</tr>
+<tr>
+<td>AI fallback differences</td>
+<td>Resume/JD/chat</td>
+<td>Keep deterministic fallback paths working</td>
+</tr>
+<tr>
+<td>JSON runtime files ignored by Git</td>
+<td><code>backend/data</code></td>
+<td>Put deployable seed records in <code>data/demo_lifecycle_fixtures</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="current-mobile-implementation">Current Mobile Implementation</h2>
+<p>Files:</p>
+<ul>
+<li><code>backend/ui/mobile.html</code></li>
+<li><code>backend/ui/pages/mobile.html</code></li>
+</ul>
+<p>Purpose:</p>
+<ul>
+<li>Simple mobile-first candidate pick and onboarding flow.</li>
+<li>Does not replace desktop app.</li>
+</ul>
+<p>Flow:</p>
+<ol>
+<li>Select domain.</li>
+<li>Select saved job or starter role.</li>
+<li>Select completed profile.</li>
+<li>Create onboarding link.</li>
+<li>Copy onboarding and time-entry links.</li>
+</ol>
+<p>API dependencies:</p>
+<ul>
+<li><code>/api/jd/list</code></li>
+<li><code>/api/onboarding/candidates</code></li>
+<li><code>/api/onboarding/admin</code></li>
+<li><code>/api/onboarding/start</code></li>
+</ul>
+<h2 id="how-to-extend-safely">How To Extend Safely</h2>
+<p>When adding a new feature:</p>
+<ol>
+<li>Decide the domain behavior first.</li>
+<li>Decide which storage layer owns the data.</li>
+<li>Add or reuse backend endpoint.</li>
+<li>Add UI with domain-specific styling.</li>
+<li>Add helpful empty states and next-step links.</li>
+<li>Add deployable demo fixture if the feature needs demo data.</li>
+<li>Test local and Railway dev.</li>
+<li>Update this guide and the user guide.</li>
+</ol>
+<p>When adding database tables:</p>
+<ol>
+<li>Prefer existing Azure schema if the concept already belongs to candidate/job/profile.</li>
+<li>Use JSON store only for lightweight operational records or prototype workflows.</li>
+<li>If JSON data becomes core business data, plan migration to PostgreSQL.</li>
+<li>Add schema notes here.</li>
+</ol>
+      </section>
+    </article>
+  </main>
+</body>
+</html>

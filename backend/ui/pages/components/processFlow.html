@@ -146,7 +146,7 @@
     display: none;
   }
 
-  .quick-hit-dialog {
+  .fastboard-dialog {
     width: min(760px, calc(100vw - 28px));
     max-height: calc(100vh - 42px);
     overflow: auto;
@@ -157,13 +157,13 @@
     box-shadow: 0 26px 70px rgba(15, 23, 42, 0.28);
   }
 
-  .quick-hit-head,
-  .quick-hit-body,
-  .quick-hit-actions {
+  .fastboard-head,
+  .fastboard-body,
+  .fastboard-actions {
     padding: 14px;
   }
 
-  .quick-hit-head {
+  .fastboard-head {
     display: flex;
     justify-content: space-between;
     gap: 12px;
@@ -171,18 +171,18 @@
     background: linear-gradient(90deg, rgba(var(--primary-rgb, 20, 88, 55), 0.1), #fff);
   }
 
-  .quick-hit-head h2 {
+  .fastboard-head h2 {
     margin: 0;
     font-size: 18px;
   }
 
-  .quick-hit-body {
+  .fastboard-body {
     display: grid;
     gap: 12px;
   }
 
-  .quick-hit-body textarea,
-  .quick-hit-body input {
+  .fastboard-body textarea,
+  .fastboard-body input {
     width: 100%;
     box-sizing: border-box;
     border: 1px solid var(--line, #dfe7e2);
@@ -191,12 +191,12 @@
     font: inherit;
   }
 
-  .quick-hit-body textarea {
+  .fastboard-body textarea {
     min-height: 96px;
     resize: vertical;
   }
 
-  .quick-hit-preview {
+  .fastboard-preview {
     border: 1px solid rgba(var(--primary-rgb, 20, 88, 55), 0.18);
     border-radius: 10px;
     padding: 12px;
@@ -207,13 +207,26 @@
     line-height: 1.45;
   }
 
-  .quick-hit-steps {
+  .fastboard-state {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border: 1px dashed rgba(var(--primary-rgb, 20, 88, 55), 0.36);
+    border-radius: 12px;
+    background: rgba(var(--primary-rgb, 20, 88, 55), 0.06);
+  }
+
+  .fastboard-state strong {
+    color: var(--primary, #145837);
+  }
+
+  .fastboard-steps {
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
   }
 
-  .quick-hit-steps span {
+  .fastboard-steps span {
     border: 1px solid rgba(var(--primary-rgb, 20, 88, 55), 0.18);
     border-radius: 999px;
     padding: 4px 8px;
@@ -223,7 +236,7 @@
     font-weight: 900;
   }
 
-  .quick-hit-actions {
+  .fastboard-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
@@ -385,16 +398,16 @@
 </div>
 
 <div id="quickHitOverlay" hidden>
-  <div class="quick-hit-dialog" role="dialog" aria-modal="true" aria-labelledby="quickHitTitle">
-    <div class="quick-hit-head">
+  <div class="fastboard-dialog" role="dialog" aria-modal="true" aria-labelledby="quickHitTitle">
+    <div class="fastboard-head">
       <div>
-        <h2 id="quickHitTitle">Quick Hit Candidate Finder</h2>
-        <div class="muted">Numa will ask, draft, confirm, create, rank, select, and prepare scheduling.</div>
+        <h2 id="quickHitTitle">FastBoard Candidate Launch</h2>
+        <div class="muted">Safe rapid consultant launch: Egeria asks, drafts, confirms, creates, ranks, selects, and prepares scheduling.</div>
       </div>
       <button class="btn secondary" type="button" onclick="closeQuickHitFlow()">Close</button>
     </div>
-    <div id="quickHitBody" class="quick-hit-body"></div>
-    <div id="quickHitActions" class="quick-hit-actions"></div>
+    <div id="quickHitBody" class="fastboard-body"></div>
+    <div id="quickHitActions" class="fastboard-actions"></div>
   </div>
 </div>
 
@@ -534,7 +547,7 @@
     if (domain === "engineer") {
       return {
         domainName: "BuildReady",
-        prompt: "What engineering role should Numa fill?",
+        prompt: "What engineering role should Egeria fill?",
         placeholder:
           "Example: CivicBridge needs a civil project engineer who can support municipal infrastructure work, coordinate drawings, understand permitting, and communicate with field teams.",
         fallbackCompany: "Engineering Client",
@@ -565,7 +578,7 @@
     if (domain === "law") {
       return {
         domainName: "LegalReady",
-        prompt: "What legal role should Numa fill?",
+        prompt: "What legal role should Egeria fill?",
         placeholder:
           "Example: Northstar Legal needs a contract review specialist who can support commercial agreements, redline clauses, track risks, and prepare attorney-ready summaries.",
         fallbackCompany: "Legal Client",
@@ -595,7 +608,7 @@
     }
     return {
       domainName: "DevReady",
-      prompt: "What technology role should Numa fill?",
+      prompt: "What technology role should Egeria fill?",
       placeholder:
         "Example: BrightCart needs an AI platform engineer who can build TypeScript services, integrate APIs, support prompt workflows, and collaborate with product teams.",
       fallbackCompany: "Technology Client",
@@ -654,6 +667,181 @@
       .replaceAll("'", "&#039;");
   }
 
+  function quickHitStateKey() {
+    return `egeriaQuickHitState:${quickHitDomain()}`;
+  }
+
+  function quickHitLoadState() {
+    try {
+      const state = JSON.parse(sessionStorage.getItem(quickHitStateKey()) || "null");
+      return state && typeof state === "object" ? state : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function quickHitSaveState(patch = {}) {
+    const existing = window.quickHitState || quickHitLoadState() || {};
+    window.quickHitState = {
+      ...existing,
+      ...patch,
+      domain: quickHitDomain(),
+      agent: "Egeria",
+      updatedAt: new Date().toISOString(),
+    };
+    sessionStorage.setItem(quickHitStateKey(), JSON.stringify(window.quickHitState));
+    return window.quickHitState;
+  }
+
+  function quickHitClearState() {
+    sessionStorage.removeItem(quickHitStateKey());
+    window.quickHitState = null;
+  }
+
+  function quickHitRecoverable(state) {
+    return Boolean(
+      state &&
+        ["draft_ready", "creating_jd", "jd_saved", "ranking", "ranked", "no_internal_match", "selecting_candidate", "candidate_selected"].includes(state.step),
+    );
+  }
+
+  function quickHitStepLabel(step) {
+    return (
+      {
+        draft_ready: "JD draft ready",
+        jd_saved: "Job description saved",
+        ranked: "Candidate ranked",
+        no_internal_match: "JD saved, no internal match",
+        candidate_selected: "Candidate selected and status seeded",
+      }[step] || "In progress"
+    );
+  }
+
+  function quickHitShowRecovery(state) {
+    quickHitSet(
+      `<div class="fastboard-state">
+        <strong>Egeria has an unfinished FastBoard workflow.</strong>
+        <span>Current step: ${quickHitEscape(quickHitStepLabel(state.step))}</span>
+        <span>${quickHitEscape(state.jd?.company || state.createdJd?.company || "Client")} - ${quickHitEscape(state.jd?.job_title || state.createdJd?.title || "Role pending")}</span>
+        ${
+          state.bestCandidate
+            ? `<span>Selected candidate: ${quickHitEscape(state.bestCandidate.name || "Candidate")}</span>`
+            : ""
+        }
+      </div>`,
+      `<button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback FastBoard</button><button class="btn secondary" type="button" onclick="startQuickHitFlow(true)">New FastBoard</button><button class="btn" type="button" onclick="quickHitResume()">Resume</button>`,
+    );
+  }
+
+  function quickHitRemoveScheduleRecord(recordId) {
+    if (!recordId) return;
+    [`scheduleTracking:${quickHitDomain()}`, "scheduleTracking"].forEach((key) => {
+      try {
+        const rows = JSON.parse(sessionStorage.getItem(key) || "[]");
+        if (Array.isArray(rows)) {
+          sessionStorage.setItem(key, JSON.stringify(rows.filter((row) => row && row.id !== recordId)));
+        }
+      } catch {}
+    });
+    [`latestScheduleTracking:${quickHitDomain()}`, "latestScheduleTracking"].forEach((key) => {
+      try {
+        const row = JSON.parse(sessionStorage.getItem(key) || "null");
+        if (row && row.id === recordId) sessionStorage.removeItem(key);
+      } catch {}
+    });
+  }
+
+  function quickHitClearSessionPointers(state) {
+    const jdId = String(state?.createdJd?.jd_id || "");
+    if (jdId && [sessionStorage.getItem("jdId"), sessionStorage.getItem("selectedJdId"), sessionStorage.getItem("jobId"), sessionStorage.getItem("jobID")].includes(jdId)) {
+      ["jdId", "selectedJdId", "jobId", "jobID", "jobCompany", "jobTitle", "jobSkills"].forEach((key) => sessionStorage.removeItem(key));
+    }
+    const candidateId = String(state?.bestCandidate?.profile_id || state?.bestCandidate?.id || "");
+    if (candidateId) {
+      if (window.DevReadyShortlist && typeof window.DevReadyShortlist.remove === "function") {
+        window.DevReadyShortlist.remove(candidateId);
+      }
+      if ([sessionStorage.getItem("candidateId"), sessionStorage.getItem("selectedProfileId")].includes(candidateId)) {
+        ["candidateId", "selectedProfileId", "candidateName", "candidateEmail", "candidateStatus", "candidateTopMatches"].forEach((key) => sessionStorage.removeItem(key));
+      }
+    }
+    quickHitRemoveScheduleRecord(state?.statusRecord?.id);
+  }
+
+  async function quickHitRollback() {
+    const state = window.quickHitState || quickHitLoadState();
+    if (!state) {
+      quickHitSet(`<div class="fastboard-preview">There is no FastBoard workflow state to rollback.</div>`, `<button class="btn" type="button" onclick="startQuickHitFlow(true)">Start FastBoard</button>`);
+      return;
+    }
+    const jdId = String(state.createdJd?.jd_id || "");
+    const messages = [];
+    quickHitSet(`<div class="fastboard-preview">Egeria is rolling back the recoverable workflow state...</div>`);
+    if (jdId) {
+      try {
+        await quickHitApi(`/api/azureJobs/deleteJob/${encodeURIComponent(jdId)}?domain=${encodeURIComponent(quickHitDomain())}`, { method: "DELETE" });
+        messages.push(`Deleted JD ${jdId}.`);
+      } catch (error) {
+        messages.push(`JD ${jdId} could not be deleted automatically: ${error.message || error}`);
+      }
+    }
+    quickHitClearSessionPointers(state);
+    quickHitSaveState({ step: "rolled_back", rolledBackAt: new Date().toISOString() });
+    quickHitClearState();
+    quickHitSet(
+      `<div class="fastboard-preview">${quickHitEscape(messages.join("\n") || "Cleared FastBoard workflow state.")}</div>`,
+      `<button class="btn" type="button" onclick="startQuickHitFlow(true)">Start FastBoard Again</button>`,
+    );
+  }
+
+  function quickHitResume() {
+    const state = window.quickHitState || quickHitLoadState();
+    if (!state) return startQuickHitFlow(true);
+    window.quickHitState = state;
+    if (state.step === "draft_ready") {
+      const jd = state.jd;
+      quickHitSet(
+        `<div class="fastboard-steps"><span>JD draft ready</span><span>Approval required</span></div>
+         <div><strong>${quickHitEscape(jd.company)} - ${quickHitEscape(jd.job_title)}</strong></div>
+         <div class="fastboard-preview">${quickHitEscape(jd.jd_text)}</div>`,
+        `<button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback</button><button class="btn" type="button" onclick="quickHitCreateJd()">Approve and Add JD</button>`,
+      );
+      return;
+    }
+    if (state.step === "jd_saved" || state.step === "no_internal_match") {
+      quickHitSet(
+        `<div class="fastboard-steps"><span>JD saved</span><span>Next: search best candidate</span></div>
+         <div class="fastboard-preview">Saved JD ${quickHitEscape(state.createdJd?.jd_id || "")} for ${quickHitEscape(state.createdJd?.company || state.jd?.company || "Client")} - ${quickHitEscape(state.createdJd?.title || state.jd?.job_title || "Role")}.</div>`,
+        `<button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback</button><button class="btn" type="button" onclick="quickHitRankCandidates()">Approve Search</button>`,
+      );
+      return;
+    }
+    if (state.step === "ranked") {
+      const best = state.bestCandidate || {};
+      const score = Math.round(best._score100 || best.score || 0);
+      quickHitSet(
+        `<div class="fastboard-steps"><span>Best candidate found</span><span>Approval required</span></div>
+         <div class="fastboard-preview"><strong>${quickHitEscape(best.name || "Candidate")}</strong>
+Email: ${quickHitEscape(best.email || "No email listed")}
+Score: ${quickHitEscape(score)}%
+Reason: ${quickHitEscape(best.fit_reason || "Top internal match for the saved JD.")}
+Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") || "Skills pending")}</div>`,
+        `<button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback</button><button class="btn secondary" type="button" onclick="quickHitRankCandidates()">Search Again</button><button class="btn" type="button" onclick="quickHitApproveCandidate()">Approve Candidate</button>`,
+      );
+      return;
+    }
+    if (state.step === "candidate_selected") {
+      const recordId = state.statusRecord?.id || "";
+      quickHitSet(
+        `<div class="fastboard-steps"><span>Candidate selected</span><span>Schedule ready</span><span>Status seeded</span></div>
+         <div class="fastboard-preview">${quickHitEscape(state.bestCandidate?.name || "Candidate")} is selected and ready for candidate review scheduling.</div>`,
+        `<button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback</button><a class="btn" href="schedule-interview.html?domain=${encodeURIComponent(quickHitDomain())}&interview=ready">Send to Schedule</a><a class="btn secondary" href="status-tracker.html?domain=${encodeURIComponent(quickHitDomain())}&record=${encodeURIComponent(recordId)}">Move to Status</a>`,
+      );
+      return;
+    }
+    startQuickHitFlow(true);
+  }
+
   function quickHitFallbackPayload(jobRequest) {
     const profile = quickHitDomainProfile();
     const clean = String(jobRequest || "").trim();
@@ -693,11 +881,19 @@ ${profile.success}`;
     };
   }
 
-  async function startQuickHitFlow() {
-    const profile = quickHitDomainProfile();
+  async function startQuickHitFlow(forceNew = false) {
+    const existing = quickHitLoadState();
     document.getElementById("quickHitOverlay").hidden = false;
+    if (!forceNew && quickHitRecoverable(existing)) {
+      window.quickHitState = existing;
+      quickHitShowRecovery(existing);
+      return;
+    }
+    if (forceNew) quickHitClearState();
+    const profile = quickHitDomainProfile();
+    quickHitSaveState({ step: "ask", startedAt: new Date().toISOString() });
     quickHitSet(
-      `<div class="quick-hit-steps"><span>1 Ask</span><span>2 Draft JD</span><span>3 Save JD</span><span>4 Rank</span><span>5 Schedule</span><span>6 Status</span></div>
+      `<div class="fastboard-steps"><span>1 Ask</span><span>2 Draft JD</span><span>3 Save JD</span><span>4 Rank</span><span>5 Schedule</span><span>6 Status</span></div>
        <label><strong>${quickHitEscape(profile.prompt)}</strong><textarea id="quickHitJobInput" placeholder="${quickHitEscape(profile.placeholder)}"></textarea></label>`,
       `<button class="btn secondary" type="button" onclick="closeQuickHitFlow()">Cancel</button><button class="btn" type="button" onclick="quickHitDraftJob()">Build JD</button>`,
     );
@@ -709,8 +905,9 @@ ${profile.success}`;
 
   async function quickHitDraftJob() {
     const jobRequest = document.getElementById("quickHitJobInput")?.value.trim();
-    if (!jobRequest) return alert("Tell Numa what job you want to fill first.");
-    quickHitSet(`<div class="quick-hit-preview">Numa is drafting the job description...</div>`);
+    if (!jobRequest) return alert("Tell Egeria what job you want to fill first.");
+    quickHitSaveState({ step: "drafting", jobRequest });
+    quickHitSet(`<div class="fastboard-preview">Egeria is drafting the job description...</div>`);
     const context = {
       domain: quickHitDomain(),
       page: document.title,
@@ -721,30 +918,31 @@ ${profile.success}`;
       },
     };
     const form = new FormData();
-    form.append("agent_key", "jobs");
+    form.append("agent_key", "egeria");
     form.append("domain", quickHitDomain());
-    form.append("message", `Create a complete ${quickHitDomainProfile().domainName} domain job description and create_job_description action for this quick candidate search. Keep the role, examples, skills, and responsibilities specific to the ${quickHitDomain()} domain. ${jobRequest}`);
+    form.append("message", `Egeria FastBoard request: create a complete ${quickHitDomainProfile().domainName} domain job description and create_job_description action for this guided candidate search. Keep the role, examples, skills, and responsibilities specific to the ${quickHitDomain()} domain. This is step 2 of a recoverable ask/draft/confirm/create/rank/select/schedule/status workflow. ${jobRequest}`);
     form.append("context_json", JSON.stringify(context));
     form.append("numa_change_mode", "off");
     try {
       const data = await quickHitApi("/api/agents/ask", { method: "POST", body: form });
-      window.quickHitState = { jobRequest, jd: quickHitNormalizeActionPayload(data, jobRequest) };
+      quickHitSaveState({ step: "draft_ready", jobRequest, jd: quickHitNormalizeActionPayload(data, jobRequest), agentResponse: data.answer || "" });
     } catch (error) {
-      window.quickHitState = { jobRequest, jd: quickHitFallbackPayload(jobRequest) };
+      quickHitSaveState({ step: "draft_ready", jobRequest, jd: quickHitFallbackPayload(jobRequest), agentWarning: error.message || String(error) });
     }
     const jd = window.quickHitState.jd;
     quickHitSet(
-      `<div class="quick-hit-steps"><span>JD draft ready</span><span>Approval required</span></div>
+      `<div class="fastboard-steps"><span>JD draft ready</span><span>Approval required</span></div>
        <div><strong>${quickHitEscape(jd.company)} - ${quickHitEscape(jd.job_title)}</strong></div>
-       <div class="quick-hit-preview">${quickHitEscape(jd.jd_text)}</div>`,
-      `<button class="btn secondary" type="button" onclick="startQuickHitFlow()">Back</button><button class="btn" type="button" onclick="quickHitCreateJd()">Approve and Add JD</button>`,
+       <div class="fastboard-preview">${quickHitEscape(jd.jd_text)}</div>`,
+      `<button class="btn secondary" type="button" onclick="startQuickHitFlow(true)">Back</button><button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback</button><button class="btn" type="button" onclick="quickHitCreateJd()">Approve and Add JD</button>`,
     );
   }
 
   async function quickHitCreateJd() {
     const jd = window.quickHitState?.jd;
     if (!jd) return;
-    quickHitSet(`<div class="quick-hit-preview">Creating the job description in DevReady...</div>`);
+    quickHitSaveState({ step: "creating_jd" });
+    quickHitSet(`<div class="fastboard-preview">Creating the job description in DevReady...</div>`);
     const form = new FormData();
     form.append("company", jd.company);
     form.append("title", jd.job_title);
@@ -753,7 +951,7 @@ ${profile.success}`;
     try {
       const created = await quickHitApi("/api/azureJobs/createJob", { method: "POST", body: form });
       const jdId = String(created.jd_id || "");
-      window.quickHitState.createdJd = created;
+      quickHitSaveState({ step: "jd_saved", createdJd: created });
       sessionStorage.setItem("jdId", jdId);
       sessionStorage.setItem("selectedJdId", jdId);
       sessionStorage.setItem("jobId", jdId);
@@ -763,19 +961,20 @@ ${profile.success}`;
       sessionStorage.setItem("jobSkills", (created.jd_skills || []).join(", "));
       if (typeof updateJob === "function") updateJob();
       quickHitSet(
-        `<div class="quick-hit-steps"><span>JD saved</span><span>Next: search best candidate</span></div>
-         <div class="quick-hit-preview">Saved JD ${quickHitEscape(jdId)} for ${quickHitEscape(created.company || jd.company)} - ${quickHitEscape(created.title || jd.job_title)}.</div>`,
-        `<button class="btn secondary" type="button" onclick="closeQuickHitFlow()">Stop here</button><button class="btn" type="button" onclick="quickHitRankCandidates()">Approve Search</button>`,
+        `<div class="fastboard-steps"><span>JD saved</span><span>Next: search best candidate</span></div>
+         <div class="fastboard-preview">Saved JD ${quickHitEscape(jdId)} for ${quickHitEscape(created.company || jd.company)} - ${quickHitEscape(created.title || jd.job_title)}.</div>`,
+        `<button class="btn secondary" type="button" onclick="closeQuickHitFlow()">Stop here</button><button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback</button><button class="btn" type="button" onclick="quickHitRankCandidates()">Approve Search</button>`,
       );
     } catch (error) {
-      quickHitSet(`<div class="quick-hit-preview">Could not create the JD: ${quickHitEscape(error.message || error)}</div>`, `<button class="btn secondary" type="button" onclick="quickHitDraftJob()">Back</button>`);
+      quickHitSet(`<div class="fastboard-preview">Could not create the JD: ${quickHitEscape(error.message || error)}</div>`, `<button class="btn secondary" type="button" onclick="quickHitDraftJob()">Back</button>`);
     }
   }
 
   async function quickHitRankCandidates() {
     const jdId = String(window.quickHitState?.createdJd?.jd_id || sessionStorage.getItem("selectedJdId") || "");
     if (!jdId) return alert("No saved JD is selected yet.");
-    quickHitSet(`<div class="quick-hit-preview">Searching the best internal candidate for JD ${quickHitEscape(jdId)}...</div>`);
+    quickHitSaveState({ step: "ranking" });
+    quickHitSet(`<div class="fastboard-preview">Searching the best internal candidate for JD ${quickHitEscape(jdId)}...</div>`);
     const form = new FormData();
     form.append("domain", quickHitDomain());
     form.append("jd_id", jdId);
@@ -784,54 +983,54 @@ ${profile.success}`;
     try {
       const ranked = await quickHitApi("/api/azureJobs/match/run", { method: "POST", body: form });
       const best = (ranked.results || [])[0];
-      window.quickHitState.ranked = ranked;
-      window.quickHitState.bestCandidate = best;
+      quickHitSaveState({ step: best ? "ranked" : "no_internal_match", ranked, bestCandidate: best || null });
       if (!best) {
         quickHitSet(
-          `<div class="quick-hit-preview">The JD was saved, but no internal candidate came back for this role. Open Find (Out) if you want to source externally.</div>`,
-          `<a class="btn" href="mine-candidate-external.html?domain=${encodeURIComponent(quickHitDomain())}">Find Outside Candidate</a><button class="btn secondary" type="button" onclick="closeQuickHitFlow()">Close</button>`,
+          `<div class="fastboard-preview">The JD was saved, but no internal candidate came back for this role. Open Find (Out) if you want to source externally.</div>`,
+          `<button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback JD</button><a class="btn" href="mine-candidate-external.html?domain=${encodeURIComponent(quickHitDomain())}">Find Outside Candidate</a><button class="btn secondary" type="button" onclick="closeQuickHitFlow()">Close</button>`,
         );
         return;
       }
       const score = Math.round(best._score100 || best.score || 0);
       quickHitSet(
-        `<div class="quick-hit-steps"><span>Best candidate found</span><span>Approval required</span></div>
-         <div class="quick-hit-preview"><strong>${quickHitEscape(best.name || "Candidate")}</strong>
+        `<div class="fastboard-steps"><span>Best candidate found</span><span>Approval required</span></div>
+         <div class="fastboard-preview"><strong>${quickHitEscape(best.name || "Candidate")}</strong>
 Email: ${quickHitEscape(best.email || "No email listed")}
 Score: ${quickHitEscape(score)}%
 Reason: ${quickHitEscape(best.fit_reason || "Top internal match for the saved JD.")}
 Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") || "Skills pending")}</div>`,
-        `<button class="btn secondary" type="button" onclick="quickHitRankCandidates()">Search Again</button><button class="btn" type="button" onclick="quickHitApproveCandidate()">Approve Candidate</button>`,
+        `<button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback</button><button class="btn secondary" type="button" onclick="quickHitRankCandidates()">Search Again</button><button class="btn" type="button" onclick="quickHitApproveCandidate()">Approve Candidate</button>`,
       );
     } catch (error) {
-      quickHitSet(`<div class="quick-hit-preview">Candidate search failed: ${quickHitEscape(error.message || error)}</div>`, `<button class="btn secondary" type="button" onclick="quickHitCreateJd()">Back</button>`);
+      quickHitSet(`<div class="fastboard-preview">Candidate search failed: ${quickHitEscape(error.message || error)}</div>`, `<button class="btn secondary" type="button" onclick="quickHitCreateJd()">Back</button>`);
     }
   }
 
   function quickHitApproveCandidate() {
     const candidate = window.quickHitState?.bestCandidate;
     if (!candidate) return;
+    quickHitSaveState({ step: "selecting_candidate" });
     const id = String(candidate.profile_id || candidate.id || "");
     const name = candidate.name || "Candidate";
     const email = candidate.email || "";
     sessionStorage.setItem("candidateId", id);
     sessionStorage.setItem("candidateName", name);
     sessionStorage.setItem("candidateEmail", email);
-    sessionStorage.setItem("candidateStatus", "Quick Hit selected for candidate review");
+    sessionStorage.setItem("candidateStatus", "FastBoard selected for candidate review");
     const shortlistItem = {
       id,
       profile_id: id,
       name,
       email,
       score: Math.round(candidate._score100 || candidate.score || 0),
-      status: "Quick Hit selected",
+      status: "FastBoard selected",
       skills: candidate.top_matches || [],
       top_matches: candidate.top_matches || [],
-      source: "Quick Hit AI",
-      stage: "Quick Hit - Find candidate",
+      source: "FastBoard AI",
+      stage: "FastBoard - Find candidate",
     };
     if (window.DevReadyShortlist && typeof window.DevReadyShortlist.add === "function") {
-      window.DevReadyShortlist.add(shortlistItem, { stage: "Quick Hit - Find candidate", source: "Quick Hit AI" });
+      window.DevReadyShortlist.add(shortlistItem, { stage: "FastBoard - Find candidate", source: "FastBoard AI" });
     } else {
       sessionStorage.setItem("shortlist", id);
       const details = {};
@@ -840,7 +1039,7 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
       sessionStorage.setItem("shortlistDetails", JSON.stringify(details));
     }
     const statusRecord = {
-      id: `quick-hit-${Date.now()}`,
+      id: `fastboard-${Date.now()}`,
       domain: quickHitDomain(),
       interviewType: "ready",
       candidateId: id,
@@ -848,7 +1047,7 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
       candidateEmail: email,
       role: sessionStorage.getItem("jobTitle") || "",
       company: sessionStorage.getItem("jobCompany") || "",
-      status: "Quick Hit ready to schedule",
+      status: "FastBoard ready to schedule",
       provider: "ask",
       nextAction: "Schedule candidate review",
       createdAt: new Date().toISOString(),
@@ -860,11 +1059,12 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
     sessionStorage.setItem("scheduleTracking", JSON.stringify(records));
     sessionStorage.setItem(`latestScheduleTracking:${quickHitDomain()}`, JSON.stringify(statusRecord));
     sessionStorage.setItem("latestScheduleTracking", JSON.stringify(statusRecord));
+    quickHitSaveState({ step: "candidate_selected", bestCandidate: candidate, shortlistItem, statusRecord });
     if (typeof updateCandidate === "function") updateCandidate();
     quickHitSet(
-      `<div class="quick-hit-steps"><span>Candidate selected</span><span>Schedule ready</span><span>Status seeded</span></div>
-       <div class="quick-hit-preview">${quickHitEscape(name)} has been selected, added to the shortlist, and prepared for candidate review scheduling.</div>`,
-      `<a class="btn" href="schedule-interview.html?domain=${encodeURIComponent(quickHitDomain())}&interview=ready">Send to Schedule</a><a class="btn secondary" href="status-tracker.html?domain=${encodeURIComponent(quickHitDomain())}&record=${encodeURIComponent(statusRecord.id)}">Move to Status</a>`,
+      `<div class="fastboard-steps"><span>Candidate selected</span><span>Schedule ready</span><span>Status seeded</span></div>
+       <div class="fastboard-preview">${quickHitEscape(name)} has been selected, added to the shortlist, and prepared for candidate review scheduling.</div>`,
+      `<button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback</button><a class="btn" href="schedule-interview.html?domain=${encodeURIComponent(quickHitDomain())}&interview=ready">Send to Schedule</a><a class="btn secondary" href="status-tracker.html?domain=${encodeURIComponent(quickHitDomain())}&record=${encodeURIComponent(statusRecord.id)}">Move to Status</a>`,
     );
   }
 
@@ -912,6 +1112,21 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
     window.location.href = "find-candidate.html?fresh=1";
   }
 
+  Object.assign(window, {
+    toggleProcessFlow,
+    openProcessMap,
+    closeProcessMap,
+    clearProcessTrail,
+    startQuickHitFlow,
+    closeQuickHitFlow,
+    quickHitDraftJob,
+    quickHitCreateJd,
+    quickHitRankCandidates,
+    quickHitApproveCandidate,
+    quickHitRollback,
+    quickHitResume,
+  });
+
   document.querySelectorAll("#processMapOverlay .map-node").forEach((node) => {
     const nodePath = new URL(node.href).pathname.replace(/\/$/, "");
     if (currentProcessPath === nodePath) {
@@ -938,6 +1153,6 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
   if (typeof applyGlobalHints === "function") {
     applyGlobalHints();
   }
-  updateCandidate();
-  updateJob();
+  if (typeof updateCandidate === "function") updateCandidate();
+  if (typeof updateJob === "function") updateJob();
 </script>

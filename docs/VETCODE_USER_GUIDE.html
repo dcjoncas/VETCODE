@@ -1,0 +1,803 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VETCODE User Guide</title>
+  <style>
+:root {
+  --bg: #f5f7f4;
+  --paper: #ffffff;
+  --ink: #142016;
+  --muted: #5f6f65;
+  --line: #dce6dc;
+  --accent: #2f7d45;
+  --accent-soft: #e8f5e9;
+  --code-bg: #f0f4f1;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.55;
+}
+.page-shell {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 32px 18px 64px;
+}
+.doc-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(16, 35, 24, 0.08);
+  overflow: hidden;
+}
+.doc-topbar {
+  padding: 18px 28px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(90deg, var(--accent-soft), #fff);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+.doc-label {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.doc-actions a {
+  display: inline-block;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+  background: #fff;
+}
+.content {
+  padding: 30px 36px 48px;
+}
+h1, h2, h3, h4 {
+  line-height: 1.2;
+  margin: 1.45em 0 .55em;
+}
+h1 { margin-top: 0; font-size: 34px; }
+h2 {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 24px;
+}
+h3 { font-size: 19px; }
+p { margin: 0 0 14px; }
+a { color: var(--accent); }
+ul, ol { padding-left: 24px; }
+li { margin: 4px 0; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0 22px;
+  font-size: 14px;
+  display: block;
+  overflow-x: auto;
+}
+th, td {
+  border: 1px solid var(--line);
+  padding: 9px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--accent-soft); }
+code {
+  font-family: Consolas, 'Courier New', monospace;
+  background: var(--code-bg);
+  border: 1px solid #dbe4de;
+  border-radius: 5px;
+  padding: 1px 5px;
+  font-size: .92em;
+}
+pre {
+  background: #102018;
+  color: #f2fff5;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+pre code {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  padding: 0;
+}
+blockquote {
+  margin: 16px 0;
+  padding: 10px 16px;
+  border-left: 4px solid var(--accent);
+  background: var(--accent-soft);
+}
+hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0; }
+@media print {
+  body { background: #fff; }
+  .page-shell { max-width: none; padding: 0; }
+  .doc-card { box-shadow: none; border: 0; }
+  .doc-actions { display: none; }
+}
+@media (max-width: 720px) {
+  .content { padding: 22px 18px 34px; }
+  .doc-topbar { padding: 14px 18px; align-items: flex-start; flex-direction: column; }
+  h1 { font-size: 28px; }
+}
+</style>
+</head>
+<body>
+  <main class="page-shell">
+    <article class="doc-card">
+      <header class="doc-topbar">
+        <div>
+          <div class="doc-label">VETCODE Documentation</div>
+          <strong>VETCODE User Guide</strong>
+        </div>
+        <nav class="doc-actions" aria-label="Document actions">
+          <a href="VETCODE_USER_GUIDE.md">Open Markdown Source</a>
+        </nav>
+      </header>
+      <section class="content">
+<h1 id="vetcode-user-guide">VETCODE User Guide</h1>
+<p>Updated: 2026-05-21</p>
+<h2 id="what-vetcode-is">What VETCODE Is</h2>
+<p>VETCODE is the operating workspace for moving candidates through a domain-specific talent workflow. It supports three separate workspaces:</p>
+<table>
+<thead>
+<tr>
+<th>Domain</th>
+<th>Brand</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Technology</td>
+<td>DevReady</td>
+<td>Technology, AI, data, software, product, and platform roles</td>
+</tr>
+<tr>
+<td>Engineering</td>
+<td>BuildReady</td>
+<td>Civil, project, controls, infrastructure, and engineering delivery roles</td>
+</tr>
+<tr>
+<td>Law</td>
+<td>LegalReady</td>
+<td>Legal operations, compliance, contract, regulatory, and law-adjacent roles</td>
+</tr>
+</tbody>
+</table>
+<p>Each domain should be treated as its own workspace. Profiles, resumes, job descriptions, certifications, badges, client records, onboarding, time, and reports should stay inside the active domain.</p>
+<h2 id="core-rule">Core Rule</h2>
+<p>Start with the domain, then keep everything inside that domain.</p>
+<p>Do not use a Technology profile for an Engineering role, do not show Law badges in Technology, and do not start onboarding until the candidate has a completed profile.</p>
+<h2 id="main-web-app">Main Web App</h2>
+<p>Local development URL:</p>
+<p><code>http://127.0.0.1:8000/ui/pages/find-candidate.html</code></p>
+<p>Railway dev URL:</p>
+<p><code>https://vetcode-dev.up.railway.app/ui/pages/find-candidate.html</code></p>
+<p>Mobile URL:</p>
+<p><code>https://vetcode-dev.up.railway.app/ui/mobile.html</code></p>
+<h2 id="navigation-overview">Navigation Overview</h2>
+<p>The left navigation is organized around the hiring workflow:</p>
+<table>
+<thead>
+<tr>
+<th>Navigation Link</th>
+<th>What It Is For</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Talent</td>
+<td>Start point for candidate search, resume upload, job context, and shortlist setup</td>
+</tr>
+<tr>
+<td>Job Descriptions</td>
+<td>Create, upload, edit, save, and select role descriptions for the active domain</td>
+</tr>
+<tr>
+<td>Find Candidates (In)</td>
+<td>Match saved profiles already inside the active domain against a selected job</td>
+</tr>
+<tr>
+<td>Find Candidates (Out)</td>
+<td>Search outside sources, create temporary profiles, and promote selected people</td>
+</tr>
+<tr>
+<td>Profiles</td>
+<td>Review, edit, shortlist, publish, and inspect candidate profile details</td>
+</tr>
+<tr>
+<td>Meet</td>
+<td>Record or manage meeting outputs and move important notes into CRM</td>
+</tr>
+<tr>
+<td>Interviews</td>
+<td>Schedule candidate reviews and client interviews</td>
+</tr>
+<tr>
+<td>Onboarding</td>
+<td>Create onboarding links from completed profiles and monitor paperwork status</td>
+</tr>
+<tr>
+<td>Time</td>
+<td>Review submitted time, approve it, process it, and connect it to accounting</td>
+</tr>
+<tr>
+<td>Status</td>
+<td>Track where candidates are in the workflow</td>
+</tr>
+<tr>
+<td>CRM</td>
+<td>Manage client teams, client contacts, deals, touches, and sales follow-up</td>
+</tr>
+<tr>
+<td>Reports</td>
+<td>Run operational reports across jobs, profiles, time, onboarding, invoices, and status</td>
+</tr>
+<tr>
+<td>Accounting</td>
+<td>Manage resource rates, costs, invoice inputs, and accounting setup</td>
+</tr>
+<tr>
+<td>Invoices</td>
+<td>Build customer invoices from approved billable time</td>
+</tr>
+<tr>
+<td>Certification</td>
+<td>Send AI certification links and track certification handoff</td>
+</tr>
+<tr>
+<td>Test Challenge</td>
+<td>Send or review technical challenge evidence</td>
+</tr>
+<tr>
+<td>View Badges</td>
+<td>View domain-specific badge catalog and badge progression</td>
+</tr>
+<tr>
+<td>Meridian</td>
+<td>Additional workspace link reserved for Meridian features</td>
+</tr>
+<tr>
+<td>Agents</td>
+<td>Configure page-aware helper agents</td>
+</tr>
+<tr>
+<td>Admin</td>
+<td>Manage users, menus, candidate access, and operational settings</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-standard-candidate-workflow">The Standard Candidate Workflow</h2>
+<h3 id="1-select-the-domain">1. Select The Domain</h3>
+<p>Use the domain selector at the top of the page or in the process bar:</p>
+<ul>
+<li>Technology Domain</li>
+<li>Engineer Domain</li>
+<li>Law Domain</li>
+</ul>
+<p>The page colors should change with the domain:</p>
+<ul>
+<li>Technology: green</li>
+<li>Engineering: blue</li>
+<li>Law: brown/gold</li>
+</ul>
+<p>If you switch domains, confirm the page refreshed and the selected job/candidate belongs to that domain.</p>
+<h3 id="2-add-or-choose-a-job-description">2. Add Or Choose A Job Description</h3>
+<p>Go to <code>Job Descriptions</code>.</p>
+<p>You can:</p>
+<ul>
+<li>Paste a job description.</li>
+<li>Upload a PDF, DOCX, TXT, or Markdown job file.</li>
+<li>Normalize and save the job.</li>
+<li>Edit an existing saved job.</li>
+<li>Click <code>Use JD</code> to make a job active for matching.</li>
+</ul>
+<p>Saved job descriptions are grouped by client. On the job card:</p>
+<ul>
+<li><code>Use JD</code> selects it for the matching workflow.</li>
+<li><code>Edit</code> opens it for changes.</li>
+<li><code>View</code> opens the full detail.</li>
+<li><code>Delete</code> removes it.</li>
+</ul>
+<p>If you create a job description, it should automatically become available on Talent, Find Candidates (In), and Find Candidates (Out).</p>
+<h3 id="3-find-candidates-already-in-the-domain">3. Find Candidates Already In The Domain</h3>
+<p>Go to <code>Find Candidates (In)</code>.</p>
+<p>Use this when the candidate should already exist in the system.</p>
+<p>Typical steps:</p>
+<ol>
+<li>Select or confirm the active job description.</li>
+<li>Search profiles or list all profiles.</li>
+<li>Check 2-3 candidate matches.</li>
+<li>Add checked candidates to the shortlist.</li>
+<li>Continue to candidate review or shortlist.</li>
+</ol>
+<p>Use this screen for internal matching and candidate ranking.</p>
+<h3 id="4-find-candidates-outside-the-domain">4. Find Candidates Outside The Domain</h3>
+<p>Go to <code>Find Candidates (Out)</code>.</p>
+<p>Use this when internal profiles are weak or missing.</p>
+<p>This area can search outside sources such as People Data / external search, create temporary profiles, and let you choose which external candidates should become part of the normal shortlist workflow.</p>
+<p>Important:</p>
+<ul>
+<li>Temporary profiles should be reviewed before being made permanent.</li>
+<li>Duplicate emails must be avoided.</li>
+<li>Empty emails should not create permanent profiles that collide with other blank-email records.</li>
+<li>Imported candidates must be tagged to the active domain.</li>
+</ul>
+<h3 id="5-review-the-profile">5. Review The Profile</h3>
+<p>Go to <code>Profiles</code>.</p>
+<p>A candidate profile includes:</p>
+<ul>
+<li>Name, title, location, and image.</li>
+<li>About/summary.</li>
+<li>Skills and skill years.</li>
+<li>Developer or professional personality.</li>
+<li>Cultural / domain experience.</li>
+<li>Portfolio / work history.</li>
+<li>Public profile link.</li>
+<li>Original resume when available.</li>
+</ul>
+<p>Profile buttons:</p>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Load Known Profile</td>
+<td>Load an existing profile by profile id or selection</td>
+</tr>
+<tr>
+<td>View TEMP Profiles</td>
+<td>Review temporary sourced profiles</td>
+</tr>
+<tr>
+<td>Public Profile</td>
+<td>Open the client-safe public profile</td>
+</tr>
+<tr>
+<td>Shortlist</td>
+<td>Add this person to the active shortlist</td>
+</tr>
+<tr>
+<td>Edit Profile</td>
+<td>Edit profile values</td>
+</tr>
+<tr>
+<td>Original Resume</td>
+<td>Open the resume source if available</td>
+</tr>
+</tbody>
+</table>
+<p>If a profile says <code>Profile partially complete</code>, finish the missing pieces before onboarding.</p>
+<h3 id="6-complete-the-candidate-chat-personality-steps">6. Complete The Candidate Chat / Personality Steps</h3>
+<p>Candidate chat collects personality and culture answers.</p>
+<p>The candidate should see a question countdown so they know how many questions remain. If the candidate partially completes the chat, progress should be saved and reflected on the profile.</p>
+<p>The profile is not considered onboarding-ready until:</p>
+<ul>
+<li>Regular profile data exists.</li>
+<li>Personality survey data exists.</li>
+<li>Culture profile data exists.</li>
+</ul>
+<h3 id="7-candidate-review-before-client-shortlist">7. Candidate Review Before Client Shortlist</h3>
+<p>Before sending a candidate to a client shortlist, conduct a candidate review.</p>
+<p>This is not a formal interview. It is a community/member touch base to confirm:</p>
+<ul>
+<li>The candidate understands the job description.</li>
+<li>They are comfortable with the work activities.</li>
+<li>Timing and availability are realistic.</li>
+<li>Any skill gaps are known and can be explained.</li>
+<li>The candidate agrees to be presented.</li>
+</ul>
+<p>The app should help show what the candidate is short on compared with the job description.</p>
+<h3 id="8-shortlist-client-communication">8. Shortlist / Client Communication</h3>
+<p>The shortlist page packages candidates for client communication.</p>
+<p>Recommended order:</p>
+<ol>
+<li>Generate email.</li>
+<li>Attach profiles.</li>
+<li>Send to client.</li>
+</ol>
+<p>Use the client communication step only after candidate review is complete or intentionally skipped.</p>
+<h3 id="9-schedule-interviews">9. Schedule Interviews</h3>
+<p>Go to <code>Interviews</code>.</p>
+<p>There are two interview types:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Required Details</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Candidate Review</td>
+<td>Candidate, candidate interviewer name, interviewer email</td>
+</tr>
+<tr>
+<td>Client Interview</td>
+<td>Candidate, client company, client contact name, client email</td>
+</tr>
+</tbody>
+</table>
+<p>Use the shaded panels to confirm which interview type you are scheduling.</p>
+<p>Calendar integrations:</p>
+<ul>
+<li>Google Calendar</li>
+<li>Outlook Calendar</li>
+<li>Calendly fallback / link workflow</li>
+</ul>
+<p>If OAuth is missing, the app will show a missing configuration message.</p>
+<h3 id="10-start-onboarding">10. Start Onboarding</h3>
+<p>Go to <code>Onboarding</code>.</p>
+<p>Onboarding must derive from a completed profile. Do not manually type in candidate data when a profile should supply it.</p>
+<p>To create an onboarding link:</p>
+<ol>
+<li>Select the completed profile.</li>
+<li>Confirm candidate name, email, role/title, and start date.</li>
+<li>Add HR note if needed.</li>
+<li>Create onboarding link.</li>
+<li>Copy/send the onboarding link to the candidate.</li>
+</ol>
+<p>The onboarding record also creates or exposes a time-entry link.</p>
+<h3 id="11-candidate-time-entry">11. Candidate Time Entry</h3>
+<p>Candidates or consultants submit time through a time-entry link.</p>
+<p>The link should know:</p>
+<ul>
+<li>Candidate / consultant.</li>
+<li>Client.</li>
+<li>Project or role.</li>
+<li>Week starting.</li>
+<li>Hours per day.</li>
+<li>Description per day.</li>
+</ul>
+<p>Free typing should be limited to description fields. Names, customers, roles, rates, and linked entities should come from dropdowns or linked records.</p>
+<h3 id="12-time-admin">12. Time Admin</h3>
+<p>Go to <code>Time</code>.</p>
+<p>Time Admin lets HR or operations:</p>
+<ul>
+<li>See weekly submitted time.</li>
+<li>Filter by week and status.</li>
+<li>See total hours by candidate.</li>
+<li>Review time details.</li>
+<li>Approve time.</li>
+<li>Mark time as processed.</li>
+<li>See processed hours and open hours.</li>
+<li>Link back to profile and client context.</li>
+</ul>
+<p>Statuses:</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Submitted</td>
+<td>Candidate entered time; not approved yet</td>
+</tr>
+<tr>
+<td>Needs review</td>
+<td>Someone must inspect the row before approval</td>
+</tr>
+<tr>
+<td>Approved</td>
+<td>Ready for payroll/invoice processing</td>
+</tr>
+<tr>
+<td>Processed</td>
+<td>Payroll/invoice/accounting action has been completed</td>
+</tr>
+</tbody>
+</table>
+<p>Approved time feeds invoicing.</p>
+<h3 id="13-accounting-and-invoices">13. Accounting And Invoices</h3>
+<p>Accounting is where resource rates and billing information are managed.</p>
+<p>Important concepts:</p>
+<ul>
+<li>A customer must come from CRM.</li>
+<li>A consultant must come from onboarding/resource setup.</li>
+<li>Bill rate and cost rate must be linked to the onboarded resource.</li>
+<li>Invoices are built from approved billable time.</li>
+<li>Invoice customer details come from CRM.</li>
+</ul>
+<p>Invoice workflow:</p>
+<ol>
+<li>Select customer.</li>
+<li>Select invoice period.</li>
+<li>Confirm approved time rows.</li>
+<li>Refresh preview.</li>
+<li>Save invoice.</li>
+<li>Send invoice.</li>
+<li>Track sent, viewed/read, due, overdue, paid, or void status.</li>
+</ol>
+<p>If the page says no approved billable time exists, go to Time and approve time first or go to Accounting and add the consultant bill rate.</p>
+<h3 id="14-crm">14. CRM</h3>
+<p>CRM tracks clients, contacts, deals, and touches.</p>
+<p>Terminology:</p>
+<ul>
+<li>Team card = client/company account.</li>
+<li>Client contact = actual person at that company.</li>
+<li>Deal = opportunity or contract record connected to the client.</li>
+</ul>
+<p>Client contacts should be real people, not generic entities like “Hiring Team.”</p>
+<p>A client contact can include:</p>
+<ul>
+<li>Name.</li>
+<li>Title / job title.</li>
+<li>Relationship role: decision maker, influencer, buyer, finance, technical reviewer, etc.</li>
+<li>Email.</li>
+<li>Phone.</li>
+<li>LinkedIn URL.</li>
+<li>Picture URL.</li>
+<li>Last conversation.</li>
+<li>Notes.</li>
+</ul>
+<p>Use <code>Record Touch</code> for:</p>
+<ul>
+<li>Call.</li>
+<li>Email.</li>
+<li>Meeting.</li>
+<li>LinkedIn.</li>
+<li>Other follow-up.</li>
+</ul>
+<p>CRM news scan checks web/news signals for interesting customer updates.</p>
+<h3 id="15-meet">15. Meet</h3>
+<p>Meet handles meeting recordings, saved outputs, transcripts, PDF outputs, Q&amp;A, and CRM handoff.</p>
+<p>Use it when:</p>
+<ul>
+<li>You recorded a client or candidate meeting.</li>
+<li>You need a summary.</li>
+<li>You want to move notes into CRM.</li>
+<li>You want to ask questions about a saved meeting.</li>
+</ul>
+<p>Saved outputs should be collapsed into drill-down sections so the page stays manageable.</p>
+<h3 id="16-reports">16. Reports</h3>
+<p>Reports provides drill-down reporting across the business.</p>
+<p>Report areas include:</p>
+<ul>
+<li>Job descriptions: active/inactive, totals, stale roles.</li>
+<li>Profiles: totals, completed, assignment status.</li>
+<li>Candidate in/out totals.</li>
+<li>Meetings by day/week and participants.</li>
+<li>Interviews scheduled by client/candidate type.</li>
+<li>Onboarding status.</li>
+<li>Time entry for the week and missing time.</li>
+<li>Accounting and invoices.</li>
+<li>Company status overview.</li>
+</ul>
+<p>Reports should link back into the process, such as:</p>
+<ul>
+<li>Missing time -&gt; open profile, client, or reminder workflow.</li>
+<li>Overdue invoice -&gt; open invoice.</li>
+<li>Stale job -&gt; open job description.</li>
+<li>Incomplete profile -&gt; open profile completion.</li>
+</ul>
+<h3 id="17-certifications-badges-and-test-challenge">17. Certifications, Badges, And Test Challenge</h3>
+<p>Certification and badges are domain-specific.</p>
+<p>The app should not show Technology or Law certification paths when the active domain is Engineering.</p>
+<p>Use:</p>
+<ul>
+<li><code>Certification</code> to create/send candidate certification links.</li>
+<li><code>View Badges</code> to see badge catalog for the current domain.</li>
+<li><code>Test Challenge</code> to manage technical challenge evidence.</li>
+</ul>
+<p>The main internal app should not show the candidate exam itself. Candidates should receive a separate link.</p>
+<h3 id="18-admin">18. Admin</h3>
+<p>Admin is for:</p>
+<ul>
+<li>User access.</li>
+<li>Menu permissions.</li>
+<li>Candidate access search.</li>
+<li>Resend login.</li>
+<li>Block.</li>
+<li>Delete or mark deleted.</li>
+<li>Operational cleanup.</li>
+<li>Local workflow reset.</li>
+<li>Agent controls.</li>
+</ul>
+<p>Admin actions should be used carefully. Deleting and blocking can affect access.</p>
+<h3 id="19-agents">19. Agents</h3>
+<p>Numa is the main page-aware assistant. Numa changes focus based on the page: Talent, Profiles, CRM, Scheduling, Accounting, etc.</p>
+<p>Egeria is the sidebar helper agent entry point.</p>
+<p>Agents should be page-aware and process-aware. Their job is to help the user move a candidate, client, job, invoice, or time record through the system without losing domain context.</p>
+<p>Agents should not expose secrets, perform destructive operations without confirmation, or claim they changed records unless the app confirms it.</p>
+<h3 id="20-mobile-app">20. Mobile App</h3>
+<p>Mobile URL:</p>
+<p><code>/ui/mobile.html</code></p>
+<p>The mobile app is intentionally simple. It is not a replacement for the full web app.</p>
+<p>Mobile supports:</p>
+<ul>
+<li>Select domain.</li>
+<li>Select saved job or starter role.</li>
+<li>Select completed candidate profile.</li>
+<li>Create onboarding link.</li>
+<li>Copy onboarding link.</li>
+<li>Copy time-entry link.</li>
+<li>View recent onboarding records.</li>
+</ul>
+<p>Use the full app for:</p>
+<ul>
+<li>Uploading resumes.</li>
+<li>Creating detailed job descriptions.</li>
+<li>CRM.</li>
+<li>Reports.</li>
+<li>Accounting.</li>
+<li>Invoices.</li>
+<li>Certification management.</li>
+<li>Admin.</li>
+</ul>
+<h2 id="common-tasks">Common Tasks</h2>
+<h3 id="create-a-candidate-from-a-resume">Create A Candidate From A Resume</h3>
+<ol>
+<li>Go to Talent.</li>
+<li>Select the correct domain.</li>
+<li>Upload the resume.</li>
+<li>Wait for profile generation.</li>
+<li>Open the profile.</li>
+<li>Confirm work history and portfolio rows.</li>
+<li>Complete personality/culture if missing.</li>
+<li>Shortlist or continue matching.</li>
+</ol>
+<h3 id="create-a-job-and-match-candidates">Create A Job And Match Candidates</h3>
+<ol>
+<li>Go to Job Descriptions.</li>
+<li>Paste or upload the job.</li>
+<li>Normalize and save.</li>
+<li>Click <code>Use JD</code>.</li>
+<li>Go to Find Candidates (In).</li>
+<li>Search/list profiles.</li>
+<li>Add best candidates to shortlist.</li>
+<li>Review candidate gaps.</li>
+<li>Conduct candidate review.</li>
+<li>Send client shortlist.</li>
+</ol>
+<h3 id="start-onboarding">Start Onboarding</h3>
+<ol>
+<li>Open Onboarding.</li>
+<li>Select completed profile.</li>
+<li>Confirm start date.</li>
+<li>Create onboarding link.</li>
+<li>Send candidate link.</li>
+<li>Confirm record appears in onboarding list.</li>
+<li>Confirm time-entry link exists.</li>
+</ol>
+<h3 id="approve-time-and-invoice-a-customer">Approve Time And Invoice A Customer</h3>
+<ol>
+<li>Open Time.</li>
+<li>Filter the week.</li>
+<li>Review submitted rows.</li>
+<li>Approve rows.</li>
+<li>Open Accounting and confirm resource rates.</li>
+<li>Open Invoices.</li>
+<li>Select CRM customer and period.</li>
+<li>Select approved time rows.</li>
+<li>Save invoice.</li>
+<li>Send invoice.</li>
+<li>Track status.</li>
+</ol>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="candidate-does-not-appear-in-search">Candidate Does Not Appear In Search</h3>
+<p>Check:</p>
+<ul>
+<li>Correct domain selected.</li>
+<li>Profile exists in that domain.</li>
+<li>Profile has an email/name.</li>
+<li>Search limit is not too low.</li>
+<li>Candidate is not only a temporary profile.</li>
+</ul>
+<h3 id="job-does-not-appear-in-matching">Job Does Not Appear In Matching</h3>
+<p>Check:</p>
+<ul>
+<li>Job was saved.</li>
+<li>Job domain matches current domain.</li>
+<li><code>Use JD</code> was clicked.</li>
+<li>Page was refreshed after domain switch.</li>
+</ul>
+<h3 id="onboarding-button-is-blocked">Onboarding Button Is Blocked</h3>
+<p>The profile is probably incomplete. Complete:</p>
+<ul>
+<li>Regular profile.</li>
+<li>Personality survey.</li>
+<li>Culture profile.</li>
+</ul>
+<h3 id="invoice-says-no-billable-time">Invoice Says No Billable Time</h3>
+<p>Check:</p>
+<ul>
+<li>Time was submitted.</li>
+<li>Time was approved.</li>
+<li>Resource has bill rate.</li>
+<li>Customer is selected from CRM.</li>
+<li>Invoice period includes approved time rows.</li>
+</ul>
+<h3 id="calendar-says-oauth-is-missing">Calendar Says OAuth Is Missing</h3>
+<p>The local or Railway environment is missing Google or Outlook OAuth variables. Contact the technical owner.</p>
+<h3 id="domain-colors-or-data-look-wrong">Domain Colors Or Data Look Wrong</h3>
+<p>Refresh the page and confirm the domain dropdown. If it still shows wrong data, clear local workflow state from Admin or start a fresh browser tab with <code>?domain=dev</code>, <code>?domain=engineer</code>, or <code>?domain=law</code>.</p>
+<h2 id="glossary">Glossary</h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Domain</td>
+<td>One workspace: Technology, Engineering, or Law</td>
+</tr>
+<tr>
+<td>Profile</td>
+<td>Candidate record with resume, skills, culture, personality, portfolio</td>
+</tr>
+<tr>
+<td>JD</td>
+<td>Job description</td>
+</tr>
+<tr>
+<td>Shortlist</td>
+<td>Candidate list being prepared for client review</td>
+</tr>
+<tr>
+<td>Candidate Review</td>
+<td>Internal/community touch base before client presentation</td>
+</tr>
+<tr>
+<td>Client Interview</td>
+<td>Interview with client contact</td>
+</tr>
+<tr>
+<td>Onboarding</td>
+<td>HR paperwork and start process after hire decision</td>
+</tr>
+<tr>
+<td>Time Entry</td>
+<td>Weekly consultant hours submitted through candidate/staff link</td>
+</tr>
+<tr>
+<td>Processed Time</td>
+<td>Time that has been handled by HR/payroll/invoice process</td>
+</tr>
+<tr>
+<td>Team Card</td>
+<td>CRM client/company card</td>
+</tr>
+<tr>
+<td>Client Contact</td>
+<td>Real person at the client company</td>
+</tr>
+<tr>
+<td>Numa</td>
+<td>Main page-aware app assistant</td>
+</tr>
+<tr>
+<td>Egeria</td>
+<td>Sidebar helper agent entry point</td>
+</tr>
+</tbody>
+</table>
+      </section>
+    </article>
+  </main>
+</body>
+</html>

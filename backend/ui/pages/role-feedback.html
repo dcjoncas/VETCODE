@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady Role Feedback</title>
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const domain = params.get("domain") || "dev";
+        const clean = domain === "technology" ? "dev" : (["dev", "engineer", "law"].includes(domain) ? domain : "dev");
+        document.documentElement.dataset.domain = clean;
+        document.getElementById("domainCss").href = `../assets/${clean}Styles.css`;
+      })();
+    </script>
+    <style>
+      body {
+        min-height: 100vh;
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb, 47, 125, 75), 0.12), rgba(255, 255, 255, 0.76)),
+          #f6f9f7;
+      }
+
+      .feedback-shell {
+        width: min(860px, calc(100% - 28px));
+        margin: 34px auto;
+      }
+
+      .feedback-card {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 18px 50px rgba(16, 32, 24, 0.12);
+        overflow: hidden;
+      }
+
+      .feedback-head {
+        padding: 22px;
+        background: linear-gradient(135deg, rgba(var(--primary-rgb, 47, 125, 75), 0.14), rgba(var(--primary-rgb, 47, 125, 75), 0.04));
+        border-bottom: 1px solid var(--line);
+      }
+
+      .feedback-head h1 {
+        margin: 0;
+        font-size: clamp(24px, 4vw, 34px);
+      }
+
+      .feedback-head p {
+        margin: 8px 0 0;
+        color: var(--muted);
+      }
+
+      .feedback-body {
+        padding: 22px;
+        display: grid;
+        gap: 16px;
+      }
+
+      .role-summary {
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.18);
+        border-radius: 12px;
+        padding: 14px;
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.05);
+      }
+
+      .role-summary h2 {
+        margin: 0 0 8px;
+      }
+
+      .feedback-form {
+        display: grid;
+        gap: 12px;
+      }
+
+      .feedback-form label {
+        display: grid;
+        gap: 6px;
+        font-weight: 850;
+      }
+
+      .feedback-form textarea {
+        min-height: 110px;
+        resize: vertical;
+      }
+
+      .feedback-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .feedback-message {
+        border: 1px dashed rgba(var(--primary-rgb, 47, 125, 75), 0.34);
+        border-radius: 12px;
+        padding: 12px;
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.06);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="feedback-shell">
+      <section class="feedback-card">
+        <div class="feedback-head">
+          <h1>Role Feedback</h1>
+          <p id="candidateLine">Loading role details...</p>
+        </div>
+        <div class="feedback-body">
+          <div id="roleSummary" class="role-summary">
+            <h2 id="roleTitle">Role</h2>
+            <p id="roleDescription">Loading...</p>
+          </div>
+
+          <form id="feedbackForm" class="feedback-form">
+            <label>
+              Interest level
+              <select id="interest" required>
+                <option value="" selected disabled>Select interest level</option>
+                <option>Very interested</option>
+                <option>Interested, need more detail</option>
+                <option>Possible fit</option>
+                <option>Not interested right now</option>
+              </select>
+            </label>
+            <label>
+              Thoughts on the role
+              <textarea id="thoughts" placeholder="What looks interesting, unclear, or not aligned?"></textarea>
+            </label>
+            <label>
+              Relevant skills or experience
+              <textarea id="skills" placeholder="Mention skills, projects, tools, domains, or past work that may be relevant."></textarea>
+            </label>
+            <label>
+              Timing / availability
+              <select id="availability">
+                <option value="">Select timing if known</option>
+                <option>Available now</option>
+                <option>Available in 1-2 weeks</option>
+                <option>Available in 3-4 weeks</option>
+                <option>Need to discuss timing</option>
+                <option>Not available right now</option>
+              </select>
+            </label>
+            <label>
+              Questions for DevReady
+              <textarea id="questions" placeholder="Any questions about the client, role, rate, schedule, expectations, or next steps?"></textarea>
+            </label>
+            <div class="feedback-actions">
+              <button id="submitBtn" class="btn" type="submit">Submit feedback</button>
+            </div>
+            <div id="feedbackMessage" class="feedback-message">Your response will be saved privately to your DevReady profile notes.</div>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const API_BASE = window.location.origin;
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get("token") || "";
+
+      async function api(path, opts = {}) {
+        const response = await fetch(`${API_BASE}${path}`, opts);
+        const text = await response.text();
+        if (!response.ok) throw new Error(text || `HTTP ${response.status}`);
+        try {
+          return JSON.parse(text);
+        } catch {
+          return text;
+        }
+      }
+
+      function escapeHtml(value) {
+        return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+      }
+
+      function setMessage(message) {
+        document.getElementById("feedbackMessage").textContent = message;
+      }
+
+      async function loadLink() {
+        if (!token) {
+          setMessage("This role feedback link is missing its token.");
+          document.getElementById("submitBtn").disabled = true;
+          return;
+        }
+        try {
+          const data = await api(`/api/profile/role-feedback/${encodeURIComponent(token)}`);
+          const link = data.link || {};
+          const domain = link.domain || "dev";
+          document.documentElement.dataset.domain = domain;
+          document.getElementById("domainCss").href = `../assets/${domain}Styles.css`;
+          document.getElementById("candidateLine").textContent = link.candidate_name
+            ? `Hi ${link.candidate_name}, please share your private thoughts for DevReady.`
+            : "Please share your private thoughts for DevReady.";
+          document.getElementById("roleTitle").textContent = link.role_title || "Role";
+          document.getElementById("roleDescription").innerHTML = escapeHtml(link.role_description || "No role description was provided.").replace(/\n/g, "<br />");
+          if (link.status === "submitted") {
+            setMessage("Feedback has already been submitted for this link. You can submit again only if DevReady creates a fresh link.");
+            document.getElementById("submitBtn").disabled = true;
+          }
+        } catch (error) {
+          setMessage(error.message || "Could not load this role feedback link.");
+          document.getElementById("submitBtn").disabled = true;
+        }
+      }
+
+      document.getElementById("feedbackForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const button = document.getElementById("submitBtn");
+        button.disabled = true;
+        setMessage("Submitting feedback...");
+        const form = new URLSearchParams();
+        form.append("interest", document.getElementById("interest").value);
+        form.append("thoughts", document.getElementById("thoughts").value);
+        form.append("skills", document.getElementById("skills").value);
+        form.append("availability", document.getElementById("availability").value);
+        form.append("questions", document.getElementById("questions").value);
+        try {
+          await api(`/api/profile/role-feedback/${encodeURIComponent(token)}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: form.toString(),
+          });
+          setMessage("Thank you. Your feedback was submitted privately to DevReady.");
+        } catch (error) {
+          button.disabled = false;
+          setMessage(error.message || "Could not submit feedback.");
+        }
+      });
+
+      loadLink();
+    </script>
+  </body>
+</html>

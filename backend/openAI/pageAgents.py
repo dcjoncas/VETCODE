@@ -7,6 +7,16 @@ from openAI.client import getOpenAPIClient
 
 
 AGENTS = {
+    "egeria": {
+        "name": "Egeria",
+        "page": "FastBoard Process Flow",
+        "color": "#b88727",
+        "prompt": """You are Egeria, the guided process-flow agent for VETCODE.
+You are more directive than Numa: your job is to move a user through a complete candidate-finding workflow while preserving domain, job, candidate, shortlist, schedule, and status context.
+For FastBoard, guide the flow in this order: ask for the job need, draft a complete domain-specific JD, require approval, create the JD, rank candidates, require approval of the candidate, add the candidate to shortlist, prepare candidate review scheduling, and seed status.
+You may prepare controlled app actions when the workflow clearly needs saved data. You must make every persisted step explicit, reversible where possible, and safe to resume if the browser or network breaks halfway through.
+Always keep Technology, Engineering, and Law data separate. Never invent candidate facts, never make hiring promises, and never skip an approval checkpoint before saving or moving a candidate.""",
+    },
     "talent": {
         "name": "Numa",
         "page": "Talent",
@@ -225,22 +235,23 @@ def _numa_policy(context: dict[str, Any]) -> dict[str, Any]:
 
 
 def _policy_text(agent_key: str, context: dict[str, Any]) -> str:
+    agent_name = "Egeria" if (agent_key or "").strip().lower() == "egeria" else "Numa"
     policy = _numa_policy(context)
     restricted = not policy["can_view_sensitive"]
     change_restricted = not policy["can_request_changes"]
     rules = [
-        "Numa safety policy:",
-        "Numa must not harm code, write code changes, delete data, overwrite names, or perform database mutations by itself.",
-        "Numa's default job is to guide, correct, look for errors, explain next steps, and recommend safe user actions.",
-        "Numa must not reveal private financial or business details such as money, deal value, revenue, bill rates, salary, compensation, margins, contract value, or sensitive CRM deal details unless the user is an active super user or Administrator has unlocked admin access.",
-        "If the user asks Numa to make changes, Numa may only describe the exact change and ask the user to use the app controls unless change-enabled mode is present.",
+        f"{agent_name} safety policy:",
+        f"{agent_name} must not harm code, write code changes, delete data, overwrite names, or perform database mutations by itself.",
+        f"{agent_name}'s default job is to guide, correct, look for errors, explain next steps, and recommend safe user actions.",
+        f"{agent_name} must not reveal private financial or business details such as money, deal value, revenue, bill rates, salary, compensation, margins, contract value, or sensitive CRM deal details unless the user is an active super user or Administrator has unlocked admin access.",
+        f"If the user asks {agent_name} to make changes, {agent_name} may only describe the exact change and ask the user to use the app controls unless change-enabled mode is present.",
     ]
     if restricted:
         rules.append("Current access is guide-only: redact money, deal, salary, compensation, revenue, and contract values. Discuss priorities using non-sensitive labels like urgency, risk, relationship health, missing follow-up, and next action.")
     else:
         rules.append("Current access can view sensitive operational details, but still avoid exposing secrets and only use data provided in context or the app.")
     if change_restricted:
-        rules.append("Current access cannot authorize Numa changes. Do not claim any app record, database field, profile name, code, salary, or deal data was changed.")
+        rules.append(f"Current access cannot authorize {agent_name} changes. Do not claim any app record, database field, profile name, code, salary, or deal data was changed.")
     else:
         rules.append("Current access is change-enabled for super/admin users. Still propose and confirm changes before saying they are applied.")
     if agent_key == "crm":
@@ -421,7 +432,7 @@ Return strict JSON:
       "type": "create_profile" | "update_profile_core" | "schedule_interview_setup" | "create_job_description",
       "label": "short button label",
       "summary": "one sentence explaining the exact change",
-      "missing_fields": ["field name Numa still needs from the user"],
+        "missing_fields": ["field name the agent still needs from the user"],
       "payload": {
         "profile_id": "existing profile id for updates only",
         "full_name": "candidate full name for create",
@@ -460,7 +471,7 @@ Return strict JSON:
     }
   ]
 }
-Only propose an action when the user clearly asks Numa to create, save, add, update, schedule, book, or set up app workflow information.
+Only propose an action when the user clearly asks the active VETCODE agent to create, save, add, update, schedule, book, or set up app workflow information.
 Use create_profile for a brand new candidate profile.
 Use update_profile_core when the page/context has an existing candidate/profile id and the user is adding or changing profile facts.
 Use schedule_interview_setup when the user asks to set up, schedule, book, draft, or send an interview from the Interviews page or scheduling context.
@@ -471,7 +482,7 @@ For client interviews, client_company, client_contact_name, and client_contact_e
 Do not propose create_profile or update_profile_core unless can_request_changes is true in the safety policy.
 Use create_job_description when the user asks to create, draft, save, add, or add to system a job description. If the user says "the JD I just asked for" or similar, use the recent chat history in context to recover the prior drafted JD.
 For create_job_description, include company, job_title, and a complete jd_text. If the original request is short, expand it into a professional JD without inventing confidential facts.
-On the Job Descriptions page, you may propose create_job_description to load a draft into the page form even when change mode is off. The app will only save the JD to the database when change mode is authorized.
+On the Job Descriptions page or Egeria FastBoard workflow, you may propose create_job_description to load a draft into the page form even when change mode is off. The app will only save the JD to the database when the user confirms the FastBoard step or change mode is authorized.
 Outside the Job Descriptions page, do not propose create_job_description unless can_request_changes is true in the safety policy.
 Do not propose actions for questions, analysis, ranking, salary, deal value, code changes, deletes, or uncertain instructions.
 Keep profile descriptions factual. Do not invent facts beyond the user's message or current app context.
@@ -501,7 +512,9 @@ Keep profile descriptions factual. Do not invent facts beyond the user's message
             ((context.get("pageSnapshot") or {}).get("pageFile") if isinstance(context.get("pageSnapshot"), dict) else "")
             or ""
         )
-        local_jd_draft = action_type == "create_job_description" and page_file == "job-descriptions"
+        page_snapshot = context.get("pageSnapshot") if isinstance(context.get("pageSnapshot"), dict) else {}
+        egeria_quick_hit = (agent_key or "").strip().lower() == "egeria" and bool(page_snapshot.get("quickHit"))
+        local_jd_draft = action_type == "create_job_description" and (page_file == "job-descriptions" or egeria_quick_hit)
         if action_type in {"create_profile", "update_profile_core", "create_job_description"} and not _numa_policy(context)["can_request_changes"] and not local_jd_draft:
             continue
         if action_type not in {"create_profile", "update_profile_core", "schedule_interview_setup", "create_job_description"}:
@@ -577,7 +590,7 @@ def ask_page_agent(agent_key: str, message: str, context: dict[str, Any] | None 
                     "content": (
                         "You are inside VETCODE. Other page agents exist and can be referenced by specialty. "
                         "Give direct, app-specific guidance. If the user asks to create, save, add, or update app data, "
-                        "explain that Numa can prepare a controlled action for confirmation when Admin Updates is on. "
+                        "explain that the active agent can prepare a controlled action for confirmation when Admin Updates is on or when a guided Egeria workflow reaches an approval checkpoint. "
                         "Use recentChat to understand references like 'the one above', 'that JD', or 'what I just asked for'. "
                         "Never claim a record was changed until an action result confirms it."
                     ),

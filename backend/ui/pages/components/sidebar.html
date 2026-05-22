@@ -13,24 +13,6 @@
     </div>
   </a>
 
-  <div class="userbox">
-    <div style="font-size: 12px; opacity: 0.9">Welcome back,</div>
-    <div id="sidebarUserName" class="name">DevReady User</div>
-    <div
-      id="environmentNotice"
-      class="workspace-status-link"
-      style="
-        margin-top: 8px;
-        padding: 0;
-        background: transparent;
-        color: #fff;
-        font-size: 12px;
-        line-height: 1.2;
-      "
-    >
-      Loading workspace status...
-    </div>
-  </div>
   <div id="pageNav"></div>
 
   <div class="footer">
@@ -440,6 +422,46 @@
   window.devReadyAlert = showDevReadyModal;
   window.alert = (message) => showDevReadyModal("DevReady", message);
 
+  window.DevReadyProcessFlow = window.DevReadyProcessFlow || {};
+  window.DevReadyProcessFlow.activateScripts = function activateProcessFlowScripts(root) {
+    const host = root || document.getElementById("processFlow");
+    if (!host || host.dataset.scriptsActivated === "1") return;
+    host.dataset.scriptsActivated = "1";
+    host.querySelectorAll("script").forEach((oldScript) => {
+      const inlineCode = oldScript.text || oldScript.textContent || oldScript.innerHTML || "";
+      if (!oldScript.src && inlineCode.trim()) {
+        (0, eval)(inlineCode);
+        return;
+      }
+      const script = document.createElement("script");
+      Array.from(oldScript.attributes || []).forEach((attr) => {
+        script.setAttribute(attr.name, attr.value);
+      });
+      script.text = inlineCode;
+      document.body.appendChild(script);
+      if (!script.src) script.remove();
+    });
+  };
+  window.DevReadyProcessFlow.openQuickHit = async function openEgeriaQuickHit() {
+    const host = document.getElementById("processFlow");
+    if (!host) {
+      alert("FastBoard is available from workflow pages that show the Process Flow.");
+      return;
+    }
+    if (typeof window.startQuickHitFlow !== "function") {
+      if (!host.innerHTML.trim()) {
+        const response = await fetch("components/processFlow.html");
+        host.innerHTML = await response.text();
+      }
+      window.DevReadyProcessFlow.activateScripts(host);
+    }
+    if (typeof window.startQuickHitFlow === "function") {
+      window.startQuickHitFlow();
+    } else {
+      alert("Egeria could not open FastBoard on this page. Refresh and try again.");
+    }
+  };
+
   $(function () {
     applyLoggedInUser();
     const params = new URLSearchParams(window.location.search);
@@ -455,7 +477,7 @@
     domainUpdate(activeDomain);
     initPageAgentDock();
     loadPageAgentRuntime(renderActivePageAgent);
-    $("#pageNav").load("components/sideNav.html?v=20260520-ops-menu", function () {
+    $("#pageNav").load("components/sideNav.html?v=20260521-meridian-compact", function () {
       applyMenuAccess();
       applyDomainToLocalLinks(sessionStorage.getItem("domain") || "dev");
     });
@@ -478,10 +500,10 @@
       window.location.href = "/ui/index.html";
       return;
     }
-    const name = document.getElementById("sidebarUserName");
-    if (name && user) {
-      name.textContent = user.display_name || user.username || user.email || "DevReady User";
-    }
+    const displayName = user.display_name || user.username || user.email || "DevReady User";
+    document.querySelectorAll("#sidebarUserName, #headerUserName").forEach((name) => {
+      name.textContent = displayName;
+    });
   }
 
   function applyMenuAccess() {
@@ -930,7 +952,10 @@
 
   async function environmentUpdate() {
     const host = window.location.host;
-    const notice = document.getElementById("environmentNotice");
+    const notices = [
+      document.getElementById("environmentNotice"),
+      document.getElementById("headerEnvironmentNotice"),
+    ].filter(Boolean);
     const domain = sessionStorage.getItem("domain") || document.getElementById("domainSelect")?.value || "dev";
     const domainName =
       domain === "law"
@@ -994,14 +1019,17 @@
       "Workspace status",
       ...statusRows.map((row) => `${row.label}: ${row.value}`),
     ].join("\n");
-    notice.innerHTML = `<button class="workspace-status-button" type="button">Workspace status</button>`;
-    const button = notice.querySelector("button");
-    button.dataset.hint = statusText;
-    button.setAttribute("aria-label", statusText);
-    button.onclick = () => showDevReadyModal("Workspace Status", statusRows);
-    if (typeof applyButtonHints === "function") applyButtonHints(notice);
+    notices.forEach((notice) => {
+      notice.innerHTML = `<button class="workspace-status-button" type="button">Workspace status</button>`;
+      const button = notice.querySelector("button");
+      button.dataset.hint = statusText;
+      button.setAttribute("aria-label", statusText);
+      button.onclick = () => showDevReadyModal("Workspace Status", statusRows);
+      if (typeof applyButtonHints === "function") applyButtonHints(notice);
+    });
   }
 
+  window.environmentUpdate = environmentUpdate;
   setInterval(environmentUpdate, 60000);
 
   function loadPageAgentRuntime(callback) {

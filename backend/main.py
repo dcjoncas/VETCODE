@@ -208,6 +208,7 @@ EXPORT_DIR = "exports"
 DATA_DIR = "data"
 DEMO_FIXTURE_DIR = os.path.join(os.path.dirname(BASE_DIR), "data", "demo_lifecycle_fixtures")
 PROFILE_BADGES_PATH = os.path.join(DATA_DIR, "profile_badges.json")
+PROFILE_NOTES_PATH = os.path.join(DATA_DIR, "profile_notes.json")
 ONBOARDING_RECORDS_PATH = os.path.join(DATA_DIR, "onboarding_records.json")
 TIME_ENTRIES_PATH = os.path.join(DATA_DIR, "time_entries.json")
 ACCOUNTING_RECORDS_PATH = os.path.join(DATA_DIR, "accounting_records.json")
@@ -493,6 +494,43 @@ def _now_utc() -> str:
 
 def _safe_token(prefix: str = "ONB") -> str:
     return new_id(prefix).replace(" ", "").replace("/", "-")
+
+
+def _read_profile_notes_store() -> dict:
+    data = _read_json_store(PROFILE_NOTES_PATH, {"profiles": {}, "links": {}})
+    data.setdefault("profiles", {})
+    data.setdefault("links", {})
+    return data
+
+
+def _write_profile_notes_store(data: dict) -> None:
+    data.setdefault("profiles", {})
+    data.setdefault("links", {})
+    _write_json_store(PROFILE_NOTES_PATH, data)
+
+
+def _profile_notes_key(profile_id: str, domain: str = "dev") -> str:
+    return f"{_domain_key(domain)}:{str(profile_id or '').strip()}"
+
+
+def _trim_note_text(value: str, limit: int = 5000) -> str:
+    return re.sub(r"\s+\n", "\n", str(value or "").strip())[:limit]
+
+
+def _profile_notes_record(data: dict, profile_id: str, domain: str = "dev") -> dict:
+    key = _profile_notes_key(profile_id, domain)
+    record = data.setdefault("profiles", {}).setdefault(
+        key,
+        {
+            "profile_id": str(profile_id or "").strip(),
+            "domain": _domain_key(domain),
+            "notes": [],
+        },
+    )
+    record["profile_id"] = str(profile_id or "").strip()
+    record["domain"] = _domain_key(domain)
+    record.setdefault("notes", [])
+    return record
 
 
 def _normalize_user_key(value: str) -> str:
@@ -1732,6 +1770,143 @@ def profile_page_search(domain: str = Form(default="technology"), search_string:
         start = max(0, currentPage) * pageLimit
         return rows[start:start + pageLimit]
     return storage.search_profiles_full(_domain_db_path(domain), domain=_storage_domain(domain), search_string=search_string, currentPage=currentPage, pageLimit=pageLimit)
+
+
+@app.get("/api/profile/{profile_id}/notes")
+def profile_notes(profile_id: str, domain: str = "dev"):
+    data = _read_profile_notes_store()
+    record = _profile_notes_record(data, profile_id, domain)
+    notes = sorted(record.get("notes", []), key=lambda item: item.get("created_at", ""), reverse=True)
+    return {
+        "profile_id": str(profile_id),
+        "domain": _domain_key(domain),
+        "notes": notes,
+        "links": [
+            link
+            for link in data.get("links", {}).values()
+            if str(link.get("profile_id")) == str(profile_id) and _domain_key(link.get("domain")) == _domain_key(domain)
+        ],
+    }
+
+
+@app.post("/api/profile/{profile_id}/notes")
+def profile_notes_add(
+    profile_id: str,
+    domain: str = Form(default="dev"),
+    note: str = Form(default=""),
+    role_title: str = Form(default=""),
+    author: str = Form(default="DevReady"),
+):
+    clean_note = _trim_note_text(note)
+    if not clean_note:
+        raise HTTPException(status_code=400, detail="Add a note before saving.")
+    data = _read_profile_notes_store()
+    record = _profile_notes_record(data, profile_id, domain)
+    item = {
+        "id": _safe_token("NOTE"),
+        "kind": "internal_note",
+        "created_at": _now_utc(),
+        "author": _trim_note_text(author, 160) or "DevReady",
+        "role_title": _trim_note_text(role_title, 240),
+        "note": clean_note,
+        "private": True,
+    }
+    record["notes"].append(item)
+    _write_profile_notes_store(data)
+    return {"ok": True, "note": item}
+
+
+@app.post("/api/profile/{profile_id}/role-feedback-link")
+def profile_role_feedback_link(
+    request: Request,
+    profile_id: str,
+    domain: str = Form(default="dev"),
+    candidate_name: str = Form(default=""),
+    candidate_email: str = Form(default=""),
+    role_title: str = Form(default=""),
+    role_description: str = Form(default=""),
+):
+    if not _trim_note_text(role_title, 240):
+        raise HTTPException(status_code=400, detail="Add a role title before creating the link.")
+    token = _safe_token("ROLE")
+    data = _read_profile_notes_store()
+    link = {
+        "token": token,
+        "profile_id": str(profile_id),
+        "domain": _domain_key(domain),
+        "candidate_name": _trim_note_text(candidate_name, 240),
+        "candidate_email": _trim_note_text(candidate_email, 320),
+        "role_title": _trim_note_text(role_title, 240),
+        "role_description": _trim_note_text(role_description, 7000),
+        "status": "open",
+        "created_at": _now_utc(),
+        "submitted_at": "",
+    }
+    data.setdefault("links", {})[token] = link
+    _profile_notes_record(data, profile_id, domain)
+    _write_profile_notes_store(data)
+    base_url = str(request.base_url).rstrip("/")
+    return {
+        "ok": True,
+        "token": token,
+        "link": link,
+        "url": f"{base_url}/ui/pages/role-feedback.html?token={quote_plus(token)}",
+    }
+
+
+@app.get("/api/profile/role-feedback/{token}")
+def profile_role_feedback_get(token: str):
+    data = _read_profile_notes_store()
+    link = data.get("links", {}).get(token)
+    if not link:
+        raise HTTPException(status_code=404, detail="Role feedback link not found.")
+    return {"ok": True, "link": link}
+
+
+@app.post("/api/profile/role-feedback/{token}")
+def profile_role_feedback_submit(
+    token: str,
+    interest: str = Form(default=""),
+    thoughts: str = Form(default=""),
+    skills: str = Form(default=""),
+    availability: str = Form(default=""),
+    questions: str = Form(default=""),
+):
+    data = _read_profile_notes_store()
+    link = data.get("links", {}).get(token)
+    if not link:
+        raise HTTPException(status_code=404, detail="Role feedback link not found.")
+    if link.get("status") == "closed":
+        raise HTTPException(status_code=400, detail="This feedback link is closed.")
+    profile_id = str(link.get("profile_id") or "")
+    domain = _domain_key(link.get("domain") or "dev")
+    note_text = _trim_note_text(thoughts)
+    if not any([interest, note_text, skills, availability, questions]):
+        raise HTTPException(status_code=400, detail="Add at least one response before submitting.")
+
+    record = _profile_notes_record(data, profile_id, domain)
+    item = {
+        "id": _safe_token("NOTE"),
+        "kind": "candidate_role_feedback",
+        "created_at": _now_utc(),
+        "author": link.get("candidate_name") or "Candidate",
+        "role_title": link.get("role_title") or "",
+        "note": note_text,
+        "interest": _trim_note_text(interest, 80),
+        "skills": _trim_note_text(skills, 3000),
+        "availability": _trim_note_text(availability, 1000),
+        "questions": _trim_note_text(questions, 2000),
+        "source": "candidate_role_feedback_link",
+        "token": token,
+        "private": True,
+    }
+    record["notes"].append(item)
+    link["status"] = "submitted"
+    link["submitted_at"] = item["created_at"]
+    link["note_id"] = item["id"]
+    _write_profile_notes_store(data)
+    return {"ok": True, "message": "Feedback submitted. Thank you.", "note_id": item["id"]}
+
 
 @app.get("/api/profile/{profile_id}")
 def profile_get(profile_id: str, domain: str = ""):

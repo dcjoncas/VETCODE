@@ -1,6 +1,16 @@
 (function () {
   const agents = [
     {
+      key: "egeria",
+      name: "Egeria",
+      page: "FastBoard Process Flow",
+      href: "find-candidate.html",
+      color: "#b88727",
+      specialty: "Guided end-to-end process flow, checkpoint approvals, recovery, and rollback.",
+      canDo: ["Draft and confirm job descriptions", "Create a JD after approval", "Rank, shortlist, schedule, and seed status with rollback state"],
+      prompt: "Owns guided process runs that move a user from job need to candidate selection and scheduling while preserving domain context and recoverability.",
+    },
+    {
       key: "talent",
       name: "Numa",
       page: "Talent",
@@ -330,6 +340,7 @@
   }
 
   const agentIcons = {
+    egeria: '<path d="M12 3 4 7v6c0 4.5 3.2 7.6 8 9 4.8-1.4 8-4.5 8-9V7l-8-4Z"></path><path d="M8 12h8"></path><path d="M12 8v8"></path><circle cx="12" cy="12" r="2"></circle>',
     talent: '<path d="M4 20v-1a4 4 0 0 1 4-4h3"></path><circle cx="9" cy="8" r="4"></circle><path d="M15 12h5"></path><path d="M17.5 9.5v5"></path>',
     match: '<path d="M8 7h12"></path><path d="M8 12h12"></path><path d="M8 17h12"></path><path d="m3 7 1 1 2-2"></path><path d="m3 12 1 1 2-2"></path><path d="m3 17 1 1 2-2"></path>',
     external: '<circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path><path d="M11 8v6"></path><path d="M8 11h6"></path>',

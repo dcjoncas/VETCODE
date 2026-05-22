@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VETCODE AI System Reference</title>
+    <style>
+      :root {
+        --bg: #f3f7f5;
+        --paper: #ffffff;
+        --ink: #102018;
+        --muted: #5e6c64;
+        --line: #d9e6df;
+        --green: #2f7d4b;
+        --blue: #145db2;
+        --gold: #b88727;
+        --red: #b42318;
+        --code: #edf4f0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: Arial, Helvetica, sans-serif;
+        line-height: 1.5;
+      }
+
+      .shell {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 28px 18px 72px;
+      }
+
+      .hero {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 30px;
+        background: linear-gradient(135deg, #ffffff, #eef8f0 55%, #edf3ff);
+        box-shadow: 0 18px 48px rgba(16, 32, 24, 0.08);
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        line-height: 1.15;
+      }
+
+      h1 {
+        font-size: 36px;
+      }
+
+      h2 {
+        margin-top: 30px;
+        padding-top: 18px;
+        border-top: 1px solid var(--line);
+        font-size: 24px;
+      }
+
+      h3 {
+        font-size: 17px;
+      }
+
+      p {
+        margin: 8px 0 0;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .toc {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 8px;
+        margin-top: 20px;
+      }
+
+      .toc a {
+        display: block;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 9px 12px;
+        background: #fff;
+        color: var(--green);
+        font-size: 13px;
+        font-weight: 800;
+        text-decoration: none;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+        gap: 14px;
+      }
+
+      .card {
+        margin-top: 14px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px;
+        background: var(--paper);
+        box-shadow: 0 10px 26px rgba(16, 32, 24, 0.05);
+      }
+
+      .agent-card {
+        border-left: 6px solid var(--green);
+      }
+
+      .agent-card.egeria {
+        border-left-color: var(--gold);
+        background: linear-gradient(135deg, #fff, #fff9e9 55%, #edf3ff);
+      }
+
+      .agent-card.numa {
+        border-left-color: var(--blue);
+      }
+
+      .pill {
+        display: inline-block;
+        margin: 4px 5px 0 0;
+        border: 1px solid #cfe4d5;
+        border-radius: 999px;
+        padding: 4px 9px;
+        background: #edf8ef;
+        color: var(--green);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .pill.blue {
+        border-color: #c8d9f5;
+        background: #edf5ff;
+        color: var(--blue);
+      }
+
+      .pill.gold {
+        border-color: #efd48d;
+        background: #fff7e3;
+        color: #7a550a;
+      }
+
+      .pill.red {
+        border-color: #f2c8c4;
+        background: #fff2f1;
+        color: var(--red);
+      }
+
+      table {
+        display: block;
+        width: 100%;
+        margin-top: 12px;
+        border-collapse: collapse;
+        overflow-x: auto;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 9px 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #edf7ef;
+        color: #183c24;
+      }
+
+      code {
+        border: 1px solid #d8e4dc;
+        border-radius: 5px;
+        padding: 1px 5px;
+        background: var(--code);
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 0.92em;
+      }
+
+      pre {
+        margin: 12px 0 0;
+        border-radius: 10px;
+        padding: 14px;
+        background: #0f1d16;
+        color: #f3fff6;
+        overflow: auto;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      pre code {
+        border: 0;
+        padding: 0;
+        background: transparent;
+        color: inherit;
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .flow-step {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fff;
+      }
+
+      .flow-step strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .callout {
+        margin-top: 14px;
+        border-left: 5px solid var(--blue);
+        border-radius: 10px;
+        padding: 13px 14px;
+        background: #edf5ff;
+      }
+
+      .callout.warn {
+        border-left-color: var(--gold);
+        background: #fff8e8;
+      }
+
+      .callout.danger {
+        border-left-color: var(--red);
+        background: #fff4f2;
+      }
+
+      ul {
+        margin: 8px 0 0 20px;
+        padding: 0;
+      }
+
+      li {
+        margin: 5px 0;
+      }
+
+      @media (max-width: 720px) {
+        .hero {
+          padding: 22px;
+        }
+
+        h1 {
+          font-size: 30px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <span class="pill gold">AI System Reference</span>
+        <span class="pill blue">No Secrets Included</span>
+        <h1>VETCODE AI, Prompting, Data, and IP Map</h1>
+        <p class="muted">
+          A single-page reference for the AI layer in VETCODE: what the agents do, where prompts live,
+          how AI results are stored, and which product concepts are unique to the platform.
+        </p>
+        <div class="toc">
+          <a href="#overview">Overview</a>
+          <a href="#agents">Numa and Egeria</a>
+          <a href="#ai-surfaces">AI Surfaces</a>
+          <a href="#data-storage">AI Data Storage</a>
+          <a href="#prompting">Prompting Model</a>
+          <a href="#controls">Safety and Controls</a>
+          <a href="#ip">Specific IP / Product Logic</a>
+          <a href="#expansion">Expansion Plan</a>
+        </div>
+      </section>
+
+      <section id="overview">
+        <h2>Overview</h2>
+        <div class="card">
+          <p>
+            VETCODE uses OpenAI-backed features as a workflow intelligence layer over recruiting,
+            certification, onboarding, CRM, meetings, time, and accounting. The AI does not replace the
+            application database. It reads scoped context, drafts structured outputs, recommends next
+            actions, and in controlled cases prepares app actions that still require user confirmation.
+          </p>
+          <div class="flow">
+            <div class="flow-step">
+              <strong>1. Gather Context</strong>
+              <span>Page, domain, candidate, job, CRM, schedule, and recent chat state are collected.</span>
+            </div>
+            <div class="flow-step">
+              <strong>2. Prompt Agent</strong>
+              <span>The selected agent receives a page-specific role prompt plus safety policy.</span>
+            </div>
+            <div class="flow-step">
+              <strong>3. Structure Output</strong>
+              <span>Resume, job, action, schedule, and CRM prompts prefer JSON or tightly constrained text.</span>
+            </div>
+            <div class="flow-step">
+              <strong>4. Save Through App</strong>
+              <span>Confirmed outputs are saved through deterministic app endpoints, not arbitrary model writes.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="agents">
+        <h2>Numa and Egeria</h2>
+        <div class="grid">
+          <article class="card agent-card numa">
+            <span class="pill blue">Page-Aware Assistant</span>
+            <h3>Numa</h3>
+            <p>
+              Numa is the main page-aware assistant framework. Numa changes behavior by active page:
+              Talent, Profiles, Job Descriptions, CRM, Meet, Interviews, Time, Accounting, Invoices,
+              Certification, Badge Catalog, Reports, and Admin.
+            </p>
+            <p>
+              <strong>Primary job:</strong> explain what is happening, guide the user, summarize page
+              context, warn about missing data, and prepare controlled app actions when permitted.
+            </p>
+            <p>
+              <strong>Key files:</strong> <code>backend/openAI/pageAgents.py</code> and
+              <code>backend/ui/pages/JS/pageAgents.js</code>.
+            </p>
+          </article>
+
+          <article class="card agent-card egeria">
+            <span class="pill gold">Process Agent</span>
+            <h3>Egeria and FastBoard</h3>
+            <p>
+              Egeria is the guided process-flow agent. Her first implemented workflow is
+              <strong>FastBoard Candidate Launch</strong>, a safe rapid consultant launch path that asks
+              for the job need, drafts a JD, waits for approval, creates the JD, ranks candidates,
+              waits for candidate approval, seeds shortlist/status, and prepares scheduling.
+            </p>
+            <p>
+              <strong>Primary job:</strong> move the user through a whole process, keep the domain and
+              candidate/job context intact, and offer rollback/resume if the flow is interrupted.
+            </p>
+            <p>
+              <strong>Key files:</strong> <code>backend/ui/pages/components/processFlow.html</code>,
+              <code>backend/ui/pages/components/sideNav.html</code>, and
+              <code>backend/openAI/pageAgents.py</code>.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="ai-surfaces">
+        <h2>AI Surfaces</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Surface</th>
+              <th>What AI Does</th>
+              <th>Main Files / Routes</th>
+              <th>Storage Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Numa page agents</td>
+              <td>Page-aware chat, explanation, safe action planning, redaction, and guidance.</td>
+              <td><code>backend/openAI/pageAgents.py</code>; <code>/api/agents/ask</code>; <code>/api/agents/action</code></td>
+              <td>Recent chat in browser session; confirmed actions update profiles, jobs, schedule setup, or page state.</td>
+            </tr>
+            <tr>
+              <td>Egeria FastBoard</td>
+              <td>Guided candidate-launch workflow with JD drafting, approvals, ranking, shortlist/status seed, resume, and rollback.</td>
+              <td><code>components/processFlow.html</code>; <code>agent_key=egeria</code></td>
+              <td>Session workflow state, created JD, selected candidate, shortlist entry, and schedule/status context.</td>
+            </tr>
+            <tr>
+              <td>Resume AI profile</td>
+              <td>Extracts profile summary, skills, culture, confidence, and portfolio/work-history rows from resume text.</td>
+              <td><code>backend/resume_ai_profile.py</code>; <code>/api/azure/resume/upload</code></td>
+              <td>PostgreSQL candidate/profile/skills/experience rows; resume file in Azure Blob when configured.</td>
+            </tr>
+            <tr>
+              <td>Candidate profile chat</td>
+              <td>Asks deterministic survey/profile-completion questions and saves personality/culture answers.</td>
+              <td><code>backend/openAI/candidateChat.py</code>; <code>/api/chat/*</code></td>
+              <td><code>aichatlogs</code>, survey tables, or fallback JSON stores.</td>
+            </tr>
+            <tr>
+              <td>JD and matching intelligence</td>
+              <td>Extracts JD skills, scores candidate fit, explains match gaps, and helps rank candidates.</td>
+              <td><code>backend/azureUtils/routes/azureJobEndpoints.py</code>; <code>/api/azureJobs/match/run</code></td>
+              <td>Job tables, job skill rows, matching response payloads, and selected session context.</td>
+            </tr>
+            <tr>
+              <td>External people search</td>
+              <td>Extracts skill/location query terms for People Data and GitHub sourcing.</td>
+              <td><code>backend/openAI/externalPeopleSearch.py</code></td>
+              <td>Temporary external candidate results before user chooses what becomes a profile.</td>
+            </tr>
+            <tr>
+              <td>Interview/calendar draft</td>
+              <td>Drafts interview title, attendees, subject, body, talking points, and logistics.</td>
+              <td><code>backend/calendar_router.py</code></td>
+              <td>Calendar provider draft/setup context; status tracking when the app saves the schedule.</td>
+            </tr>
+            <tr>
+              <td>Meet intelligence</td>
+              <td>Summarizes meeting outputs and supports transcript-aware Q&A/CRM handoff.</td>
+              <td><code>backend/main.py</code>; meeting archive routes</td>
+              <td><code>backend/data/meeting_records.json</code> and CRM handoff data.</td>
+            </tr>
+            <tr>
+              <td>CRM news scan</td>
+              <td>Scans public news snippets and recommends customer follow-up signals.</td>
+              <td><code>/api/crm/news-scan</code>; <code>_summarize_customer_news</code></td>
+              <td>CRM scan output and customer/deal notes when saved by the user.</td>
+            </tr>
+            <tr>
+              <td>Client shortlist email</td>
+              <td>Drafts client-facing shortlist copy from the JD and candidate list.</td>
+              <td><code>backend/openAI/emailProcessing.py</code></td>
+              <td>Email draft in UI; sent/saved only through explicit workflow action.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="data-storage">
+        <h2>AI Data Storage</h2>
+        <div class="grid">
+          <article class="card">
+            <h3>PostgreSQL Source of Truth</h3>
+            <p>
+              Candidate/profile, job, skills, survey, and platform activity records are stored in Azure
+              PostgreSQL through <code>backend/azureUtils/storage/client.py</code>.
+            </p>
+            <p>
+              Important tables include <code>person</code>, <code>professional</code>,
+              <code>professionalprofile</code>, <code>professionalexperience</code>,
+              <code>professionalskill</code>, <code>resumeskill</code>, <code>skill</code>,
+              <code>jobdescription</code>, <code>jobskills</code>, <code>jobpersonalities</code>,
+              <code>aichatlogs</code>, <code>professionalsurvey</code>, and
+              <code>professionalsurveyquestion</code>.
+            </p>
+          </article>
+
+          <article class="card">
+            <h3>JSON Operational Stores</h3>
+            <p>
+              Newer workflow areas use JSON stores under <code>backend/data</code> and are domain-filtered
+              in app logic.
+            </p>
+            <p>
+              Key files: <code>workflow_events.json</code>, <code>crm_records.json</code>,
+              <code>meeting_records.json</code>, <code>onboarding_records.json</code>,
+              <code>time_entries.json</code>, <code>accounting_records.json</code>,
+              <code>profile_badges.json</code>, <code>interview_archive.json</code>, and
+              <code>profile_completion_chats.json</code>.
+            </p>
+          </article>
+
+          <article class="card">
+            <h3>Browser State</h3>
+            <p>
+              AI workflow context uses browser state for active candidate, active job, domain, shortlist,
+              recent agent chat, and FastBoard recovery state.
+            </p>
+            <p>
+              Examples: <code>sessionStorage.candidateId</code>, <code>selectedJdId</code>,
+              <code>jobTitle</code>, <code>shortlistDetails:{domain}</code>,
+              <code>devreadyAgentChat:{agent}:{domain}</code>, and
+              <code>egeriaQuickHitState:{domain}</code>.
+            </p>
+          </article>
+
+          <article class="card">
+            <h3>Blob / File Storage</h3>
+            <p>
+              Resume files are stored through Azure Blob when storage credentials are configured. The AI
+              profile pipeline stores extracted structured data separately from the original uploaded file.
+            </p>
+            <p>
+              Key file: <code>backend/azureUtils/storage/resumes.py</code>.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="prompting">
+        <h2>Prompting Model</h2>
+        <div class="card">
+          <p>
+            VETCODE uses task-specific prompts instead of one giant general prompt. The app wraps the model
+            call with deterministic context and then validates or filters the output before using it.
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Prompt Type</th>
+                <th>Purpose</th>
+                <th>Guardrail</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Page-agent role prompt</td>
+                <td>Tells Numa or Egeria which page/process they own and how to speak.</td>
+                <td>Loaded from <code>AGENTS</code> in <code>pageAgents.py</code>; can be overridden through agent admin context.</td>
+              </tr>
+              <tr>
+                <td>Safety policy prompt</td>
+                <td>Forces no data deletion, no secret exposure, no claims of saved changes without confirmation.</td>
+                <td>Redacts finance/deal/rate data unless admin/super-user unlock is present.</td>
+              </tr>
+              <tr>
+                <td>Action planner JSON prompt</td>
+                <td>Turns clear create/update/schedule intent into structured app actions.</td>
+                <td>Allows only known action types and filters by access/change policy.</td>
+              </tr>
+              <tr>
+                <td>Resume extraction JSON prompt</td>
+                <td>Converts resume text into a structured candidate profile with portfolio rows.</td>
+                <td>Requires strict JSON, clamps years, deduplicates skills, and preserves separate jobs.</td>
+              </tr>
+              <tr>
+                <td>Candidate chat prompt</td>
+                <td>Asks the next profile/personality survey question.</td>
+                <td>Answer parsing is deterministic and saved as 1-5 survey scores.</td>
+              </tr>
+              <tr>
+                <td>CRM news scan prompt</td>
+                <td>Summarizes public news into account signals and recommended action.</td>
+                <td>Uses snippets, expects JSON, and falls back when search/model is unavailable.</td>
+              </tr>
+            </tbody>
+          </table>
+          <pre><code>Agent request shape:
+agent_key = "talent" | "crm" | "interviews" | "egeria" | ...
+message = user request
+context_json = {
+  domain,
+  page,
+  activeUrl,
+  pageSnapshot,
+  user,
+  access,
+  recentChat
+}
+
+Model output:
+answer = visible guidance
+actions = optional controlled app actions, filtered before display or execution</code></pre>
+        </div>
+      </section>
+
+      <section id="controls">
+        <h2>Safety and Controls</h2>
+        <div class="grid">
+          <article class="card">
+            <h3>Human Approval</h3>
+            <p>
+              The model can draft and prepare. Persisted workflow steps require explicit app action,
+              approval, or an authorized change mode. FastBoard uses checkpoints before creating JDs,
+              searching, selecting a candidate, and moving to schedule/status.
+            </p>
+          </article>
+
+          <article class="card">
+            <h3>Domain Isolation</h3>
+            <p>
+              Every AI call and storage write should preserve <code>domain</code>: Technology
+              (<code>dev</code>), Engineering (<code>engineer</code>), or Law (<code>law</code>).
+              Context, URLs, SQL filters, JSON filters, and session keys must stay aligned.
+            </p>
+          </article>
+
+          <article class="card">
+            <h3>Rollback / Resume</h3>
+            <p>
+              FastBoard stores process state in <code>egeriaQuickHitState:{domain}</code>. Rollback clears
+              selection context and attempts to delete a JD created during the FastBoard run.
+            </p>
+          </article>
+
+          <article class="card">
+            <h3>Secret Boundary</h3>
+            <p>
+              This page names environment variables and code locations only. It must never contain secret
+              values such as <code>OPENAI_API_KEY</code>, OAuth client secrets, database passwords, Azure
+              storage connection strings, or production credentials.
+            </p>
+          </article>
+        </div>
+        <div class="callout danger">
+          <strong>Important:</strong> As Egeria gains more authority, durable server-side workflow runs should
+          be added before allowing multi-page automated execution. The next layer should record every agent
+          step, approval, mutation, rollback target, and result in a database-backed workflow ledger.
+        </div>
+      </section>
+
+      <section id="ip">
+        <h2>Specific IP / Product Logic</h2>
+        <div class="callout warn">
+          <strong>Note:</strong> This section describes product and implementation IP. It is not a legal
+          patent opinion, trademark claim, or legal filing.
+        </div>
+        <div class="grid">
+          <article class="card">
+            <h3>Domain-Scoped Talent OS</h3>
+            <p>
+              The platform separates Technology/DevReady, Engineering/BuildReady, and Law/LegalReady while
+              reusing the same workflow engine. This allows one product to support different labor markets
+              without cross-contaminating profiles, jobs, certifications, or CRM data.
+            </p>
+          </article>
+
+          <article class="card">
+            <h3>FastBoard Candidate Launch</h3>
+            <p>
+              A guided emergency-consultant workflow that combines AI drafting, JD creation, candidate
+              ranking, shortlist, scheduling, and status in one recoverable process with checkpoints.
+            </p>
+          </article>
+
+          <article class="card">
+            <h3>Egeria Process Agent</h3>
+            <p>
+              Egeria is designed as a higher-authority process agent, distinct from general page chat. Her
+              value is not a separate model; it is the structured permission, context, workflow memory, and
+              rollback contract around the same model.
+            </p>
+          </article>
+
+          <article class="card">
+            <h3>Evidence-Based Profile Graph</h3>
+            <p>
+              Resume data, portfolio rows, skills, culture/personality survey results, badges, certification,
+              interview notes, onboarding, and time records all attach back to the candidate/profile.
+            </p>
+          </article>
+
+          <article class="card">
+            <h3>Operational Links as Mini Apps</h3>
+            <p>
+              Sales CRM, onboarding, candidate chat, time entry, and certification are sendable focused
+              workspaces. External users update only their slice, while the main VETCODE system receives the
+              data back into shared records.
+            </p>
+          </article>
+
+          <article class="card">
+            <h3>Closed-Loop Business Flow</h3>
+            <p>
+              Candidate selection, CRM/customer, onboarding, time, approved hours, rates, invoices, and
+              reporting are linked. AI can eventually monitor missing links and guide users to the next
+              business action.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="expansion">
+        <h2>Expansion Plan</h2>
+        <div class="card">
+          <p>
+            The next AI build-out should make agents process-aware across pages while keeping the current
+            approval, domain, and rollback discipline.
+          </p>
+          <ul>
+            <li>Add durable <code>workflow_runs</code> and <code>workflow_events</code> tables for Egeria.</li>
+            <li>Give every AI action an idempotency key, rollback target, user approval id, and result status.</li>
+            <li>Move FastBoard state from browser-only session storage into server-side workflow state.</li>
+            <li>Add per-domain AI policies for Technology, Engineering, and Law vocabulary and evidence rules.</li>
+            <li>Expand Egeria from FastBoard into onboarding, missing-time recovery, invoice readiness, CRM follow-up, and certification handoff.</li>
+            <li>Create AI audit reports showing prompts used, data touched, approvals, failures, and rollback history.</li>
+            <li>Keep all prompts versioned so model behavior can be compared between releases.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
