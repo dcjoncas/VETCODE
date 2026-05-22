@@ -30,11 +30,11 @@
         <div class="brand">
           <img
             id="domainLogoImg"
-            src="../assets/devLogo.svg"
+            src="../assets/devReadyWordmark.svg"
             alt="DevReady"
-            style="width: 42px; height: 42px"
+            style="width: 158px; max-height: 56px; object-fit: contain; object-position: left center"
           />
-          <div class="title">
+          <div class="title" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">
             <span id="domainBrandLabel">DEV</span>
             <span>READY</span>
             <span id="candidateNameSpan" class="sub"
@@ -124,7 +124,20 @@
       const currentDomain = urlParams.get("domain") || "dev";
       document.getElementById("domainCss").href = `../assets/${currentDomain}Styles.css`;
       const logoImg = document.getElementById("domainLogoImg");
-      if (logoImg) logoImg.src = `../assets/${currentDomain}Logo.svg`;
+      function domainWordmarkAsset(domain) {
+        if (domain === "engineer") return "../assets/buildReadyWordmark.svg";
+        if (domain === "law") return "../assets/legalReadyWordmark.svg";
+        return "../assets/devReadyWordmark.svg";
+      }
+      function domainWordmarkAlt(domain) {
+        if (domain === "engineer") return "BuildReady";
+        if (domain === "law") return "LegalReady";
+        return "DevReady";
+      }
+      if (logoImg) {
+        logoImg.src = domainWordmarkAsset(currentDomain);
+        logoImg.alt = domainWordmarkAlt(currentDomain);
+      }
       const brandLabel = document.getElementById("domainBrandLabel");
       if (brandLabel) {
         brandLabel.textContent = currentDomain === "engineer" ? "BUILD" : currentDomain.toUpperCase();

@@ -20,7 +20,7 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html?v=20260515-reports-nav");
+        $("#siteSidebar").load("components/sidebar.html?v=20260522-egeria-pilot");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -362,6 +362,15 @@
         { key: "interviews", title: "Interviews", icon: "calendar", hint: "Candidate review and client interview scheduling totals." },
         { key: "time", title: "Time entry", icon: "clock", hint: "Weekly submitted hours, processed hours, missing time, and staff list." },
         { key: "accounting", title: "Accounting", icon: "calculator", hint: "Customers, invoices, receivables, sent/overdue links, and week-over-week invoice totals." },
+        { key: "pipelineReadiness", title: "Pipeline readiness", icon: "chart", hint: "End-to-end readiness across candidates, jobs, reviews, interviews, and status handoff." },
+        { key: "profileQuality", title: "Profile quality", icon: "profile", hint: "Profile universe, reportable rows, completed profiles, incomplete profiles, and recent records." },
+        { key: "roleCoverage", title: "Role coverage", icon: "briefcase", hint: "Open role coverage by client, stale jobs, missing clients, and matching readiness." },
+        { key: "clientHealth", title: "Client health", icon: "chart", hint: "CRM customers by owner, stale touch risk, next-step gaps, and contact coverage." },
+        { key: "revenueRisk", title: "Revenue risk", icon: "calculator", hint: "Open receivables, overdue invoices, missing AP details, and collection exposure." },
+        { key: "utilization", title: "Utilization", icon: "clock", hint: "Resource coverage, approved hours, bill/cost rate readiness, and assignment gaps." },
+        { key: "payrollExceptions", title: "Payroll exceptions", icon: "clipboard", hint: "Submitted, approved, processed, missing time, and review-needed payroll signals." },
+        { key: "salesFollowup", title: "Sales follow-up", icon: "search", hint: "Client next-touch gaps, high-value stale accounts, owner coverage, and deal movement." },
+        { key: "aiDataReadiness", title: "AI/data readiness", icon: "chart", hint: "Whether Egeria has enough profiles, jobs, CRM, meetings, time, and external data to reason well." },
       ];
 
       let reportState = {};
@@ -460,9 +469,10 @@
       async function loadJsonBundle(domain) {
         const week = document.getElementById("weekStart").value || startOfWeek();
         const queryDomain = encodeURIComponent(domain);
-        const [profileCount, recentProfileCount, profiles, jobs, onboarding, time, meetings, interviews, temp, accounting] = await Promise.all([
+        const [profileCount, recentProfileCount, talentProfileUniverse, profiles, jobs, onboarding, time, meetings, interviews, temp, accounting] = await Promise.all([
           safeApi(`/api/profile/count?domain=${queryDomain}`, 0),
           safeApi(`/api/profile/count/recent?domain=${queryDomain}`, 0),
+          safeApi(`/api/azure/countCandidates/all?domain=${queryDomain}`, { total: 0, recent: 0, completedProfiles: 0, incompleteProfiles: 0, statusCounts: {}, stackCounts: {} }),
           safeApi(`/api/profile/list?domain=${queryDomain}`, []),
           safeApi(`/api/jd/list?domain=${queryDomain}`, []),
           safeApi(`/api/onboarding/admin?domain=${queryDomain}`, { people: [], count: 0 }),
@@ -477,6 +487,9 @@
           week,
           profileCount: Number(profileCount || 0),
           recentProfileCount: Number(recentProfileCount || 0),
+          profileUniverse: talentProfileUniverse || {},
+          profileUniverseTotal: Number(talentProfileUniverse?.total || profileCount || 0),
+          profileUniverseRecent: Number(talentProfileUniverse?.recent || recentProfileCount || 0),
           profiles: Array.isArray(profiles) ? profiles : [],
           jobs: Array.isArray(jobs) ? jobs : [],
           onboardingPeople: onboarding.people || [],
@@ -588,6 +601,26 @@
         return [...new Set(people)].join(", ");
       }
 
+      function crmCustomerName(customer) {
+        return customer?.name || customer?.customer || customer?.company || customer?.client || "Customer";
+      }
+
+      function crmOwner(customer) {
+        return customer?.owner || customer?.rep || customer?.dealOwner || "";
+      }
+
+      function crmLastTouch(customer) {
+        return customer?.lastTouched || customer?.when || customer?.updatedAt || customer?.createdAt || "";
+      }
+
+      function crmNextStep(customer) {
+        return customer?.nextStep || customer?.next_action || customer?.nextAction || "";
+      }
+
+      function crmValue(customer) {
+        return Number(customer?.value || customer?.pipeline || customer?.weighted_pipeline || customer?.amount || 0);
+      }
+
       function jobDate(job) {
         return job.updated_at || job.updatedAt || job.created_at || job.createdAt || "";
       }
@@ -598,6 +631,19 @@
 
       function jobCompany(job) {
         return job.company || job.client || "No client";
+      }
+
+      function valuePresent(value) {
+        if (Array.isArray(value)) return value.length > 0;
+        return String(value || "").trim().length > 0;
+      }
+
+      function jobHasSkills(job) {
+        return valuePresent(job.skills || job.required_skills || job.jd_skills || job.skillNames || job.skill_ids);
+      }
+
+      function plainStatus(value) {
+        return String(value || "").replaceAll("_", " ");
       }
 
       function interviewKind(record) {
@@ -654,13 +700,42 @@
         const sentTotal = sentInvoices.reduce((sum, invoice) => sum + invoiceAmount(invoice), 0);
         const customerTotals = customerAccountingTotals(bundle.crmCustomers, invoices, bundle.resources);
         const weeklyInvoices = weekInvoiceTotals(invoices);
+        const profileUniverseCompleted = Number(bundle.profileUniverse?.completedProfiles || bundle.profileCount || 0);
+        const profileUniverseIncomplete = Number(bundle.profileUniverse?.incompleteProfiles || Math.max(0, bundle.profileUniverseTotal - profileUniverseCompleted));
+        const profileStatusRows = Object.entries(bundle.profileUniverse?.statusCounts || {});
+        const profileStackRows = Object.entries(bundle.profileUniverse?.stackCounts || {});
+        const missingClientJobs = bundle.jobs.filter((job) => !valuePresent(jobCompany(job)) || jobCompany(job) === "No client");
+        const missingSkillsJobs = bundle.jobs.filter((job) => !jobHasSkills(job));
+        const crmUnowned = bundle.crmCustomers.filter((customer) => !valuePresent(crmOwner(customer)));
+        const crmNoNextStep = bundle.crmCustomers.filter((customer) => !valuePresent(crmNextStep(customer)));
+        const crmStale = bundle.crmCustomers.filter((customer) => ageDays(crmLastTouch(customer)) > 14);
+        const crmHighValueStale = crmStale.filter((customer) => crmValue(customer) >= 50000);
+        const missingApInvoices = invoices.filter((invoice) => !valuePresent(invoice.client_email));
+        const resourcesMissingRates = bundle.resources.filter((resource) => Number(resource.bill_rate || 0) <= 0 || Number(resource.cost_rate || 0) <= 0);
+        const needsReviewTimeRows = bundle.timeEntries.filter((entry) => String(entry.status || "").includes("review"));
+        const submittedTimeRows = bundle.timeEntries.filter((entry) => String(entry.status || "").includes("submitted"));
+        const approvedNotProcessedRows = bundle.timeEntries.filter((entry) => String(entry.status || "").includes("approved"));
+        const processedHours = Number(bundle.timeTotals.processed_hours || bundle.timeEntries
+          .filter((entry) => String(entry.status || "").includes("processed"))
+          .reduce((sum, entry) => sum + Number(entry.hours || 0), 0));
+        const openHours = Math.max(0, Number(bundle.timeTotals.total_hours || 0) - processedHours);
+        const dataReadinessRows = [
+          ["Data input", "Status", "Count", "Why it matters"],
+          ["Internal profile universe", bundle.profileUniverseTotal ? "Ready" : "Needs data", bundle.profileUniverseTotal, "Egeria needs enough people to rank against jobs."],
+          ["Reportable profile rows", bundle.profileCount ? "Ready" : "Needs data", bundle.profileCount, "These rows can be opened directly from profile reports."],
+          ["Active job descriptions", activeJobs.length ? "Ready" : "Needs current roles", activeJobs.length, "Opportunity matching needs fresh demand."],
+          ["CRM customers", bundle.crmCustomers.length ? "Ready" : "Needs CRM records", bundle.crmCustomers.length, "Client intelligence needs account context."],
+          ["Meetings", bundle.meetings.length ? "Ready" : "Needs meetings", bundle.meetings.length, "Meeting notes improve next-touch recommendations."],
+          ["External TEMP profiles", bundle.tempCount ? "Available" : "Internal only", bundle.tempCount, "External scan stays separate until selected."],
+        ];
 
         return {
           overall: {
-            count: bundle.profileCount,
+            count: bundle.profileUniverseTotal,
             rows: [
               ["Metric", "Value", "Notes"],
-              ["Profiles", bundle.profileCount, `${bundle.recentProfileCount} recent`],
+              ["Talent profile universe", bundle.profileUniverseTotal, `${profileUniverseCompleted} completed, ${profileUniverseIncomplete} incomplete`],
+              ["Reportable profile rows loaded", bundle.profileCount, `${bundle.recentProfileCount} recent; these are the rows currently returned by /api/profile/list`],
               ["Job descriptions", bundle.jobs.length, `${activeJobs.length} active, ${staleJobs.length} stale/inactive`],
               ["On assignment", assignedKeys.size, "Onboarding or time activity"],
               ["Missing time this week", missingTime.length, bundle.week],
@@ -679,14 +754,24 @@
             ],
           },
           profiles: {
-            count: bundle.profileCount,
+            count: bundle.profileUniverseTotal,
             rows: [
+              ["Metric", "Value", "Notes"],
+              ["Talent profile universe", bundle.profileUniverseTotal, "From /api/azure/countCandidates/all, same source as the Talent page count"],
+              ["Completed profiles", profileUniverseCompleted, "Completed profiles in the selected domain"],
+              ["Incomplete profiles", profileUniverseIncomplete, "Profiles that still need completion"],
+              ["Reportable profile rows loaded", bundle.profileCount, "Rows returned by /api/profile/list for this report drill-down"],
+              ["Recent reportable profile rows", bundle.recentProfileCount, "Recent profile count from local/reporting endpoint"],
+            ],
+            profileRows: [
               ["Profile ID", "Name", "Email", "Assignment signal"],
               ...bundle.profiles.slice(0, 500).map((profile) => {
                 const key = profileId(profile) || profileEmail(profile) || profileName(profile);
                 return [profileId(profile), profileName(profile), profileEmail(profile), assignedKeys.has(key) ? "On assignment / active" : "No assignment signal"];
               }),
             ],
+            statusRows: [["Status", "Profiles"], ...profileStatusRows.map(([status, count]) => [plainStatus(status), count])],
+            stackRows: [["Stack / family", "Profiles"], ...profileStackRows.map(([stack, count]) => [stack, count])],
           },
           onboarding: {
             count: bundle.onboardingPeople.length,
@@ -698,12 +783,13 @@
             ],
           },
           candidates: {
-            count: bundle.profileCount + bundle.tempCount,
+            count: bundle.profileUniverseTotal + bundle.tempCount,
             rows: [
               ["Source", "Total", "Notes"],
-              ["Find Candidates (In)", bundle.profileCount, "Internal profiles in selected domain"],
+              ["Find Candidates (In)", bundle.profileUniverseTotal, "Internal Talent/Azure candidate universe in selected domain"],
+              ["Reportable profile rows loaded", bundle.profileCount, "Rows currently returned by the report/profile list endpoint"],
               ["Find Candidates (Out)", bundle.tempCount, "External TEMP profiles available for review"],
-              ["Recent internal profiles", bundle.recentProfileCount, "Recent profile count from backend"],
+              ["Recent internal profiles", bundle.profileUniverseRecent, "Recent count from Talent/Azure where available"],
             ],
           },
           meetings: {
@@ -781,6 +867,105 @@
               ["Labor cost", money(bundle.pnl.labor_cost), "From time rows and resource cost rates"],
               ["Net income", money(bundle.pnl.net_income), "Revenue minus labor and expenses"],
             ],
+          },
+          pipelineReadiness: {
+            count: [bundle.profileUniverseTotal, activeJobs.length, candidateInterviews.length, clientInterviews.length, bundle.onboardingPeople.length].filter(Boolean).length,
+            rows: [
+              ["Workflow area", "Status", "Count", "Next action"],
+              ["Talent universe", bundle.profileUniverseTotal ? "Ready" : "Needs profiles", bundle.profileUniverseTotal, bundle.profileUniverseTotal ? "Rank candidates against roles" : "Load or sync candidate profiles"],
+              ["Active job descriptions", activeJobs.length ? "Ready" : "Needs active roles", activeJobs.length, activeJobs.length ? "Use roles in Find Candidates" : "Add or refresh job descriptions"],
+              ["Candidate reviews", candidateInterviews.length ? "In motion" : "Needs review touch-base", candidateInterviews.length, "Run candidate review before client shortlist"],
+              ["Client interviews", clientInterviews.length ? "In motion" : "Not yet scheduled", clientInterviews.length, "Schedule client interview after shortlist"],
+              ["Onboarding", bundle.onboardingPeople.length ? "In motion" : "No onboarding started", bundle.onboardingPeople.length, "Create onboarding packet from completed profile"],
+              ["Status handoff", bundle.timeGroups.length ? "Time active" : "No active time this week", bundle.timeGroups.length, "Use Status and Time once candidate starts"],
+            ],
+          },
+          profileQuality: {
+            count: bundle.profileUniverseTotal,
+            rows: [
+              ["Metric", "Value", "Meaning"],
+              ["Talent profile universe", bundle.profileUniverseTotal, "Full count from Talent/Azure candidate storage"],
+              ["Completed profiles", profileUniverseCompleted, "Profiles ready for presentation or shortlist"],
+              ["Incomplete profiles", profileUniverseIncomplete, "Profiles needing resume/personality/public-profile completion"],
+              ["Reportable rows loaded", bundle.profileCount, "Rows currently queryable by /api/profile/list"],
+              ["External TEMP candidates", bundle.tempCount, "Outside-search records waiting for review"],
+            ],
+            statusRows: [["Status", "Profiles"], ...profileStatusRows.map(([status, count]) => [plainStatus(status), count])],
+            stackRows: [["Stack / family", "Profiles"], ...profileStackRows.map(([stack, count]) => [stack, count])],
+          },
+          roleCoverage: {
+            count: bundle.jobs.length,
+            rows: [
+              ["Metric", "Value", "Next action"],
+              ["Total job descriptions", bundle.jobs.length, "Use only current-domain roles for matching"],
+              ["Active roles", activeJobs.length, "Ready for Find Candidates"],
+              ["Stale roles", staleJobs.length, "Refresh or archive old role demand"],
+              ["Missing client", missingClientJobs.length, "Attach roles to CRM/customer context"],
+              ["Missing extracted skills", missingSkillsJobs.length, "Normalize the JD so candidate ranking is meaningful"],
+            ],
+            missingClientRows: [["JD ID", "Company", "Title", "Updated"], ...missingClientJobs.map((job) => [job.jd_id || job.id || "", jobCompany(job), jobTitle(job), displayDate(jobDate(job))])],
+            missingSkillsRows: [["JD ID", "Company", "Title", "Updated"], ...missingSkillsJobs.map((job) => [job.jd_id || job.id || "", jobCompany(job), jobTitle(job), displayDate(jobDate(job))])],
+          },
+          clientHealth: {
+            count: bundle.crmCustomers.length,
+            rows: [
+              ["Metric", "Value", "Meaning"],
+              ["CRM customers", bundle.crmCustomers.length, "Customer records available to sales and accounting"],
+              ["Missing owner", crmUnowned.length, "Needs a sales/account owner"],
+              ["Missing next step", crmNoNextStep.length, "Needs a clear follow-up action"],
+              ["Stale touch", crmStale.length, "No recent activity found"],
+              ["High-value stale", crmHighValueStale.length, "Prioritize for sales follow-up"],
+            ],
+            staleRows: [["Customer", "Owner", "Last touch", "Next step", "Value"], ...crmStale.map((customer) => [crmCustomerName(customer), crmOwner(customer), displayDate(crmLastTouch(customer)), crmNextStep(customer), money(crmValue(customer))])],
+          },
+          revenueRisk: {
+            count: overdueInvoices.length + missingApInvoices.length,
+            rows: [
+              ["Metric", "Value", "Next action"],
+              ["Open receivables", money(receivableTotal), "Track draft/sent/viewed/due/overdue invoices"],
+              ["Overdue invoices", overdueInvoices.length, money(overdueTotal)],
+              ["Sent/read/due invoices", sentInvoices.length, money(sentTotal)],
+              ["Missing AP email", missingApInvoices.length, "Add billing contact before sending invoice"],
+              ["Paid invoices", paidInvoices.length, money(paidTotal)],
+            ],
+            missingApRows: [["Invoice", "Customer", "Status", "Amount", "Due date"], ...missingApInvoices.map((invoice) => [invoice.invoice_number || invoice.id || "", invoice.client || "", invoiceStatus(invoice), money(invoiceAmount(invoice)), invoice.due_date || ""])],
+          },
+          utilization: {
+            count: Number(bundle.timeTotals.total_hours || 0),
+            rows: [
+              ["Metric", "Value", "Meaning"],
+              ["Total hours this week", Number(bundle.timeTotals.total_hours || 0), bundle.week],
+              ["Processed hours", processedHours, "Already moved through accounting/payroll"],
+              ["Open hours", openHours, "Needs approval or processing"],
+              ["Onboarded people", bundle.onboardingPeople.length, "Potential active staff pool"],
+              ["Resource rate records", bundle.resources.length, "People with bill/cost tracking"],
+              ["Missing bill/cost rate", resourcesMissingRates.length, "Blocks clean invoice and margin reporting"],
+            ],
+            rateRows: [["Person", "Customer", "Role", "Bill rate", "Cost rate"], ...resourcesMissingRates.map((resource) => [resource.name || "", resource.client || "", resource.role || "", money(resource.bill_rate), money(resource.cost_rate)])],
+          },
+          payrollExceptions: {
+            count: needsReviewTimeRows.length + approvedNotProcessedRows.length + resourcesMissingRates.length,
+            rows: [
+              ["Metric", "Value", "Next action"],
+              ["Needs HR review", needsReviewTimeRows.length, "Review time entries before approval"],
+              ["Submitted but not approved", submittedTimeRows.length, "Approve for invoice/payroll when valid"],
+              ["Approved not processed", approvedNotProcessedRows.length, "Process through payroll/accounting"],
+              ["Missing time", missingTime.length, "Send reminder from Time report"],
+              ["Missing rates", resourcesMissingRates.length, "Add bill/cost rate in Accounting"],
+            ],
+          },
+          salesFollowup: {
+            count: crmNoNextStep.length + crmStale.length,
+            rows: [
+              ["Customer", "Owner", "Last touch", "Next step", "Value"],
+              ...[...crmHighValueStale, ...crmNoNextStep.filter((customer) => !crmHighValueStale.includes(customer))]
+                .slice(0, 100)
+                .map((customer) => [crmCustomerName(customer), crmOwner(customer), displayDate(crmLastTouch(customer)), crmNextStep(customer) || "Add next touch", money(crmValue(customer))]),
+            ],
+          },
+          aiDataReadiness: {
+            count: dataReadinessRows.slice(1).filter((row) => ["Ready", "Available"].includes(row[1])).length,
+            rows: dataReadinessRows,
           },
         };
       }
@@ -1069,7 +1254,10 @@
           profiles: `
             <section class="card report-panel ${activeReport === "profiles" ? "active" : ""}" data-report-panel="profiles">
               <h2>Profile reports</h2>
-              <details class="report-drill" open><summary>Profile totals and assignment signals <span>${reportState.profiles?.count || 0} total profiles</span></summary>${tableHtml(reportState.profiles?.rows)}</details>
+              <details class="report-drill" open><summary>Profile universe and reportable rows <span>${reportState.profiles?.count || 0} total in Talent</span></summary>${tableHtml(reportState.profiles?.rows)}</details>
+              <details class="report-drill"><summary>Reportable profile rows <span>Openable rows returned to Reports</span></summary>${tableHtml(reportState.profiles?.profileRows)}</details>
+              <details class="report-drill"><summary>Profile status totals <span>From Talent/Azure count endpoint</span></summary>${tableHtml(reportState.profiles?.statusRows)}</details>
+              <details class="report-drill"><summary>Stack and skill-family totals <span>From Talent/Azure count endpoint</span></summary>${tableHtml(reportState.profiles?.stackRows)}</details>
             </section>
           `,
           onboarding: `
@@ -1120,6 +1308,70 @@
               <details class="report-drill"><summary>Customer totals <span>Customers, people, invoice amounts</span></summary>${customerAccountingTable(reportState.accounting?.customerTotals)}</details>
               <details class="report-drill"><summary>Resource rates and costs <span>${reportState.accounting?.resources?.length || 0} resource record(s)</span></summary>${resourceRateTable(reportState.accounting?.resources)}</details>
               <details class="report-drill"><summary>All invoices export table <span>${reportState.accounting?.count || 0} invoice(s)</span></summary>${tableHtml(reportState.accounting?.rows)}</details>
+            </section>
+          `,
+          pipelineReadiness: `
+            <section class="card report-panel ${activeReport === "pipelineReadiness" ? "active" : ""}" data-report-panel="pipelineReadiness">
+              <h2>Pipeline readiness</h2>
+              <details class="report-drill" open><summary>Workflow readiness <span>Candidate to onboarding</span></summary>${tableHtml(reportState.pipelineReadiness?.rows)}</details>
+            </section>
+          `,
+          profileQuality: `
+            <section class="card report-panel ${activeReport === "profileQuality" ? "active" : ""}" data-report-panel="profileQuality">
+              <h2>Profile quality</h2>
+              <details class="report-drill" open><summary>Profile count reconciliation <span>Talent vs report rows</span></summary>${tableHtml(reportState.profileQuality?.rows)}</details>
+              <details class="report-drill"><summary>Profile status totals <span>Completion and source status</span></summary>${tableHtml(reportState.profileQuality?.statusRows)}</details>
+              <details class="report-drill"><summary>Stack and skill-family totals <span>Candidate coverage</span></summary>${tableHtml(reportState.profileQuality?.stackRows)}</details>
+            </section>
+          `,
+          roleCoverage: `
+            <section class="card report-panel ${activeReport === "roleCoverage" ? "active" : ""}" data-report-panel="roleCoverage">
+              <h2>Role coverage</h2>
+              <details class="report-drill" open><summary>Role coverage scorecard <span>${reportState.roleCoverage?.count || 0} roles</span></summary>${tableHtml(reportState.roleCoverage?.rows)}</details>
+              <details class="report-drill"><summary>Roles missing client context <span>CRM/customer link needed</span></summary>${tableHtml(reportState.roleCoverage?.missingClientRows)}</details>
+              <details class="report-drill"><summary>Roles missing extracted skills <span>Normalize before matching</span></summary>${tableHtml(reportState.roleCoverage?.missingSkillsRows)}</details>
+            </section>
+          `,
+          clientHealth: `
+            <section class="card report-panel ${activeReport === "clientHealth" ? "active" : ""}" data-report-panel="clientHealth">
+              <h2>Client health</h2>
+              <details class="report-drill" open><summary>CRM health scorecard <span>${reportState.clientHealth?.count || 0} customers</span></summary>${tableHtml(reportState.clientHealth?.rows)}</details>
+              <details class="report-drill"><summary>Stale client touches <span>Sales follow-up candidates</span></summary>${tableHtml(reportState.clientHealth?.staleRows)}</details>
+            </section>
+          `,
+          revenueRisk: `
+            <section class="card report-panel ${activeReport === "revenueRisk" ? "active" : ""}" data-report-panel="revenueRisk">
+              <h2>Revenue risk</h2>
+              <details class="report-drill" open><summary>Revenue risk scorecard <span>AR and invoice readiness</span></summary>${tableHtml(reportState.revenueRisk?.rows)}</details>
+              <details class="report-drill"><summary>Missing AP email <span>Cannot reliably send invoice</span></summary>${tableHtml(reportState.revenueRisk?.missingApRows)}</details>
+              <details class="report-drill"><summary>Overdue invoices <span>Collection queue</span></summary>${invoiceActionsHtml(reportState.accounting?.overdueInvoices, "No overdue invoices for this workspace.")}</details>
+            </section>
+          `,
+          utilization: `
+            <section class="card report-panel ${activeReport === "utilization" ? "active" : ""}" data-report-panel="utilization">
+              <h2>Utilization</h2>
+              <details class="report-drill" open><summary>Utilization scorecard <span>Hours, rates, and assignment coverage</span></summary>${tableHtml(reportState.utilization?.rows)}</details>
+              <details class="report-drill"><summary>Resources missing bill/cost rates <span>Invoice and margin blockers</span></summary>${tableHtml(reportState.utilization?.rateRows)}</details>
+              <details class="report-drill"><summary>Weekly time actions <span>Open the live time process</span></summary>${timeActionRowsHtml(reportState.time?.groups)}</details>
+            </section>
+          `,
+          payrollExceptions: `
+            <section class="card report-panel ${activeReport === "payrollExceptions" ? "active" : ""}" data-report-panel="payrollExceptions">
+              <h2>Payroll exceptions</h2>
+              <details class="report-drill" open><summary>Exception scorecard <span>Approval, processing, and missing-rate blockers</span></summary>${tableHtml(reportState.payrollExceptions?.rows)}</details>
+              <details class="report-drill"><summary>Missing time reminders <span>Send staff follow-up</span></summary>${missingTimeActionsHtml(reportState.time?.missingTime)}</details>
+            </section>
+          `,
+          salesFollowup: `
+            <section class="card report-panel ${activeReport === "salesFollowup" ? "active" : ""}" data-report-panel="salesFollowup">
+              <h2>Sales follow-up</h2>
+              <details class="report-drill" open><summary>Priority touch list <span>Next-step and stale-touch gaps</span></summary>${tableHtml(reportState.salesFollowup?.rows)}</details>
+            </section>
+          `,
+          aiDataReadiness: `
+            <section class="card report-panel ${activeReport === "aiDataReadiness" ? "active" : ""}" data-report-panel="aiDataReadiness">
+              <h2>AI/data readiness</h2>
+              <details class="report-drill" open><summary>Egeria data inputs <span>Internal first, external optional</span></summary>${tableHtml(reportState.aiDataReadiness?.rows)}</details>
             </section>
           `,
         };
@@ -1186,3 +1438,4 @@
     </script>
   </body>
 </html>
+

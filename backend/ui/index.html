@@ -9,8 +9,10 @@
     <style>
       body {
         background:
-          linear-gradient(120deg, rgba(127, 191, 63, 0.12), rgba(58, 111, 181, 0.08)),
-          #f5f7f7;
+          radial-gradient(circle at 18% 12%, rgba(127, 191, 63, 0.22), transparent 28%),
+          radial-gradient(circle at 86% 18%, rgba(58, 111, 181, 0.18), transparent 30%),
+          linear-gradient(135deg, #f7faf8 0%, #eef4f1 48%, #f8faf9 100%);
+        color: #111827;
       }
       .welcome-shell {
         min-height: 100vh;
@@ -19,67 +21,145 @@
         padding: 28px;
       }
       .welcome-grid {
-        width: min(1120px, 100%);
+        width: min(1180px, 100%);
         display: grid;
-        grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
-        gap: 18px;
+        grid-template-columns: minmax(0, 1.06fr) minmax(370px, 0.94fr);
+        gap: 20px;
         align-items: stretch;
       }
       .welcome-panel {
-        border: 1px solid var(--line);
-        border-radius: 18px;
-        background: rgba(255, 255, 255, 0.94);
-        box-shadow: var(--shadow);
-        padding: 24px;
+        border: 1px solid rgba(38, 83, 62, 0.12);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 22px 70px rgba(26, 45, 38, 0.13);
+        padding: 28px;
       }
-      .brand-row {
+      .hero-panel {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 680px;
+      }
+      .brand-stack {
+        display: grid;
+        gap: 14px;
+        max-width: 560px;
+        margin-bottom: 28px;
+      }
+      .brand-logo {
         display: flex;
         align-items: center;
-        gap: 14px;
-        margin-bottom: 18px;
+        min-height: 82px;
       }
-      .brand-row img {
-        width: 54px;
-        height: 54px;
+      .brand-logo img {
+        width: min(360px, 100%);
+        max-height: 92px;
+        object-fit: contain;
+        object-position: left center;
+      }
+      .brand-logo.primary img {
+        width: min(250px, 70%);
       }
       .welcome-title {
-        font-size: clamp(30px, 5vw, 58px);
-        line-height: 0.98;
+        font-size: clamp(34px, 5.4vw, 64px);
+        line-height: 1;
         margin: 0 0 12px;
         letter-spacing: 0;
+        max-width: 760px;
       }
       .welcome-copy {
-        color: var(--muted);
+        color: #4b6359;
         font-size: 18px;
         line-height: 1.45;
         max-width: 780px;
       }
+      .hero-points {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 24px;
+      }
+      .hero-point {
+        border: 1px solid rgba(38, 83, 62, 0.12);
+        border-radius: 12px;
+        padding: 12px;
+        background: linear-gradient(135deg, rgba(127, 191, 63, 0.09), rgba(255, 255, 255, 0.86));
+      }
+      .hero-point strong {
+        display: block;
+        font-size: 13px;
+      }
+      .hero-point span {
+        display: block;
+        color: #60736b;
+        font-size: 12px;
+        line-height: 1.35;
+        margin-top: 5px;
+      }
       .domain-grid {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: 1fr;
         gap: 10px;
-        margin-top: 22px;
+        margin-top: 14px;
       }
       .domain-card {
         border: 1px solid var(--line);
-        border-radius: 14px;
-        padding: 12px;
+        border-radius: 12px;
+        padding: 12px 14px;
         background: #fff;
-        min-height: 132px;
+        min-height: 84px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        transition: 0.16s ease;
+        text-decoration: none;
+        color: inherit;
       }
-      .domain-card img {
-        width: 38px;
-        height: 38px;
+      .domain-card.active,
+      .domain-card:hover {
+        border-color: rgba(127, 191, 63, 0.58);
+        background: linear-gradient(135deg, rgba(127, 191, 63, 0.12), #fff);
+        box-shadow: inset 0 0 0 1px rgba(127, 191, 63, 0.18);
+      }
+      .domain-card img,
+      .domain-option img {
+        width: 160px;
+        max-height: 44px;
         object-fit: contain;
+        object-position: left center;
       }
       .domain-card strong {
         display: block;
-        margin-top: 8px;
       }
       .domain-card small {
         display: block;
         margin-top: 4px;
         line-height: 1.35;
+      }
+      .domain-card .domain-meta {
+        flex: 1;
+      }
+      .domain-card .domain-arrow {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        background: rgba(127, 191, 63, 0.14);
+        color: #2f7d4b;
+        font-weight: 950;
+      }
+      .login-panel {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      .login-heading {
+        margin-bottom: 18px;
+      }
+      .login-heading h2 {
+        margin-bottom: 4px;
       }
       .login-form {
         display: grid;
@@ -90,6 +170,38 @@
         gap: 6px;
         color: #244239;
         font-weight: 800;
+      }
+      .domain-picker {
+        display: grid;
+        gap: 8px;
+      }
+      .domain-picker-title {
+        color: #244239;
+        font-weight: 900;
+      }
+      .domain-options {
+        display: grid;
+        gap: 8px;
+      }
+      .domain-option {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 10px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        background: #fff;
+        cursor: pointer;
+      }
+      .domain-option:has(input:checked) {
+        border-color: rgba(127, 191, 63, 0.7);
+        background: linear-gradient(135deg, rgba(127, 191, 63, 0.14), #fff);
+        box-shadow: inset 0 0 0 1px rgba(127, 191, 63, 0.18);
+      }
+      .domain-option input {
+        width: 18px;
+        height: 18px;
       }
       .login-type {
         display: grid;
@@ -132,8 +244,13 @@
         border-top: 1px solid var(--line);
       }
       @media (max-width: 900px) {
-        .welcome-grid,
-        .domain-grid {
+        .welcome-grid {
+          grid-template-columns: 1fr;
+        }
+        .hero-panel {
+          min-height: auto;
+        }
+        .hero-points {
           grid-template-columns: 1fr;
         }
       }
@@ -142,48 +259,67 @@
   <body>
     <main class="welcome-shell">
       <div class="welcome-grid">
-        <section class="welcome-panel">
-          <div class="brand-row">
-            <img src="assets/devLogo.svg" alt="DevReady" />
-            <div>
-              <strong>Welcome to DevReady</strong>
-              <div class="muted">AI-assisted recruiting and delivery readiness</div>
+        <section class="welcome-panel hero-panel">
+          <div>
+            <div class="brand-stack" aria-label="DevReady brands">
+              <div class="brand-logo primary"><img src="assets/devReadyWordmark.svg" alt="DevReady" /></div>
+              <div class="brand-logo"><img src="assets/buildReadyWordmark.svg" alt="BuildReady, a DevReady company" /></div>
+              <div class="brand-logo"><img src="assets/legalReadyWordmark.svg" alt="LegalReady, a DevReady company" /></div>
+            </div>
+            <h1 class="welcome-title">One secure workspace for talent, clients, onboarding, and delivery.</h1>
+            <p class="welcome-copy">
+              Choose the workspace you are entering, then sign in. DevReady keeps Technology, Engineering, and Law workflows separated while sharing one controlled operating system.
+            </p>
+            <div class="hero-points">
+              <div class="hero-point"><strong>Domain-aware</strong><span>Profiles, jobs, reports, certification, and time stay in the selected workspace.</span></div>
+              <div class="hero-point"><strong>AI-assisted</strong><span>Numa and Egeria help move candidates, clients, and actions through the process.</span></div>
+              <div class="hero-point"><strong>Operational</strong><span>From match to onboarding, invoices, reports, and status tracking.</span></div>
             </div>
           </div>
-          <h1 class="welcome-title">A complete end-to-end AI assisted recruiting system.</h1>
-          <p class="welcome-copy">
-            Source candidates, build profiles, complete AI chat, manage interviews, capture meeting intelligence, certify skills, move people into onboarding, and track time from one controlled workspace.
-          </p>
           <div class="domain-grid" aria-label="Workspace areas">
-            <a class="domain-card" href="pages/find-candidate.html">
-              <img src="assets/devLogo.svg" alt="Candidate" />
-              <strong>Candidate</strong>
-              <small>Profile, chat, tests, interviews, onboarding, and time.</small>
+            <a class="domain-card active" data-domain-card="dev" href="pages/find-candidate.html?domain=dev">
+              <img src="assets/devReadyWordmark.svg" alt="DevReady" />
+              <span class="domain-meta"><strong>Technology workspace</strong><small>DevReady recruiting, vetting, matching, certification, CRM, and delivery.</small></span>
+              <span class="domain-arrow">→</span>
             </a>
-            <a class="domain-card" href="pages/find-candidate.html?domain=dev">
-              <img src="assets/devLogo.svg" alt="DevReady" />
-              <strong>DevReady</strong>
-              <small>Technology recruiting, vetting, matching, and certification.</small>
+            <a class="domain-card" data-domain-card="engineer" href="pages/find-candidate.html?domain=engineer">
+              <img src="assets/buildReadyWordmark.svg" alt="BuildReady" />
+              <span class="domain-meta"><strong>Engineering workspace</strong><small>BuildReady engineering profiles, job descriptions, reviews, and onboarding.</small></span>
+              <span class="domain-arrow">→</span>
             </a>
-            <a class="domain-card" href="pages/find-candidate.html?domain=engineer">
-              <img src="assets/engineerLogo.svg" alt="BuildReady" />
-              <strong>BuildReady</strong>
-              <small>Engineer domain intake, profiles, and workflow controls.</small>
-            </a>
-            <a class="domain-card" href="pages/find-candidate.html?domain=law">
-              <img src="assets/lawLogo.svg" alt="LegalReady" />
-              <strong>LegalReady</strong>
-              <small>Legal domain profiles, job descriptions, and candidate flow.</small>
+            <a class="domain-card" data-domain-card="law" href="pages/find-candidate.html?domain=law">
+              <img src="assets/legalReadyWordmark.svg" alt="LegalReady" />
+              <span class="domain-meta"><strong>Legal workspace</strong><small>LegalReady legal talent, roles, certification, and client workflow.</small></span>
+              <span class="domain-arrow">→</span>
             </a>
           </div>
         </section>
 
-        <section class="welcome-panel">
-          <h2>Login</h2>
-          <p class="muted">
-            Enter your username and password. DevReady will remember your assigned menu access.
-          </p>
+        <section class="welcome-panel login-panel">
+          <div class="login-heading">
+            <h2>Sign in</h2>
+            <p class="muted">
+              Select the domain first, then enter your login. Your session opens directly into that workspace.
+            </p>
+          </div>
           <form id="loginForm" class="login-form">
+            <div class="domain-picker" role="radiogroup" aria-label="Login workspace">
+              <div class="domain-picker-title">Workspace domain</div>
+              <div class="domain-options">
+                <label class="domain-option">
+                  <input type="radio" name="domain" value="dev" checked />
+                  <img src="assets/devReadyWordmark.svg" alt="DevReady" />
+                </label>
+                <label class="domain-option">
+                  <input type="radio" name="domain" value="engineer" />
+                  <img src="assets/buildReadyWordmark.svg" alt="BuildReady" />
+                </label>
+                <label class="domain-option">
+                  <input type="radio" name="domain" value="law" />
+                  <img src="assets/legalReadyWordmark.svg" alt="LegalReady" />
+                </label>
+              </div>
+            </div>
             <label>
               Username or email
               <input id="loginUsername" name="username" autocomplete="username" placeholder="DJ or Darrin.Joncas@gmail.com" required />
@@ -236,11 +372,28 @@
       const status = document.getElementById("loginStatus");
       const registerStatus = document.getElementById("registerStatus");
 
+      function selectedLoginDomain() {
+        return new FormData(form).get("domain") || sessionStorage.getItem("domain") || "dev";
+      }
+
+      function setSelectedDomain(domain) {
+        const safeDomain = ["dev", "engineer", "law"].includes(domain) ? domain : "dev";
+        const radio = form.querySelector(`input[name="domain"][value="${safeDomain}"]`);
+        if (radio) radio.checked = true;
+        document.querySelectorAll("[data-domain-card]").forEach((card) => {
+          card.classList.toggle("active", card.dataset.domainCard === safeDomain);
+        });
+        sessionStorage.setItem("domain", safeDomain);
+      }
+
       function enterWorkspace(user) {
+        const domain = selectedLoginDomain();
+        sessionStorage.setItem("domain", domain);
         sessionStorage.setItem("devreadyUser", JSON.stringify(user));
         localStorage.setItem("devreadyUser", JSON.stringify(user));
         const nextPage = user.role === "candidate" ? "pages/ai-cert.html" : "pages/find-candidate.html";
-        window.location.href = nextPage;
+        const separator = nextPage.includes("?") ? "&" : "?";
+        window.location.href = `${nextPage}${separator}domain=${encodeURIComponent(domain)}`;
       }
 
       form.addEventListener("submit", async (event) => {
@@ -286,6 +439,13 @@
           registerStatus.textContent = error.message || "Account creation failed.";
         }
       });
+
+      form.querySelectorAll('input[name="domain"]').forEach((input) => {
+        input.addEventListener("change", () => setSelectedDomain(input.value));
+      });
+
+      const params = new URLSearchParams(window.location.search);
+      setSelectedDomain(params.get("domain") || sessionStorage.getItem("domain") || "dev");
     </script>
   </body>
 </html>

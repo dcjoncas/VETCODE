@@ -323,6 +323,7 @@
     font-size: 12.5px;
     font-weight: 1000;
     letter-spacing: 0.01em;
+    text-decoration: none;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
     box-shadow:
       0 10px 22px rgba(0, 0, 0, 0.18),
@@ -396,17 +397,16 @@
   </svg>
   <div class="nav-heading">
     <span>NAVIGATION</span>
-    <button
+    <a
       class="nav-fastboard"
-      type="button"
-      onclick="window.DevReadyProcessFlow?.openQuickHit ? window.DevReadyProcessFlow.openQuickHit() : (window.startQuickHitFlow ? startQuickHitFlow() : alert('FastBoard is available from workflow pages that show the Process Flow.'))"
-      data-hint="Open FastBoard with Egeria for a safe rapid consultant launch workflow. She collects the job need, confirms each step, creates the job description, ranks a candidate, and prepares scheduling context."
-      title="Ask Egeria"
-      aria-label="Ask Egeria"
+      href="egeria.html"
+      data-hint="Open Egeria's dedicated AI workspace for opportunity scanning, process-pilot checkpoints, rollback support, and client intelligence briefings."
+      title="Open Egeria"
+      aria-label="Open Egeria"
     >
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M4 19a5 5 0 0 1 10 0"></path><path d="M15 11h5"></path><path d="M17.5 8.5v5"></path></svg>
       <span>Egeria</span>
-    </button>
+    </a>
   </div>
   <div class="nav-group nav-talent-section" aria-label="Talent workflow">
     <a href="find-candidate.html" class="nav-talent" data-menu-key="talent" data-hint="Go to the main talent workspace. From there you can upload a resume, search existing profiles, pick a saved job description, and start a candidate shortlist in the current domain."><svg class="nav-icon"><use href="#nav-home"></use></svg>Talent</a>
@@ -414,46 +414,6 @@
     <a href="mine-candidate-external.html" class="nav-find-out" data-menu-key="find_out" data-hint="Use the outside-search workflow when internal matches are weak. Results come in as temporary profiles so you can review them before adding anything permanent."><svg class="nav-icon"><use href="#nav-search-out"></use></svg>Find Candidates (Out)</a>
     <a href="job-descriptions.html" class="nav-jds" data-menu-key="job_descriptions" data-hint="Manage job descriptions for the active domain only. Saved jobs here are what matching uses when ranking candidates and showing missing skills."><svg class="nav-icon"><use href="#nav-briefcase"></use></svg>Job Descriptions</a>
     <a href="profile-preview.html" class="nav-profiles" data-menu-key="profiles" data-hint="Open the current candidate profile to inspect resume data, portfolio roles, personality results, badges, public profile status, and missing completion pieces."><svg class="nav-icon"><use href="#nav-profile"></use></svg>Profiles</a>
-  </div>
-  <div class="nav-group nav-workflow-section" aria-label="Meetings interviews and onboarding">
-    <a
-      id="recordingsLink"
-      href="meet.html"
-      class="recordings-link"
-      data-menu-key="meet"
-      data-hint="Upload or review meeting recordings, generate notes and summaries, then push the important follow-up details back into the CRM flow."
-      ><svg class="nav-icon"><use href="#nav-mic"></use></svg>Meet</a
-    >
-    <a
-      href="schedule-interview.html?interview=ready"
-      class="interviews-link"
-      data-menu-key="interviews"
-      data-hint="Open the interview scheduling step. Start with Candidate Review before client outreach, or switch to Client Interview when the client meeting is ready."
-      ><svg class="nav-icon"><use href="#nav-interview"></use></svg>Interviews</a
-    >
-    <a
-      href="onboarding-admin.html"
-      class="onboarding-link"
-      data-menu-key="onboarding"
-      data-hint="Create the candidate onboarding link HR sends after a hire decision, then copy or email the matching paperwork and time-entry links."
-      ><svg class="nav-icon"><use href="#nav-onboarding"></use></svg>Onboarding</a
-    >
-  </div>
-  <div class="nav-group nav-status-section" aria-label="Time and status">
-    <a
-      href="time-admin.html"
-      class="time-link"
-      data-menu-key="time_link"
-      data-hint="Review weekly time submitted through staff time-entry links, total hours by person, and mark entries ready for HR payment processing."
-      ><svg class="nav-icon"><use href="#nav-clock"></use></svg>Time</a
-    >
-    <a
-      href="status-tracker.html"
-      class="status-link"
-      data-menu-key="status"
-      data-hint="Open the workflow status board for the current domain, including interview drafts, Calendly links, sent invites, follow-up status, and next actions."
-      ><svg class="nav-icon"><use href="#nav-status"></use></svg>Status</a
-    >
   </div>
   <div class="nav-group nav-finance-section" aria-label="Finance and operations">
     <a
@@ -642,7 +602,6 @@
       link.classList.add("active");
     }
   });
-
   document.querySelector("#pageNavInner .admin-link")?.addEventListener("click", (event) => {
     event.preventDefault();
     unlockAdminFor(event.currentTarget.href);

@@ -63,8 +63,10 @@
       }
 
       .mini-link-brand img {
-        width: 34px;
-        height: 34px;
+        width: 178px;
+        max-height: 52px;
+        object-fit: contain;
+        object-position: left center;
       }
 
       .mini-link-note {
@@ -273,8 +275,8 @@
     <main class="main">
       <header class="mini-link-header">
         <div class="mini-link-brand">
-          <img class="domainLogo" src="../assets/devLogo.svg" alt="DevReady" />
-          <span>DevReady Sales Workspace</span>
+          <img class="domainWordmark" src="../assets/devReadyWordmark.svg" alt="DevReady" />
+          <span>Sales Workspace</span>
         </div>
         <div class="mini-link-note">Focused rep link - updates save back to the shared CRM</div>
       </header>
@@ -457,8 +459,10 @@
             return null;
           }
         })();
-        document.querySelectorAll("img.domainLogo").forEach((img) => {
-          img.src = `../assets/${currentDomain()}Logo.svg`;
+        document.querySelectorAll("img.domainWordmark").forEach((img) => {
+          const domain = currentDomain();
+          img.src = domain === "engineer" ? "../assets/buildReadyWordmark.svg" : domain === "law" ? "../assets/legalReadyWordmark.svg" : "../assets/devReadyWordmark.svg";
+          img.alt = domain === "engineer" ? "BuildReady" : domain === "law" ? "LegalReady" : "DevReady";
         });
         document.getElementById("domainSelect").value = currentDomain();
         document.getElementById("repInput").value = params.get("rep") || user?.display_name || user?.username || "";

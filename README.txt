@@ -2,6 +2,10 @@
 VETCODE v3.0.0
 ==============
 
+GitHub:
+  Owner username: dcjoncas
+  Repository: https://github.com/dcjoncas/VETCODE
+
 Implemented:
 - Sidebar navigation works (Vetting / Profiles / Job Descriptions)
 - Profiles list with checkbox + hard delete (confirm required)

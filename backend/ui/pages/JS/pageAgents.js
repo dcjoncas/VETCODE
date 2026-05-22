@@ -3,12 +3,22 @@
     {
       key: "egeria",
       name: "Egeria",
-      page: "FastBoard Process Flow",
+      page: "Pilot",
       href: "find-candidate.html",
       color: "#b88727",
       specialty: "Guided end-to-end process flow, checkpoint approvals, recovery, and rollback.",
       canDo: ["Draft and confirm job descriptions", "Create a JD after approval", "Rank, shortlist, schedule, and seed status with rollback state"],
       prompt: "Owns guided process runs that move a user from job need to candidate selection and scheduling while preserving domain context and recoverability.",
+    },
+    {
+      key: "radar",
+      name: "Egeria",
+      page: "Egeria: Opportunity",
+      href: "find-candidate.html",
+      color: "#b88727",
+      specialty: "Cross-system AI scanning for hidden client, candidate, CRM, People Data, GitHub, and news opportunities.",
+      canDo: ["Surface hidden candidate-to-client matches", "Explain sales next actions", "Identify external sourcing and news-scan opportunities"],
+      prompt: "Owns proactive opportunity discovery across the active domain. Keep external findings temporary until reviewed, preserve domain isolation, and explain the next safe sales or recruiter move.",
     },
     {
       key: "talent",
@@ -579,6 +589,7 @@
       "profile-preview-edit": "profile",
       "profile-public": "profile",
       "profile-search-results": "profile",
+      egeria: "talent",
       "job-descriptions": "jobs",
       crm: "crm",
       "sales-crm": "salescrm",
@@ -622,14 +633,14 @@
     const style = document.createElement("style");
     style.id = "pageAgentWidgetStyles";
     style.textContent = `
-      body .agent-orb-button{position:fixed;top:var(--agent-dock-top,16px);left:var(--agent-dock-left,50%);right:var(--agent-dock-right,auto);transform:var(--agent-dock-transform,translateX(-50%));z-index:9000;display:none;width:auto;min-width:0;min-height:54px;align-items:center;justify-content:flex-start;gap:10px;border:1px solid rgba(255,255,255,.72);border-radius:999px;padding:7px 14px 7px 7px;background:linear-gradient(135deg,rgba(255,255,255,.96),rgba(255,255,255,.84));color:#101827;box-shadow:0 18px 40px rgba(15,23,42,.18),0 0 0 1px color-mix(in srgb,var(--primary-2,#2f7d4b),transparent 78%);cursor:pointer;font:inherit;backdrop-filter:blur(8px)}
+      body .agent-orb-button{position:fixed;top:var(--agent-dock-top,12px);left:var(--agent-dock-left,auto);right:var(--agent-dock-right,320px);transform:var(--agent-dock-transform,none);z-index:9000;display:none;width:auto;min-width:0;min-height:40px;align-items:center;justify-content:flex-start;gap:7px;border:1px solid rgba(255,255,255,.72);border-radius:999px;padding:5px 10px 5px 5px;background:linear-gradient(135deg,rgba(255,255,255,.96),rgba(255,255,255,.84));color:#101827;box-shadow:0 12px 28px rgba(15,23,42,.16),0 0 0 1px color-mix(in srgb,var(--primary-2,#2f7d4b),transparent 78%);cursor:pointer;font:inherit;backdrop-filter:blur(8px)}
       body .agent-orb-button.visible{display:inline-flex}
-      body .agent-orb{--agent-color:#2f7d4b;position:relative;display:grid;place-items:center;width:52px;height:52px;border-radius:999px;background:radial-gradient(circle at 29% 23%,rgba(255,255,255,.98) 0 8%,rgba(255,255,255,.28) 9% 21%,transparent 22%),radial-gradient(circle at 70% 75%,rgba(0,0,0,.24),transparent 38%),conic-gradient(from 142deg,color-mix(in srgb,var(--agent-color),white 30%),var(--agent-color),color-mix(in srgb,var(--agent-color),black 33%),color-mix(in srgb,var(--agent-color),white 22%));box-shadow:inset -10px -12px 18px rgba(0,0,0,.24),inset 9px 9px 15px rgba(255,255,255,.28),0 10px 22px color-mix(in srgb,var(--agent-color),transparent 62%)}
-      body .agent-orb::before{content:"";position:absolute;inset:5px;border-radius:inherit;border:1px solid rgba(255,255,255,.42);box-shadow:0 0 0 1px color-mix(in srgb,var(--agent-color),white 16%)}
-      body .agent-orb::after{content:"";position:absolute;right:7px;top:8px;width:7px;height:7px;border-radius:999px;background:#fff;box-shadow:-20px 18px 0 -2px rgba(255,255,255,.72),-10px 28px 0 -3px rgba(255,255,255,.58)}
+      body .agent-orb{--agent-color:#2f7d4b;position:relative;display:grid;place-items:center;width:32px;height:32px;border-radius:999px;background:radial-gradient(circle at 29% 23%,rgba(255,255,255,.98) 0 8%,rgba(255,255,255,.28) 9% 21%,transparent 22%),radial-gradient(circle at 70% 75%,rgba(0,0,0,.24),transparent 38%),conic-gradient(from 142deg,color-mix(in srgb,var(--agent-color),white 30%),var(--agent-color),color-mix(in srgb,var(--agent-color),black 33%),color-mix(in srgb,var(--agent-color),white 22%));box-shadow:inset -7px -8px 12px rgba(0,0,0,.22),inset 6px 6px 10px rgba(255,255,255,.28),0 8px 16px color-mix(in srgb,var(--agent-color),transparent 68%)}
+      body .agent-orb::before{content:"";position:absolute;inset:4px;border-radius:inherit;border:1px solid rgba(255,255,255,.42);box-shadow:0 0 0 1px color-mix(in srgb,var(--agent-color),white 16%)}
+      body .agent-orb::after{content:"";position:absolute;right:5px;top:6px;width:5px;height:5px;border-radius:999px;background:#fff;box-shadow:-12px 11px 0 -2px rgba(255,255,255,.72),-6px 17px 0 -3px rgba(255,255,255,.58)}
       body .agent-orb svg{position:relative;z-index:1;width:46%;height:46%;fill:none;stroke:#fff;stroke-width:2.35;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.28))}
-      body .agent-orb-button span{display:inline-block;flex:0 0 auto;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:900}
-      body .agent-chat-panel{position:fixed;top:var(--agent-panel-top,74px);left:var(--agent-panel-left,50%);right:var(--agent-panel-right,auto);transform:var(--agent-panel-transform,translateX(-50%));z-index:9001;display:none;width:min(390px,calc(100vw - 28px));border:1px solid var(--line,#dfe7e2);border-radius:14px;background:#fff;color:var(--text,#101827);box-shadow:0 22px 60px rgba(15,23,42,.22);overflow:hidden}
+      body .agent-orb-button span{display:inline-block;flex:0 0 auto;max-width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:900}
+      body .agent-chat-panel{position:fixed;top:var(--agent-panel-top,60px);left:var(--agent-panel-left,auto);right:var(--agent-panel-right,18px);transform:var(--agent-panel-transform,none);z-index:9001;display:none;width:min(390px,calc(100vw - 28px));border:1px solid var(--line,#dfe7e2);border-radius:14px;background:#fff;color:var(--text,#101827);box-shadow:0 22px 60px rgba(15,23,42,.22);overflow:hidden}
       .agent-chat-panel.open{display:block}
       .agent-chat-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px;border-bottom:1px solid var(--line,#dfe7e2);background:linear-gradient(90deg,rgba(47,125,75,.1),#fff)}
       .agent-chat-title strong{display:block;font-size:14px;line-height:1.15}.agent-chat-title span{display:block;margin-top:2px;color:var(--muted,#5b6b62);font-size:12px}
@@ -642,6 +653,7 @@
       .agent-action-card strong{display:block;margin-bottom:4px;font-size:13px}.agent-action-card span{display:block;color:var(--muted,#5b6b62);font-size:12px}
       .agent-action-card button{margin-top:9px;min-height:34px;border:1px solid color-mix(in srgb,var(--primary-2,#2f7d4b),transparent 62%);border-radius:999px;background:#fff;color:var(--primary-2,#2f7d4b);font-weight:900;cursor:pointer}
       .agent-action-card button:disabled{opacity:.62;cursor:not-allowed}
+      @media(max-width:980px){body .agent-orb-button{right:12px;top:58px}body .agent-chat-panel{right:12px;top:104px}}
     `;
     document.head.appendChild(style);
   }
@@ -892,3 +904,4 @@
     mountWidget();
   }
 })();
+

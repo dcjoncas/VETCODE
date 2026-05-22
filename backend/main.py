@@ -213,6 +213,7 @@ ONBOARDING_RECORDS_PATH = os.path.join(DATA_DIR, "onboarding_records.json")
 TIME_ENTRIES_PATH = os.path.join(DATA_DIR, "time_entries.json")
 ACCOUNTING_RECORDS_PATH = os.path.join(DATA_DIR, "accounting_records.json")
 WORKFLOW_EVENTS_PATH = os.path.join(DATA_DIR, "workflow_events.json")
+EGERIA_PROCESS_LOG_PATH = os.path.join(DATA_DIR, "egeria_process_log.json")
 INTERVIEW_ARCHIVE_PATH = os.path.join(DATA_DIR, "interview_archive.json")
 CRM_RECORDS_PATH = os.path.join(DATA_DIR, "crm_records.json")
 MEETING_RECORDS_PATH = os.path.join(DATA_DIR, "meeting_records.json")
@@ -1039,6 +1040,830 @@ def _require_numa_action_access(context: dict):
 
 def _safe_action_text(value, limit: int = 1200) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()[:limit]
+
+
+def _egeria_log_rows() -> list[dict]:
+    rows = _read_json_store(EGERIA_PROCESS_LOG_PATH, [])
+    return rows if isinstance(rows, list) else []
+
+
+def _egeria_recent_log(domain: str = "dev", limit: int = 8) -> list[dict]:
+    clean_domain = _domain_key(domain)
+    rows = [
+        row for row in _egeria_log_rows()
+        if clean_domain == "all" or _domain_key(row.get("domain", "dev")) == clean_domain
+    ]
+    rows.sort(key=lambda row: row.get("created_at") or "", reverse=True)
+    return rows[: max(1, min(limit, 40))]
+
+
+def _egeria_log_event(domain: str, event_type: str, context: dict | None = None, before=None, after=None, message: str = "", payload=None) -> dict:
+    rows = _egeria_log_rows()
+    clean_domain = _domain_key(domain)
+    event = {
+        "id": _safe_token("EGR"),
+        "domain": clean_domain,
+        "event_type": _safe_action_text(event_type, 80) or "process_event",
+        "message": _safe_action_text(message, 500),
+        "context": context if isinstance(context, dict) else {},
+        "before": before,
+        "after": after,
+        "payload": payload if isinstance(payload, (dict, list)) else {},
+        "created_at": _now_utc(),
+    }
+    rows.insert(0, event)
+    _write_json_store(EGERIA_PROCESS_LOG_PATH, rows[:1200])
+    return event
+
+
+def _egeria_context_json(raw: str = "") -> dict:
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        return {}
+
+
+def _egeria_bool_text(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value or "").strip().lower() in {"1", "true", "yes", "ready", "complete", "completed"}
+
+
+def _egeria_process_assessment(domain: str, context: dict | None = None) -> dict:
+    context = context if isinstance(context, dict) else {}
+    clean_domain = _domain_key(domain or context.get("domain") or "dev")
+    raw_step = _safe_action_text(context.get("currentStep"), 80) or "talent"
+    step = raw_step
+    next_step = _safe_action_text(context.get("nextStep"), 80)
+    candidate_id = _safe_action_text(context.get("candidateId") or context.get("selectedProfileId"), 80)
+    candidate_name = _safe_action_text(context.get("candidateName"), 180)
+    candidate_status = _safe_action_text(context.get("candidateStatus"), 220).lower()
+    job_id = _safe_action_text(context.get("jobId") or context.get("selectedJdId") or context.get("jdId"), 80)
+    job_title = _safe_action_text(context.get("jobTitle"), 220)
+    shortlist_count = 0
+    try:
+        shortlist_count = int(context.get("shortlistCount") or 0)
+    except Exception:
+        shortlist_count = 0
+    candidate_review_ready = _egeria_bool_text(context.get("candidateReviewComplete") or context.get("candidateReviewReady"))
+    client_interview_ready = _egeria_bool_text(context.get("clientInterviewReady"))
+    schedule_saved = _egeria_bool_text(context.get("scheduleSaved"))
+
+    if step in {"egeria", "process-pilot", "pilot"}:
+        if not candidate_id:
+            step = "talent"
+            next_step = "select-candidate"
+        elif not job_id:
+            step = "job-descriptions"
+            next_step = "select-job"
+        elif shortlist_count <= 0:
+            step = "profile"
+            next_step = "confirm-profile"
+        elif not candidate_review_ready:
+            step = "shortlist"
+            next_step = "candidate-review"
+        elif not client_interview_ready:
+            step = "candidate-review"
+            next_step = "client-interview"
+        else:
+            step = "client-interview"
+            next_step = "status"
+
+    blockers = []
+    warnings = []
+    actions = []
+
+    if step in {"find-in", "find-out", "profile", "candidate-chat", "shortlist", "candidate-review", "client-interview", "status"} and not candidate_id:
+        blockers.append("No candidate is selected for this workflow.")
+        actions.append({"label": "Choose candidate", "href": f"find-candidate.html?domain={clean_domain}", "type": "navigate"})
+    if step in {"find-in", "find-out", "shortlist", "candidate-review", "client-interview", "status"} and not job_id:
+        blockers.append("No job description is selected.")
+        actions.append({"label": "Select job description", "href": f"job-descriptions.html?domain={clean_domain}", "type": "navigate"})
+    if candidate_id and ("partial" in candidate_status or "missing" in candidate_status):
+        warnings.append(f"{candidate_name or 'Candidate'} has an incomplete profile. Complete missing profile pieces before public sharing.")
+        actions.append({"label": "Open profile", "href": f"profile-preview.html?domain={clean_domain}&profileId={candidate_id}", "type": "navigate"})
+    if step in {"shortlist", "candidate-review", "client-interview", "status"} and shortlist_count <= 0:
+        blockers.append("Shortlist is empty. Add the candidate before preparing client communication.")
+        actions.append({"label": "Open shortlist", "href": f"client-comm.html?domain={clean_domain}", "type": "navigate"})
+    if step in {"shortlist", "client-interview", "status"} and not candidate_review_ready:
+        warnings.append("Candidate review is missing before client outreach. Confirm interest, role fit, gaps, timing, and pay first.")
+        actions.append({"label": "Conduct candidate review", "href": f"schedule-interview.html?domain={clean_domain}&interview=ready", "type": "navigate"})
+    if step in {"client-interview", "status"} and not client_interview_ready and schedule_saved:
+        warnings.append("A schedule action exists, but client interview completion has not been confirmed.")
+
+    if not next_step:
+        next_step = "job-descriptions" if step == "talent" and not job_id else ""
+
+    if not actions:
+        next_action = {
+            "talent": ("Find or choose a candidate", f"find-candidate.html?domain={clean_domain}"),
+            "job-descriptions": ("Select job description", f"job-descriptions.html?domain={clean_domain}"),
+            "find-in": ("Open candidate profile", f"profile-preview.html?domain={clean_domain}" + (f"&profileId={candidate_id}" if candidate_id else "")),
+            "find-out": ("Open candidate profile", f"profile-preview.html?domain={clean_domain}" + (f"&profileId={candidate_id}" if candidate_id else "")),
+            "profile": ("Review candidate profile", f"profile-preview.html?domain={clean_domain}" + (f"&profileId={candidate_id}" if candidate_id else "")),
+            "candidate-chat": ("Prepare shortlist", f"client-comm.html?domain={clean_domain}"),
+            "shortlist": ("Conduct candidate review", f"schedule-interview.html?domain={clean_domain}&interview=ready"),
+            "candidate-review": ("Schedule client interview", f"schedule-interview.html?domain={clean_domain}&interview=client"),
+            "client-interview": ("Open status tracker", f"status-tracker.html?domain={clean_domain}"),
+        }.get(step, ("Open Talent workspace", f"find-candidate.html?domain={clean_domain}"))
+        actions.append({"label": next_action[0], "href": next_action[1], "type": "navigate"})
+
+    if blockers:
+        recommendation = blockers[0]
+        state_label = "Blocked"
+    elif warnings:
+        recommendation = warnings[0]
+        state_label = "Needs review"
+    elif candidate_id and job_id and shortlist_count > 0 and step == "shortlist":
+        recommendation = f"{candidate_name or 'Candidate'} is ready for shortlist workflow, but Egeria will keep candidate review as the next safe checkpoint."
+        state_label = "Ready with checkpoint"
+    elif candidate_id and job_id:
+        action_label = actions[0].get("label") if actions else "continue"
+        recommendation = f"{candidate_name or 'Candidate'} is connected to {job_title or 'the selected role'}. Next action: {action_label}."
+        state_label = "Ready"
+    else:
+        recommendation = "Start by selecting a candidate and job description in the current domain."
+        state_label = "Start"
+
+    return {
+        "ok": True,
+        "domain": clean_domain,
+        "state_label": state_label,
+        "current_step": step,
+        "next_step": next_step,
+        "source_step": raw_step,
+        "ready": not blockers,
+        "blockers": blockers,
+        "warnings": warnings,
+        "recommendation": recommendation,
+        "safe_actions": actions[:5],
+        "checkpoint_required": True,
+        "agent": "Egeria",
+        "permissions": [
+            "read workflow state",
+            "write action log",
+            "create checkpoint",
+            "restore browser workflow state",
+            "delegate safe workflow actions after user approval",
+        ],
+    }
+
+
+@app.post("/api/egeria/process-pilot/assess")
+def assess_egeria_process_pilot(
+    domain: str = Form(default="dev"),
+    context_json: str = Form(default=""),
+):
+    context = _egeria_context_json(context_json)
+    assessment = _egeria_process_assessment(domain or context.get("domain", "dev"), context)
+    assessment["recent_log"] = _egeria_recent_log(assessment["domain"], 8)
+    return assessment
+
+
+@app.post("/api/egeria/process-pilot/checkpoint")
+def checkpoint_egeria_process_pilot(
+    domain: str = Form(default="dev"),
+    event_type: str = Form(default="checkpoint"),
+    context_json: str = Form(default=""),
+    before_json: str = Form(default=""),
+    after_json: str = Form(default=""),
+    message: str = Form(default=""),
+):
+    context = _egeria_context_json(context_json)
+    before = _egeria_context_json(before_json)
+    after = _egeria_context_json(after_json)
+    event = _egeria_log_event(domain or context.get("domain", "dev"), event_type, context, before, after, message)
+    return {"ok": True, "event": event, "recent_log": _egeria_recent_log(event["domain"], 8)}
+
+
+@app.post("/api/egeria/process-pilot/rollback")
+def rollback_egeria_process_pilot(
+    domain: str = Form(default="dev"),
+    context_json: str = Form(default=""),
+    before_json: str = Form(default=""),
+    after_json: str = Form(default=""),
+    message: str = Form(default=""),
+):
+    context = _egeria_context_json(context_json)
+    event = _egeria_log_event(
+        domain or context.get("domain", "dev"),
+        "rollback",
+        context,
+        _egeria_context_json(before_json),
+        _egeria_context_json(after_json),
+        message or "Egeria restored the last browser workflow checkpoint.",
+    )
+    return {"ok": True, "event": event, "recent_log": _egeria_recent_log(event["domain"], 8)}
+
+
+@app.get("/api/egeria/process-pilot/log")
+def egeria_process_pilot_log(domain: str = "dev", limit: int = 20):
+    clean_domain = _domain_key(domain)
+    return {"ok": True, "domain": clean_domain, "events": _egeria_recent_log(clean_domain, limit)}
+
+
+def _radar_words(value: str) -> set[str]:
+    words = re.findall(r"[a-zA-Z][a-zA-Z0-9+#.\-]{1,}", str(value or "").lower())
+    stop = {
+        "and", "the", "for", "with", "from", "that", "this", "will", "are", "our", "you",
+        "your", "their", "role", "client", "candidate", "experience", "years", "using",
+        "work", "team", "teams", "project", "projects", "system", "systems",
+    }
+    return {word.strip(".-") for word in words if word not in stop and len(word) > 2}
+
+
+def _radar_skill_terms(skills) -> list[str]:
+    terms = []
+    if isinstance(skills, dict):
+        for value in skills.values():
+            if isinstance(value, list):
+                terms.extend(str(item) for item in value if str(item or "").strip())
+            elif value:
+                terms.append(str(value))
+    elif isinstance(skills, list):
+        for item in skills:
+            if isinstance(item, dict):
+                terms.append(str(item.get("title") or item.get("skill") or ""))
+            else:
+                terms.append(str(item or ""))
+    return [_safe_action_text(item, 80) for item in terms if _safe_action_text(item, 80)]
+
+
+def _radar_profile_text(profile: dict) -> str:
+    parts = []
+    contact = profile.get("contact", {}) or {}
+    summary = profile.get("summary", {}) or {}
+    parts.extend([contact.get("full_name", ""), contact.get("email", ""), summary.get("headline", ""), summary.get("overview", "")])
+    for item in _radar_skill_terms(profile.get("skills", {})):
+        parts.append(item)
+    for item in profile.get("experience", []) or []:
+        if not isinstance(item, dict):
+            continue
+        parts.extend([
+            item.get("company", ""),
+            item.get("title", ""),
+            item.get("mainrole", ""),
+            item.get("summary", ""),
+            item.get("description", ""),
+        ])
+        for bullet in item.get("bullets", []) or []:
+            parts.append(str(bullet))
+    return " ".join(str(part or "") for part in parts)
+
+
+def _radar_profiles(domain: str, limit: int = 80) -> list[dict]:
+    rows = []
+    for key, db_path in _domain_db_items(domain):
+        try:
+            page = storage.search_profiles_full(
+                db_path,
+                domain=_storage_domain(key),
+                search_string="",
+                currentPage=0,
+                pageLimit=max(10, min(limit, 200)),
+            )
+        except Exception:
+            page = []
+        for row in page:
+            data = row.get("data") if isinstance(row, dict) else {}
+            if not isinstance(data, dict):
+                continue
+            meta = data.get("meta", {}) or {}
+            contact = data.get("contact", {}) or {}
+            profile_id = str(meta.get("profile_id") or row.get("profile_id") or "")
+            name = _safe_action_text(contact.get("full_name") or row.get("full_name"), 180)
+            if not profile_id or not name:
+                continue
+            rows.append(
+                {
+                    "profile_id": profile_id,
+                    "name": name,
+                    "email": _safe_action_text(contact.get("email") or row.get("email"), 240),
+                    "headline": _safe_action_text((data.get("summary", {}) or {}).get("headline"), 220),
+                    "domain": key,
+                    "skills": _radar_skill_terms(data.get("skills", {})),
+                    "text": _radar_profile_text(data),
+                    "profile": data,
+                }
+            )
+    return rows[: max(1, min(limit, 200))]
+
+
+def _radar_jds(domain: str, limit: int = 12) -> list[dict]:
+    rows = []
+    for key, db_path in _domain_db_items(domain):
+        try:
+            summaries = storage.list_jds(db_path, domain=_storage_domain(key))
+        except Exception:
+            summaries = []
+        for summary in summaries[: max(1, min(limit, 50))]:
+            jd_id = str(summary.get("jd_id") or "")
+            if not jd_id:
+                continue
+            jd = storage.get_jd(db_path, jd_id) or summary
+            jd["domain"] = _domain_key(jd.get("domain") or key)
+            rows.append(jd)
+    return rows[: max(1, min(limit, 50))]
+
+
+def _radar_crm_records(domain: str, limit: int = 80) -> list[dict]:
+    records = _read_json_store_with_demo(CRM_RECORDS_PATH, [])
+    clean_domain = _domain_key(domain)
+    if not isinstance(records, list):
+        return []
+    rows = []
+    for item in records:
+        if not isinstance(item, dict):
+            continue
+        if clean_domain != "all" and _domain_key(item.get("domain", "dev")) != clean_domain:
+            continue
+        rows.append(item)
+    rows.sort(key=lambda item: item.get("updatedAt") or item.get("createdAt") or item.get("when") or "", reverse=True)
+    return rows[: max(1, min(limit, 200))]
+
+
+def _radar_stage_weight(record: dict) -> int:
+    stage = _safe_action_text(record.get("dealStage") or record.get("contractStatus") or record.get("status"), 80).lower()
+    score = 0.0
+    if any(word in stage for word in ["urgent", "qualified", "proposal", "active", "ready"]):
+        score += 6
+    elif any(word in stage for word in ["discovery", "building", "warm"]):
+        score += 4
+    elif any(word in stage for word in ["stalled", "risk", "needs"]):
+        score += 5
+    else:
+        score += 2
+    try:
+        strength = float(record.get("strength") or record.get("heat") or 0)
+    except Exception:
+        strength = 0
+    score += min(5, max(0, strength) * 0.55)
+    try:
+        days = _crm_days_since(record.get("lastTouched") or record.get("when"))
+    except Exception:
+        days = 0
+    score += min(3, max(0, days) * 0.2)
+    return int(round(min(14, score)))
+
+
+def _radar_customer_for_jd(jd: dict, crm_records: list[dict]) -> dict:
+    company = _safe_action_text(jd.get("company"), 240).lower()
+    if not company:
+        return {}
+    for record in crm_records:
+        customer = _safe_action_text(record.get("customer"), 240).lower()
+        if customer and (customer in company or company in customer):
+            return record
+    return {}
+
+
+def _radar_skill_norm(value: str) -> str:
+    return re.sub(r"[^a-z0-9+#]+", "", str(value or "").lower())
+
+
+def _radar_skill_related(needle: str, haystack: str) -> bool:
+    clean_needle = _radar_skill_norm(needle)
+    clean_haystack = _radar_skill_norm(haystack)
+    if not clean_needle or not clean_haystack:
+        return False
+    return clean_needle in clean_haystack or clean_haystack in clean_needle
+
+
+def _radar_weighted_skill_score(jd_terms: list[str], candidate_skills: list[str], base_rank: float = 0, crm_weight: float = 0) -> dict:
+    required = [_safe_action_text(term, 80) for term in jd_terms if _safe_action_text(term, 80)]
+    candidate = [_safe_action_text(skill, 120) for skill in candidate_skills if _safe_action_text(skill, 120)]
+    exact = []
+    related = []
+    gaps = []
+    for term in required:
+        exact_hit = next((skill for skill in candidate if _radar_skill_norm(skill) == _radar_skill_norm(term)), "")
+        if exact_hit:
+            exact.append(term)
+            continue
+        related_hit = next((skill for skill in candidate if _radar_skill_related(term, skill)), "")
+        if related_hit:
+            related.append(related_hit)
+        else:
+            gaps.append(term)
+    exact_score = (len(exact) / max(1, len(required))) * 62
+    related_score = min(18, len(set(_radar_skill_norm(item) for item in related)) * 4.5)
+    richness_score = min(8, len(set(_radar_skill_norm(item) for item in candidate)) * 0.25)
+    rank_score = min(8, max(0, float(base_rank or 0)) / 5)
+    crm_score = min(4, max(0, float(crm_weight or 0)) / 3.5)
+    score = round(min(99, exact_score + related_score + richness_score + rank_score + crm_score), 1)
+    matched = []
+    for item in exact + related:
+        if item and item not in matched:
+            matched.append(item)
+    return {
+        "score": score,
+        "exact": exact,
+        "matched": matched[:8],
+        "gaps": gaps[:6],
+        "score_parts": {
+            "exact_required": round(exact_score, 1),
+            "related": round(related_score, 1),
+            "skill_depth": round(richness_score, 1),
+            "search_rank": round(rank_score, 1),
+            "crm_signal": round(crm_score, 1),
+        },
+    }
+
+
+def _radar_title_alignment(jd: dict, candidate_text: str) -> float:
+    title_words = _radar_words(jd.get("title", ""))
+    candidate_words = _radar_words(candidate_text)
+    overlap = title_words & candidate_words
+    return round(min(6, len(overlap) * 1.5), 1)
+
+
+def _radar_process_score(value: str) -> float:
+    clean = _safe_action_text(value, 100).lower()
+    if "certified" in clean:
+        return 3.0
+    if "complete" in clean or "ready" in clean:
+        return 2.0
+    if "review" in clean or "progress" in clean:
+        return 1.0
+    return 0.0
+
+
+def _radar_match_profile_to_jd(profile: dict, jd: dict) -> dict:
+    jd_skills = jd.get("jd_skills") if isinstance(jd.get("jd_skills"), dict) else {}
+    profile_skills = (profile.get("profile", {}) or {}).get("skills", {})
+    jd_terms = _radar_skill_terms(jd_skills) or sorted(_radar_words(jd.get("jd_text", "")))[:18]
+    if jd_skills and isinstance(profile_skills, dict):
+        try:
+            score, parts = match(profile_skills, jd_skills)
+            matched = top_matches_from_parts(parts, limit=8)
+            gaps = []
+            for group in ["backend", "frontend", "cloud_devops", "data", "testing", "security", "languages"]:
+                gaps.extend(((parts.get(group, {}) or {}).get("missing", []) or [])[:2])
+            weighted = _radar_weighted_skill_score(jd_terms, _radar_skill_terms(profile_skills))
+            role_score = _radar_title_alignment(jd, f"{profile.get('headline', '')} {profile.get('text', '')}")
+            weighted["score_parts"]["role_title"] = role_score
+            return {
+                "score": min(99, max(float(score or 0), weighted["score"]) + role_score),
+                "matched": matched or weighted["matched"],
+                "gaps": gaps[:6] or weighted["gaps"],
+                "score_parts": weighted.get("score_parts", {}),
+                "exact": weighted.get("exact", []),
+            }
+        except Exception:
+            pass
+    weighted = _radar_weighted_skill_score(jd_terms, profile.get("skills", []))
+    role_score = _radar_title_alignment(jd, f"{profile.get('headline', '')} {profile.get('text', '')}")
+    weighted["score"] = min(99, round(weighted["score"] + role_score, 1))
+    weighted["score_parts"]["role_title"] = role_score
+    return weighted
+
+
+def _radar_external_people_suggestions(jd: dict, clean_domain: str, customer: dict, customer_weight: int, limit: int = 5) -> list[dict]:
+    if not os.getenv("PDL_API_KEY"):
+        return []
+    jd_skill_terms = _radar_skill_terms(jd.get("jd_skills", {}))[:12]
+    if not jd_skill_terms:
+        return []
+    try:
+        people = peopleDataLabs.searchSkills(jd_skill_terms, size=max(1, min(limit, 10))).get("data", [])
+    except Exception:
+        people = []
+    suggestions = []
+    for row in people[: max(1, min(limit, 10))]:
+        if not isinstance(row, dict):
+            continue
+        skills = [str(skill) for skill in (row.get("skills") or []) if str(skill or "").strip()]
+        scored = _radar_weighted_skill_score(jd_skill_terms, skills, base_rank=0, crm_weight=customer_weight)
+        role_score = _radar_title_alignment(jd, f"{row.get('job_title', '')} {row.get('headline', '')} {row.get('summary', '')}")
+        scored["score"] = min(95, round(scored["score"] + role_score, 1))
+        scored["score_parts"]["role_title"] = role_score
+        if scored["score"] < 25 and len(scored["matched"]) < 2:
+            continue
+        first = _safe_action_text(row.get("first_name"), 100)
+        last = _safe_action_text(row.get("last_name"), 120)
+        full_name = _safe_action_text(row.get("full_name") or f"{first} {last}", 220)
+        suggestions.append(
+            {
+                "score": round(min(95, scored["score"] - 3), 1),
+                "domain": clean_domain,
+                "source": "people_data_labs",
+                "source_label": "External People Data",
+                "candidate": {
+                    "profile_id": _safe_action_text(row.get("id"), 140),
+                    "name": full_name or "External candidate",
+                    "email": _safe_action_text(row.get("work_email") or row.get("recommended_personal_email"), 240),
+                    "headline": _safe_action_text(row.get("job_title") or row.get("headline"), 220),
+                    "linkedin_url": _safe_action_text(row.get("linkedin_url"), 400),
+                },
+                "job": {
+                    "jd_id": jd.get("jd_id", ""),
+                    "company": _safe_action_text(jd.get("company"), 180),
+                    "title": _safe_action_text(jd.get("title"), 220),
+                },
+                "client": {
+                    "id": _safe_action_text(customer.get("id"), 120),
+                    "name": _safe_action_text(customer.get("customer"), 180),
+                    "stage": _safe_action_text(customer.get("dealStage") or customer.get("contractStatus"), 120),
+                    "owner": _safe_action_text(customer.get("owner"), 120),
+                } if customer else {},
+                "matched": scored["matched"],
+                "gaps": scored["gaps"],
+                "score_parts": scored["score_parts"],
+                "reason": "External People Data prospect. Matched: " + ", ".join(scored["matched"][:5]),
+                "next_action": "Review as a temporary outside prospect before creating a permanent profile.",
+                "links": {
+                    "profile": f"mine-candidate-external.html?domain={clean_domain}",
+                    "match": f"mine-candidate-external.html?domain={clean_domain}",
+                    "client_comm": f"client-comm.html?domain={clean_domain}",
+                },
+            }
+        )
+    return suggestions
+
+
+def _radar_sort_key(item: dict):
+    source = item.get("source") or "local_profile"
+    source_order = 1 if source == "people_data_labs" else 0
+    return (source_order, -float(item.get("score") or 0))
+
+
+def _radar_source_counts(suggestions: list[dict]) -> dict:
+    return {
+        "internal": len([item for item in suggestions if item.get("source") != "people_data_labs"]),
+        "external": len([item for item in suggestions if item.get("source") == "people_data_labs"]),
+    }
+
+
+def _external_radar_status() -> dict:
+    return {
+        "people_data": {
+            "ready": bool(os.getenv("PDL_API_KEY")),
+            "label": "People Data Labs",
+            "action": "Use Find Candidates (Out) or enable include_external for sourced prospects.",
+        },
+        "github": {
+            "ready": bool(os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")),
+            "label": "GitHub",
+            "action": "Ready for a code-footprint scanner when a token is configured.",
+        },
+        "news": {
+            "ready": True,
+            "label": "Client news scan",
+            "action": "CRM news scan can check recent public web/news signals for selected customers.",
+        },
+    }
+
+
+def _ai_radar_narrative(domain: str, suggestions: list[dict], crm_records: list[dict]) -> dict:
+    fallback = {
+        "headline": "Egeria: Opportunity found cross-system candidate and client signals.",
+        "brief": "Review the highest-scoring suggestion, confirm candidate interest, then prepare a client-ready shortlist.",
+        "sales_angle": "Use the reason and gaps to guide the next sales or recruiter touch.",
+    }
+    if not suggestions:
+        return {
+            "headline": "Egeria: Opportunity did not find a strong match yet.",
+            "brief": "Load or normalize more job descriptions, then run the radar again.",
+            "sales_angle": "If internal matches are thin, route the role to outside sourcing.",
+        }
+    try:
+        client = getOpenAPIClient()
+        payload = json.dumps(
+            {
+                "domain": _domain_key(domain),
+                "suggestions": suggestions[:5],
+                "crm_sample": [
+                    {
+                        "customer": item.get("customer"),
+                        "stage": item.get("dealStage") or item.get("contractStatus"),
+                        "nextStep": item.get("nextStep"),
+                    }
+                    for item in crm_records[:5]
+                ],
+            },
+            ensure_ascii=False,
+        )
+        response = client.chat.completions.create(
+            model=os.getenv("OPENAI_AGENT_MODEL", "gpt-4o-mini"),
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are Egeria: Opportunity for VETCODE. Return compact JSON with "
+                        "headline, brief, and sales_angle. Use only the provided data. Do not invent "
+                        "candidate facts, client facts, compensation, or promises."
+                    ),
+                },
+                {"role": "user", "content": payload},
+            ],
+            temperature=0.2,
+        )
+        content = response.choices[0].message.content or ""
+        found = re.search(r"\{.*\}", content, re.S)
+        parsed = json.loads(found.group(0) if found else content)
+        return {
+            "headline": _safe_action_text(parsed.get("headline"), 220) or fallback["headline"],
+            "brief": _safe_action_text(parsed.get("brief"), 420) or fallback["brief"],
+            "sales_angle": _safe_action_text(parsed.get("sales_angle"), 360) or fallback["sales_angle"],
+        }
+    except Exception:
+        return fallback
+
+
+@app.get("/api/ai/opportunity-radar")
+def opportunity_radar(domain: str = "dev", limit: int = 5, include_external: bool = False):
+    clean_domain = _domain_key(domain)
+    jds = _radar_jds(clean_domain, limit=12)
+    profiles = _radar_profiles(clean_domain, limit=100)
+    crm_records = _radar_crm_records(clean_domain, limit=120)
+    suggestions = []
+    for jd in jds[:10]:
+        customer = _radar_customer_for_jd(jd, crm_records)
+        customer_weight = _radar_stage_weight(customer) if customer else 0
+        for profile in profiles:
+            result = _radar_match_profile_to_jd(profile, jd)
+            score_parts = dict(result.get("score_parts") or {})
+            score_parts["crm_signal"] = round(min(4, max(0, float(customer_weight or 0)) / 3.5), 1)
+            score = min(99, round(float(result.get("score", 0)) + customer_weight, 1))
+            if score < 25 and len(result.get("matched", [])) < 2:
+                continue
+            matched = result.get("matched", [])[:8]
+            gaps = result.get("gaps", [])[:6]
+            reason_bits = []
+            if matched:
+                reason_bits.append("Matched: " + ", ".join(matched[:5]))
+            if customer:
+                reason_bits.append(f"CRM signal: {customer.get('customer')} is {customer.get('dealStage') or customer.get('contractStatus') or 'active'}")
+            if gaps:
+                reason_bits.append("Check gaps: " + ", ".join(gaps[:3]))
+            suggestions.append(
+                {
+                    "score": score,
+                    "domain": clean_domain,
+                    "candidate": {
+                        "profile_id": profile["profile_id"],
+                        "name": profile["name"],
+                        "email": profile["email"],
+                        "headline": profile["headline"],
+                    },
+                    "job": {
+                        "jd_id": jd.get("jd_id", ""),
+                        "company": _safe_action_text(jd.get("company"), 180),
+                        "title": _safe_action_text(jd.get("title"), 220),
+                    },
+                    "client": {
+                        "id": _safe_action_text(customer.get("id"), 120),
+                        "name": _safe_action_text(customer.get("customer"), 180),
+                        "stage": _safe_action_text(customer.get("dealStage") or customer.get("contractStatus"), 120),
+                        "owner": _safe_action_text(customer.get("owner"), 120),
+                    } if customer else {},
+                    "matched": matched,
+                    "gaps": gaps,
+                    "score_parts": score_parts,
+                    "source": "local_profile_database",
+                    "source_label": "Internal Profile",
+                    "reason": ". ".join(reason_bits) or "Candidate and role show overlapping evidence.",
+                    "next_action": "Send role feedback link, then run candidate review before shortlist.",
+                    "links": {
+                        "profile": f"profile-preview.html?domain={clean_domain}&profileId={profile['profile_id']}",
+                        "match": f"match-role.html?domain={clean_domain}&jdId={jd.get('jd_id', '')}",
+                        "client_comm": f"client-comm.html?domain={clean_domain}",
+                    },
+                }
+            )
+        jd_skill_terms = _radar_skill_terms(jd.get("jd_skills", {}))[:16]
+        if jd_skill_terms:
+            try:
+                azure_rows = candidates.searchCandidatesBySkills(",".join(jd_skill_terms), 8, domain=clean_domain)
+            except Exception:
+                azure_rows = []
+            for row in azure_rows:
+                candidate_id = str(row.get("id") or "")
+                if not candidate_id:
+                    continue
+                try:
+                    match_score, parts = azureMatch(row.get("skillMatches", []), jd.get("jd_skills", {}))
+                    matched = top_matches_from_parts(parts, limit=8) or (row.get("skillMatches", []) or [])[:8]
+                    gaps = []
+                    for group in ["backend", "frontend", "cloud_devops", "data", "testing", "security", "languages"]:
+                        gaps.extend(((parts.get(group, {}) or {}).get("missing", []) or [])[:2])
+                    weighted = _radar_weighted_skill_score(
+                        jd_skill_terms,
+                        row.get("skillMatches", []) or [],
+                        base_rank=row.get("searchRank") or row.get("skillCount") or 0,
+                        crm_weight=customer_weight,
+                    )
+                    role_score = _radar_title_alignment(jd, f"{row.get('primaryStack', '')} {row.get('firstName', '')} {row.get('lastName', '')}")
+                    process_score = _radar_process_score(row.get("step"))
+                    weighted["score"] = min(99, round(weighted["score"] + role_score + process_score, 1))
+                    weighted["score_parts"]["role_title"] = role_score
+                    weighted["score_parts"]["process"] = process_score
+                    match_score = max(float(match_score or 0), weighted["score"])
+                    matched = weighted["matched"] or matched
+                    gaps = weighted["gaps"] or gaps
+                    score_parts = weighted.get("score_parts", {})
+                except Exception:
+                    matched = [skill for skill in (row.get("skillMatches", []) or []) if skill][:8]
+                    weighted = _radar_weighted_skill_score(jd_skill_terms, matched, base_rank=row.get("searchRank") or row.get("skillCount") or 0, crm_weight=customer_weight)
+                    role_score = _radar_title_alignment(jd, f"{row.get('primaryStack', '')} {row.get('firstName', '')} {row.get('lastName', '')}")
+                    process_score = _radar_process_score(row.get("step"))
+                    weighted["score"] = min(99, round(weighted["score"] + role_score + process_score, 1))
+                    weighted["score_parts"]["role_title"] = role_score
+                    weighted["score_parts"]["process"] = process_score
+                    gaps = weighted["gaps"]
+                    match_score = weighted["score"]
+                    score_parts = weighted.get("score_parts", {})
+                score = min(99, round(float(match_score or 0), 1))
+                if score < 25 and len(matched) < 2:
+                    continue
+                candidate_name = _safe_action_text(f"{row.get('firstName', '')} {row.get('lastName', '')}", 180)
+                suggestions.append(
+                    {
+                        "score": score,
+                        "domain": clean_domain,
+                        "source": "azure_candidate_database",
+                        "source_label": "Internal Candidate",
+                        "candidate": {
+                            "profile_id": candidate_id,
+                            "name": candidate_name,
+                            "email": _safe_action_text(row.get("email"), 240),
+                            "headline": _safe_action_text(row.get("primaryStack"), 220),
+                        },
+                        "job": {
+                            "jd_id": jd.get("jd_id", ""),
+                            "company": _safe_action_text(jd.get("company"), 180),
+                            "title": _safe_action_text(jd.get("title"), 220),
+                        },
+                        "client": {
+                            "id": _safe_action_text(customer.get("id"), 120),
+                            "name": _safe_action_text(customer.get("customer"), 180),
+                            "stage": _safe_action_text(customer.get("dealStage") or customer.get("contractStatus"), 120),
+                            "owner": _safe_action_text(customer.get("owner"), 120),
+                        } if customer else {},
+                        "matched": matched[:8],
+                        "gaps": gaps[:6],
+                        "score_parts": score_parts,
+                        "reason": ". ".join(
+                            [
+                                "Azure candidate database match: " + ", ".join(matched[:5]) if matched else "",
+                                f"CRM signal: {customer.get('customer')} is {customer.get('dealStage') or customer.get('contractStatus') or 'active'}" if customer else "",
+                                "Check gaps: " + ", ".join(gaps[:3]) if gaps else "",
+                            ]
+                        ).strip(". ") or "Candidate and role show overlapping database evidence.",
+                        "next_action": "Open profile, confirm interest with a role-feedback link, then run candidate review before shortlist.",
+                        "links": {
+                            "profile": f"profile-preview.html?domain={clean_domain}&profileId={candidate_id}",
+                            "match": f"match-role.html?domain={clean_domain}&jdId={jd.get('jd_id', '')}",
+                            "client_comm": f"client-comm.html?domain={clean_domain}",
+                        },
+                    }
+                )
+        if include_external:
+            suggestions.extend(_radar_external_people_suggestions(jd, clean_domain, customer, customer_weight, limit=5))
+    suggestions.sort(key=_radar_sort_key)
+    seen_suggestions = set()
+    unique_suggestions = []
+    for item in suggestions:
+        candidate_id = str((item.get("candidate") or {}).get("profile_id") or "")
+        jd_id = str((item.get("job") or {}).get("jd_id") or "")
+        key = (item.get("source") or "internal", candidate_id, jd_id)
+        if key in seen_suggestions:
+            continue
+        seen_suggestions.add(key)
+        unique_suggestions.append(item)
+    suggestions = unique_suggestions
+    internal_suggestions = [item for item in suggestions if item.get("source") != "people_data_labs"]
+    external_suggestions = [item for item in suggestions if item.get("source") == "people_data_labs"]
+    safe_limit = max(1, min(limit, 12))
+    suggestions = internal_suggestions[:safe_limit] + (external_suggestions[:safe_limit] if include_external else [])
+    external = _external_radar_status()
+    if include_external and jds:
+        external["requested"] = True
+        external["seed_job"] = {
+            "jd_id": jds[0].get("jd_id", ""),
+            "company": _safe_action_text(jds[0].get("company"), 180),
+            "title": _safe_action_text(jds[0].get("title"), 220),
+            "skills": _radar_skill_terms(jds[0].get("jd_skills", {}))[:12],
+        }
+    narrative = _ai_radar_narrative(clean_domain, suggestions, crm_records)
+    return {
+        "ok": True,
+        "domain": clean_domain,
+        "generated_at": _now_utc(),
+        "counts": {
+            "profiles_scanned": len(profiles),
+            "jobs_scanned": len(jds),
+            "crm_records_scanned": len(crm_records),
+            "suggestions": len(suggestions),
+            "sources": _radar_source_counts(suggestions),
+        },
+        "narrative": narrative,
+        "suggestions": suggestions,
+        "external": external,
+    }
 
 
 def _split_action_name(full_name: str) -> tuple[str, str]:
@@ -2667,6 +3492,253 @@ def scan_crm_customer_news(
         "scanned_at": _now_utc(),
         "summary": summary,
         "items": items,
+    }
+
+
+def _crm_briefing_contacts(record: dict) -> list[dict]:
+    contacts = record.get("teamMembers") or record.get("players") or record.get("contacts")
+    rows = []
+    if isinstance(contacts, list):
+        for item in contacts[:8]:
+            if not isinstance(item, dict):
+                continue
+            name = _safe_action_text(item.get("name") or item.get("contact"), 160)
+            if not name:
+                continue
+            rows.append(
+                {
+                    "name": name,
+                    "title": _safe_action_text(item.get("title") or item.get("jobTitle") or item.get("role"), 180),
+                    "email": _safe_action_text(item.get("email"), 240),
+                    "phone": _safe_action_text(item.get("phone"), 80),
+                    "role": _safe_action_text(item.get("relationshipRole") or item.get("buying_role") or item.get("buyingRole") or item.get("persona"), 120),
+                    "last_touch": _safe_action_text(item.get("lastConversation") or item.get("last_touch") or item.get("lastTouched"), 160),
+                    "linkedin_url": _safe_action_text(item.get("linkedinUrl") or item.get("linkedin_url") or item.get("linkedin"), 400),
+                    "description": _safe_action_text(item.get("description") or item.get("notes"), 300),
+                }
+            )
+    if not rows and isinstance(contacts, str):
+        for line in contacts.splitlines()[:8]:
+            parts = [part.strip() for part in line.split("|")]
+            name = _safe_action_text(parts[0] if len(parts) > 0 else "", 160)
+            if not name:
+                continue
+            rows.append(
+                {
+                    "name": name,
+                    "role": _safe_action_text(parts[1] if len(parts) > 1 else "", 120),
+                    "email": _safe_action_text(parts[2] if len(parts) > 2 else "", 240),
+                    "phone": _safe_action_text(parts[3] if len(parts) > 3 else "", 80),
+                    "title": _safe_action_text(parts[4] if len(parts) > 4 else "", 180),
+                    "description": _safe_action_text(parts[5] if len(parts) > 5 else "", 300),
+                    "last_touch": _safe_action_text(parts[6] if len(parts) > 6 else "", 160),
+                    "linkedin_url": _safe_action_text(parts[7] if len(parts) > 7 else "", 400),
+                }
+            )
+    if not rows:
+        contact = _safe_action_text(record.get("contact"), 180)
+        if contact:
+            rows.append(
+                {
+                    "name": contact,
+                    "title": "",
+                    "email": _safe_action_text(record.get("email"), 240),
+                    "phone": _safe_action_text(record.get("phone"), 80),
+                    "role": "Primary contact",
+                    "last_touch": _safe_action_text(record.get("lastTouched") or record.get("when"), 160),
+                }
+            )
+    return rows
+
+
+def _crm_pick_briefing_record(domain: str, customer: str = "") -> dict:
+    clean_customer = _safe_action_text(customer, 240).lower()
+    records = _radar_crm_records(domain, limit=200)
+    if clean_customer:
+        for record in records:
+            name = _safe_action_text(record.get("customer"), 240).lower()
+            record_id = _safe_action_text(record.get("id"), 240).lower()
+            if clean_customer in {name, record_id} or clean_customer in name:
+                return record
+    def score(record: dict) -> float:
+        days = _crm_days_since(record.get("lastTouched") or record.get("when"))
+        missing_next = 10 if not _safe_action_text(record.get("nextStep"), 240) else 0
+        try:
+            value = min(12, float(record.get("value") or 0) / 25000)
+        except Exception:
+            value = 0
+        try:
+            strength = float(record.get("strength") or 0)
+        except Exception:
+            strength = 0
+        stage = _safe_action_text(record.get("dealStage") or record.get("contractStatus") or record.get("status"), 80).lower()
+        stage_score = 8 if any(word in stage for word in ["qualified", "candidate", "shortlist", "proposal"]) else 3
+        return missing_next + min(18, days * 0.7) + value + strength + stage_score
+    return sorted(records, key=score, reverse=True)[0] if records else {}
+
+
+def _crm_briefing_recent_meetings(domain: str, customer: str) -> list[dict]:
+    records = _read_json_store_with_demo(MEETING_RECORDS_PATH, [])
+    if not isinstance(records, list):
+        return []
+    clean_domain = _domain_key(domain)
+    customer_l = customer.lower()
+    rows = []
+    for item in records:
+        if not isinstance(item, dict):
+            continue
+        if clean_domain != "all" and _domain_key(item.get("domain", clean_domain)) != clean_domain:
+            continue
+        haystack = " ".join(str(item.get(key, "")) for key in ["client", "customer", "title", "meeting_title", "summary", "notes"]).lower()
+        if customer_l and customer_l not in haystack:
+            continue
+        rows.append(
+            {
+                "title": _safe_action_text(item.get("title") or item.get("meeting_title") or "Meeting", 220),
+                "date": _safe_action_text(item.get("date") or item.get("created_at") or item.get("when"), 80),
+                "summary": _safe_action_text(item.get("summary") or item.get("notes") or item.get("readout"), 300),
+            }
+        )
+    rows.sort(key=lambda item: item.get("date") or "", reverse=True)
+    return rows[:5]
+
+
+def _crm_briefing_open_roles(domain: str, customer: str) -> list[dict]:
+    roles = []
+    customer_l = customer.lower()
+    for jd in _radar_jds(domain, limit=50):
+        company = _safe_action_text(jd.get("company"), 220)
+        if customer_l and customer_l not in company.lower() and company.lower() not in customer_l:
+            continue
+        roles.append(
+            {
+                "jd_id": _safe_action_text(jd.get("jd_id"), 80),
+                "title": _safe_action_text(jd.get("title"), 220),
+                "company": company,
+                "skills": _radar_skill_terms(jd.get("jd_skills", {}))[:8],
+            }
+        )
+    return roles[:5]
+
+
+def _crm_briefing_time_invoice_signals(domain: str, customer: str) -> dict:
+    clean_domain = _domain_key(domain)
+    customer_l = customer.lower()
+    entries = _read_json_store_with_demo(TIME_ENTRIES_PATH, [])
+    time_hours = 0.0
+    if isinstance(entries, list):
+        for item in entries:
+            if not isinstance(item, dict):
+                continue
+            if clean_domain != "all" and _domain_key(item.get("domain", clean_domain)) != clean_domain:
+                continue
+            haystack = " ".join(str(item.get(key, "")) for key in ["client", "customer", "project", "description"]).lower()
+            if customer_l and customer_l not in haystack:
+                continue
+            try:
+                time_hours += float(item.get("hours") or 0)
+            except Exception:
+                pass
+    accounting = _read_json_store_with_demo(ACCOUNTING_RECORDS_PATH, {})
+    invoices = accounting.get("invoices", []) if isinstance(accounting, dict) else []
+    invoice_rows = []
+    if isinstance(invoices, list):
+        for invoice in invoices:
+            if not isinstance(invoice, dict):
+                continue
+            if clean_domain != "all" and _domain_key(invoice.get("domain", clean_domain)) != clean_domain:
+                continue
+            haystack = " ".join(str(invoice.get(key, "")) for key in ["customer", "client", "customer_name", "bill_to"]).lower()
+            if customer_l and customer_l not in haystack:
+                continue
+            invoice_rows.append(
+                {
+                    "invoice_id": _safe_action_text(invoice.get("invoice_id") or invoice.get("id"), 80),
+                    "status": _safe_action_text(invoice.get("status"), 80),
+                    "total": invoice.get("total") or invoice.get("billable") or invoice.get("amount") or 0,
+                    "due_date": _safe_action_text(invoice.get("due_date") or invoice.get("dueDate"), 80),
+                }
+            )
+    return {"time_hours": round(time_hours, 1), "invoices": invoice_rows[:5]}
+
+
+@app.get("/api/crm/client-briefing")
+def crm_client_intelligence_briefing(domain: str = "dev", customer: str = "", include_news: bool = False):
+    clean_domain = _domain_key(domain)
+    record = _crm_pick_briefing_record(clean_domain, customer)
+    if not record:
+        return {
+            "ok": True,
+            "domain": clean_domain,
+            "generated_at": _now_utc(),
+            "empty": True,
+            "today_angle": "No CRM team card is available yet. Add or seed a CRM client first.",
+            "signals": [],
+            "touch_history": [],
+        }
+    customer_name = _safe_action_text(record.get("customer"), 240) or "Client"
+    stage = _safe_action_text(record.get("dealStage") or record.get("contractStatus") or record.get("status"), 120) or "Discovery"
+    days = _crm_days_since(record.get("lastTouched") or record.get("when"))
+    contacts = _crm_briefing_contacts(record)
+    public_signals = record.get("publicSignals") if isinstance(record.get("publicSignals"), list) else []
+    roles = _crm_briefing_open_roles(clean_domain, customer_name)
+    meetings = _crm_briefing_recent_meetings(clean_domain, customer_name)
+    money_signals = _crm_briefing_time_invoice_signals(clean_domain, customer_name)
+    primary_contact = contacts[0] if contacts else {}
+    next_step = _safe_action_text(record.get("nextStep"), 360)
+    risk = "Relationship is stale; no next step is recorded." if days >= 8 or not next_step else "Normal risk. Keep the next touch specific and tied to the open role."
+    pitch = roles[0]["title"] if roles else _safe_action_text(record.get("dealTitle"), 220) or "the highest-priority open role"
+    today_angle = (
+        f"Lead with {customer_name}'s {stage} stage and propose a concrete next touch around {pitch}. "
+        f"{'Refresh the relationship because the last touch is ' + str(days) + ' days old.' if days >= 8 else 'Use the recent CRM context and keep the ask crisp.'}"
+    )
+    news = {}
+    if include_news:
+        try:
+            query, items = _fetch_customer_news(customer_name, _safe_action_text(record.get("where") or record.get("location"), 180), limit=6)
+            news = {"query": query, "items": items, "summary": _summarize_customer_news(customer_name, "", items)}
+        except Exception as exc:
+            news = {"error": _safe_action_text(str(exc), 240), "items": [], "summary": {"headline": "External scan could not complete.", "highlights": [], "recommended_action": "Continue from internal CRM signals.", "risk_level": "low"}}
+    signals = [
+        {"label": "Deal stage", "value": stage},
+        {"label": "Last touch", "value": f"{days} day(s) ago" if days < 999 else "Not recorded"},
+        {"label": "Open roles", "value": str(len(roles))},
+        {"label": "Approved/entered time", "value": f"{money_signals['time_hours']} hours"},
+        {"label": "Invoices", "value": str(len(money_signals["invoices"]))},
+    ]
+    return {
+        "ok": True,
+        "domain": clean_domain,
+        "generated_at": _now_utc(),
+        "customer": {
+            "id": _safe_action_text(record.get("id"), 120),
+            "name": customer_name,
+            "stage": stage,
+            "owner": _safe_action_text(record.get("owner"), 120),
+            "contact": primary_contact,
+            "value": record.get("value") or 0,
+            "days_since_touch": days,
+        },
+        "today_angle": today_angle,
+        "who_to_contact": primary_contact.get("name") or _safe_action_text(record.get("contact"), 180) or "Add a named contact to the CRM team card.",
+        "role_or_candidate_to_pitch": pitch,
+        "current_risk": risk,
+        "suggested_next_touch": next_step or f"Book a 15-minute client touch to confirm current hiring priority for {pitch}.",
+        "deal_stage_recommendation": "Move to Candidate Review or Shortlist Sent only after a named candidate is attached." if stage in {"Discovery", "Qualified"} else "Confirm the next owner and due date so the deal does not stall.",
+        "signals": signals,
+        "contacts": contacts,
+        "public_signals": public_signals[:8],
+        "open_roles": roles,
+        "touch_history": meetings,
+        "invoice_time": money_signals,
+        "news": news,
+        "links": {
+            "crm": f"crm.html?domain={clean_domain}",
+            "jobs": f"job-descriptions.html?domain={clean_domain}",
+            "match": f"match-role.html?domain={clean_domain}",
+            "client_comm": f"client-comm.html?domain={clean_domain}",
+            "reports": f"reports.html?domain={clean_domain}",
+        },
     }
 
 

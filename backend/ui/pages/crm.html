@@ -100,6 +100,147 @@
         text-transform: uppercase;
       }
 
+      .client-briefing-panel {
+        margin-top: 12px;
+        border: 1px solid rgba(var(--domain-rgb), 0.22);
+        border-radius: 10px;
+        background:
+          linear-gradient(120deg, rgba(var(--domain-rgb), 0.1), rgba(255, 255, 255, 0.94)),
+          #fff;
+        box-shadow: 0 16px 38px rgba(23, 35, 29, 0.08);
+        overflow: hidden;
+      }
+
+      .briefing-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: center;
+        padding: 14px 16px;
+        border-bottom: 1px solid rgba(var(--domain-rgb), 0.14);
+      }
+
+      .briefing-head h2 {
+        margin: 0;
+        color: var(--crm-ink);
+        font-size: 22px;
+      }
+
+      .briefing-head p {
+        margin: 4px 0 0;
+        color: #4b5d52;
+        font-size: 13px;
+      }
+
+      .briefing-controls {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .briefing-controls select {
+        min-width: 220px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 11px;
+        background: #fff;
+        color: var(--crm-ink);
+        font-weight: 800;
+      }
+
+      .briefing-body {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+        gap: 14px;
+        padding: 14px 16px;
+      }
+
+      .briefing-angle {
+        border: 1px solid rgba(var(--domain-rgb), 0.16);
+        border-radius: 8px;
+        padding: 13px;
+        background: rgba(255, 255, 255, 0.76);
+      }
+
+      .briefing-angle strong {
+        color: var(--domain-ink);
+      }
+
+      .briefing-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .briefing-card {
+        border: 1px solid rgba(23, 35, 29, 0.1);
+        border-radius: 8px;
+        padding: 10px;
+        background: #fff;
+        min-height: 66px;
+      }
+
+      .briefing-card span {
+        display: block;
+        color: #65736b;
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .briefing-card strong {
+        display: block;
+        margin-top: 4px;
+        color: var(--crm-ink);
+        line-height: 1.25;
+      }
+
+      .briefing-signals {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      .briefing-signal {
+        border: 1px solid rgba(var(--domain-rgb), 0.2);
+        border-radius: 999px;
+        padding: 5px 8px;
+        background: rgba(var(--domain-rgb), 0.08);
+        color: var(--domain-ink);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .briefing-history {
+        display: grid;
+        gap: 7px;
+        align-content: start;
+      }
+
+      .briefing-history-item {
+        border-left: 3px solid rgba(var(--domain-rgb), 0.38);
+        padding: 7px 9px;
+        background: rgba(255, 255, 255, 0.76);
+        border-radius: 7px;
+        color: #36443b;
+        font-size: 12px;
+      }
+
+      @media (max-width: 980px) {
+        .briefing-head,
+        .briefing-body {
+          grid-template-columns: 1fr;
+        }
+
+        .briefing-controls {
+          justify-content: flex-start;
+        }
+      }
+
       .crm-mode button {
         border: 1px solid var(--line);
         border-radius: 999px;
@@ -1301,7 +1442,7 @@
     </style>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html?v=20260515-jd-nav-flow");
+        $("#siteSidebar").load("components/sidebar.html?v=20260522-egeria-pilot");
         $("#processFlow").load("components/processFlow.html");
         $("#searchBar").load("components/searchBar.html");
       });
@@ -1650,6 +1791,7 @@
 
       function setCrmRecords(records) {
         localStorage.setItem(crmStorageKey(), JSON.stringify(records.slice(0, 200)));
+        hydrateBriefingCustomerOptions();
       }
 
       function crmValue(key) {
@@ -1667,6 +1809,102 @@
           .replace(/>/g, "&gt;")
           .replace(/"/g, "&quot;")
           .replace(/'/g, "&#39;");
+      }
+
+      function hydrateBriefingCustomerOptions() {
+        const select = document.getElementById("briefingCustomerSelect");
+        if (!select) return;
+        const current = select.value;
+        const customers = [];
+        const seen = new Set();
+        crmRecords().forEach((record) => {
+          const name = String(record.customer || "").trim();
+          if (!name || seen.has(name.toLowerCase())) return;
+          seen.add(name.toLowerCase());
+          customers.push({ name, id: record.id || name });
+        });
+        select.innerHTML = '<option value="">Auto-pick highest priority client</option>' + customers
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((item) => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`)
+          .join("");
+        if ([...select.options].some((option) => option.value === current)) select.value = current;
+      }
+
+      function renderClientBriefing(data) {
+        const target = document.getElementById("clientBriefingBody");
+        if (!target) return;
+        if (!data || data.empty) {
+          target.innerHTML = `
+            <div class="briefing-angle">
+              <strong>${escapeHtml(data?.today_angle || "No CRM clients available yet.")}</strong>
+              <p>Add a team card or load demo cards, then run the briefing again.</p>
+            </div>
+          `;
+          return;
+        }
+        const customer = data.customer || {};
+        const signals = Array.isArray(data.signals) ? data.signals : [];
+        const contacts = Array.isArray(data.contacts) ? data.contacts : [];
+        const roles = Array.isArray(data.open_roles) ? data.open_roles : [];
+        const history = Array.isArray(data.touch_history) ? data.touch_history : [];
+        const newsSummary = data.news?.summary;
+        target.innerHTML = `
+          <div class="briefing-angle">
+            <strong>${escapeHtml(customer.name || "Client")} - today's angle</strong>
+            <p>${escapeHtml(data.today_angle || "Use CRM context to shape the next client touch.")}</p>
+            <div class="briefing-grid">
+              <div class="briefing-card"><span>Who to contact</span><strong>${escapeHtml(data.who_to_contact || "Add a named contact")}</strong></div>
+              <div class="briefing-card"><span>Pitch</span><strong>${escapeHtml(data.role_or_candidate_to_pitch || "Open role")}</strong></div>
+              <div class="briefing-card"><span>Risk</span><strong>${escapeHtml(data.current_risk || "Review risk")}</strong></div>
+              <div class="briefing-card"><span>Next touch</span><strong>${escapeHtml(data.suggested_next_touch || "Set a next step")}</strong></div>
+            </div>
+            <div class="briefing-signals">
+              ${signals.map((item) => `<span class="briefing-signal">${escapeHtml(item.label)}: ${escapeHtml(item.value)}</span>`).join("")}
+            </div>
+            ${newsSummary ? `<div class="briefing-card" style="margin-top:10px"><span>External signal</span><strong>${escapeHtml(newsSummary.headline || "")}</strong><p>${escapeHtml(newsSummary.recommended_action || "")}</p></div>` : ""}
+          </div>
+          <div class="briefing-history">
+            <div class="briefing-card">
+              <span>Deal-stage recommendation</span>
+              <strong>${escapeHtml(data.deal_stage_recommendation || "Confirm the next action.")}</strong>
+            </div>
+            <div class="briefing-card">
+              <span>Contacts</span>
+              <strong>${contacts.length ? contacts.slice(0, 3).map((item) => `${escapeHtml(item.name)}${item.title ? `, ${escapeHtml(item.title)}` : ""}`).join("<br>") : "No named contact yet"}</strong>
+            </div>
+            <div class="briefing-card">
+              <span>Open roles</span>
+              <strong>${roles.length ? roles.slice(0, 3).map((item) => `${escapeHtml(item.title)} ${item.jd_id ? `(JD ${escapeHtml(item.jd_id)})` : ""}`).join("<br>") : "No saved role tied to this client"}</strong>
+            </div>
+            ${history.length ? history.slice(0, 3).map((item) => `
+              <div class="briefing-history-item">
+                <strong>${escapeHtml(item.title || "Meeting")}</strong><br>
+                ${escapeHtml(item.date || "")} ${item.summary ? `- ${escapeHtml(item.summary)}` : ""}
+              </div>
+            `).join("") : '<div class="briefing-history-item">No meeting history found for this client yet.</div>'}
+          </div>
+        `;
+      }
+
+      async function loadClientBriefing(includeNews = false) {
+        const target = document.getElementById("clientBriefingBody");
+        const select = document.getElementById("briefingCustomerSelect");
+        if (!target) return;
+        if (target) {
+          target.innerHTML = '<div class="briefing-angle"><strong>Egeria is building the briefing...</strong><p>Reading internal CRM first. External news runs only when requested.</p></div>';
+        }
+        const params = new URLSearchParams({
+          domain: currentDomain(),
+          include_news: includeNews ? "true" : "false",
+        });
+        if (select?.value) params.set("customer", select.value);
+        try {
+          const response = await fetch(`/api/crm/client-briefing?${params.toString()}`, { cache: "no-store" });
+          if (!response.ok) throw new Error(await response.text());
+          renderClientBriefing(await response.json());
+        } catch (error) {
+          renderClientBriefing({ empty: true, today_angle: `Briefing unavailable: ${error.message || error}` });
+        }
       }
 
       function cleanStage(value) {
@@ -3419,4 +3657,5 @@
     </script>
   </body>
 </html>
+
 

@@ -1,12 +1,12 @@
 <aside class="sidebar">
   <a id="textBlockLogo" class="brand" href="/ui/index.html" aria-label="Home - Welcome login">
     <img
-      class="domainLogo"
-      src="../assets/devLogo.svg"
+      id="sidebarWordmark"
+      class="domainWordmark"
+      src="../assets/devReadyWordmark.svg"
       alt="DevReady"
-      style="width: 42px; height: 42px"
     />
-    <div class="title">
+    <div class="title legacy-brand-title">
       <span id="domainLabelSidebar">DEV</span>
       <span id="readyLabelSidebar">READY</span>
       <span class="sub">Vetting Workspace</span>
@@ -32,6 +32,30 @@
     padding: 22px;
     background: rgba(9, 17, 27, 0.45);
     backdrop-filter: blur(5px);
+  }
+
+  .sidebar .brand {
+    min-height: 82px;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  .sidebar .brand .domainWordmark {
+    display: block;
+    width: 100%;
+    max-width: 196px;
+    max-height: 74px;
+    object-fit: contain;
+    object-position: left center;
+  }
+
+  .sidebar .brand .legacy-brand-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 
   .devready-modal-backdrop.open {
@@ -445,7 +469,7 @@
   window.DevReadyProcessFlow.openQuickHit = async function openEgeriaQuickHit() {
     const host = document.getElementById("processFlow");
     if (!host) {
-      alert("FastBoard is available from workflow pages that show the Process Flow.");
+      alert("Pilot is available from workflow pages that show the Process Flow.");
       return;
     }
     if (typeof window.startQuickHitFlow !== "function") {
@@ -458,7 +482,7 @@
     if (typeof window.startQuickHitFlow === "function") {
       window.startQuickHitFlow();
     } else {
-      alert("Egeria could not open FastBoard on this page. Refresh and try again.");
+      alert("Egeria could not open Pilot on this page. Refresh and try again.");
     }
   };
 
@@ -475,9 +499,8 @@
 
     syncDomainSelect(activeDomain);
     domainUpdate(activeDomain);
-    initPageAgentDock();
     loadPageAgentRuntime(renderActivePageAgent);
-    $("#pageNav").load("components/sideNav.html?v=20260521-meridian-compact", function () {
+    $("#pageNav").load("components/sideNav.html?v=20260522-egeria-pilot", function () {
       applyMenuAccess();
       applyDomainToLocalLinks(sessionStorage.getItem("domain") || "dev");
     });
@@ -876,6 +899,22 @@
     if (select) select.value = currentDomain || "dev";
   }
 
+  function domainIconAsset(currentDomain) {
+    return `../assets/${currentDomain || "dev"}Logo.svg`;
+  }
+
+  function domainWordmarkAsset(currentDomain) {
+    if (currentDomain === "engineer") return "../assets/buildReadyWordmark.svg";
+    if (currentDomain === "law") return "../assets/legalReadyWordmark.svg";
+    return "../assets/devReadyWordmark.svg";
+  }
+
+  function domainWordmarkAlt(currentDomain) {
+    if (currentDomain === "engineer") return "BuildReady";
+    if (currentDomain === "law") return "LegalReady";
+    return "DevReady";
+  }
+
   function domainUpdate(currentDomain) {
     syncDomainSelect(currentDomain);
     const domainLabel = currentDomain === "engineer" ? "BUILD" : currentDomain.toUpperCase();
@@ -883,12 +922,20 @@
     document.getElementById("readyLabelSidebar").innerHTML = "READY";
 
     const logoSet = document.getElementsByClassName("domainLogo");
+    const wordmarkSet = document.getElementsByClassName("domainWordmark");
 
     document.getElementById("textBlockLogo").style.display = "flex";
 
     for (const logo of logoSet) {
-      logo.src = `../assets/${currentDomain}Logo.svg`;
-      logo.href = `../assets/${currentDomain}Logo.svg`;
+      const asset = domainIconAsset(currentDomain);
+      logo.src = asset;
+      logo.href = asset;
+      logo.alt = domainWordmarkAlt(currentDomain);
+    }
+
+    for (const logo of wordmarkSet) {
+      logo.src = domainWordmarkAsset(currentDomain);
+      logo.alt = domainWordmarkAlt(currentDomain);
     }
 
     document.getElementById("domainCss").href =
@@ -1059,70 +1106,11 @@
   }
 
   function initPageAgentDock() {
-    const dock = document.getElementById("pageAgentDock");
-    if (!dock) return;
-    if (document.getElementById("egeriaOrbButton")) return;
-    const shell = document.createElement("div");
-    shell.className = "egeria-side-dock";
-    shell.innerHTML = `
-      <button id="egeriaOrbButton" class="egeria-side-button" type="button" aria-label="Ask Egeria">
-        <i class="agent-orb" aria-hidden="true"></i>
-        <span id="egeriaOrbLabel">Egeria</span>
-      </button>
-      <section id="egeriaChatPanel" class="agent-chat-panel" aria-label="Ask Egeria">
-        <div class="agent-chat-head">
-          <i id="egeriaPanelOrb" class="agent-orb" aria-hidden="true"></i>
-          <div class="agent-chat-title">
-            <strong id="egeriaPanelName">Egeria</strong>
-            <span id="egeriaPanelPage">Ready</span>
-          </div>
-          <button id="egeriaChatClose" class="agent-chat-close" type="button" aria-label="Close Egeria">x</button>
-        </div>
-        <div id="egeriaChatLog" class="agent-chat-log"></div>
-        <form id="egeriaChatForm" class="agent-chat-form">
-          <input id="egeriaChatInput" autocomplete="off" placeholder="Ask Egeria..." />
-          <button class="btn" type="submit">Ask</button>
-        </form>
-      </section>
-    `;
-    dock.appendChild(shell);
-
-    document.getElementById("egeriaOrbButton").addEventListener("click", () => {
-      const panel = document.getElementById("egeriaChatPanel");
-      panel.classList.toggle("open");
-      if (panel.classList.contains("open")) document.getElementById("egeriaChatInput")?.focus();
-    });
-    document.getElementById("egeriaChatClose").addEventListener("click", () => {
-      document.getElementById("egeriaChatPanel").classList.remove("open");
-    });
-    document.getElementById("egeriaChatForm").addEventListener("submit", askActivePageAgent);
-    window.addEventListener("devready-agent-activated", renderActivePageAgent);
-    renderActivePageAgent();
+    // Egeria now lives on the dedicated egeria.html workspace.
   }
 
   function renderActivePageAgent() {
-    const agent = window.DevReadyPageAgents?.active();
-    const button = document.getElementById("egeriaOrbButton");
-    if (!button) return;
-    button.style.display = agent ? "inline-flex" : "none";
-    if (!agent) return;
-    const agentColor = window.DevReadyPageAgents?.domainColor?.() || getComputedStyle(document.documentElement).getPropertyValue("--primary-2").trim() || agent.color;
-    const agentIcon = window.DevReadyPageAgents?.icon?.(agent.key) || fallbackAgentIconSvg();
-    document.querySelectorAll("#egeriaOrbButton .agent-orb, #egeriaPanelOrb").forEach((orb) => {
-      orb.style.setProperty("--agent-color", agentColor);
-      orb.innerHTML = agentIcon;
-    });
-    document.getElementById("egeriaOrbLabel").textContent = "Egeria";
-    document.getElementById("egeriaPanelName").textContent = "Egeria";
-    document.getElementById("egeriaPanelPage").textContent = `${agent.page} specialist`;
-    const log = document.getElementById("egeriaChatLog");
-    if (log && !log.dataset.agentKey) {
-      log.dataset.agentKey = agent.key;
-      log.innerHTML = `<div class="agent-msg">Ask Egeria.</div>`;
-    } else if (log && log.dataset.agentKey !== agent.key) {
-      log.dataset.agentKey = agent.key;
-      log.innerHTML = `<div class="agent-msg">Ask Egeria.</div>`;
-    }
+    window.DevReadyPageAgents?.mountWidget?.();
   }
 
   function fallbackAgentIconSvg() {
@@ -1184,3 +1172,5 @@
     }
   }
 </script>
+
+

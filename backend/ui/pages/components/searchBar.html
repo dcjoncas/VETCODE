@@ -1,18 +1,321 @@
 <style>
   .topbar-tools {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(210px, auto) minmax(260px, 1fr);
     align-items: center;
-    justify-content: flex-end;
-    gap: 10px;
+    justify-content: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .topbar {
     flex-wrap: nowrap;
+    align-items: center;
+    gap: 12px;
+    min-height: 54px;
+  }
+
+  #searchBar {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+    align-self: center;
+  }
+
+  .topbar > div:first-child {
+    flex: 0 0 auto;
+    min-width: 155px;
+  }
+
+  .ai-radar-band {
+    display: none;
+    border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.22);
+    border-radius: 999px;
+    background:
+      linear-gradient(120deg, rgba(var(--primary-rgb, 47, 125, 75), 0.12), rgba(255, 255, 255, 0.98) 44%, rgba(184, 135, 39, 0.11)),
+      #fff;
+    box-shadow:
+      0 1px 2px rgba(16, 32, 24, 0.05),
+      0 14px 34px rgba(16, 32, 24, 0.08);
+    overflow: hidden;
+  }
+
+  .topbar-tools.radar-visible .ai-radar-band {
+    display: block;
+  }
+
+  .topbar-tools.radar-expanded .ai-radar-band {
+    grid-column: 1 / -1;
+    border-radius: 14px;
+  }
+
+  .ai-radar-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    min-height: 38px;
+    padding: 5px 8px;
+  }
+
+  .ai-radar-title {
+    display: flex;
+    gap: 7px;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .ai-radar-orb {
+    display: grid;
+    place-items: center;
+    width: 27px;
+    height: 27px;
+    border-radius: 999px;
+    background:
+      radial-gradient(circle at 30% 24%, #fff9d8, rgba(184, 135, 39, 0.88) 34%, rgba(var(--primary-rgb, 47, 125, 75), 0.78) 68%, #10241a);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 950;
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 47, 125, 75), 0.12);
+  }
+
+  .ai-radar-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .ai-radar-copy strong {
+    color: var(--ink);
+    font-size: 12px;
+    line-height: 1.1;
+  }
+
+  .ai-radar-copy span {
+    color: var(--muted);
+    font-size: 10.5px;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ai-radar-actions {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .ai-radar-actions .btn {
+    min-height: 28px;
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+
+  .ai-radar-panel {
+    display: none;
+    border-top: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.16);
+    padding: 10px 12px 12px;
+    background: rgba(255, 255, 255, 0.72);
+  }
+
+  .ai-radar-panel.active {
+    display: grid;
+    gap: 10px;
+  }
+
+  .ai-radar-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) repeat(4, minmax(78px, auto));
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .ai-radar-brief,
+  .ai-radar-stat,
+  .ai-radar-card,
+  .ai-radar-external {
+    border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.15);
+    border-radius: 10px;
+    background: #fff;
+  }
+
+  .ai-radar-brief {
+    padding: 10px;
+  }
+
+  .ai-radar-brief strong,
+  .ai-radar-card strong {
+    display: block;
+    color: var(--ink);
+    font-size: 13px;
+    line-height: 1.25;
+  }
+
+  .ai-radar-brief span,
+  .ai-radar-card span,
+  .ai-radar-external span {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
+    margin-top: 3px;
+  }
+
+  .ai-radar-stat {
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    padding: 9px;
+    min-width: 78px;
+  }
+
+  .ai-radar-stat b {
+    color: var(--primary-2);
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .ai-radar-stat span {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 800;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .ai-radar-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 9px;
+  }
+
+  .ai-radar-card {
+    padding: 10px;
+    box-shadow: 0 8px 18px rgba(16, 32, 24, 0.05);
+  }
+
+  .ai-radar-card.recommended {
+    border-color: rgba(var(--primary-rgb, 47, 125, 75), 0.48);
+    background:
+      linear-gradient(180deg, rgba(var(--primary-rgb, 47, 125, 75), 0.1), rgba(255, 255, 255, 0.98) 42%),
+      #fff;
+    box-shadow:
+      0 0 0 3px rgba(var(--primary-rgb, 47, 125, 75), 0.1),
+      0 12px 26px rgba(16, 32, 24, 0.1);
+  }
+
+  .ai-radar-card.external {
+    border-style: dashed;
+    background:
+      linear-gradient(180deg, rgba(184, 135, 39, 0.1), rgba(255, 255, 255, 0.98) 42%),
+      #fff;
+  }
+
+  .ai-radar-card-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .ai-radar-kicker {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 5px;
+  }
+
+  .ai-score-pill,
+  .ai-source-pill,
+  .ai-recommend-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.2);
+    background: rgba(var(--primary-rgb, 47, 125, 75), 0.1);
+    color: var(--primary-2);
+    font-size: 11px;
+    font-weight: 950;
+    padding: 5px 8px;
+    white-space: nowrap;
+  }
+
+  .ai-recommend-pill {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--on-primary, #fff);
+  }
+
+  .ai-score-detail {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 7px;
+  }
+
+  .ai-score-detail span {
+    margin: 0;
+    border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.12);
+    border-radius: 999px;
+    padding: 4px 7px;
+    background: rgba(var(--primary-rgb, 47, 125, 75), 0.06);
+    font-size: 10px;
+    font-weight: 850;
+  }
+
+  .ai-radar-card-actions,
+  .ai-radar-external {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 9px;
+  }
+
+  .ai-radar-card-actions a {
+    text-decoration: none;
+  }
+
+  .ai-radar-external {
+    padding: 8px 10px;
+    margin-top: 2px;
+  }
+
+  .ai-radar-next-scan {
+    border: 1px dashed rgba(184, 135, 39, 0.45);
+    border-radius: 12px;
+    padding: 10px;
+    background: linear-gradient(120deg, rgba(184, 135, 39, 0.11), rgba(255, 255, 255, 0.95));
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .ai-radar-next-scan strong {
+    display: block;
+    color: var(--ink);
+    font-size: 13px;
+  }
+
+  .ai-radar-next-scan span {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
+    margin-top: 2px;
   }
 
   .header-userbox {
     display: flex;
     align-items: center;
-    gap: 10px;
-    min-height: 42px;
-    padding: 7px 10px;
+    gap: 6px;
+    min-height: 38px;
+    padding: 5px 7px;
     border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.18);
     border-radius: 999px;
     background:
@@ -33,13 +336,13 @@
 
   .header-userbox .eyebrow {
     color: var(--muted);
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 800;
   }
 
   .header-userbox .name {
     color: var(--ink);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 950;
   }
 
@@ -61,14 +364,85 @@
     text-align: center;
   }
 
+  .header-shortcuts {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .header-shortcuts a,
+  .header-shortcuts button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.16);
+    border-radius: 999px;
+    padding: 6px 8px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(var(--primary-rgb, 47, 125, 75), 0.06)),
+      #fff;
+    color: var(--primary-2);
+    font: inherit;
+    font-size: 10.5px;
+    font-weight: 950;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+    box-shadow: 0 5px 13px rgba(16, 32, 24, 0.05);
+    cursor: pointer;
+  }
+
+  .header-shortcuts a:hover,
+  .header-shortcuts button:hover,
+  .header-shortcuts a.active {
+    border-color: rgba(var(--primary-rgb, 47, 125, 75), 0.36);
+    background: rgba(var(--primary-rgb, 47, 125, 75), 0.12);
+  }
+
+  .header-shortcuts .egeria-opportunity-link {
+    border-color: rgba(184, 135, 39, 0.34);
+    background:
+      linear-gradient(135deg, rgba(255, 248, 220, 0.72), rgba(var(--primary-rgb, 47, 125, 75), 0.08)),
+      #fff;
+    color: var(--ink);
+  }
+
+  .header-shortcuts .shortcut-label {
+    color: var(--muted);
+    font-size: 9.5px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
   .search-container {
     position: relative;
-    flex: 0 1 430px;
+    justify-self: end;
+    min-width: 0;
   }
 
   .search-container .input {
-    width: min(340px, 28vw);
-    min-width: 250px;
+    width: min(300px, 22vw);
+    min-width: 220px;
+  }
+
+  @media (max-width: 1360px) {
+    .topbar-tools {
+      grid-template-columns: minmax(210px, auto) minmax(260px, 1fr);
+    }
+
+    .search-container {
+      justify-self: end;
+    }
+
+    .search-container .input {
+      width: min(300px, 24vw);
+    }
   }
 
   @media (max-width: 1180px) {
@@ -89,8 +463,10 @@
     }
 
     .topbar-tools {
-      justify-content: flex-end;
-      flex-wrap: nowrap;
+      grid-template-columns: 1fr;
+    }
+
+    .header-shortcuts {
       width: 100%;
     }
 
@@ -102,24 +478,38 @@
 
     .search-container,
     .search-container .search {
-      width: auto;
+      width: 100%;
       min-width: 0;
     }
 
     .search-container {
-      flex: 1 1 230px;
+      justify-self: stretch;
     }
 
     .search-container .input {
       width: 100%;
       min-width: 0;
     }
+
+    .ai-radar-main,
+    .ai-radar-summary {
+      grid-template-columns: 1fr;
+    }
+
+    .ai-radar-copy span {
+      white-space: normal;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .ai-radar-actions {
+      justify-content: flex-start;
+    }
   }
 
   @media (max-width: 700px) {
     .topbar-tools {
-      justify-content: flex-end;
-      flex-wrap: nowrap;
+      grid-template-columns: 1fr;
     }
 
     .header-userbox {
@@ -138,6 +528,147 @@
 
     .search-container {
       flex-basis: 180px;
+    }
+  }
+
+  @media (min-width: 701px) {
+    .topbar-tools {
+      grid-template-columns: minmax(170px, auto) minmax(260px, 1fr);
+      align-items: center;
+    }
+
+    .topbar-tools:not(.radar-visible) {
+      grid-template-columns: minmax(132px, auto) minmax(260px, 1fr);
+    }
+
+    .topbar-tools.radar-expanded {
+      grid-template-columns: minmax(132px, auto) minmax(260px, 1fr);
+    }
+
+    .topbar-tools.radar-expanded .ai-radar-band {
+      grid-column: 1 / -1;
+    }
+
+    .header-userbox {
+      min-width: 0;
+      max-width: 190px;
+      overflow: hidden;
+    }
+
+    .header-userbox .welcome-copy {
+      min-width: 0;
+    }
+
+    .header-userbox .name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .header-shortcuts {
+      min-width: 0;
+      width: 100%;
+    }
+
+    .search-container {
+      grid-column: auto;
+      justify-self: end;
+      width: auto;
+      min-width: 0;
+    }
+
+    .search-container .search {
+      width: auto;
+      min-width: 0;
+    }
+
+    .search-container .input {
+      width: min(220px, 20vw);
+      min-width: 118px;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .topbar-tools {
+      grid-template-columns: minmax(104px, auto) minmax(112px, 1fr);
+      align-items: center;
+      gap: 6px;
+    }
+
+    .topbar-tools.radar-visible {
+      grid-template-columns: minmax(145px, 1fr) minmax(112px, auto);
+    }
+
+    .topbar-tools.radar-expanded {
+      grid-template-columns: minmax(104px, auto) minmax(112px, 1fr);
+    }
+
+    .topbar-tools.radar-expanded .ai-radar-band {
+      grid-column: 1 / -1;
+    }
+
+    .header-userbox {
+      width: auto;
+      min-width: 0;
+      max-width: 96px;
+      overflow: hidden;
+    }
+
+    .header-userbox .welcome-copy,
+    .header-userbox .eyebrow {
+      display: none;
+    }
+
+    .header-shortcuts {
+      width: 100%;
+      min-width: 0;
+      overflow-x: auto;
+    }
+
+    .header-shortcuts .shortcut-label {
+      display: none;
+    }
+
+    .header-shortcuts a {
+      min-height: 30px;
+      padding: 6px 8px;
+    }
+
+    .search-container,
+    .search-container .search {
+      grid-column: auto;
+      justify-self: end;
+      width: auto;
+      min-width: 0;
+    }
+
+    .search-container .input {
+      width: 84px;
+      min-width: 84px;
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+
+    .search-container .btn {
+      min-height: 32px;
+      padding-left: 8px;
+      padding-right: 8px;
+      font-size: 10.5px;
+    }
+
+    .header-userbox .workspace-status-button {
+      max-width: 84px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ai-radar-main {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .ai-radar-copy span {
+      display: none;
     }
   }
 </style>
@@ -195,6 +726,220 @@
       setTimeout(() => {
         if (typeof window.environmentUpdate === "function") window.environmentUpdate();
       }, 150);
+    }
+  }
+
+  function applyHeaderShortcutAccess() {
+    const user = currentDevReadySearchUser();
+    if (!user || user.role === "super_user") return;
+    const isAdministrator = String(user.username || "").trim().toLowerCase() === "administrator";
+    const allowed = new Set(user.allowed_menu || []);
+    if (isAdministrator) {
+      allowed.add("admin");
+      allowed.add("agents");
+    }
+    if (allowed.has("interviews")) allowed.add("status");
+    if (allowed.has("status") || allowed.has("profiles") || allowed.has("time_link")) allowed.add("reports");
+    if (allowed.has("time_link") || allowed.has("status")) allowed.add("onboarding");
+    document.querySelectorAll(".header-shortcuts [data-menu-key]").forEach((item) => {
+      const key = item.dataset.menuKey;
+      if (!allowed.has(key)) item.remove();
+    });
+    if (!document.querySelector(".header-shortcuts [data-menu-key]")) {
+      document.querySelector(".header-shortcuts")?.remove();
+    }
+  }
+
+  function applyHeaderShortcutDomains() {
+    const domain = currentRadarDomain();
+    document.querySelectorAll(".header-shortcuts a[href]").forEach((link) => {
+      const url = new URL(link.getAttribute("href"), window.location.href);
+      if (url.origin === window.location.origin) {
+        url.searchParams.set("domain", domain);
+        link.href = `${url.pathname.split("/").pop()}?${url.searchParams.toString()}`;
+      }
+    });
+    const path = window.location.pathname.toLowerCase();
+    document.querySelectorAll(".header-shortcuts a").forEach((link) => {
+      const linkPath = new URL(link.href).pathname.toLowerCase();
+      link.classList.toggle("active", path === linkPath && (!link.dataset.radarLaunch || new URLSearchParams(window.location.search).get("radar") === "1"));
+    });
+  }
+
+  function currentRadarDomain() {
+    const params = new URLSearchParams(window.location.search);
+    const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+    if (requested === "technology" || requested === "tech") return "dev";
+    return ["dev", "engineer", "law"].includes(requested) ? requested : "dev";
+  }
+
+  function escapeRadarHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function radarDomainLabel(domain) {
+    return domain === "engineer" ? "Engineering" : domain === "law" ? "Law" : "Technology";
+  }
+
+  function isTalentWorkflowRadarPage() {
+    const path = window.location.pathname.toLowerCase();
+    return [
+      "find-candidate.html",
+      "match-role.html",
+      "mine-candidate-external.html",
+      "job-descriptions.html",
+      "profile-preview.html",
+      "profile-preview-edit.html",
+      "profile-public.html",
+      "profile-search-results.html",
+    ].some((page) => path.endsWith(page));
+  }
+
+  function updateRadarVisibility() {
+    const tools = document.querySelector(".topbar-tools");
+    if (!tools) return;
+    const params = new URLSearchParams(window.location.search);
+    const visible = params.get("radar") === "1";
+    tools.classList.toggle("radar-visible", visible);
+  }
+
+  window.openOpportunityRadar = function openOpportunityRadar() {
+    window.location.href = `egeria.html?domain=${encodeURIComponent(currentRadarDomain())}`;
+  };
+
+  function radarSourcePill(source) {
+    const ready = source && source.ready;
+    return `<span class="ai-source-pill">${ready ? "Ready" : "Needs key"}: ${escapeRadarHtml(source?.label || "Source")}</span>`;
+  }
+
+  function scorePartsHtml(parts) {
+    if (!parts || typeof parts !== "object") return "";
+    const labels = [
+      ["exact_required", "Exact"],
+      ["related", "Related"],
+      ["skill_depth", "Depth"],
+      ["search_rank", "Rank"],
+      ["crm_signal", "CRM"],
+      ["role_title", "Role"],
+      ["process", "Ready"],
+    ];
+    const chips = labels
+      .filter(([key]) => parts[key] !== undefined && parts[key] !== null)
+      .map(([key, label]) => `<span>${label}: ${escapeRadarHtml(parts[key])}</span>`)
+      .join("");
+    return chips ? `<div class="ai-score-detail">${chips}</div>` : "";
+  }
+
+  function radarSourceLabel(item) {
+    if (item.source === "people_data_labs") return "External prospect";
+    if (item.source === "azure_candidate_database") return "Internal profile";
+    return "Internal profile";
+  }
+
+  function renderOpportunityRadar(data) {
+    const panel = document.getElementById("aiRadarPanel");
+    const status = document.getElementById("aiRadarStatus");
+    const close = document.getElementById("aiRadarClose");
+    if (!panel) return;
+    document.querySelector(".topbar-tools")?.classList.add("radar-expanded");
+    const counts = data.counts || {};
+    const narrative = data.narrative || {};
+    const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
+    status.textContent = narrative.headline || `Egeria: Opportunity scanned ${radarDomainLabel(data.domain)}.`;
+    close.hidden = false;
+    panel.classList.add("active");
+    const externalRequested = Boolean(data.external?.requested);
+    const cards = suggestions.length
+      ? suggestions.map((item, index) => {
+          const candidate = item.candidate || {};
+          const job = item.job || {};
+          const client = item.client || {};
+          const links = item.links || {};
+          const isExternal = item.source === "people_data_labs";
+          const isRecommended = index === 0 && !isExternal;
+          return `
+            <article class="ai-radar-card ${isRecommended ? "recommended" : ""} ${isExternal ? "external" : ""}">
+              <div class="ai-radar-kicker">
+                ${isRecommended ? '<span class="ai-recommend-pill">Recommended candidate</span>' : ""}
+                <span class="ai-source-pill">${escapeRadarHtml(radarSourceLabel(item))}</span>
+              </div>
+              <div class="ai-radar-card-top">
+                <div>
+                  <strong>${escapeRadarHtml(candidate.name || "Candidate")} &rarr; ${escapeRadarHtml(job.title || "Role")}</strong>
+                  <span>${escapeRadarHtml(job.company || client.name || "No client linked")} ${client.stage ? "&bull; " + escapeRadarHtml(client.stage) : ""}</span>
+                </div>
+                <span class="ai-score-pill">${escapeRadarHtml(item.score)}%</span>
+              </div>
+              <span>${escapeRadarHtml(item.reason)}</span>
+              ${scorePartsHtml(item.score_parts)}
+              <span><b>Next:</b> ${escapeRadarHtml(item.next_action)}</span>
+              <div class="ai-radar-card-actions">
+                <a class="btn secondary" href="${escapeRadarHtml(links.profile || "#")}">Open profile</a>
+                <a class="btn secondary" href="${escapeRadarHtml(links.match || "#")}">Open match</a>
+                <a class="btn secondary" href="${escapeRadarHtml(links.client_comm || "#")}">Client comms</a>
+              </div>
+            </article>
+          `;
+        }).join("")
+      : '<div class="notice">No strong radar suggestions yet. Load or normalize a job description, then run the radar again.</div>';
+    const externalPrompt = externalRequested
+      ? '<div class="notice">Outside data is included below internal matches. Treat external people as temporary prospects until reviewed and promoted.</div>'
+      : `
+        <div class="ai-radar-next-scan">
+          <div>
+            <strong>Want Egeria to look outside the internal database?</strong>
+            <span>Start with internal profiles first. If those are thin, scan People Data and future GitHub/code signals as temporary external prospects.</span>
+          </div>
+          <button id="aiRadarScanExternal" class="btn" type="button">Scan outside data</button>
+        </div>
+      `;
+    panel.innerHTML = `
+      <div class="ai-radar-summary">
+        <div class="ai-radar-brief">
+          <strong>${escapeRadarHtml(narrative.headline || "Egeria: Opportunity")}</strong>
+          <span>${escapeRadarHtml(narrative.brief || "")}</span>
+          <span>${escapeRadarHtml(narrative.sales_angle || "")}</span>
+          <span>Score basis: exact required skills, related evidence, skill depth, profile readiness, role-title alignment, and CRM signal. Internal profiles always show before outside prospects.</span>
+        </div>
+        <div class="ai-radar-stat"><b>${counts.jobs_scanned || 0}</b><span>Jobs</span></div>
+        <div class="ai-radar-stat"><b>${counts.profiles_scanned || 0}</b><span>Profiles</span></div>
+        <div class="ai-radar-stat"><b>${counts.crm_records_scanned || 0}</b><span>CRM signals</span></div>
+        <div class="ai-radar-stat"><b>${counts.suggestions || 0}</b><span>Ideas</span></div>
+      </div>
+      ${externalPrompt}
+      <div class="ai-radar-grid">${cards}</div>
+      <div class="ai-radar-external">
+        ${radarSourcePill(data.external?.people_data)}
+        ${radarSourcePill(data.external?.github)}
+        ${radarSourcePill(data.external?.news)}
+        <span>External scans are gated by configured API keys and stay separate from permanent profiles until reviewed.</span>
+      </div>
+    `;
+  }
+
+  async function runOpportunityRadar(includeExternal) {
+    const status = document.getElementById("aiRadarStatus");
+    const panel = document.getElementById("aiRadarPanel");
+    if (status) status.textContent = includeExternal ? "Egeria is scanning internal matches first, then outside prospects..." : "Egeria is scanning internal jobs, profiles, and CRM signals first...";
+    document.querySelector(".topbar-tools")?.classList.add("radar-expanded");
+    if (panel) {
+      panel.classList.add("active");
+      panel.innerHTML = '<div class="notice">AI Radar scan running. Looking for hidden matches, sales angles, and next actions...</div>';
+    }
+    try {
+      const domain = currentRadarDomain();
+      const response = await fetch(`/api/ai/opportunity-radar?domain=${encodeURIComponent(domain)}&limit=5&include_external=${includeExternal ? "true" : "false"}`);
+      const data = await response.json();
+      if (!response.ok || data.ok === false) throw new Error(data.detail || "Egeria: Opportunity could not complete.");
+      renderOpportunityRadar(data);
+    } catch (error) {
+      if (status) status.textContent = error.message || "Egeria: Opportunity could not complete.";
+      if (panel) panel.innerHTML = `<div class="notice">${escapeRadarHtml(error.message || "Egeria: Opportunity could not complete.")}</div>`;
     }
   }
 
@@ -308,5 +1053,29 @@
     .getElementById("searchButton")
     .addEventListener("click", searchButton);
 
+  document
+    .getElementById("aiRadarRun")
+    ?.addEventListener("click", () => runOpportunityRadar(false));
+
+  document
+    .getElementById("aiRadarPanel")
+    ?.addEventListener("click", (event) => {
+      if (event.target && event.target.id === "aiRadarScanExternal") {
+        runOpportunityRadar(true);
+      }
+    });
+
+  document
+    .getElementById("aiRadarClose")
+    ?.addEventListener("click", () => {
+      document.getElementById("aiRadarPanel").classList.remove("active");
+      document.getElementById("aiRadarClose").hidden = true;
+      document.querySelector(".topbar-tools")?.classList.remove("radar-expanded");
+    });
+
+  document.addEventListener("devready-open-opportunity-radar", () => window.openOpportunityRadar());
+  applyHeaderShortcutAccess();
+  applyHeaderShortcutDomains();
+  updateRadarVisibility();
   renderHeaderUserContext();
 </script>

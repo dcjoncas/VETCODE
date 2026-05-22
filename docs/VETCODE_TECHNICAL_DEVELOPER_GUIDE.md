@@ -1005,6 +1005,11 @@ Outlook:
 
 ## Deployment Workflow
 
+GitHub account:
+
+- Owner username: `dcjoncas`
+- Repository: `https://github.com/dcjoncas/VETCODE`
+
 Recommended:
 
 ```powershell
@@ -1116,4 +1121,3 @@ When adding database tables:
 2. Use JSON store only for lightweight operational records or prototype workflows.
 3. If JSON data becomes core business data, plan migration to PostgreSQL.
 4. Add schema notes here.
-

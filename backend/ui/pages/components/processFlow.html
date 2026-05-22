@@ -132,6 +132,97 @@
     font-weight: 900;
   }
 
+  #processFlow .egeria-pilot-card {
+    margin-top: 10px;
+    border: 1px solid rgba(var(--primary-rgb, 20, 88, 55), 0.22);
+    border-radius: 10px;
+    background:
+      linear-gradient(120deg, rgba(var(--primary-rgb, 20, 88, 55), 0.08), rgba(255, 255, 255, 0.94)),
+      #fff;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+  }
+
+  #processFlow .egeria-pilot-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(var(--primary-rgb, 20, 88, 55), 0.14);
+  }
+
+  #processFlow .egeria-pilot-title {
+    display: grid;
+    gap: 2px;
+  }
+
+  #processFlow .egeria-pilot-title strong {
+    color: var(--primary, #145837);
+    font-size: 14px;
+  }
+
+  #processFlow .egeria-pilot-title span {
+    color: var(--muted, #5e6f66);
+    font-size: 12px;
+  }
+
+  #processFlow .egeria-pilot-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+  }
+
+  #processFlow .egeria-pilot-status {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 7px;
+  }
+
+  #processFlow .egeria-pilot-pill {
+    border: 1px solid rgba(var(--primary-rgb, 20, 88, 55), 0.2);
+    border-radius: 999px;
+    padding: 3px 8px;
+    background: rgba(255, 255, 255, 0.8);
+    color: var(--primary, #145837);
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  #processFlow .egeria-pilot-message {
+    color: var(--text, #173328);
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  #processFlow .egeria-pilot-log {
+    margin-top: 7px;
+    color: var(--muted, #5e6f66);
+    font-size: 11px;
+  }
+
+  #processFlow .egeria-pilot-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 7px;
+    flex-wrap: wrap;
+    min-width: 310px;
+  }
+
+  @media (max-width: 900px) {
+    #processFlow .egeria-pilot-body {
+      grid-template-columns: 1fr;
+    }
+
+    #processFlow .egeria-pilot-actions {
+      justify-content: flex-start;
+      min-width: 0;
+    }
+  }
+
   #quickHitOverlay {
     position: fixed;
     inset: 0;
@@ -146,7 +237,7 @@
     display: none;
   }
 
-  .fastboard-dialog {
+  .Pilot-dialog {
     width: min(760px, calc(100vw - 28px));
     max-height: calc(100vh - 42px);
     overflow: auto;
@@ -157,13 +248,13 @@
     box-shadow: 0 26px 70px rgba(15, 23, 42, 0.28);
   }
 
-  .fastboard-head,
-  .fastboard-body,
-  .fastboard-actions {
+  .Pilot-head,
+  .Pilot-body,
+  .Pilot-actions {
     padding: 14px;
   }
 
-  .fastboard-head {
+  .Pilot-head {
     display: flex;
     justify-content: space-between;
     gap: 12px;
@@ -171,18 +262,18 @@
     background: linear-gradient(90deg, rgba(var(--primary-rgb, 20, 88, 55), 0.1), #fff);
   }
 
-  .fastboard-head h2 {
+  .Pilot-head h2 {
     margin: 0;
     font-size: 18px;
   }
 
-  .fastboard-body {
+  .Pilot-body {
     display: grid;
     gap: 12px;
   }
 
-  .fastboard-body textarea,
-  .fastboard-body input {
+  .Pilot-body textarea,
+  .Pilot-body input {
     width: 100%;
     box-sizing: border-box;
     border: 1px solid var(--line, #dfe7e2);
@@ -191,7 +282,7 @@
     font: inherit;
   }
 
-  .fastboard-body textarea {
+  .Pilot-body textarea {
     min-height: 96px;
     resize: vertical;
   }
@@ -207,7 +298,7 @@
     line-height: 1.45;
   }
 
-  .fastboard-state {
+  .Pilot-state {
     display: grid;
     gap: 8px;
     padding: 12px;
@@ -216,17 +307,17 @@
     background: rgba(var(--primary-rgb, 20, 88, 55), 0.06);
   }
 
-  .fastboard-state strong {
+  .Pilot-state strong {
     color: var(--primary, #145837);
   }
 
-  .fastboard-steps {
+  .Pilot-steps {
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
   }
 
-  .fastboard-steps span {
+  .Pilot-steps span {
     border: 1px solid rgba(var(--primary-rgb, 20, 88, 55), 0.18);
     border-radius: 999px;
     padding: 4px 8px;
@@ -236,7 +327,7 @@
     font-weight: 900;
   }
 
-  .fastboard-actions {
+  .Pilot-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
@@ -398,16 +489,16 @@
 </div>
 
 <div id="quickHitOverlay" hidden>
-  <div class="fastboard-dialog" role="dialog" aria-modal="true" aria-labelledby="quickHitTitle">
-    <div class="fastboard-head">
+  <div class="Pilot-dialog" role="dialog" aria-modal="true" aria-labelledby="quickHitTitle">
+    <div class="Pilot-head">
       <div>
-        <h2 id="quickHitTitle">FastBoard Candidate Launch</h2>
+        <h2 id="quickHitTitle">Egeria Pilot Candidate Launch</h2>
         <div class="muted">Safe rapid consultant launch: Egeria asks, drafts, confirms, creates, ranks, selects, and prepares scheduling.</div>
       </div>
       <button class="btn secondary" type="button" onclick="closeQuickHitFlow()">Close</button>
     </div>
-    <div id="quickHitBody" class="fastboard-body"></div>
-    <div id="quickHitActions" class="fastboard-actions"></div>
+    <div id="quickHitBody" class="Pilot-body"></div>
+    <div id="quickHitActions" class="Pilot-actions"></div>
   </div>
 </div>
 
@@ -528,6 +619,196 @@
   const nextFlowStep = flowNextByStep[currentFlowStep] || "";
   if (nextFlowStep) {
     paintProcessStep(nextFlowStep, "next");
+  }
+
+  const egeriaPilotKeys = [
+    "candidateId",
+    "selectedProfileId",
+    "candidateName",
+    "candidateEmail",
+    "candidateStatus",
+    "shortlist",
+    "shortlistDetails",
+    "jdId",
+    "selectedJdId",
+    "jobId",
+    "jobID",
+    "jobCompany",
+    "jobTitle",
+    "jobSkills",
+    "scheduleTracking",
+    "latestScheduleTracking",
+    "scheduleInterviewType",
+    "clientEmail",
+  ];
+
+  function egeriaPilotEscape(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function egeriaPilotSnapshot() {
+    const snapshot = {};
+    egeriaPilotKeys.forEach((key) => {
+      const value = sessionStorage.getItem(key);
+      if (value !== null) snapshot[key] = value;
+    });
+    return snapshot;
+  }
+
+  function egeriaPilotContext() {
+    const shortlistRaw = sessionStorage.getItem(`shortlistDetails:${quickHitDomain()}`) || sessionStorage.getItem("shortlistDetails") || "";
+    let shortlistCount = sessionStorage.getItem("shortlist") ? 1 : 0;
+    try {
+      const parsed = JSON.parse(shortlistRaw || "[]");
+      if (Array.isArray(parsed)) shortlistCount = parsed.length;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) shortlistCount = 1;
+    } catch {}
+    const scheduleRaw = sessionStorage.getItem(`scheduleTracking:${quickHitDomain()}`) || sessionStorage.getItem("scheduleTracking") || "";
+    let scheduleSaved = false;
+    let candidateReviewComplete = false;
+    let clientInterviewReady = false;
+    try {
+      const rows = JSON.parse(scheduleRaw || "[]");
+      scheduleSaved = Array.isArray(rows) && rows.length > 0;
+      candidateReviewComplete = rows.some((row) => String(row?.interviewType || row?.purpose || row?.status || "").toLowerCase().includes("candidate"));
+      clientInterviewReady = rows.some((row) => String(row?.interviewType || row?.purpose || row?.status || "").toLowerCase().includes("client"));
+    } catch {}
+    return {
+      domain: quickHitDomain(),
+      page: document.title || "",
+      activeUrl: window.location.href,
+      currentStep: currentFlowStep || "",
+      nextStep: nextFlowStep || "",
+      candidateId: sessionStorage.getItem("candidateId") || sessionStorage.getItem("selectedProfileId") || "",
+      selectedProfileId: sessionStorage.getItem("selectedProfileId") || "",
+      candidateName: sessionStorage.getItem("candidateName") || "",
+      candidateEmail: sessionStorage.getItem("candidateEmail") || "",
+      candidateStatus: sessionStorage.getItem("candidateStatus") || "",
+      jobId: sessionStorage.getItem("selectedJdId") || sessionStorage.getItem("jdId") || sessionStorage.getItem("jobId") || sessionStorage.getItem("jobID") || "",
+      selectedJdId: sessionStorage.getItem("selectedJdId") || "",
+      jobCompany: sessionStorage.getItem("jobCompany") || "",
+      jobTitle: sessionStorage.getItem("jobTitle") || "",
+      shortlistCount,
+      scheduleSaved,
+      candidateReviewComplete,
+      clientInterviewReady,
+      snapshot: egeriaPilotSnapshot(),
+    };
+  }
+
+  function egeriaPilotCheckpointKey() {
+    return `egeriaProcessCheckpoint:${quickHitDomain()}`;
+  }
+
+  function egeriaPilotSetBusy(message) {
+    const messageEl = document.getElementById("egeriaPilotMessage");
+    if (messageEl) messageEl.textContent = message;
+  }
+
+  function egeriaPilotRender(data) {
+    const statusEl = document.getElementById("egeriaPilotStatus");
+    const messageEl = document.getElementById("egeriaPilotMessage");
+    const logEl = document.getElementById("egeriaPilotLog");
+    const actionsEl = document.getElementById("egeriaPilotActions");
+    if (!statusEl || !messageEl || !actionsEl) return;
+    const blockers = Array.isArray(data.blockers) ? data.blockers : [];
+    const warnings = Array.isArray(data.warnings) ? data.warnings : [];
+    statusEl.innerHTML = `
+      <span class="egeria-pilot-pill">${egeriaPilotEscape(data.state_label || "Ready")}</span>
+      <span class="egeria-pilot-pill">Step: ${egeriaPilotEscape(data.current_step || "unknown")}</span>
+      <span class="egeria-pilot-pill">Next: ${egeriaPilotEscape(data.next_step || "review")}</span>
+      <span class="egeria-pilot-pill">Checkpointed</span>
+    `;
+    const detail = blockers.concat(warnings).slice(0, 3).map((item) => `<div>${egeriaPilotEscape(item)}</div>`).join("");
+    messageEl.innerHTML = `<strong>${egeriaPilotEscape(data.recommendation || "Egeria is ready.")}</strong>${detail ? `<div style="margin-top:4px">${detail}</div>` : ""}`;
+    const recent = Array.isArray(data.recent_log) ? data.recent_log.slice(0, 3) : [];
+    if (logEl) {
+      logEl.innerHTML = recent.length
+        ? recent.map((item) => `${egeriaPilotEscape(item.created_at || "")}: ${egeriaPilotEscape(item.message || item.event_type || "Process event")}`).join("<br>")
+        : "No Egeria pilot actions logged yet.";
+    }
+    const safeActions = Array.isArray(data.safe_actions) ? data.safe_actions : [];
+    const goAction = safeActions.find((action) => action.href);
+    actionsEl.innerHTML = `
+      <button class="btn secondary" type="button" onclick="egeriaPilotSaveCheckpoint()">Save checkpoint</button>
+      <button class="btn secondary" type="button" onclick="egeriaPilotRollback()">Rollback</button>
+      <button class="btn secondary" type="button" onclick="startQuickHitFlow(false)">Open Pilot</button>
+      ${goAction ? `<a class="btn" href="${egeriaPilotEscape(goAction.href)}">${egeriaPilotEscape(goAction.label || "Go next")}</a>` : ""}
+    `;
+  }
+
+  async function egeriaPilotAssess() {
+    const context = egeriaPilotContext();
+    egeriaPilotSetBusy("Egeria is assessing the current workflow state...");
+    const form = new FormData();
+    form.append("domain", context.domain);
+    form.append("context_json", JSON.stringify(context));
+    try {
+      const response = await fetch("/api/egeria/process-pilot/assess", { method: "POST", body: form });
+      if (!response.ok) throw new Error(await response.text());
+      egeriaPilotRender(await response.json());
+    } catch (error) {
+      egeriaPilotSetBusy(`Egeria pilot could not reach the backend: ${error.message || error}`);
+    }
+  }
+
+  async function egeriaPilotSaveCheckpoint() {
+    const context = egeriaPilotContext();
+    const checkpoint = { createdAt: new Date().toISOString(), context, snapshot: egeriaPilotSnapshot() };
+    localStorage.setItem(egeriaPilotCheckpointKey(), JSON.stringify(checkpoint));
+    const form = new FormData();
+    form.append("domain", context.domain);
+    form.append("event_type", "checkpoint");
+    form.append("context_json", JSON.stringify(context));
+    form.append("before_json", JSON.stringify(context.snapshot || {}));
+    form.append("after_json", JSON.stringify(checkpoint.snapshot || {}));
+    form.append("message", `Checkpoint saved on ${context.currentStep || "workflow"} for ${context.candidateName || context.jobTitle || "current work"}.`);
+    try {
+      const response = await fetch("/api/egeria/process-pilot/checkpoint", { method: "POST", body: form });
+      if (!response.ok) throw new Error(await response.text());
+      const data = await response.json();
+      egeriaPilotRender({ ...egeriaPilotContext(), state_label: "Checkpoint saved", current_step: context.currentStep, next_step: context.nextStep, recommendation: "Egeria saved a rollback point for the current browser workflow.", recent_log: data.recent_log || [] });
+    } catch (error) {
+      egeriaPilotSetBusy(`Checkpoint saved locally, but backend log failed: ${error.message || error}`);
+    }
+  }
+
+  async function egeriaPilotRollback() {
+    let checkpoint = null;
+    try {
+      checkpoint = JSON.parse(localStorage.getItem(egeriaPilotCheckpointKey()) || "null");
+    } catch {}
+    if (!checkpoint || !checkpoint.snapshot) {
+      egeriaPilotSetBusy("No Egeria checkpoint exists for this domain yet.");
+      return;
+    }
+    const before = egeriaPilotSnapshot();
+    egeriaPilotKeys.forEach((key) => sessionStorage.removeItem(key));
+    Object.entries(checkpoint.snapshot).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) sessionStorage.setItem(key, String(value));
+    });
+    sessionStorage.setItem("domain", quickHitDomain());
+    if (typeof updateCandidate === "function") updateCandidate();
+    if (typeof updateJob === "function") updateJob();
+    const context = egeriaPilotContext();
+    const form = new FormData();
+    form.append("domain", context.domain);
+    form.append("context_json", JSON.stringify(context));
+    form.append("before_json", JSON.stringify(before));
+    form.append("after_json", JSON.stringify(checkpoint.snapshot));
+    form.append("message", "Rollback restored the last Egeria checkpoint for this browser workflow.");
+    try {
+      const response = await fetch("/api/egeria/process-pilot/rollback", { method: "POST", body: form });
+      const data = response.ok ? await response.json() : {};
+      egeriaPilotRender({ state_label: "Rolled back", current_step: currentFlowStep, next_step: nextFlowStep, recommendation: "Egeria restored the last checkpoint. Refresh if the visible page needs to reload around the restored candidate or job.", recent_log: data.recent_log || [] });
+    } catch {
+      egeriaPilotSetBusy("Rollback restored local browser state. Backend log was unavailable.");
+    }
   }
 
   function openProcessMap() {
@@ -719,8 +1000,8 @@
 
   function quickHitShowRecovery(state) {
     quickHitSet(
-      `<div class="fastboard-state">
-        <strong>Egeria has an unfinished FastBoard workflow.</strong>
+      `<div class="Pilot-state">
+        <strong>Egeria has an unfinished Pilot workflow.</strong>
         <span>Current step: ${quickHitEscape(quickHitStepLabel(state.step))}</span>
         <span>${quickHitEscape(state.jd?.company || state.createdJd?.company || "Client")} - ${quickHitEscape(state.jd?.job_title || state.createdJd?.title || "Role pending")}</span>
         ${
@@ -729,7 +1010,7 @@
             : ""
         }
       </div>`,
-      `<button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback FastBoard</button><button class="btn secondary" type="button" onclick="startQuickHitFlow(true)">New FastBoard</button><button class="btn" type="button" onclick="quickHitResume()">Resume</button>`,
+      `<button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback Pilot</button><button class="btn secondary" type="button" onclick="startQuickHitFlow(true)">New Pilot</button><button class="btn" type="button" onclick="quickHitResume()">Resume</button>`,
     );
   }
 
@@ -771,7 +1052,7 @@
   async function quickHitRollback() {
     const state = window.quickHitState || quickHitLoadState();
     if (!state) {
-      quickHitSet(`<div class="fastboard-preview">There is no FastBoard workflow state to rollback.</div>`, `<button class="btn" type="button" onclick="startQuickHitFlow(true)">Start FastBoard</button>`);
+      quickHitSet(`<div class="fastboard-preview">There is no Pilot workflow state to rollback.</div>`, `<button class="btn" type="button" onclick="startQuickHitFlow(true)">Start Pilot</button>`);
       return;
     }
     const jdId = String(state.createdJd?.jd_id || "");
@@ -789,8 +1070,8 @@
     quickHitSaveState({ step: "rolled_back", rolledBackAt: new Date().toISOString() });
     quickHitClearState();
     quickHitSet(
-      `<div class="fastboard-preview">${quickHitEscape(messages.join("\n") || "Cleared FastBoard workflow state.")}</div>`,
-      `<button class="btn" type="button" onclick="startQuickHitFlow(true)">Start FastBoard Again</button>`,
+      `<div class="fastboard-preview">${quickHitEscape(messages.join("\n") || "Cleared Pilot workflow state.")}</div>`,
+      `<button class="btn" type="button" onclick="startQuickHitFlow(true)">Start Pilot Again</button>`,
     );
   }
 
@@ -801,7 +1082,7 @@
     if (state.step === "draft_ready") {
       const jd = state.jd;
       quickHitSet(
-        `<div class="fastboard-steps"><span>JD draft ready</span><span>Approval required</span></div>
+        `<div class="Pilot-steps"><span>JD draft ready</span><span>Approval required</span></div>
          <div><strong>${quickHitEscape(jd.company)} - ${quickHitEscape(jd.job_title)}</strong></div>
          <div class="fastboard-preview">${quickHitEscape(jd.jd_text)}</div>`,
         `<button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback</button><button class="btn" type="button" onclick="quickHitCreateJd()">Approve and Add JD</button>`,
@@ -810,7 +1091,7 @@
     }
     if (state.step === "jd_saved" || state.step === "no_internal_match") {
       quickHitSet(
-        `<div class="fastboard-steps"><span>JD saved</span><span>Next: search best candidate</span></div>
+        `<div class="Pilot-steps"><span>JD saved</span><span>Next: search best candidate</span></div>
          <div class="fastboard-preview">Saved JD ${quickHitEscape(state.createdJd?.jd_id || "")} for ${quickHitEscape(state.createdJd?.company || state.jd?.company || "Client")} - ${quickHitEscape(state.createdJd?.title || state.jd?.job_title || "Role")}.</div>`,
         `<button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback</button><button class="btn" type="button" onclick="quickHitRankCandidates()">Approve Search</button>`,
       );
@@ -820,7 +1101,7 @@
       const best = state.bestCandidate || {};
       const score = Math.round(best._score100 || best.score || 0);
       quickHitSet(
-        `<div class="fastboard-steps"><span>Best candidate found</span><span>Approval required</span></div>
+        `<div class="Pilot-steps"><span>Best candidate found</span><span>Approval required</span></div>
          <div class="fastboard-preview"><strong>${quickHitEscape(best.name || "Candidate")}</strong>
 Email: ${quickHitEscape(best.email || "No email listed")}
 Score: ${quickHitEscape(score)}%
@@ -833,7 +1114,7 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
     if (state.step === "candidate_selected") {
       const recordId = state.statusRecord?.id || "";
       quickHitSet(
-        `<div class="fastboard-steps"><span>Candidate selected</span><span>Schedule ready</span><span>Status seeded</span></div>
+        `<div class="Pilot-steps"><span>Candidate selected</span><span>Schedule ready</span><span>Status seeded</span></div>
          <div class="fastboard-preview">${quickHitEscape(state.bestCandidate?.name || "Candidate")} is selected and ready for candidate review scheduling.</div>`,
         `<button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback</button><a class="btn" href="schedule-interview.html?domain=${encodeURIComponent(quickHitDomain())}&interview=ready">Send to Schedule</a><a class="btn secondary" href="status-tracker.html?domain=${encodeURIComponent(quickHitDomain())}&record=${encodeURIComponent(recordId)}">Move to Status</a>`,
       );
@@ -893,7 +1174,7 @@ ${profile.success}`;
     const profile = quickHitDomainProfile();
     quickHitSaveState({ step: "ask", startedAt: new Date().toISOString() });
     quickHitSet(
-      `<div class="fastboard-steps"><span>1 Ask</span><span>2 Draft JD</span><span>3 Save JD</span><span>4 Rank</span><span>5 Schedule</span><span>6 Status</span></div>
+      `<div class="Pilot-steps"><span>1 Ask</span><span>2 Draft JD</span><span>3 Save JD</span><span>4 Rank</span><span>5 Schedule</span><span>6 Status</span></div>
        <label><strong>${quickHitEscape(profile.prompt)}</strong><textarea id="quickHitJobInput" placeholder="${quickHitEscape(profile.placeholder)}"></textarea></label>`,
       `<button class="btn secondary" type="button" onclick="closeQuickHitFlow()">Cancel</button><button class="btn" type="button" onclick="quickHitDraftJob()">Build JD</button>`,
     );
@@ -920,7 +1201,7 @@ ${profile.success}`;
     const form = new FormData();
     form.append("agent_key", "egeria");
     form.append("domain", quickHitDomain());
-    form.append("message", `Egeria FastBoard request: create a complete ${quickHitDomainProfile().domainName} domain job description and create_job_description action for this guided candidate search. Keep the role, examples, skills, and responsibilities specific to the ${quickHitDomain()} domain. This is step 2 of a recoverable ask/draft/confirm/create/rank/select/schedule/status workflow. ${jobRequest}`);
+    form.append("message", `Egeria Pilot request: create a complete ${quickHitDomainProfile().domainName} domain job description and create_job_description action for this guided candidate search. Keep the role, examples, skills, and responsibilities specific to the ${quickHitDomain()} domain. This is step 2 of a recoverable ask/draft/confirm/create/rank/select/schedule/status workflow. ${jobRequest}`);
     form.append("context_json", JSON.stringify(context));
     form.append("numa_change_mode", "off");
     try {
@@ -931,7 +1212,7 @@ ${profile.success}`;
     }
     const jd = window.quickHitState.jd;
     quickHitSet(
-      `<div class="fastboard-steps"><span>JD draft ready</span><span>Approval required</span></div>
+      `<div class="Pilot-steps"><span>JD draft ready</span><span>Approval required</span></div>
        <div><strong>${quickHitEscape(jd.company)} - ${quickHitEscape(jd.job_title)}</strong></div>
        <div class="fastboard-preview">${quickHitEscape(jd.jd_text)}</div>`,
       `<button class="btn secondary" type="button" onclick="startQuickHitFlow(true)">Back</button><button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback</button><button class="btn" type="button" onclick="quickHitCreateJd()">Approve and Add JD</button>`,
@@ -961,7 +1242,7 @@ ${profile.success}`;
       sessionStorage.setItem("jobSkills", (created.jd_skills || []).join(", "));
       if (typeof updateJob === "function") updateJob();
       quickHitSet(
-        `<div class="fastboard-steps"><span>JD saved</span><span>Next: search best candidate</span></div>
+        `<div class="Pilot-steps"><span>JD saved</span><span>Next: search best candidate</span></div>
          <div class="fastboard-preview">Saved JD ${quickHitEscape(jdId)} for ${quickHitEscape(created.company || jd.company)} - ${quickHitEscape(created.title || jd.job_title)}.</div>`,
         `<button class="btn secondary" type="button" onclick="closeQuickHitFlow()">Stop here</button><button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback</button><button class="btn" type="button" onclick="quickHitRankCandidates()">Approve Search</button>`,
       );
@@ -993,7 +1274,7 @@ ${profile.success}`;
       }
       const score = Math.round(best._score100 || best.score || 0);
       quickHitSet(
-        `<div class="fastboard-steps"><span>Best candidate found</span><span>Approval required</span></div>
+        `<div class="Pilot-steps"><span>Best candidate found</span><span>Approval required</span></div>
          <div class="fastboard-preview"><strong>${quickHitEscape(best.name || "Candidate")}</strong>
 Email: ${quickHitEscape(best.email || "No email listed")}
 Score: ${quickHitEscape(score)}%
@@ -1016,21 +1297,21 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
     sessionStorage.setItem("candidateId", id);
     sessionStorage.setItem("candidateName", name);
     sessionStorage.setItem("candidateEmail", email);
-    sessionStorage.setItem("candidateStatus", "FastBoard selected for candidate review");
+    sessionStorage.setItem("candidateStatus", "Pilot selected for candidate review");
     const shortlistItem = {
       id,
       profile_id: id,
       name,
       email,
       score: Math.round(candidate._score100 || candidate.score || 0),
-      status: "FastBoard selected",
+      status: "Pilot selected",
       skills: candidate.top_matches || [],
       top_matches: candidate.top_matches || [],
-      source: "FastBoard AI",
-      stage: "FastBoard - Find candidate",
+      source: "Egeria Pilot",
+      stage: "Pilot - Find candidate",
     };
     if (window.DevReadyShortlist && typeof window.DevReadyShortlist.add === "function") {
-      window.DevReadyShortlist.add(shortlistItem, { stage: "FastBoard - Find candidate", source: "FastBoard AI" });
+      window.DevReadyShortlist.add(shortlistItem, { stage: "Pilot - Find candidate", source: "Egeria Pilot" });
     } else {
       sessionStorage.setItem("shortlist", id);
       const details = {};
@@ -1039,7 +1320,7 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
       sessionStorage.setItem("shortlistDetails", JSON.stringify(details));
     }
     const statusRecord = {
-      id: `fastboard-${Date.now()}`,
+      id: `Pilot-${Date.now()}`,
       domain: quickHitDomain(),
       interviewType: "ready",
       candidateId: id,
@@ -1047,7 +1328,7 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
       candidateEmail: email,
       role: sessionStorage.getItem("jobTitle") || "",
       company: sessionStorage.getItem("jobCompany") || "",
-      status: "FastBoard ready to schedule",
+      status: "Pilot ready to schedule",
       provider: "ask",
       nextAction: "Schedule candidate review",
       createdAt: new Date().toISOString(),
@@ -1062,7 +1343,7 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
     quickHitSaveState({ step: "candidate_selected", bestCandidate: candidate, shortlistItem, statusRecord });
     if (typeof updateCandidate === "function") updateCandidate();
     quickHitSet(
-      `<div class="fastboard-steps"><span>Candidate selected</span><span>Schedule ready</span><span>Status seeded</span></div>
+      `<div class="Pilot-steps"><span>Candidate selected</span><span>Schedule ready</span><span>Status seeded</span></div>
        <div class="fastboard-preview">${quickHitEscape(name)} has been selected, added to the shortlist, and prepared for candidate review scheduling.</div>`,
       `<button class="btn secondary" type="button" onclick="quickHitRollback()">Rollback</button><a class="btn" href="schedule-interview.html?domain=${encodeURIComponent(quickHitDomain())}&interview=ready">Send to Schedule</a><a class="btn secondary" href="status-tracker.html?domain=${encodeURIComponent(quickHitDomain())}&record=${encodeURIComponent(statusRecord.id)}">Move to Status</a>`,
     );
@@ -1125,6 +1406,9 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
     quickHitApproveCandidate,
     quickHitRollback,
     quickHitResume,
+    egeriaPilotAssess,
+    egeriaPilotSaveCheckpoint,
+    egeriaPilotRollback,
   });
 
   document.querySelectorAll("#processMapOverlay .map-node").forEach((node) => {
@@ -1156,3 +1440,5 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
   if (typeof updateCandidate === "function") updateCandidate();
   if (typeof updateJob === "function") updateJob();
 </script>
+
+

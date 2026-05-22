@@ -1,0 +1,1110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Egeria</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" || requested === "tech" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+      function activateEgeriaProcessScripts(root) {
+        const host = root || document.getElementById("processFlow");
+        if (!host || host.dataset.scriptsActivated === "1") return;
+        host.dataset.scriptsActivated = "1";
+        host.querySelectorAll("script").forEach((oldScript) => {
+          const inlineCode = oldScript.text || oldScript.textContent || oldScript.innerHTML || "";
+          if (!oldScript.src && inlineCode.trim()) {
+            (0, eval)(inlineCode);
+            return;
+          }
+          const script = document.createElement("script");
+          Array.from(oldScript.attributes || []).forEach((attr) => script.setAttribute(attr.name, attr.value));
+          script.text = inlineCode;
+          document.body.appendChild(script);
+          if (!script.src) script.remove();
+        });
+      }
+
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html?v=20260522-egeria-pilot");
+        $("#searchBar").load("components/searchBar.html?v=20260522-egeria-pilot");
+        $("#processFlow").load("components/processFlow.html?v=20260522-egeria-pilot", function () {
+          activateEgeriaProcessScripts(this);
+        });
+      });
+    </script>
+    <style>
+      .egeria-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: center;
+        margin-bottom: 14px;
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.18);
+        border-radius: 14px;
+        padding: 16px;
+        background:
+          linear-gradient(125deg, rgba(var(--primary-rgb, 47, 125, 75), 0.13), rgba(255, 255, 255, 0.96) 48%, rgba(184, 135, 39, 0.12)),
+          #fff;
+      }
+
+      .egeria-orb {
+        display: grid;
+        place-items: center;
+        width: 78px;
+        height: 78px;
+        border-radius: 999px;
+        background:
+          radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.98) 0 9%, rgba(255, 255, 255, 0.34) 10% 22%, transparent 23%),
+          conic-gradient(from 140deg, #f1d477, #a9bbcc, #4e7196, #e4e8ef, #b58d38, #f1d477);
+        color: #fff;
+        box-shadow:
+          inset -14px -16px 24px rgba(24, 38, 58, 0.3),
+          inset 10px 10px 18px rgba(255, 255, 255, 0.3),
+          0 18px 36px rgba(65, 90, 124, 0.24);
+        font-size: 21px;
+        font-weight: 1000;
+      }
+
+      .egeria-hero h1 {
+        margin: 0;
+        font-size: 30px;
+        line-height: 1.05;
+      }
+
+      .egeria-hero p {
+        max-width: 880px;
+        margin: 6px 0 0;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .egeria-grid {
+        display: grid;
+        gap: 18px;
+      }
+
+      .egeria-section {
+        position: relative;
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.22);
+        border-radius: 16px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(var(--primary-rgb, 47, 125, 75), 0.035)),
+          #fff;
+        box-shadow:
+          0 0 0 4px rgba(var(--primary-rgb, 47, 125, 75), 0.035),
+          0 18px 38px rgba(15, 23, 42, 0.08);
+        overflow: hidden;
+      }
+
+      .egeria-section::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 7px;
+        background: var(--primary);
+        opacity: 0.9;
+      }
+
+      .egeria-section-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 16px 16px 16px 22px;
+        border-bottom: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.16);
+        background:
+          linear-gradient(90deg, rgba(var(--primary-rgb, 47, 125, 75), 0.16), rgba(255, 255, 255, 0.96) 64%),
+          #fff;
+      }
+
+      .egeria-section-head h2 {
+        margin: 0;
+        font-size: 22px;
+      }
+
+      .egeria-section-head p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .egeria-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .egeria-body {
+        display: grid;
+        gap: 12px;
+        padding: 15px 16px 16px 22px;
+      }
+
+      #opportunitySection {
+        border-color: rgba(184, 135, 39, 0.32);
+        background:
+          linear-gradient(180deg, rgba(255, 250, 232, 0.92), rgba(255, 255, 255, 0.98) 36%, rgba(var(--primary-rgb, 47, 125, 75), 0.035)),
+          #fff;
+      }
+
+      #opportunitySection::before {
+        background: linear-gradient(180deg, #d6a33a, var(--primary));
+      }
+
+      #opportunitySection .egeria-section-head {
+        background:
+          linear-gradient(90deg, rgba(214, 163, 58, 0.22), rgba(255, 255, 255, 0.98) 68%),
+          #fff;
+      }
+
+      #processPilotSection {
+        border-color: rgba(var(--primary-rgb, 47, 125, 75), 0.52);
+        background:
+          linear-gradient(180deg, rgba(var(--primary-rgb, 47, 125, 75), 0.18), rgba(var(--primary-rgb, 47, 125, 75), 0.07) 38%, rgba(255, 255, 255, 0.98) 70%),
+          #fff;
+        box-shadow:
+          0 0 0 5px rgba(var(--primary-rgb, 47, 125, 75), 0.075),
+          0 22px 44px rgba(15, 23, 42, 0.12);
+      }
+
+      #processPilotSection::before {
+        background: linear-gradient(180deg, var(--primary), var(--primary-2));
+      }
+
+      #processPilotSection .egeria-section-head {
+        background:
+          linear-gradient(90deg, rgba(var(--primary-rgb, 47, 125, 75), 0.3), rgba(var(--primary-rgb, 47, 125, 75), 0.09) 52%, rgba(255, 255, 255, 0.98) 82%),
+          #fff;
+      }
+
+      #clientBriefingSection {
+        border-color: rgba(76, 109, 148, 0.34);
+        background:
+          linear-gradient(180deg, rgba(226, 235, 246, 0.9), rgba(255, 255, 255, 0.98) 38%, rgba(var(--primary-rgb, 47, 125, 75), 0.025)),
+          #fff;
+      }
+
+      #clientBriefingSection::before {
+        background: linear-gradient(180deg, #6f8eb8, var(--primary));
+      }
+
+      #clientBriefingSection .egeria-section-head {
+        background:
+          linear-gradient(90deg, rgba(111, 142, 184, 0.22), rgba(255, 255, 255, 0.98) 68%),
+          #fff;
+      }
+
+      .egeria-results-grid,
+      .briefing-grid,
+      .pilot-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 10px;
+      }
+
+      .egeria-card {
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.16);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fff;
+      }
+
+      .egeria-card.recommended {
+        border-color: rgba(var(--primary-rgb, 47, 125, 75), 0.5);
+        background:
+          linear-gradient(180deg, rgba(var(--primary-rgb, 47, 125, 75), 0.1), rgba(255, 255, 255, 0.98) 44%),
+          #fff;
+        box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 47, 125, 75), 0.09);
+      }
+
+      .egeria-card strong {
+        display: block;
+        color: var(--ink);
+        font-size: 14px;
+      }
+
+      .egeria-card span,
+      .egeria-card p {
+        display: block;
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .egeria-pill {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.2);
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.08);
+        color: var(--primary-2);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .egeria-link-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 10px;
+      }
+
+      .egeria-link-row a {
+        min-height: 30px;
+        padding: 6px 10px;
+        font-size: 11px;
+      }
+
+      .egeria-link-row button {
+        min-height: 30px;
+        padding: 6px 10px;
+        font-size: 11px;
+      }
+
+      .egeria-notice {
+        border: 1px dashed rgba(var(--primary-rgb, 47, 125, 75), 0.34);
+        border-radius: 12px;
+        padding: 12px;
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.06);
+        color: var(--primary-2);
+        font-weight: 800;
+      }
+
+      .pilot-workspace {
+        display: grid;
+        gap: 10px;
+      }
+
+      .pilot-step-card {
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.24);
+        border-radius: 13px;
+        padding: 13px;
+        background:
+          linear-gradient(180deg, rgba(var(--primary-rgb, 47, 125, 75), 0.08), rgba(255, 255, 255, 0.98) 42%),
+          #fff;
+      }
+
+      .pilot-step-card h3 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .pilot-step-card p {
+        margin: 5px 0 0;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+
+      .pilot-step-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .pilot-step-field {
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.14);
+        border-radius: 10px;
+        padding: 9px;
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.04);
+      }
+
+      .pilot-step-field span {
+        display: block;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .pilot-step-field strong {
+        display: block;
+        margin-top: 3px;
+        color: var(--ink);
+      }
+
+      .pilot-step-card textarea,
+      .pilot-step-card select {
+        width: 100%;
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 9px;
+        background: #fff;
+        font: inherit;
+      }
+
+      .pilot-step-card textarea {
+        min-height: 78px;
+        resize: vertical;
+      }
+
+      .egeria-controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .egeria-controls select {
+        min-height: 38px;
+        min-width: min(330px, 100%);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 12px;
+        background: #fff;
+        font: inherit;
+      }
+
+      .pilot-guide {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.28);
+        border-radius: 13px;
+        padding: 12px;
+        background:
+          linear-gradient(120deg, rgba(var(--primary-rgb, 47, 125, 75), 0.16), rgba(255, 255, 255, 0.94) 58%),
+          #fff;
+      }
+
+      .pilot-guide strong {
+        display: block;
+        color: var(--ink);
+        font-size: 15px;
+      }
+
+      .pilot-guide span {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .pilot-guide-links {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 7px;
+      }
+
+      .pilot-guide-links a,
+      .pilot-guide-links button {
+        min-height: 31px;
+        padding: 6px 10px;
+        font-size: 11px;
+      }
+
+      #processFlow[hidden] {
+        display: none;
+      }
+
+      @media (max-width: 860px) {
+        .egeria-hero,
+        .egeria-section-head,
+        .pilot-guide {
+          grid-template-columns: 1fr;
+        }
+
+        .egeria-actions,
+        .pilot-guide-links {
+          justify-content: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Egeria</div>
+            <div class="breadcrumb">AI operator - opportunity, process control, and client briefing</div>
+          </div>
+          <div id="searchBar"></div>
+        </div>
+
+        <div id="processFlow" hidden></div>
+
+        <section class="egeria-hero">
+          <div>
+            <h1>Egeria AI Workspace</h1>
+            <p>
+              Egeria is the more powerful process-aware AI. Use her here when you want the app to scan across systems, reason through the workflow, save checkpoints, or build a client briefing from internal data plus optional outside signals.
+            </p>
+          </div>
+          <div class="egeria-orb" aria-hidden="true">E</div>
+        </section>
+
+        <div class="egeria-grid">
+          <section class="egeria-section" id="opportunitySection">
+            <div class="egeria-section-head">
+              <div>
+                <h2>Egeria: Opportunity</h2>
+                <p>Internal profiles first, then optional external data. Egeria explains the match, score, reason, and next move.</p>
+              </div>
+              <div class="egeria-actions">
+                <button id="runOpportunityBtn" class="btn primary" type="button">Run internal scan</button>
+                <button id="runExternalOpportunityBtn" class="btn secondary" type="button">Include outside data</button>
+              </div>
+            </div>
+            <div class="egeria-body">
+              <div id="opportunityStatus" class="egeria-notice">Run the internal scan first. Outside data stays separate until you choose it.</div>
+              <div id="opportunityResults" class="egeria-results-grid"></div>
+            </div>
+          </section>
+
+          <section class="egeria-section" id="processPilotSection">
+            <div class="egeria-section-head">
+              <div>
+                <h2>Egeria Pilot</h2>
+                <p>One guided cockpit for the workflow: assess what is missing, complete the next safe step, checkpoint progress, and keep moving without losing context.</p>
+              </div>
+              <div class="egeria-actions">
+                <button id="runPilotBtn" class="btn primary" type="button">Assess workflow</button>
+                <button id="saveCheckpointBtn" class="btn secondary" type="button">Save checkpoint</button>
+                <button id="rollbackCheckpointBtn" class="btn secondary" type="button">Rollback</button>
+                <button id="openPilotBtn" class="btn secondary" type="button">Open Pilot</button>
+              </div>
+            </div>
+            <div class="egeria-body">
+              <div class="pilot-guide" aria-label="Pilot guide">
+                <div>
+                  <strong>Use Pilot as the single guided path.</strong>
+                  <span>Egeria checks the selected candidate and job, then walks the work forward: profile confirmation, shortlist, candidate review, client interview, status, onboarding, time, and follow-up.</span>
+                </div>
+                <div class="pilot-guide-links">
+                  <a class="btn secondary" href="meet.html" data-egeria-process-link>HR: Meet</a>
+                  <a class="btn secondary" href="schedule-interview.html?interview=ready" data-egeria-process-link>HR: Interviews</a>
+                  <a class="btn secondary" href="onboarding-admin.html" data-egeria-process-link>HR: Onboarding</a>
+                  <a class="btn secondary" href="time-admin.html" data-egeria-process-link>HR: Time</a>
+                  <a class="btn secondary" href="status-tracker.html" data-egeria-process-link>Status</a>
+                </div>
+              </div>
+              <div id="pilotStatus" class="egeria-notice">Egeria will read selected candidate, job, shortlist, review, and schedule state.</div>
+              <div id="pilotWorkspace" class="pilot-workspace"></div>
+              <div id="pilotResults" class="pilot-grid"></div>
+            </div>
+          </section>
+
+          <section class="egeria-section" id="clientBriefingSection">
+            <div class="egeria-section-head">
+              <div>
+                <h2>Client Intelligence Briefing</h2>
+                <p>Before a sales call, Egeria reads CRM, contacts, meetings, roles, time, invoices, and optional public news.</p>
+              </div>
+              <div class="egeria-actions">
+                <button id="runBriefingBtn" class="btn primary" type="button">Run briefing</button>
+                <button id="runBriefingNewsBtn" class="btn secondary" type="button">Include news scan</button>
+              </div>
+            </div>
+            <div class="egeria-body">
+              <div class="egeria-controls">
+                <select id="briefingCustomerSelect" aria-label="Briefing customer">
+                  <option value="">Auto-pick highest priority client</option>
+                </select>
+              </div>
+              <div id="briefingStatus" class="egeria-notice">Choose a client or let Egeria pick the highest-priority CRM record.</div>
+              <div id="briefingResults" class="briefing-grid"></div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      function currentDomain() {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        return requested === "technology" || requested === "tech" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function setStatus(id, text) {
+        const target = document.getElementById(id);
+        if (target) target.textContent = text;
+      }
+
+      function applyPilotProcessLinks() {
+        document.querySelectorAll("[data-egeria-process-link]").forEach((link) => {
+          const rawHref = link.getAttribute("href") || "";
+          const url = new URL(rawHref, window.location.href);
+          url.searchParams.set("domain", currentDomain());
+          link.setAttribute("href", `${url.pathname.split("/").pop()}${url.search}${url.hash}`);
+        });
+      }
+
+      function readShortlistIds() {
+        const ids = (sessionStorage.getItem("shortlist") || "")
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean);
+        try {
+          const parsed = JSON.parse(sessionStorage.getItem("shortlistProfiles") || "[]");
+          if (Array.isArray(parsed)) parsed.forEach((item) => {
+            const id = String(item?.id || item?.profile_id || item || "").trim();
+            if (id) ids.push(id);
+          });
+        } catch {}
+        return [...new Set(ids)];
+      }
+
+      function readShortlistDetails() {
+        try {
+          return JSON.parse(sessionStorage.getItem(`shortlistDetails:${currentDomain()}`) || sessionStorage.getItem("shortlistDetails") || "{}") || {};
+        } catch {
+          return {};
+        }
+      }
+
+      function writeShortlistDetails(details) {
+        sessionStorage.setItem(`shortlistDetails:${currentDomain()}`, JSON.stringify(details || {}));
+        sessionStorage.setItem("shortlistDetails", JSON.stringify(details || {}));
+      }
+
+      function writeShortlistIds(ids) {
+        sessionStorage.setItem("shortlist", [...new Set((ids || []).map((id) => String(id)).filter(Boolean))].join(","));
+      }
+
+      function egeriaContext() {
+        const shortlistCount = readShortlistIds().length;
+        const schedule = readScheduleState();
+        return {
+          domain: currentDomain(),
+          currentStep: "egeria",
+          observedStep: sessionStorage.getItem("currentFlowStep") || "",
+          nextStep: sessionStorage.getItem("nextFlowStep") || "",
+          candidateId: sessionStorage.getItem("candidateId") || sessionStorage.getItem("selectedProfileId") || "",
+          candidateName: sessionStorage.getItem("candidateName") || "",
+          candidateEmail: sessionStorage.getItem("candidateEmail") || "",
+          jobId: sessionStorage.getItem("jobId") || sessionStorage.getItem("jobID") || sessionStorage.getItem("selectedJdId") || "",
+          jobTitle: sessionStorage.getItem("jobTitle") || "",
+          shortlistCount,
+          scheduleSaved: schedule.saved,
+          candidateReviewComplete: schedule.candidateReviewComplete,
+          clientInterviewReady: schedule.clientInterviewReady,
+          url: window.location.href,
+        };
+      }
+
+      function readScheduleState() {
+        const keys = [
+          `scheduleTracking:${currentDomain()}`,
+          "scheduleTracking",
+          "latestScheduleTracking",
+          "candidateReviewStatus",
+          "clientInterviewStatus",
+        ];
+        const text = keys.map((key) => sessionStorage.getItem(key) || "").filter(Boolean).join(" ").toLowerCase();
+        let saved = Boolean(text);
+        let candidateReviewComplete = /candidate.{0,24}(review|touch|screen)|review.{0,24}(complete|scheduled|saved|ready)/i.test(text);
+        let clientInterviewReady = /client.{0,24}(interview|meeting).{0,24}(complete|scheduled|saved|ready)|interview=client/i.test(text);
+        keys.forEach((key) => {
+          try {
+            const parsed = JSON.parse(sessionStorage.getItem(key) || "null");
+            const rows = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
+            if (rows.length) saved = true;
+            rows.forEach((row) => {
+              const rowText = JSON.stringify(row || {}).toLowerCase();
+              if (rowText.includes("candidate") && (rowText.includes("review") || rowText.includes("touch"))) candidateReviewComplete = true;
+              if (rowText.includes("client") && rowText.includes("interview")) clientInterviewReady = true;
+            });
+          } catch {}
+        });
+        return { saved, candidateReviewComplete, clientInterviewReady };
+      }
+
+      function actionLinks(actions = []) {
+        if (!Array.isArray(actions) || !actions.length) return "";
+        return `<div class="egeria-link-row">${actions.map((action) => {
+          const href = action.href || "#";
+          return `<button class="btn secondary" type="button" data-egeria-open="${escapeHtml(href)}">${escapeHtml(action.label || "Open next step")}</button>`;
+        }).join("")}</div>`;
+      }
+
+      function renderOpportunity(data) {
+        const target = document.getElementById("opportunityResults");
+        const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
+        setStatus("opportunityStatus", data.narrative?.headline || `Egeria scanned ${suggestions.length} opportunity idea(s).`);
+        if (!suggestions.length) {
+          target.innerHTML = '<div class="egeria-notice">No strong suggestion yet. Add or normalize more job descriptions, then scan again.</div>';
+          return;
+        }
+        target.innerHTML = suggestions.map((item, index) => {
+          const candidate = item.candidate || {};
+          const job = item.job || {};
+          const client = item.client || {};
+          const links = item.links || {};
+          return `
+            <article class="egeria-card ${index === 0 && item.source !== "people_data_labs" ? "recommended" : ""}">
+              <div class="pill-row">
+                ${index === 0 && item.source !== "people_data_labs" ? '<span class="egeria-pill">Recommended internal candidate</span>' : ""}
+                <span class="egeria-pill">${item.source === "people_data_labs" ? "External prospect" : "Internal profile"}</span>
+                <span class="egeria-pill">${escapeHtml(item.score)}%</span>
+              </div>
+              <strong>${escapeHtml(candidate.name || "Candidate")} to ${escapeHtml(job.title || "role")}</strong>
+              <span>${escapeHtml(job.company || client.name || "No client linked")}</span>
+              <p>${escapeHtml(item.reason || "")}</p>
+              <p><b>Next:</b> ${escapeHtml(item.next_action || "")}</p>
+              <div class="egeria-link-row">
+                <a class="btn secondary" href="${escapeHtml(links.profile || "profile-preview.html")}">Profile</a>
+                <a class="btn secondary" href="${escapeHtml(links.match || "match-role.html")}">Match</a>
+                <a class="btn secondary" href="${escapeHtml(links.client_comm || "client-comm.html")}">Client comms</a>
+              </div>
+            </article>
+          `;
+        }).join("");
+      }
+
+      async function runOpportunity(includeExternal) {
+        setStatus("opportunityStatus", includeExternal ? "Egeria is scanning internal data, then outside signals..." : "Egeria is scanning internal profiles, jobs, and CRM signals...");
+        document.getElementById("opportunityResults").innerHTML = "";
+        try {
+          const response = await fetch(`/api/ai/opportunity-radar?domain=${encodeURIComponent(currentDomain())}&limit=6&include_external=${includeExternal ? "true" : "false"}`, { cache: "no-store" });
+          const data = await response.json();
+          if (!response.ok || data.ok === false) throw new Error(data.detail || "Egeria opportunity scan failed.");
+          renderOpportunity(data);
+        } catch (error) {
+          setStatus("opportunityStatus", error.message || "Egeria opportunity scan failed.");
+        }
+      }
+
+      function renderPilot(data) {
+        setStatus("pilotStatus", data.recommendation || "Egeria assessed the current workflow.");
+        const blockers = Array.isArray(data.blockers) ? data.blockers : [];
+        const warnings = Array.isArray(data.warnings) ? data.warnings : [];
+        const log = Array.isArray(data.recent_log) ? data.recent_log : [];
+        const primaryAction = Array.isArray(data.safe_actions) ? data.safe_actions[0] : null;
+        const nextCopy = primaryAction?.label || data.next_step || "Review workflow state";
+        renderPilotWorkspace(data);
+        document.getElementById("pilotResults").innerHTML = `
+          <article class="egeria-card recommended">
+            <strong>Next: ${escapeHtml(nextCopy)}</strong>
+            <span>Status: ${escapeHtml(data.state_label || "Ready")}</span>
+            <span>Workflow area: ${escapeHtml(data.current_step || "unknown")}</span>
+            ${actionLinks(data.safe_actions || [])}
+          </article>
+          <article class="egeria-card">
+            <strong>Blockers and warnings</strong>
+            <span>${blockers.length ? blockers.map(escapeHtml).join("<br>") : "No hard blocker found."}</span>
+            <span>${warnings.length ? warnings.map(escapeHtml).join("<br>") : "No warning found."}</span>
+          </article>
+          <article class="egeria-card">
+            <strong>Recent action log</strong>
+            <span>${log.length ? log.slice(0, 5).map((item) => `${escapeHtml(item.type || "event")}: ${escapeHtml(item.message || item.step || "")}`).join("<br>") : "No Egeria pilot actions logged yet."}</span>
+          </article>
+        `;
+        document.querySelectorAll("[data-egeria-open]").forEach((button) => {
+          button.addEventListener("click", () => openInEgeriaContext(button.getAttribute("data-egeria-open") || ""));
+        });
+      }
+
+      function renderPilotWorkspace(data) {
+        const target = document.getElementById("pilotWorkspace");
+        if (!target) return;
+        const ctx = egeriaContext();
+        const step = data.current_step || ctx.currentStep || "talent";
+        const candidateName = ctx.candidateName || (ctx.candidateId ? `Profile ${ctx.candidateId}` : "");
+        const jobName = ctx.jobTitle || (ctx.jobId ? `JD ${ctx.jobId}` : "");
+        if (!ctx.candidateId || !ctx.jobId) {
+          target.innerHTML = `
+            <article class="pilot-step-card">
+              <h3>Start the Pilot path</h3>
+              <p>Egeria needs one candidate and one job description before she can safely shortlist, review, schedule, and move to status.</p>
+              <div class="pilot-step-grid">
+                <div class="pilot-step-field"><span>Candidate</span><strong>${escapeHtml(candidateName || "Not selected")}</strong></div>
+                <div class="pilot-step-field"><span>Job description</span><strong>${escapeHtml(jobName || "Not selected")}</strong></div>
+              </div>
+              <div class="egeria-link-row">
+                <button class="btn primary" type="button" onclick="openInEgeriaContext('find-candidate.html?domain=${encodeURIComponent(currentDomain())}')">Choose candidate</button>
+                <button class="btn secondary" type="button" onclick="openInEgeriaContext('job-descriptions.html?domain=${encodeURIComponent(currentDomain())}')">Choose job</button>
+              </div>
+            </article>
+          `;
+          return;
+        }
+        if (step === "profile") {
+          target.innerHTML = `
+            <article class="pilot-step-card">
+              <h3>Review profile and shortlist</h3>
+              <p>Egeria can treat this as the profile checkpoint: confirm this candidate is the one for the selected role, add the candidate to the shortlist, and immediately move to candidate review.</p>
+              <div class="pilot-step-grid">
+                <div class="pilot-step-field"><span>Candidate</span><strong>${escapeHtml(candidateName)}</strong></div>
+                <div class="pilot-step-field"><span>Role</span><strong>${escapeHtml(jobName)}</strong></div>
+              </div>
+              <div class="egeria-link-row">
+                <button class="btn primary" type="button" onclick="confirmProfileAndShortlist()">Confirm profile + shortlist</button>
+                <button class="btn secondary" type="button" onclick="openInEgeriaContext('profile-preview.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(ctx.candidateId)}')">Open full profile</button>
+              </div>
+            </article>
+          `;
+          return;
+        }
+        if (step === "shortlist") {
+          target.innerHTML = `
+            <article class="pilot-step-card">
+              <h3>Candidate review checkpoint</h3>
+              <p>Capture the internal touch-base before client outreach: interest, role fit, timing, pay, and gaps. This stays as workflow evidence, not public profile content.</p>
+              <div class="pilot-step-grid">
+                <label class="pilot-step-field"><span>Interest level</span><select id="candidateReviewInterest"><option>Interested</option><option>Maybe interested</option><option>Not interested</option><option>Needs follow-up</option></select></label>
+                <label class="pilot-step-field"><span>Readiness</span><select id="candidateReviewReadiness"><option>Ready for client shortlist</option><option>Needs skill clarification</option><option>Needs rate/timing confirmation</option><option>Hold for later</option></select></label>
+              </div>
+              <label style="display:grid;gap:5px;margin-top:10px"><strong>Review notes</strong><textarea id="candidateReviewNotes" placeholder="Role interest, missing skills, timing, rate, and any concerns from the candidate touch-base."></textarea></label>
+              <div class="egeria-link-row">
+                <button class="btn primary" type="button" onclick="saveCandidateReviewInline()">Save review + continue</button>
+                <button class="btn secondary" type="button" onclick="openInEgeriaContext('schedule-interview.html?domain=${encodeURIComponent(currentDomain())}&interview=ready')">Open scheduling page</button>
+              </div>
+            </article>
+          `;
+          return;
+        }
+        if (step === "candidate-review") {
+          target.innerHTML = `
+            <article class="pilot-step-card">
+              <h3>Client interview readiness</h3>
+              <p>The candidate checkpoint is complete. Mark the client interview package ready here, or open scheduling if a calendar invite needs to be created.</p>
+              <div class="pilot-step-grid">
+                <div class="pilot-step-field"><span>Candidate</span><strong>${escapeHtml(candidateName)}</strong></div>
+                <div class="pilot-step-field"><span>Client package</span><strong>Ready to schedule</strong></div>
+              </div>
+              <label style="display:grid;gap:5px;margin-top:10px"><strong>Client interview note</strong><textarea id="clientInterviewNotes" placeholder="Client contact, meeting window, shortlist context, and what the client should evaluate."></textarea></label>
+              <div class="egeria-link-row">
+                <button class="btn primary" type="button" onclick="markClientInterviewReadyInline()">Mark client interview ready</button>
+                <button class="btn secondary" type="button" onclick="openInEgeriaContext('schedule-interview.html?domain=${encodeURIComponent(currentDomain())}&interview=client')">Open client scheduling</button>
+              </div>
+            </article>
+          `;
+          return;
+        }
+        target.innerHTML = `
+          <article class="pilot-step-card">
+            <h3>Status handoff</h3>
+            <p>Egeria has the workflow ready for status tracking. Use this when the candidate is moving from shortlist and interviews into active pipeline status.</p>
+            <div class="egeria-link-row">
+              <button class="btn primary" type="button" onclick="markWorkflowStatusInline()">Mark status ready</button>
+              <button class="btn secondary" type="button" onclick="openInEgeriaContext('status-tracker.html?domain=${encodeURIComponent(currentDomain())}')">Open status tracker</button>
+            </div>
+          </article>
+        `;
+      }
+
+      function openInEgeriaContext(href) {
+        if (!href) return;
+        const url = new URL(href, window.location.href);
+        url.searchParams.set("domain", currentDomain());
+        window.location.href = `${url.pathname.split("/").pop()}${url.search}${url.hash}`;
+      }
+
+      async function logPilotAction(message, after = {}) {
+        const context = egeriaContext();
+        const form = new FormData();
+        form.append("domain", currentDomain());
+        form.append("event_type", "inline_action");
+        form.append("context_json", JSON.stringify(context));
+        form.append("before_json", JSON.stringify(context));
+        form.append("after_json", JSON.stringify({ ...context, ...after }));
+        form.append("message", message);
+        try {
+          await fetch("/api/egeria/process-pilot/checkpoint", { method: "POST", body: form });
+        } catch {}
+      }
+
+      async function confirmProfileAndShortlist() {
+        const ctx = egeriaContext();
+        if (!ctx.candidateId || !ctx.jobId) return;
+        const ids = readShortlistIds();
+        if (!ids.includes(String(ctx.candidateId))) ids.push(String(ctx.candidateId));
+        writeShortlistIds(ids);
+        const details = readShortlistDetails();
+        details[String(ctx.candidateId)] = {
+          ...(details[String(ctx.candidateId)] || {}),
+          id: String(ctx.candidateId),
+          profile_id: String(ctx.candidateId),
+          name: ctx.candidateName || `Profile ${ctx.candidateId}`,
+          email: ctx.candidateEmail || "",
+          status: "Egeria shortlisted",
+          stage: "Egeria - profile reviewed",
+          source: "Egeria Pilot",
+          jobId: String(ctx.jobId),
+          jobTitle: ctx.jobTitle || "",
+          selectedAt: new Date().toISOString(),
+        };
+        writeShortlistDetails(details);
+        sessionStorage.setItem("candidateStatus", "Egeria shortlisted after profile review");
+        sessionStorage.setItem("currentFlowStep", "egeria");
+        sessionStorage.setItem("nextFlowStep", "candidate-review");
+        await logPilotAction(`${ctx.candidateName || "Candidate"} profile reviewed and added to shortlist.`, { shortlistCount: ids.length });
+        setStatus("pilotStatus", "Profile confirmed. Egeria added the candidate to the shortlist and is checking the next step.");
+        runPilot();
+      }
+
+      async function saveCandidateReviewInline() {
+        const ctx = egeriaContext();
+        const interest = document.getElementById("candidateReviewInterest")?.value || "Interested";
+        const readiness = document.getElementById("candidateReviewReadiness")?.value || "Ready for client shortlist";
+        const notes = document.getElementById("candidateReviewNotes")?.value || "";
+        const record = {
+          id: `egeria-candidate-review-${Date.now()}`,
+          domain: currentDomain(),
+          interviewType: "candidate-review",
+          purpose: "candidate-review",
+          candidateId: ctx.candidateId,
+          candidateName: ctx.candidateName,
+          candidateEmail: ctx.candidateEmail,
+          jobId: ctx.jobId,
+          role: ctx.jobTitle,
+          status: `Candidate review complete - ${readiness}`,
+          interest,
+          notes,
+          provider: "Egeria",
+          nextAction: "Prepare client interview",
+          createdAt: new Date().toISOString(),
+        };
+        saveScheduleRecord(record);
+        sessionStorage.setItem("candidateReviewStatus", JSON.stringify(record));
+        sessionStorage.setItem("currentFlowStep", "egeria");
+        sessionStorage.setItem("nextFlowStep", "client-interview");
+        await logPilotAction(`Candidate review saved for ${ctx.candidateName || "candidate"}.`, record);
+        setStatus("pilotStatus", "Candidate review saved. Egeria is moving to the client interview checkpoint.");
+        runPilot();
+      }
+
+      async function markClientInterviewReadyInline() {
+        const ctx = egeriaContext();
+        const notes = document.getElementById("clientInterviewNotes")?.value || "";
+        const record = {
+          id: `egeria-client-interview-${Date.now()}`,
+          domain: currentDomain(),
+          interviewType: "client-interview",
+          purpose: "client-interview",
+          candidateId: ctx.candidateId,
+          candidateName: ctx.candidateName,
+          candidateEmail: ctx.candidateEmail,
+          jobId: ctx.jobId,
+          role: ctx.jobTitle,
+          status: "Client interview ready",
+          notes,
+          provider: "Egeria",
+          nextAction: "Move to status tracker",
+          createdAt: new Date().toISOString(),
+        };
+        saveScheduleRecord(record);
+        sessionStorage.setItem("clientInterviewStatus", JSON.stringify(record));
+        sessionStorage.setItem("currentFlowStep", "egeria");
+        sessionStorage.setItem("nextFlowStep", "status");
+        await logPilotAction(`Client interview readiness saved for ${ctx.candidateName || "candidate"}.`, record);
+        setStatus("pilotStatus", "Client interview readiness saved. Egeria is checking final status handoff.");
+        runPilot();
+      }
+
+      async function markWorkflowStatusInline() {
+        const ctx = egeriaContext();
+        const record = {
+          id: `egeria-status-${Date.now()}`,
+          domain: currentDomain(),
+          interviewType: "status",
+          candidateId: ctx.candidateId,
+          candidateName: ctx.candidateName,
+          candidateEmail: ctx.candidateEmail,
+          jobId: ctx.jobId,
+          role: ctx.jobTitle,
+          status: "Egeria workflow ready for status tracking",
+          provider: "Egeria",
+          nextAction: "Monitor client/candidate follow-up",
+          createdAt: new Date().toISOString(),
+        };
+        saveScheduleRecord(record);
+        await logPilotAction(`Workflow status handoff saved for ${ctx.candidateName || "candidate"}.`, record);
+        setStatus("pilotStatus", "Workflow status handoff saved. This candidate is now tracked through the Egeria flow.");
+        runPilot();
+      }
+
+      function saveScheduleRecord(record) {
+        const storageKey = `scheduleTracking:${currentDomain()}`;
+        let existing = [];
+        try {
+          existing = JSON.parse(sessionStorage.getItem(storageKey) || sessionStorage.getItem("scheduleTracking") || "[]");
+          if (!Array.isArray(existing)) existing = [existing];
+        } catch {
+          existing = [];
+        }
+        const records = [record, ...existing].slice(0, 50);
+        sessionStorage.setItem(storageKey, JSON.stringify(records));
+        sessionStorage.setItem("scheduleTracking", JSON.stringify(records));
+        sessionStorage.setItem(`latestScheduleTracking:${currentDomain()}`, JSON.stringify(record));
+        sessionStorage.setItem("latestScheduleTracking", JSON.stringify(record));
+      }
+
+      async function postPilot(path, message = "") {
+        const form = new FormData();
+        const context = egeriaContext();
+        form.append("domain", currentDomain());
+        form.append("context_json", JSON.stringify(context));
+        form.append("before_json", JSON.stringify(context));
+        form.append("after_json", JSON.stringify(context));
+        form.append("message", message);
+        const response = await fetch(path, { method: "POST", body: form });
+        const data = await response.json();
+        if (!response.ok || data.ok === false) throw new Error(data.detail || "Egeria process action failed.");
+        return data;
+      }
+
+      async function runPilot() {
+        setStatus("pilotStatus", "Egeria is reading the current workflow state...");
+        try {
+          renderPilot(await postPilot("/api/egeria/process-pilot/assess"));
+        } catch (error) {
+          setStatus("pilotStatus", error.message || "Egeria process action failed.");
+        }
+      }
+
+      async function saveCheckpoint() {
+        setStatus("pilotStatus", "Saving Egeria checkpoint...");
+        try {
+          const data = await postPilot("/api/egeria/process-pilot/checkpoint", "Egeria workspace checkpoint saved.");
+          renderPilot({ state_label: "Checkpoint saved", current_step: egeriaContext().currentStep, next_step: egeriaContext().nextStep, recommendation: "Checkpoint saved. Egeria can rollback to this browser workflow state.", recent_log: data.recent_log || [] });
+        } catch (error) {
+          setStatus("pilotStatus", error.message || "Checkpoint failed.");
+        }
+      }
+
+      async function rollbackCheckpoint() {
+        setStatus("pilotStatus", "Rolling back to the last Egeria checkpoint...");
+        try {
+          const data = await postPilot("/api/egeria/process-pilot/rollback", "Rollback requested from the Egeria workspace.");
+          renderPilot({ state_label: "Rollback logged", current_step: egeriaContext().currentStep, next_step: egeriaContext().nextStep, recommendation: "Rollback was logged. Refresh any affected page if the visible browser state needs to reload.", recent_log: data.recent_log || [] });
+        } catch (error) {
+          setStatus("pilotStatus", error.message || "Rollback failed.");
+        }
+      }
+
+      function renderBriefing(data) {
+        const target = document.getElementById("briefingResults");
+        if (data.empty) {
+          setStatus("briefingStatus", data.today_angle || "No CRM record available.");
+          target.innerHTML = "";
+          return;
+        }
+        setStatus("briefingStatus", data.today_angle || "Egeria built the client briefing.");
+        const customer = data.customer || {};
+        const contacts = Array.isArray(data.contacts) ? data.contacts : [];
+        const roles = Array.isArray(data.open_roles) ? data.open_roles : [];
+        const signals = Array.isArray(data.signals) ? data.signals : [];
+        const publicSignals = Array.isArray(data.public_signals) ? data.public_signals : [];
+        const news = data.news?.summary || {};
+        target.innerHTML = `
+          <article class="egeria-card recommended">
+            <strong>${escapeHtml(customer.name || "Client")}</strong>
+            <span>${escapeHtml(customer.stage || "Stage not set")} - Owner: ${escapeHtml(customer.owner || "Not set")}</span>
+            <p>${escapeHtml(data.suggested_next_touch || "")}</p>
+            <div class="egeria-link-row"><a class="btn secondary" href="${escapeHtml(data.links?.crm || "crm.html")}">Open CRM</a></div>
+          </article>
+          <article class="egeria-card">
+            <strong>Today&apos;s angle</strong>
+            <p>${escapeHtml(data.today_angle || "")}</p>
+            <p><b>Risk:</b> ${escapeHtml(data.current_risk || "")}</p>
+            <p><b>Pitch:</b> ${escapeHtml(data.role_or_candidate_to_pitch || "")}</p>
+          </article>
+          <article class="egeria-card">
+            <strong>Who to contact</strong>
+            <span>${contacts.length ? contacts.slice(0, 5).map((item) => `${escapeHtml(item.name || "Contact")}${item.title ? ", " + escapeHtml(item.title) : ""}${item.linkedin_url ? ` <a href="${escapeHtml(item.linkedin_url)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}`).join("<br>") : escapeHtml(data.who_to_contact || "Add named contacts to CRM.")}</span>
+          </article>
+          <article class="egeria-card">
+            <strong>Open roles and signals</strong>
+            <span>${roles.length ? roles.slice(0, 5).map((item) => `${escapeHtml(item.title || "Role")} ${item.jd_id ? "(JD " + escapeHtml(item.jd_id) + ")" : ""}`).join("<br>") : "No saved roles tied to this client."}</span>
+            <div class="pill-row">${signals.map((item) => `<span class="egeria-pill">${escapeHtml(item.label)}: ${escapeHtml(item.value)}</span>`).join("")}</div>
+          </article>
+          ${publicSignals.length ? `<article class="egeria-card"><strong>Seeded public signals</strong><span>${publicSignals.slice(0, 5).map((item) => `<a href="${escapeHtml(item.url || "#")}" target="_blank" rel="noopener">${escapeHtml(item.date || "")} - ${escapeHtml(item.headline || item.label || "Public signal")}</a>`).join("<br>")}</span></article>` : ""}
+          ${news.headline ? `<article class="egeria-card"><strong>External news signal</strong><p>${escapeHtml(news.headline)}</p><p>${escapeHtml(news.recommended_action || "")}</p></article>` : ""}
+        `;
+      }
+
+      async function hydrateBriefingCustomers() {
+        const select = document.getElementById("briefingCustomerSelect");
+        if (!select) return;
+        try {
+          const response = await fetch(`/api/crm/records?domain=${encodeURIComponent(currentDomain())}&limit=250`, { cache: "no-store" });
+          const data = await response.json();
+          const records = Array.isArray(data.records) ? data.records : [];
+          const seen = new Set();
+          records.forEach((record) => {
+            const name = String(record.customer || "").trim();
+            if (!name || seen.has(name.toLowerCase())) return;
+            seen.add(name.toLowerCase());
+            const option = document.createElement("option");
+            option.value = name;
+            option.textContent = name;
+            select.appendChild(option);
+          });
+        } catch {}
+      }
+
+      async function runBriefing(includeNews) {
+        setStatus("briefingStatus", includeNews ? "Egeria is reading CRM and checking public signals..." : "Egeria is reading internal CRM, roles, meetings, time, and invoice signals...");
+        try {
+          const params = new URLSearchParams({ domain: currentDomain(), include_news: includeNews ? "true" : "false" });
+          const customer = document.getElementById("briefingCustomerSelect")?.value || "";
+          if (customer) params.set("customer", customer);
+          const response = await fetch(`/api/crm/client-briefing?${params.toString()}`, { cache: "no-store" });
+          const data = await response.json();
+          if (!response.ok || data.ok === false) throw new Error(data.detail || "Client briefing failed.");
+          renderBriefing(data);
+        } catch (error) {
+          setStatus("briefingStatus", error.message || "Client briefing failed.");
+        }
+      }
+
+      document.getElementById("runOpportunityBtn").addEventListener("click", () => runOpportunity(false));
+      document.getElementById("runExternalOpportunityBtn").addEventListener("click", () => runOpportunity(true));
+      document.getElementById("runPilotBtn").addEventListener("click", runPilot);
+      document.getElementById("saveCheckpointBtn").addEventListener("click", saveCheckpoint);
+      document.getElementById("rollbackCheckpointBtn").addEventListener("click", rollbackCheckpoint);
+      document.getElementById("openPilotBtn").addEventListener("click", () => {
+        if (window.DevReadyProcessFlow?.openQuickHit) window.DevReadyProcessFlow.openQuickHit();
+      });
+      document.getElementById("runBriefingBtn").addEventListener("click", () => runBriefing(false));
+      document.getElementById("runBriefingNewsBtn").addEventListener("click", () => runBriefing(true));
+      document.getElementById("briefingCustomerSelect").addEventListener("change", () => runBriefing(false));
+
+      applyPilotProcessLinks();
+      hydrateBriefingCustomers();
+      runPilot();
+    </script>
+  </body>
+</html>
+
+

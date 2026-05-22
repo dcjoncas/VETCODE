@@ -87,19 +87,11 @@
         min-width: 0;
       }
 
-      .brand-mark {
-        width: 44px;
-        height: 44px;
-        flex: 0 0 44px;
-        border-radius: 14px;
-        background:
-          radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0) 34%),
-          var(--primary, #2f7d4b);
-        box-shadow: 0 12px 28px rgba(var(--primary-rgb, 47, 125, 75), 0.25);
-        display: grid;
-        place-items: center;
-        color: #fff;
-        font-weight: 950;
+      .brand-wordmark {
+        width: 168px;
+        max-height: 52px;
+        object-fit: contain;
+        object-position: left center;
       }
 
       .brand h1 {
@@ -335,7 +327,7 @@
       <header class="hero">
         <div class="brand-row">
           <div class="brand">
-            <div class="brand-mark">✓</div>
+            <img id="brandWordmark" class="brand-wordmark" src="../assets/devReadyWordmark.svg" alt="DevReady" />
             <div>
               <h1 id="brandTitle">DevReady</h1>
               <p>Mobile pick + onboard</p>
@@ -425,9 +417,9 @@
 
     <script>
       const domainMeta = {
-        dev: { title: "DevReady", label: "Technology" },
-        engineer: { title: "BuildReady", label: "Engineering" },
-        law: { title: "LegalReady", label: "Law" },
+        dev: { title: "DevReady", label: "Technology", logo: "../assets/devReadyWordmark.svg" },
+        engineer: { title: "BuildReady", label: "Engineering", logo: "../assets/buildReadyWordmark.svg" },
+        law: { title: "LegalReady", label: "Law", logo: "../assets/legalReadyWordmark.svg" },
       };
 
       const state = {
@@ -522,6 +514,8 @@
         document.documentElement.dataset.domain = state.domain;
         byId("domainSelect").value = state.domain;
         byId("brandTitle").textContent = domainMeta[state.domain].title;
+        byId("brandWordmark").src = domainMeta[state.domain].logo;
+        byId("brandWordmark").alt = domainMeta[state.domain].title;
         byId("desktopLink").href = `find-candidate.html?domain=${encodeURIComponent(state.domain)}`;
         const css = byId("domainCss");
         if (css) css.href = `../assets/${state.domain}Styles.css`;
