@@ -1,18 +1,25 @@
 <style>
+  body {
+    --agent-dock-top: 13px;
+    --agent-dock-right: 372px;
+    --agent-panel-top: 62px;
+  }
+
   .topbar-tools {
-    display: grid;
-    grid-template-columns: minmax(210px, auto) minmax(260px, 1fr);
+    display: flex;
     align-items: center;
-    justify-content: stretch;
+    justify-content: flex-end;
     gap: 8px;
     width: 100%;
+    min-width: 0;
   }
 
   .topbar {
     flex-wrap: nowrap;
     align-items: center;
     gap: 12px;
-    min-height: 54px;
+    min-height: 44px;
+    margin-bottom: 10px;
   }
 
   #searchBar {
@@ -24,7 +31,20 @@
 
   .topbar > div:first-child {
     flex: 0 0 auto;
-    min-width: 155px;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  .topbar .page-title {
+    font-size: 21px;
+    line-height: 1;
+  }
+
+  .topbar .breadcrumb {
+    line-height: 1;
   }
 
   .ai-radar-band {
@@ -352,8 +372,8 @@
   }
 
   .header-userbox .workspace-status-button {
-    min-height: 28px;
-    padding: 6px 9px;
+    min-height: 26px;
+    padding: 5px 9px;
     border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.18);
     border-radius: 999px;
     background: rgba(var(--primary-rgb, 47, 125, 75), 0.08);
@@ -424,31 +444,33 @@
     position: relative;
     justify-self: end;
     min-width: 0;
+    flex: 0 1 auto;
   }
 
   .search-container .input {
-    width: min(300px, 22vw);
-    min-width: 220px;
+    width: min(270px, 20vw);
+    min-width: 190px;
+    min-height: 38px;
+  }
+
+  .search-container .btn {
+    min-height: 38px;
   }
 
   @media (max-width: 1360px) {
-    .topbar-tools {
-      grid-template-columns: minmax(210px, auto) minmax(260px, 1fr);
-    }
-
     .search-container {
       justify-self: end;
     }
 
     .search-container .input {
-      width: min(300px, 24vw);
+      width: min(250px, 22vw);
     }
   }
 
   @media (max-width: 1180px) {
     .search-container .input {
-      width: 250px;
-      min-width: 220px;
+      width: 220px;
+      min-width: 170px;
     }
   }
 
@@ -463,6 +485,7 @@
     }
 
     .topbar-tools {
+      display: grid;
       grid-template-columns: 1fr;
     }
 
@@ -533,16 +556,17 @@
 
   @media (min-width: 701px) {
     .topbar-tools {
-      grid-template-columns: minmax(170px, auto) minmax(260px, 1fr);
+      display: flex;
       align-items: center;
     }
 
     .topbar-tools:not(.radar-visible) {
-      grid-template-columns: minmax(132px, auto) minmax(260px, 1fr);
+      display: flex;
     }
 
     .topbar-tools.radar-expanded {
-      grid-template-columns: minmax(132px, auto) minmax(260px, 1fr);
+      display: grid;
+      grid-template-columns: 1fr;
     }
 
     .topbar-tools.radar-expanded .ai-radar-band {
@@ -583,8 +607,8 @@
     }
 
     .search-container .input {
-      width: min(220px, 20vw);
-      min-width: 118px;
+      width: min(270px, 20vw);
+      min-width: 190px;
     }
   }
 
@@ -674,13 +698,6 @@
 </style>
 
 <div class="topbar-tools">
-  <div class="header-userbox" aria-label="Current workspace user">
-    <div class="welcome-copy">
-      <span class="eyebrow">Welcome back</span>
-      <span id="headerUserName" class="name">DevReady User</span>
-    </div>
-    <div id="headerEnvironmentNotice" class="workspace-status-link">Loading status...</div>
-  </div>
   <div class="search-container">
     <div class="search">
       <input

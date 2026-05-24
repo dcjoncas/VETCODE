@@ -29,6 +29,53 @@
       href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
       rel="stylesheet"
     />
+    <style>
+      .profile-comp-edit {
+        margin: 14px 10px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+        background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.06), #fff);
+      }
+
+      .profile-comp-edit h2 {
+        margin: 0 0 4px;
+      }
+
+      .profile-comp-edit p {
+        margin: 0 0 12px;
+        color: var(--muted);
+      }
+
+      .profile-comp-edit-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(150px, 1fr));
+        gap: 10px;
+      }
+
+      .profile-comp-edit-grid label {
+        display: grid;
+        gap: 5px;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .profile-comp-edit-grid select {
+        width: 100%;
+      }
+
+      @media (max-width: 1100px) {
+        .profile-comp-edit-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 720px) {
+        .profile-comp-edit-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
     <script>
       $(function () {
         $("#siteSidebar").load("components/sidebar.html?v=20260522-egeria-pilot");
@@ -197,6 +244,46 @@
             </div>
           </div>
 
+          <section class="profile-comp-edit">
+            <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap">
+              <div>
+                <h2>Internal Compensation</h2>
+                <p>Private fields saved to this profile for matching, onboarding, and accounting setup.</p>
+              </div>
+              <button id="saveCompensationBtn" class="btn" type="button">Save Compensation</button>
+            </div>
+            <div class="profile-comp-edit-grid">
+              <label>
+                Role Type
+                <select id="compRoleType"></select>
+              </label>
+              <label>
+                Role Reference
+                <select id="compRoleReference"></select>
+              </label>
+              <label>
+                Desired Hourly Rate
+                <select id="desiredHourlyRate"></select>
+              </label>
+              <label>
+                Minimum ICA Rate
+                <select id="minimumIcaRate"></select>
+              </label>
+              <label>
+                Project Hourly Rate
+                <select id="projectHourlyRate"></select>
+              </label>
+              <label>
+                Desired Annual Salary
+                <select id="desiredAnnualSalary"></select>
+              </label>
+              <label>
+                Minimum Annual Salary
+                <select id="minimumAnnualSalary"></select>
+              </label>
+            </div>
+          </section>
+
           <div class="split" style="margin-top: 16px">
             <div class="flexCard" style="grid-column: 1; grid-row: 1">
               <h2>Skills (Years)</h2>
@@ -360,6 +447,15 @@
       let portfolioFeatureCounts = [];
       let loadedProfileData = null;
       let cultureChatUrl = "";
+      const HOURLY_RATE_OPTIONS = [0, 20, 25, 29, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 110, 120, 125, 135, 150, 175, 200, 225, 250];
+      const ANNUAL_SALARY_OPTIONS = [0, 40000, 50000, 60000, 70000, 80000, 90000, 100000, 110000, 120000, 130000, 140000, 150000, 175000, 200000, 225000, 250000];
+      const ROLE_TYPE_OPTIONS = [
+        { value: "", label: "Not set" },
+        { value: "1", label: "Contract / ICA" },
+        { value: "2", label: "Salary" },
+        { value: "3", label: "Project" },
+        { value: "4", label: "Contract-to-hire" },
+      ];
 
       function currentDomain() {
         return sessionStorage.getItem("domain") || "dev";
@@ -406,6 +502,81 @@
           throw new Error("No candidate ID found in session. Open this editor from a selected candidate profile.");
         }
         return candidateId;
+      }
+
+      function moneyLabel(value) {
+        return Number(value || 0).toLocaleString(undefined, {
+          style: "currency",
+          currency: "USD",
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+      }
+
+      function uniqueValues(values) {
+        return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
+      }
+
+      function renderSelectOptions(select, options, selectedValue, placeholder = "") {
+        const selected = String(selectedValue ?? "");
+        const rows = [...options];
+        if (selected && !rows.some((option) => String(option.value) === selected)) {
+          rows.unshift({ value: selected, label: moneyLabel(selected) });
+        }
+        select.innerHTML =
+          (placeholder ? `<option value="">${placeholder}</option>` : "") +
+          rows
+            .map((option) => {
+              const value = String(option.value ?? "");
+              const active = value === selected ? " selected" : "";
+              return `<option value="${escapeHtml(value)}"${active}>${escapeHtml(option.label ?? value)}</option>`;
+            })
+            .join("");
+      }
+
+      function renderMoneySelect(id, options, selectedValue) {
+        const select = document.getElementById(id);
+        const rows = options.map((value) => ({ value: String(value), label: moneyLabel(value) }));
+        renderSelectOptions(select, rows, selectedValue);
+      }
+
+      function populateCompensationEditor(profileData = {}) {
+        const comp = profileData.compensation || {};
+        renderSelectOptions(document.getElementById("compRoleType"), ROLE_TYPE_OPTIONS, comp.roleType, "");
+        const roleChoices = uniqueValues([
+          comp.role,
+          profileData.profile?.title,
+          sessionStorage.getItem("jobTitle"),
+          "Community",
+          "On assignment",
+        ]);
+        renderSelectOptions(
+          document.getElementById("compRoleReference"),
+          roleChoices.map((role) => ({ value: role, label: role })),
+          comp.role || profileData.profile?.title || "",
+          "Not linked",
+        );
+        renderMoneySelect("desiredHourlyRate", HOURLY_RATE_OPTIONS, comp.desiredHourlyRate);
+        renderMoneySelect("minimumIcaRate", HOURLY_RATE_OPTIONS, comp.minimumIcaRate);
+        renderMoneySelect("projectHourlyRate", HOURLY_RATE_OPTIONS, comp.projectHourlyRate);
+        renderMoneySelect("desiredAnnualSalary", ANNUAL_SALARY_OPTIONS, comp.desiredAnnualSalary);
+        renderMoneySelect("minimumAnnualSalary", ANNUAL_SALARY_OPTIONS, comp.minimumAnnualSalary);
+      }
+
+      async function saveProfileCompensation() {
+        const candidateId = requireCandidateId();
+        const payload = {
+          personId: candidateId,
+          role_type: document.getElementById("compRoleType").value,
+          role: document.getElementById("compRoleReference").value,
+          desired_hourly_rate: document.getElementById("desiredHourlyRate").value,
+          minimum_ica_rate: document.getElementById("minimumIcaRate").value,
+          project_hourly_rate: document.getElementById("projectHourlyRate").value,
+          desired_annual_salary: document.getElementById("desiredAnnualSalary").value,
+          minimum_annual_salary: document.getElementById("minimumAnnualSalary").value,
+        };
+        const result = await apiPostForm("/api/azure/profile/updateCompensation", payload);
+        if (loadedProfileData) loadedProfileData.compensation = result.compensation || loadedProfileData.compensation;
       }
 
       async function assertFetchOk(response, label) {
@@ -971,6 +1142,7 @@
           "Saving profile",
           async () => {
             await saveProfileCore();
+            await saveProfileCompensation();
             await saveProfileSkills();
             await saveFeatures();
             await savePortfolio();
@@ -989,6 +1161,12 @@
           .addEventListener("click", () => runSaveAction("Saving bio", saveProfileCore));
 
         document.getElementById("saveAllBtn").addEventListener("click", saveEverything);
+
+        document
+          .getElementById("saveCompensationBtn")
+          .addEventListener("click", () =>
+            runSaveAction("Saving compensation", saveProfileCompensation, true),
+          );
 
         document
           .getElementById("sendCandidateEditLinkBtn")
@@ -1051,6 +1229,7 @@
 
           console.log(profileData);
           updateCultureCompletionPanel(profileData);
+          populateCompensationEditor(profileData);
           if (!isCultureComplete(profileData)) loadExistingCultureChatLink();
           focusCompletionSection();
 

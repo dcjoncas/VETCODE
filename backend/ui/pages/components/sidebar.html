@@ -17,11 +17,49 @@
 
   <div class="footer">
     <a href="/ui/index.html">DevReady home</a><br />
+    <span id="footerUserName" class="footer-user-name">DevReady User</span>
+    <span id="footerEnvironmentNotice" class="footer-status-link">Workspace status</span><br />
     Internal and external candidate workflows
   </div>
 </aside>
 
 <style>
+  .sidebar .footer {
+    display: block;
+  }
+
+  .footer-user-name {
+    display: inline-block;
+    max-width: 92px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+    white-space: nowrap;
+    opacity: 0.92;
+  }
+
+  .footer-status-link {
+    display: inline-block;
+    margin-left: 5px;
+  }
+
+  .footer-status-link .workspace-status-button {
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.9);
+    box-shadow: none;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.1;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+
   .devready-modal-backdrop {
     position: fixed;
     inset: 0;
@@ -500,9 +538,10 @@
     syncDomainSelect(activeDomain);
     domainUpdate(activeDomain);
     loadPageAgentRuntime(renderActivePageAgent);
-    $("#pageNav").load("components/sideNav.html?v=20260522-egeria-pilot", function () {
+    $("#pageNav").load("components/sideNav.html?v=20260523-ai-dock", function () {
       applyMenuAccess();
       applyDomainToLocalLinks(sessionStorage.getItem("domain") || "dev");
+      window.DevReadyPageAgents?.mountWidget?.();
     });
     applyGlobalHints();
     initGlobalHints();
@@ -524,7 +563,7 @@
       return;
     }
     const displayName = user.display_name || user.username || user.email || "DevReady User";
-    document.querySelectorAll("#sidebarUserName, #headerUserName").forEach((name) => {
+    document.querySelectorAll("#sidebarUserName, #headerUserName, #footerUserName").forEach((name) => {
       name.textContent = displayName;
     });
   }
@@ -533,6 +572,10 @@
     const user = currentDevReadyUser();
     if (!user) {
       window.location.href = "/ui/index.html";
+      return;
+    }
+    if (user.role === "candidate") {
+      applyCandidateMenuAccess(user);
       return;
     }
     const isAdministrator = String(user.username || "").trim().toLowerCase() === "administrator";
@@ -571,6 +614,83 @@
     document.querySelectorAll("#pageNavInner .nav-group").forEach((group) => {
       if (!group.querySelector("a")) group.remove();
     });
+  }
+
+  function candidateProfileId(user) {
+    return (
+      user.profile_id ||
+      user.candidate_profile_id ||
+      sessionStorage.getItem("candidateId") ||
+      ""
+    );
+  }
+
+  function candidateDomain(user) {
+    return user.domain || sessionStorage.getItem("domain") || "dev";
+  }
+
+  function applyCandidateMenuAccess(user) {
+    document.body.classList.add("candidate-session");
+    document.querySelector(".nav-fastboard")?.remove();
+    document.querySelector('#pageNavInner [data-menu-key="admin"]')?.remove();
+    document.querySelector('#pageNavInner [data-menu-key="agents"]')?.remove();
+    const domain = candidateDomain(user);
+    const profileId = candidateProfileId(user);
+    const safeProfileHref = profileId
+      ? `profile-preview-edit.html?domain=${encodeURIComponent(domain)}&profileId=${encodeURIComponent(profileId)}`
+      : `candidate-status.html?domain=${encodeURIComponent(domain)}#profile`;
+    const candidateLinks = {
+      profiles: {
+        label: "My Profile",
+        href: safeProfileHref,
+        hint: "Edit your own profile details, completion items, and candidate-provided information only.",
+      },
+      interviews: {
+        label: "Meeting Requests",
+        href: `candidate-status.html?domain=${encodeURIComponent(domain)}#meetings`,
+        hint: "View candidate-facing meeting requests and scheduling next steps connected to your profile.",
+      },
+      time_link: {
+        label: "Time Entry",
+        href: `candidate-status.html?domain=${encodeURIComponent(domain)}#time`,
+        hint: "Open your weekly time-entry link when DevReady has activated time reporting for your assignment.",
+      },
+      status: {
+        label: "My Status",
+        href: `candidate-status.html?domain=${encodeURIComponent(domain)}#status`,
+        hint: "See your workflow status and send private updates back to the DevReady team.",
+      },
+    };
+    const allowed = new Set((user.allowed_menu || ["profiles", "interviews", "time_link", "status"]).filter((key) => candidateLinks[key]));
+    document.querySelectorAll("#pageNavInner [data-menu-key]").forEach((item) => {
+      const key = item.dataset.menuKey;
+      const candidateLink = candidateLinks[key];
+      if (!candidateLink || !allowed.has(key)) {
+        item.remove();
+        return;
+      }
+      item.href = candidateLink.href;
+      item.dataset.hint = candidateLink.hint;
+      const icon = item.querySelector(".nav-icon");
+      item.textContent = "";
+      if (icon) item.appendChild(icon);
+      item.appendChild(document.createTextNode(candidateLink.label));
+    });
+    document.querySelectorAll("#pageNavInner .nav-group").forEach((group) => {
+      if (!group.querySelector("a")) group.remove();
+    });
+    const page = window.location.pathname.split("/").pop() || "";
+    if (page === "profile-preview-edit.html") {
+      const requested = new URLSearchParams(window.location.search).get("profileId") || new URLSearchParams(window.location.search).get("candidateId") || "";
+      if (!profileId || (requested && requested !== String(profileId))) {
+        window.location.href = `candidate-status.html?domain=${encodeURIComponent(domain)}#profile`;
+        return;
+      }
+    }
+    const safePages = new Set(["candidate-status.html", "profile-preview-edit.html"]);
+    if (!safePages.has(page)) {
+      window.location.href = `candidate-status.html?domain=${encodeURIComponent(domain)}`;
+    }
   }
 
   function hintsEnabled() {
@@ -1002,6 +1122,7 @@
     const notices = [
       document.getElementById("environmentNotice"),
       document.getElementById("headerEnvironmentNotice"),
+      document.getElementById("footerEnvironmentNotice"),
     ].filter(Boolean);
     const domain = sessionStorage.getItem("domain") || document.getElementById("domainSelect")?.value || "dev";
     const domainName =
@@ -1099,7 +1220,7 @@
       return;
     }
     const script = document.createElement("script");
-    script.src = "JS/pageAgents.js?v=20260515-agent-workflows";
+    script.src = "JS/pageAgents.js?v=20260523-ai-dock";
     script.dataset.pageAgentsRuntime = "1";
     script.onload = runCallback;
     document.head.appendChild(script);

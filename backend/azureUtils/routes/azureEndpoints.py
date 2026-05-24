@@ -203,6 +203,31 @@ async def update_profile_core(personId: str = Form(...), first_name: str = Form(
 
     return candidates.updateCandidateCore(personId=personId, firstName=first_name, lastName=last_name, city=city, state=state, country=country, description=description, jobTitle=job_title)
 
+@router.post("/profile/updateCompensation")
+async def update_profile_compensation(
+    personId: str = Form(...),
+    role_type: str = Form(default=""),
+    role: str = Form(default=""),
+    desired_hourly_rate: str = Form(default="0"),
+    minimum_ica_rate: str = Form(default="0"),
+    project_hourly_rate: str = Form(default="0"),
+    desired_annual_salary: str = Form(default="0"),
+    minimum_annual_salary: str = Form(default="0"),
+):
+    if not personId:
+        raise HTTPException(status_code=400, detail="Missing profile id.")
+
+    return candidates.updateCandidateCompensation(
+        personId=personId,
+        roleType=role_type,
+        role=role,
+        desiredHourlyRate=desired_hourly_rate,
+        minimumIcaRate=minimum_ica_rate,
+        projectHourlyRate=project_hourly_rate,
+        desiredAnnualSalary=desired_annual_salary,
+        minimumAnnualSalary=minimum_annual_salary,
+    )
+
 class profileSkillsUpdateRequest(BaseModel):
     personId: str
     skills: list

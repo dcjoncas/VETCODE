@@ -1,0 +1,1004 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - AI Tech Debt Assessment</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" || requested === "tech" ? "dev" : (["dev", "engineer", "law", "all"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain === "all" ? "dev" : domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain === "all" ? "dev" : domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html?v=20260523-ai-tech-debt");
+        $("#searchBar").load("components/searchBar.html?v=20260523-ai-tech-debt");
+      });
+    </script>
+    <style>
+      .assessment-shell {
+        display: grid;
+        gap: 14px;
+      }
+
+      .assessment-hero,
+      .assessment-card,
+      .results-card {
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.18);
+        border-radius: 14px;
+        background:
+          linear-gradient(130deg, rgba(var(--primary-rgb, 47, 125, 75), 0.1), rgba(255, 255, 255, 0.98) 42%, rgba(184, 135, 39, 0.08)),
+          #fff;
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.07);
+      }
+
+      .assessment-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: center;
+        padding: 16px;
+      }
+
+      .assessment-hero h1,
+      .results-card h2 {
+        margin: 0;
+        font-size: 28px;
+        line-height: 1.05;
+      }
+
+      .assessment-hero p {
+        margin: 6px 0 0;
+        max-width: 980px;
+        color: var(--muted);
+        line-height: 1.42;
+      }
+
+      .assessment-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        width: fit-content;
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.22);
+        border-radius: 999px;
+        padding: 6px 10px;
+        background: #fff;
+        color: var(--primary-2);
+        font-size: 12px;
+        font-weight: 950;
+      }
+
+      .ai-orb {
+        display: grid;
+        place-items: center;
+        width: 58px;
+        height: 58px;
+        border-radius: 999px;
+        background:
+          radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.98) 0 11%, rgba(255, 255, 255, 0.34) 12% 25%, transparent 26%),
+          conic-gradient(from 140deg, #f1d477, #a9bbcc, #4e7196, #e4e8ef, #b58d38, #f1d477);
+        color: #fff;
+        font-size: 17px;
+        font-weight: 1000;
+        box-shadow:
+          inset -10px -12px 18px rgba(24, 38, 58, 0.3),
+          inset 8px 8px 13px rgba(255, 255, 255, 0.3),
+          0 18px 34px rgba(65, 90, 124, 0.22);
+      }
+
+      .setup-grid {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto;
+        gap: 10px;
+        align-items: end;
+        padding: 14px;
+      }
+
+      .context-panel {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(250px, 0.34fr);
+        gap: 12px;
+        padding: 0 14px 14px;
+      }
+
+      .context-panel textarea {
+        min-height: 150px;
+      }
+
+      .research-options {
+        display: grid;
+        align-content: start;
+        gap: 10px;
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.16);
+        border-radius: 12px;
+        padding: 12px;
+        background:
+          linear-gradient(180deg, rgba(var(--primary-rgb, 47, 125, 75), 0.07), rgba(255, 255, 255, 0.98)),
+          #fff;
+      }
+
+      .check-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 8px;
+        align-items: start;
+        font-weight: 900;
+      }
+
+      .check-row input {
+        width: 18px;
+        min-height: 18px;
+        margin-top: 2px;
+      }
+
+      .research-options p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .client-link-panel {
+        display: grid;
+        gap: 12px;
+        margin: 0 14px 14px;
+        padding: 13px;
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.18);
+        border-radius: 14px;
+        background:
+          linear-gradient(110deg, rgba(var(--primary-rgb, 47, 125, 75), 0.1), rgba(255, 255, 255, 0.98) 55%, rgba(184, 135, 39, 0.08)),
+          #fff;
+      }
+
+      .client-link-panel h2 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .client-link-panel p {
+        margin: 3px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .client-link-grid {
+        display: grid;
+        grid-template-columns: minmax(180px, 0.7fr) minmax(220px, 1fr) minmax(150px, 0.55fr) auto;
+        gap: 10px;
+        align-items: end;
+      }
+
+      .generated-link {
+        display: none;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 8px;
+        align-items: center;
+        border: 1px dashed rgba(var(--primary-rgb, 47, 125, 75), 0.32);
+        border-radius: 12px;
+        padding: 10px;
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.06);
+      }
+
+      .generated-link.show {
+        display: grid;
+      }
+
+      .generated-link code {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--primary-2);
+        font-weight: 900;
+      }
+
+      .field {
+        display: grid;
+        gap: 5px;
+        min-width: 0;
+        font-weight: 900;
+      }
+
+      .field span {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 850;
+      }
+
+      select,
+      textarea,
+      input {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--text);
+        font: inherit;
+      }
+
+      select,
+      input {
+        min-height: 42px;
+        padding: 8px 10px;
+      }
+
+      textarea {
+        min-height: 86px;
+        padding: 10px;
+        resize: vertical;
+      }
+
+      .questionnaire {
+        display: grid;
+        gap: 12px;
+      }
+
+      .section-card {
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.16);
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+      }
+
+      .section-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 13px 14px;
+        background:
+          linear-gradient(90deg, rgba(var(--primary-rgb, 47, 125, 75), 0.13), rgba(255, 255, 255, 0.96)),
+          #fff;
+        border-bottom: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.12);
+      }
+
+      .section-head h2 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .section-head p {
+        margin: 3px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .question-list {
+        display: grid;
+        gap: 10px;
+        padding: 12px;
+      }
+
+      .question {
+        display: grid;
+        gap: 7px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 11px;
+        background:
+          linear-gradient(180deg, rgba(var(--primary-rgb, 47, 125, 75), 0.04), rgba(255, 255, 255, 0.98)),
+          #fff;
+      }
+
+      .question label {
+        display: grid;
+        gap: 7px;
+        font-weight: 900;
+        line-height: 1.35;
+      }
+
+      .question small {
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .submit-row,
+      .result-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+
+      .submit-row {
+        position: sticky;
+        bottom: 10px;
+        z-index: 2;
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.18);
+        border-radius: 999px;
+        padding: 9px 10px;
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+      }
+
+      .status-line {
+        margin-right: auto;
+        color: var(--primary-2);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .results-card {
+        display: none;
+        gap: 14px;
+        padding: 16px;
+      }
+
+      .results-card.show {
+        display: grid;
+      }
+
+      .score-hero {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: center;
+      }
+
+      .grade-mark {
+        display: grid;
+        place-items: center;
+        width: 94px;
+        height: 94px;
+        border-radius: 24px;
+        background: var(--primary-2);
+        color: #fff;
+        font-size: 44px;
+        font-weight: 1000;
+        box-shadow: 0 18px 34px rgba(var(--primary-rgb, 47, 125, 75), 0.2);
+      }
+
+      .score-grid,
+      .recommendation-grid,
+      .coach-grid,
+      .research-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 10px;
+      }
+
+      .score-card,
+      .recommendation-card,
+      .coach-card,
+      .research-card {
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.15);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fff;
+      }
+
+      .score-card strong,
+      .recommendation-card strong,
+      .coach-card strong,
+      .research-card strong {
+        display: block;
+        color: var(--ink);
+        font-size: 14px;
+      }
+
+      .score-card span,
+      .recommendation-card span,
+      .coach-card span,
+      .research-card span {
+        display: block;
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .meter {
+        height: 9px;
+        margin-top: 10px;
+        border-radius: 999px;
+        background: #edf2ef;
+        overflow: hidden;
+      }
+
+      .meter > i {
+        display: block;
+        height: 100%;
+        width: var(--score, 0%);
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--primary-2), var(--primary));
+      }
+
+      .history {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        overflow: hidden;
+      }
+
+      .history summary {
+        cursor: pointer;
+        padding: 12px;
+        font-weight: 950;
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.07);
+      }
+
+      .history-list {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+      }
+
+      .history-item {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+      }
+
+      @media (max-width: 980px) {
+        .setup-grid,
+        .context-panel,
+        .client-link-grid,
+        .generated-link,
+        .score-hero {
+          grid-template-columns: 1fr;
+        }
+
+        .assessment-hero {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media print {
+        #siteSidebar,
+        #searchBar,
+        .setup-grid,
+        .submit-row,
+        .result-actions,
+        .history {
+          display: none !important;
+        }
+
+        .container,
+        .main,
+        .results-card {
+          display: block;
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">AI Tech Debt Assessment</div>
+            <div class="breadcrumb">CIO/CTO AI readiness - industry-specific scorecard and pilot path</div>
+          </div>
+          <div id="searchBar"></div>
+        </div>
+
+        <div class="assessment-shell">
+          <section class="assessment-hero">
+            <div>
+              <div class="assessment-badge">Egeria assessment - 15 to 20 minutes</div>
+              <h1>Measure the company's AI readiness and AI tech debt.</h1>
+              <p>
+                This assessment focuses only on current AI capability, technical debt, governance, data readiness, workflow fit,
+                and the organization's ability to implement practical AI pilots. The final report gives a scorecard, grade,
+                high-level recommendations, and a suggested AI DevReady Coach POC.
+              </p>
+            </div>
+            <div class="ai-orb" aria-hidden="true">AI</div>
+          </section>
+
+          <section class="assessment-card">
+            <div class="setup-grid">
+              <label class="field">
+                Client / company
+                <span>Loaded from CRM when available.</span>
+                <select id="companySelect"></select>
+              </label>
+              <label class="field">
+                Company website
+                <span>Used for website scan during evaluation.</span>
+                <input id="companyWebsite" placeholder="https://company.com" />
+              </label>
+              <label class="field">
+                Industry
+                <span>Drives the AI-generated question emphasis.</span>
+                <select id="industrySelect">
+                  <option value="technology">Technology / SaaS</option>
+                  <option value="healthcare">Healthcare</option>
+                  <option value="financial_services">Financial Services</option>
+                  <option value="manufacturing_engineering">Manufacturing / Engineering</option>
+                  <option value="construction">Construction / Infrastructure</option>
+                  <option value="retail">Retail / Commerce</option>
+                  <option value="legal">Legal / Professional Services</option>
+                  <option value="energy_utilities">Energy / Utilities</option>
+                  <option value="public_sector">Public Sector</option>
+                </select>
+              </label>
+              <label class="field">
+                Executive role
+                <span>Who is answering.</span>
+                <select id="respondentTitle">
+                  <option>CIO</option>
+                  <option>CTO</option>
+                  <option>CISO</option>
+                  <option>Chief Digital Officer</option>
+                  <option>VP Engineering</option>
+                  <option>VP Data / Analytics</option>
+                  <option>Operations Executive</option>
+                </select>
+              </label>
+              <button class="btn primary" id="generateBtn" type="button">Generate questionnaire</button>
+            </div>
+            <div class="context-panel">
+              <label class="field">
+                CIO/CTO business context, current AI situation, needs, and focus points
+                <span>This open field is intentionally long-form. Egeria includes it directly in the final evaluation and pilot recommendation.</span>
+                <textarea
+                  id="businessContext"
+                  placeholder="Describe business priorities, current AI tools, pain points, data constraints, competitors, risks, desired outcomes, budget/timeline, and the areas where leadership wants the AI assessment to focus."
+                ></textarea>
+              </label>
+              <div class="research-options">
+                <label class="check-row">
+                  <input id="includeExternalResearch" type="checkbox" checked />
+                  <span>Include web, news, and competitor signals</span>
+                </label>
+                <p>
+                  Egeria will scan the supplied website and public web/news signals for company, market, AI, automation,
+                  and competitor context. If the website is blank, the assessment still runs, but website evidence will be marked unavailable.
+                </p>
+              </div>
+            </div>
+            <div class="client-link-panel">
+              <div>
+                <h2>Send CTO/CIO survey link</h2>
+                <p>Create a private assessment link for the client executive. Their answers save back into this AI Tech Debt assessment history.</p>
+              </div>
+              <div class="client-link-grid">
+                <label class="field">
+                  Recipient name
+                  <span>Optional, used in the email draft.</span>
+                  <input id="surveyRecipientName" placeholder="Executive name" />
+                </label>
+                <label class="field">
+                  CTO/CIO email
+                  <span>Required before creating the link.</span>
+                  <input id="surveyRecipientEmail" type="email" placeholder="cio@client.com" />
+                </label>
+                <label class="field">
+                  Recipient role
+                  <span>Used in scoring context.</span>
+                  <select id="surveyRecipientTitle">
+                    <option>CIO</option>
+                    <option>CTO</option>
+                    <option>CISO</option>
+                    <option>Chief Digital Officer</option>
+                    <option>VP Engineering</option>
+                    <option>VP Data / Analytics</option>
+                    <option>Operations Executive</option>
+                  </select>
+                </label>
+                <button class="btn primary" id="createSurveyLinkBtn" type="button">Create survey link</button>
+              </div>
+              <div class="generated-link" id="generatedSurveyLink">
+                <code id="surveyLinkText"></code>
+                <button class="btn secondary" id="copySurveyLinkBtn" type="button">Copy link</button>
+                <button class="btn primary" id="emailSurveyLinkBtn" type="button">Email link</button>
+              </div>
+            </div>
+          </section>
+
+          <section id="questionnaire" class="questionnaire"></section>
+
+          <div class="submit-row" id="submitRow" hidden>
+            <span class="status-line" id="assessmentStatus">Answer each scored item and add executive context where it matters.</span>
+            <button class="btn secondary" type="button" id="saveDraftBtn">Save draft locally</button>
+            <button class="btn primary" type="button" id="submitBtn">Submit assessment</button>
+          </div>
+
+          <section id="resultsCard" class="results-card"></section>
+
+          <details class="history" id="historyPanel">
+            <summary>Previous AI Tech Debt assessments</summary>
+            <div class="history-list" id="historyList">Loading...</div>
+          </details>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const domain = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+      let currentQuestionnaire = null;
+      let crmRecordsByCompany = {};
+      let currentSurveyLink = null;
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function apiBase() {
+        return window.location.origin;
+      }
+
+      async function loadCrmCompanies() {
+        const select = document.getElementById("companySelect");
+        select.innerHTML = `<option value="DevReady AI Client">DevReady AI Client</option>`;
+        try {
+          const response = await fetch(`${apiBase()}/api/crm/records?domain=${encodeURIComponent(domain)}&limit=200`);
+          const data = await response.json();
+          const seen = new Set(["DevReady AI Client"]);
+          (data.records || []).forEach((record) => {
+            const name = record.customer || record.company || record.client || "";
+            if (!name || seen.has(name)) return;
+            seen.add(name);
+            crmRecordsByCompany[name] = record;
+            const option = document.createElement("option");
+            option.value = name;
+            option.textContent = name;
+            select.appendChild(option);
+          });
+        } catch (error) {
+          console.warn("CRM company list unavailable", error);
+        }
+      }
+
+      function choiceOptions(question) {
+        return (question.choices || [])
+          .map((choice) => `<option value="${choice.value}">${escapeHtml(choice.label)} - ${escapeHtml(choice.description)}</option>`)
+          .join("");
+      }
+
+      function renderQuestion(question) {
+        if (question.type === "text") {
+          return `
+            <div class="question">
+              <label>
+                ${escapeHtml(question.prompt)}
+                <textarea data-question-id="${escapeHtml(question.id)}" data-question-type="text" placeholder="${escapeHtml(question.placeholder || "")}"></textarea>
+              </label>
+            </div>
+          `;
+        }
+        return `
+          <div class="question">
+            <label>
+              ${escapeHtml(question.prompt)}
+              <select data-question-id="${escapeHtml(question.id)}" data-question-type="score">
+                ${choiceOptions(question)}
+              </select>
+            </label>
+            <small>${escapeHtml(question.dimension || "")}</small>
+          </div>
+        `;
+      }
+
+      function renderQuestionnaire(data) {
+        currentQuestionnaire = data;
+        const host = document.getElementById("questionnaire");
+        host.innerHTML = (data.sections || [])
+          .map((section) => `
+            <article class="section-card">
+              <div class="section-head">
+                <div>
+                  <h2>${escapeHtml(section.title)}</h2>
+                  <p>${escapeHtml(section.description)}</p>
+                </div>
+                <span class="assessment-badge">${escapeHtml(data.estimated_minutes)} total</span>
+              </div>
+              <div class="question-list">
+                ${(section.questions || []).map(renderQuestion).join("")}
+              </div>
+            </article>
+          `)
+          .join("");
+        document.getElementById("submitRow").hidden = false;
+        document.getElementById("assessmentStatus").textContent = `${data.generated_by} generated ${questionCount(data)} questions for ${data.industry_label}.`;
+      }
+
+      function questionCount(data) {
+        return (data.sections || []).reduce((sum, section) => sum + (section.questions || []).length, 0);
+      }
+
+      async function generateQuestionnaire() {
+        const company = document.getElementById("companySelect").value;
+        const industry = document.getElementById("industrySelect").value;
+        document.getElementById("assessmentStatus").textContent = "Generating questionnaire...";
+        const response = await fetch(`${apiBase()}/api/ai-tech-debt/questionnaire?domain=${encodeURIComponent(domain)}&company=${encodeURIComponent(company)}&industry=${encodeURIComponent(industry)}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Unable to generate questionnaire.");
+        renderQuestionnaire(data);
+        restoreDraft();
+      }
+
+      function renderSurveyLink(link) {
+        currentSurveyLink = link;
+        const panel = document.getElementById("generatedSurveyLink");
+        document.getElementById("surveyLinkText").textContent = link.url || "";
+        panel.classList.add("show");
+        document.getElementById("assessmentStatus").textContent = `Client survey link created for ${link.recipient_email}.`;
+      }
+
+      async function createSurveyLink() {
+        const email = document.getElementById("surveyRecipientEmail").value.trim();
+        if (!email) {
+          document.getElementById("assessmentStatus").textContent = "Enter the CTO/CIO email before creating the survey link.";
+          return;
+        }
+        const body = new URLSearchParams();
+        body.append("domain", domain);
+        body.append("company", document.getElementById("companySelect").value);
+        body.append("industry", document.getElementById("industrySelect").value);
+        body.append("company_website", document.getElementById("companyWebsite").value);
+        body.append("recipient_name", document.getElementById("surveyRecipientName").value);
+        body.append("recipient_email", email);
+        body.append("recipient_title", document.getElementById("surveyRecipientTitle").value);
+        body.append("include_external_research", document.getElementById("includeExternalResearch").checked ? "true" : "false");
+        document.getElementById("assessmentStatus").textContent = "Creating private CTO/CIO survey link...";
+        const response = await fetch(`${apiBase()}/api/ai-tech-debt/link`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Unable to create survey link.");
+        renderSurveyLink(data.link);
+      }
+
+      async function copySurveyLink() {
+        if (!currentSurveyLink?.url) return;
+        await navigator.clipboard.writeText(currentSurveyLink.url);
+        document.getElementById("assessmentStatus").textContent = "Survey link copied.";
+      }
+
+      async function emailSurveyLink() {
+        if (!currentSurveyLink?.url) {
+          await createSurveyLink();
+        }
+        if (!currentSurveyLink?.url) return;
+        const subject = encodeURIComponent(currentSurveyLink.email_subject || "AI Tech Debt Assessment");
+        const body = encodeURIComponent(currentSurveyLink.email_body || currentSurveyLink.url);
+        window.location.href = `mailto:${encodeURIComponent(currentSurveyLink.recipient_email)}?subject=${subject}&body=${body}`;
+        try {
+          await fetch(`${apiBase()}/api/ai-tech-debt/link/${encodeURIComponent(currentSurveyLink.token)}/mark-sent`, { method: "POST" });
+        } catch (error) {
+          console.warn("Unable to mark survey link sent", error);
+        }
+        document.getElementById("assessmentStatus").textContent = "Email draft opened and link marked sent.";
+      }
+
+      function collectAnswers() {
+        const answers = {};
+        document.querySelectorAll("[data-question-id]").forEach((input) => {
+          answers[input.dataset.questionId] = input.value;
+        });
+        return answers;
+      }
+
+      function draftKey() {
+        return `devreadyAiTechDebtDraft:${domain}:${document.getElementById("companySelect").value}:${document.getElementById("industrySelect").value}`;
+      }
+
+      function saveDraft() {
+        if (!currentQuestionnaire) return;
+        const payload = {
+          company: document.getElementById("companySelect").value,
+          companyWebsite: document.getElementById("companyWebsite").value,
+          industry: document.getElementById("industrySelect").value,
+          respondentTitle: document.getElementById("respondentTitle").value,
+          businessContext: document.getElementById("businessContext").value,
+          includeExternalResearch: document.getElementById("includeExternalResearch").checked,
+          answers: collectAnswers(),
+          savedAt: new Date().toISOString(),
+        };
+        localStorage.setItem(draftKey(), JSON.stringify(payload));
+        document.getElementById("assessmentStatus").textContent = "Draft saved locally in this browser.";
+      }
+
+      function restoreDraft() {
+        try {
+          const draft = JSON.parse(localStorage.getItem(draftKey()) || "null");
+          if (!draft?.answers) return;
+          if (draft.companyWebsite) document.getElementById("companyWebsite").value = draft.companyWebsite;
+          if (draft.businessContext) document.getElementById("businessContext").value = draft.businessContext;
+          if (typeof draft.includeExternalResearch === "boolean") {
+            document.getElementById("includeExternalResearch").checked = draft.includeExternalResearch;
+          }
+          Object.entries(draft.answers).forEach(([id, value]) => {
+            const input = document.querySelector(`[data-question-id="${CSS.escape(id)}"]`);
+            if (input) input.value = value;
+          });
+          document.getElementById("assessmentStatus").textContent = `Draft restored from ${new Date(draft.savedAt).toLocaleString()}.`;
+        } catch {}
+      }
+
+      async function submitAssessment() {
+        if (!currentQuestionnaire) {
+          await generateQuestionnaire();
+        }
+        const body = new URLSearchParams();
+        body.append("domain", domain);
+        body.append("company", document.getElementById("companySelect").value);
+        body.append("industry", document.getElementById("industrySelect").value);
+        body.append("respondent_name", document.getElementById("respondentTitle").value);
+        body.append("respondent_title", document.getElementById("respondentTitle").value);
+        body.append("company_website", document.getElementById("companyWebsite").value);
+        body.append("business_context", document.getElementById("businessContext").value);
+        body.append("include_external_research", document.getElementById("includeExternalResearch").checked ? "true" : "false");
+        body.append("answers_json", JSON.stringify(collectAnswers()));
+        document.getElementById("assessmentStatus").textContent = document.getElementById("includeExternalResearch").checked
+          ? "Scoring assessment and scanning website, web, news, and competitor signals..."
+          : "Scoring AI Tech Debt assessment...";
+        const response = await fetch(`${apiBase()}/api/ai-tech-debt/submit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Unable to submit assessment.");
+        renderResults(data.assessment);
+        await loadHistory();
+        document.getElementById("assessmentStatus").textContent = "Assessment scored and saved.";
+        document.getElementById("resultsCard").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function renderResults(assessment) {
+        const report = assessment.report || {};
+        const scorecard = report.scorecard || [];
+        const recommendations = report.high_level_recommendations || [];
+        const pilot = report.recommended_pilot || {};
+        const coach = report.coach_plan || [];
+        const aiContext = report.ai_context_analysis || {};
+        const research = assessment.external_research || report.external_research || {};
+        const website = research.website || {};
+        const publicItems = research.public_signals?.items || [];
+        const competitorItems = research.competitor_signals || [];
+        const host = document.getElementById("resultsCard");
+        host.classList.add("show");
+        host.innerHTML = `
+          <div class="score-hero">
+            <div class="grade-mark">${escapeHtml(report.overall_grade || "")}</div>
+            <div>
+              <div class="assessment-badge">${escapeHtml(assessment.company)} - ${escapeHtml(assessment.industry_label || assessment.industry)}</div>
+              <h2>${escapeHtml(report.overall_score)}% AI readiness</h2>
+              <p>${escapeHtml(report.executive_summary)}</p>
+            </div>
+            <div class="result-actions">
+              <button class="btn secondary" type="button" onclick="window.print()">Print / PDF</button>
+            </div>
+          </div>
+          <div class="score-grid">
+            ${scorecard.map((item) => `
+              <div class="score-card">
+                <strong>${escapeHtml(item.label)} <span style="float:right">${escapeHtml(item.score)}% ${escapeHtml(item.grade)}</span></strong>
+                <span>${escapeHtml(item.level)}</span>
+                <div class="meter" style="--score:${Number(item.score || 0)}%"><i></i></div>
+                <span>${escapeHtml(item.recommendation)}</span>
+              </div>
+            `).join("")}
+          </div>
+          <div class="recommendation-grid">
+            <div class="recommendation-card">
+              <strong>Executive context used by Egeria</strong>
+              <span>${escapeHtml(aiContext.context_summary || report.business_context || "No detailed CIO/CTO narrative was provided.")}</span>
+            </div>
+            <div class="recommendation-card">
+              <strong>${escapeHtml(pilot.title || "Recommended AI DevReady Coach Pilot")}</strong>
+              <span>${escapeHtml(pilot.description || "")}</span>
+              <span>${escapeHtml(pilot.why || "")}</span>
+              <span>${escapeHtml(pilot.coach_role || "")}</span>
+            </div>
+            ${recommendations.map((item) => `
+              <div class="recommendation-card">
+                <strong>Priority AI tech debt</strong>
+                <span>${escapeHtml(item)}</span>
+              </div>
+            `).join("")}
+          </div>
+          <div class="research-grid">
+            <div class="research-card">
+              <strong>Website scan</strong>
+              <span>${escapeHtml(website.url || assessment.company_website || "No website provided")}</span>
+              <span>${escapeHtml(website.ok ? (website.signals || []).join(", ") || "Website scanned; no clear AI keywords found." : website.summary || "Website scan unavailable.")}</span>
+            </div>
+            <div class="research-card">
+              <strong>Public web and news research</strong>
+              <span>${escapeHtml(aiContext.research_summary || (publicItems.length ? `${publicItems.length} public signal(s) reviewed.` : "No public signals were available or external research was not selected."))}</span>
+            </div>
+            <div class="research-card">
+              <strong>Competitor / market takeaways</strong>
+              <span>${escapeHtml((aiContext.competitor_takeaways || []).join(" ") || (competitorItems.length ? competitorItems.map((item) => item.title).join(" ") : "No explicit competitor signals found in the public scan."))}</span>
+            </div>
+          </div>
+          <div class="coach-grid">
+            ${coach.map((item) => `
+              <div class="coach-card">
+                <strong>${escapeHtml(item.phase)}</strong>
+                <span>${escapeHtml(item.focus)}</span>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      }
+
+      async function loadHistory() {
+        const host = document.getElementById("historyList");
+        try {
+          const response = await fetch(`${apiBase()}/api/ai-tech-debt/assessments?domain=${encodeURIComponent(domain)}&limit=12`);
+          const data = await response.json();
+          const rows = data.assessments || [];
+          if (!rows.length) {
+            host.textContent = "No assessments saved yet.";
+            return;
+          }
+          host.innerHTML = rows.map((row) => `
+            <div class="history-item">
+              <div>
+                <strong>${escapeHtml(row.company)}</strong>
+                <div class="muted">${escapeHtml(row.industry_label || row.industry)} - ${escapeHtml(row.created_at || "")}</div>
+              </div>
+              <span class="assessment-badge">${escapeHtml(row.report?.overall_score)}% ${escapeHtml(row.report?.overall_grade)}</span>
+            </div>
+          `).join("");
+        } catch (error) {
+          host.textContent = "Unable to load saved assessments.";
+        }
+      }
+
+      document.getElementById("generateBtn").addEventListener("click", () => generateQuestionnaire().catch((error) => {
+        document.getElementById("assessmentStatus").textContent = error.message || "Questionnaire generation failed.";
+      }));
+      document.getElementById("submitBtn").addEventListener("click", () => submitAssessment().catch((error) => {
+        document.getElementById("assessmentStatus").textContent = error.message || "Assessment submit failed.";
+      }));
+      document.getElementById("saveDraftBtn").addEventListener("click", saveDraft);
+      document.getElementById("createSurveyLinkBtn").addEventListener("click", () => createSurveyLink().catch((error) => {
+        document.getElementById("assessmentStatus").textContent = error.message || "Survey link creation failed.";
+      }));
+      document.getElementById("copySurveyLinkBtn").addEventListener("click", () => copySurveyLink().catch((error) => {
+        document.getElementById("assessmentStatus").textContent = error.message || "Unable to copy survey link.";
+      }));
+      document.getElementById("emailSurveyLinkBtn").addEventListener("click", () => emailSurveyLink().catch((error) => {
+        document.getElementById("assessmentStatus").textContent = error.message || "Unable to open email draft.";
+      }));
+      document.getElementById("industrySelect").addEventListener("change", () => {
+        if (currentQuestionnaire) generateQuestionnaire().catch(console.error);
+      });
+      document.getElementById("companySelect").addEventListener("change", () => {
+        const record = crmRecordsByCompany[document.getElementById("companySelect").value] || {};
+        const website = record.website || record.website_url || record.url || record.companyWebsite || record.source?.website || "";
+        if (website) document.getElementById("companyWebsite").value = website;
+        if (currentQuestionnaire) generateQuestionnaire().catch(console.error);
+      });
+      document.getElementById("businessContext").addEventListener("input", () => {
+        if (currentQuestionnaire) {
+          document.getElementById("assessmentStatus").textContent = "Executive context will be included when you submit the assessment.";
+        }
+      });
+
+      loadCrmCompanies().then(loadHistory).then(generateQuestionnaire).catch((error) => {
+        document.getElementById("questionnaire").innerHTML = `<div class="assessment-card" style="padding:14px">${escapeHtml(error.message || "Unable to load assessment.")}</div>`;
+      });
+    </script>
+  </body>
+</html>

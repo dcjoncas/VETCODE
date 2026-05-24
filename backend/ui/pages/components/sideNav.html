@@ -26,6 +26,7 @@
   #pageNavInner a.nav-profiles,
   #pageNavInner a.nav-jds,
   #pageNavInner a.crm-link,
+  #pageNavInner a.ai-tech-debt-link,
   #pageNavInner a.sales-crm-link,
   #pageNavInner a.recordings-link,
   #pageNavInner a.interviews-link,
@@ -197,6 +198,7 @@
   #pageNavInner a.nav-profiles,
   #pageNavInner a.nav-jds,
   #pageNavInner a.crm-link,
+  #pageNavInner a.ai-tech-debt-link,
   #pageNavInner a.sales-crm-link,
   #pageNavInner a.recordings-link,
   #pageNavInner a.interviews-link,
@@ -292,16 +294,26 @@
   .nav-heading {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin: 16px 12px 8px;
+    justify-content: center;
+    gap: 0;
+    margin: 12px 8px 10px;
+    padding: 7px;
+    border: 1px solid rgba(235, 205, 124, 0.28);
+    border-radius: 15px;
+    background:
+      linear-gradient(135deg, rgba(255, 248, 220, 0.16), rgba(116, 143, 176, 0.19) 45%, rgba(255, 255, 255, 0.06)),
+      rgba(9, 35, 48, 0.28);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 12px 22px rgba(0, 0, 0, 0.1);
   }
 
-  .nav-heading > span {
-    color: rgba(255, 255, 255, 0.56);
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.16em;
+  .nav-ai-dock {
+    display: flex;
+    align-items: center;
+    justify-content: stretch;
+    gap: 7px;
+    width: 100%;
   }
 
   .nav-fastboard {
@@ -309,9 +321,9 @@
     align-items: center;
     justify-content: center;
     gap: 7px;
-    flex: 0 0 auto;
-    min-width: 88px;
-    min-height: 38px;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 42px;
     border: 1px solid rgba(236, 206, 128, 0.82);
     border-radius: 999px;
     padding: 5px 10px 5px 5px;
@@ -365,10 +377,12 @@
   .nav-fastboard span {
     display: inline-block;
     color: #fffdf2;
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 1000;
     letter-spacing: 0;
     line-height: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
 </style>
@@ -381,6 +395,7 @@
     <symbol id="nav-profile" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"></rect><circle cx="12" cy="9" r="3"></circle><path d="M7.5 17a4.5 4.5 0 0 1 9 0"></path></symbol>
     <symbol id="nav-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M3 12h18"></path></symbol>
     <symbol id="nav-crm" viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"></circle><circle cx="17" cy="9" r="2.5"></circle><path d="M3 19a5 5 0 0 1 10 0"></path><path d="M14 19a4 4 0 0 1 7 0"></path></symbol>
+    <symbol id="nav-ai-debt" viewBox="0 0 24 24"><path d="M12 3 4 7v6c0 4.5 3.2 7.6 8 9 4.8-1.4 8-4.5 8-9V7z"></path><path d="M8 12h8"></path><path d="M12 8v8"></path><circle cx="12" cy="12" r="2"></circle></symbol>
     <symbol id="nav-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path><path d="M8 21h8"></path></symbol>
     <symbol id="nav-interview" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path><circle cx="9" cy="15" r="2"></circle><path d="M13 17a3 3 0 0 0-6 0"></path><path d="M14.5 14h3.5"></path><path d="M14.5 17h2.5"></path></symbol>
     <symbol id="nav-status" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M9 7h6"></path><path d="M8 12l2 2 4-5"></path><path d="M8 18h8"></path></symbol>
@@ -395,8 +410,8 @@
     <symbol id="nav-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="m15 9-2 6-4 2 2-6z"></path></symbol>
     <symbol id="nav-admin" viewBox="0 0 24 24"><path d="M12 3 20 6v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"></path><path d="M9 12h6"></path><path d="M12 9v6"></path></symbol>
   </svg>
-  <div class="nav-heading">
-    <span>NAVIGATION</span>
+  <div class="nav-heading" aria-label="AI assistants">
+    <div id="navAiDock" class="nav-ai-dock">
     <a
       class="nav-fastboard"
       href="egeria.html"
@@ -407,6 +422,7 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M4 19a5 5 0 0 1 10 0"></path><path d="M15 11h5"></path><path d="M17.5 8.5v5"></path></svg>
       <span>Egeria</span>
     </a>
+    </div>
   </div>
   <div class="nav-group nav-talent-section" aria-label="Talent workflow">
     <a href="find-candidate.html" class="nav-talent" data-menu-key="talent" data-hint="Go to the main talent workspace. From there you can upload a resume, search existing profiles, pick a saved job description, and start a candidate shortlist in the current domain."><svg class="nav-icon"><use href="#nav-home"></use></svg>Talent</a>
@@ -484,6 +500,13 @@
       data-menu-key="crm"
       data-hint="Open client and contact records, review interaction history, and prepare follow-up work tied to the current hiring relationship."
       ><svg class="nav-icon"><use href="#nav-crm"></use></svg>CRM</a
+    >
+    <a
+      href="ai-tech-debt.html"
+      class="ai-tech-debt-link"
+      data-menu-key="ai_tech_debt"
+      data-hint="Run a CIO/CTO AI Tech Debt assessment: industry-specific questionnaire, readiness scoring, recommendations, and an AI DevReady Coach pilot plan."
+      ><svg class="nav-icon"><use href="#nav-ai-debt"></use></svg>AI Tech Debt</a
     >
   </div>
   <a

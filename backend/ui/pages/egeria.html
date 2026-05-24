@@ -38,8 +38,8 @@
       }
 
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html?v=20260522-egeria-pilot");
-        $("#searchBar").load("components/searchBar.html?v=20260522-egeria-pilot");
+        $("#siteSidebar").load("components/sidebar.html?v=20260523-one-tap");
+        $("#searchBar").load("components/searchBar.html?v=20260523-one-tap");
         $("#processFlow").load("components/processFlow.html?v=20260522-egeria-pilot", function () {
           activateEgeriaProcessScripts(this);
         });
@@ -94,6 +94,109 @@
       .egeria-grid {
         display: grid;
         gap: 18px;
+      }
+
+      .one-tap-bar {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: center;
+        margin-bottom: 14px;
+        border: 1px solid rgba(184, 135, 39, 0.34);
+        border-radius: 16px;
+        padding: 12px;
+        background:
+          linear-gradient(115deg, rgba(255, 250, 232, 0.96), rgba(255, 255, 255, 0.98) 48%, rgba(var(--primary-rgb, 47, 125, 75), 0.1)),
+          #fff;
+        box-shadow: 0 18px 36px rgba(65, 90, 124, 0.12);
+      }
+
+      .one-tap-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 11px;
+        min-height: 58px;
+        border: 1px solid rgba(184, 135, 39, 0.46);
+        border-radius: 999px;
+        padding: 7px 18px 7px 7px;
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(255, 248, 220, 0.72)),
+          #fff;
+        color: var(--ink);
+        font: inherit;
+        font-weight: 1000;
+        box-shadow:
+          0 16px 32px rgba(65, 90, 124, 0.18),
+          inset 0 1px 0 rgba(255, 255, 255, 0.72);
+        cursor: pointer;
+      }
+
+      .one-tap-orb {
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        background:
+          radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.98) 0 12%, rgba(255, 255, 255, 0.34) 13% 25%, transparent 26%),
+          conic-gradient(from 140deg, #f1d477, #a9bbcc, #4e7196, #e4e8ef, #b58d38, #f1d477);
+        color: #fff;
+        box-shadow:
+          inset -10px -12px 18px rgba(24, 38, 58, 0.3),
+          inset 8px 8px 13px rgba(255, 255, 255, 0.3);
+        font-size: 14px;
+        font-weight: 1000;
+      }
+
+      .one-tap-copy strong {
+        display: block;
+        font-size: 16px;
+      }
+
+      .one-tap-copy span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .one-tap-panel {
+        display: none;
+        grid-column: 1 / -1;
+        grid-template-columns: minmax(260px, 0.75fr) minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+        border-top: 1px solid rgba(184, 135, 39, 0.18);
+        padding-top: 12px;
+      }
+
+      .one-tap-panel.open {
+        display: grid;
+      }
+
+      .one-tap-panel label {
+        display: grid;
+        gap: 6px;
+        font-weight: 900;
+      }
+
+      .one-tap-panel select {
+        min-height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: #fff;
+        font: inherit;
+      }
+
+      .one-tap-result {
+        display: grid;
+        gap: 8px;
+        grid-column: 1 / -1;
+      }
+
+      .one-tap-result .egeria-card {
+        border-color: rgba(184, 135, 39, 0.28);
       }
 
       .egeria-section {
@@ -452,6 +555,33 @@
 
         <div id="processFlow" hidden></div>
 
+        <section class="one-tap-bar" aria-label="Egeria One-Tap Pilot">
+          <button id="oneTapOpenBtn" class="one-tap-button" type="button">
+            <span class="one-tap-orb" aria-hidden="true">E</span>
+            <span>One-Tap Pilot</span>
+          </button>
+          <div class="one-tap-copy">
+            <strong>Fast asset path from job to candidate interest.</strong>
+            <span>Select one job. Egeria picks one best internal candidate, creates the secure interest link, opens the candidate email draft, and checkpoints the workflow.</span>
+          </div>
+          <button id="oneTapRefreshJobsBtn" class="btn secondary" type="button">Refresh jobs</button>
+          <div id="oneTapPanel" class="one-tap-panel">
+            <label>
+              Job to fill
+              <select id="oneTapJobSelect">
+                <option value="">Loading jobs...</option>
+              </select>
+            </label>
+            <div>
+              <div id="oneTapStatus" class="egeria-notice">Press One-Tap Pilot, choose a job, then let Egeria prepare the first candidate interest email.</div>
+              <div class="egeria-link-row" style="margin-top: 8px">
+                <button id="oneTapStartBtn" class="btn primary" type="button">Start one-tap pilot</button>
+              </div>
+            </div>
+            <div id="oneTapResult" class="one-tap-result"></div>
+          </div>
+        </section>
+
         <section class="egeria-hero">
           <div>
             <h1>Egeria AI Workspace</h1>
@@ -654,6 +784,116 @@
           const href = action.href || "#";
           return `<button class="btn secondary" type="button" data-egeria-open="${escapeHtml(href)}">${escapeHtml(action.label || "Open next step")}</button>`;
         }).join("")}</div>`;
+      }
+
+      function oneTapMailto(interest) {
+        const email = oneTapLastRun?.candidate?.email || "";
+        const subject = interest?.subject || "DevReady role interest";
+        const body = interest?.body || "";
+        return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      }
+
+      let oneTapLastRun = null;
+
+      function openOneTapPanel() {
+        document.getElementById("oneTapPanel")?.classList.add("open");
+        hydrateOneTapJobs();
+      }
+
+      async function hydrateOneTapJobs() {
+        const select = document.getElementById("oneTapJobSelect");
+        if (!select) return;
+        const existingValue = select.value;
+        select.innerHTML = `<option value="">Loading jobs...</option>`;
+        try {
+          const response = await fetch(`/api/egeria/one-tap/jobs?domain=${encodeURIComponent(currentDomain())}&limit=75`, { cache: "no-store" });
+          const data = await response.json();
+          if (!response.ok || data.ok === false) throw new Error(data.detail || "Could not load jobs.");
+          const rows = Array.isArray(data.jobs) ? data.jobs : [];
+          select.innerHTML = rows.length ? `<option value="">Select job description</option>` : `<option value="">No saved jobs in this domain</option>`;
+          rows.forEach((job) => {
+            const option = document.createElement("option");
+            option.value = job.jd_id || job.id || "";
+            option.textContent = `${job.company || "Client"} - ${job.title || job.jobtitle || "Untitled role"} (JD ${option.value})`;
+            select.appendChild(option);
+          });
+          if (existingValue && rows.some((job) => String(job.jd_id || job.id || "") === existingValue)) {
+            select.value = existingValue;
+          }
+        } catch (error) {
+          select.innerHTML = `<option value="">Could not load jobs</option>`;
+          setStatus("oneTapStatus", error.message || "Could not load jobs.");
+        }
+      }
+
+      function renderOneTapResult(data) {
+        const target = document.getElementById("oneTapResult");
+        if (!target) return;
+        const candidate = data.candidate || {};
+        const job = data.job || {};
+        const match = data.match || {};
+        const interest = data.interest || {};
+        const nextSteps = Array.isArray(data.next_steps) ? data.next_steps : [];
+        target.innerHTML = `
+          <article class="egeria-card recommended">
+            <div class="pill-row">
+              <span class="egeria-pill">One internal candidate</span>
+              <span class="egeria-pill">${escapeHtml(match.score || 0)}% match</span>
+              <span class="egeria-pill">Interest email ready</span>
+            </div>
+            <strong>${escapeHtml(candidate.name || "Candidate")} for ${escapeHtml(job.title || "selected role")}</strong>
+            <span>${escapeHtml(job.company || "Client")} - ${escapeHtml(candidate.email || "No email captured")}</span>
+            <p>${escapeHtml(match.reason || "Egeria found the strongest internal candidate for this role.")}</p>
+            <div class="egeria-link-row">
+              <a class="btn secondary" href="profile-preview.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(candidate.profile_id || "")}">Open profile</a>
+              <a class="btn secondary" href="${escapeHtml(interest.url || "#")}" target="_blank" rel="noopener">Open interest link</a>
+              <a class="btn primary" href="${escapeHtml(oneTapMailto(interest))}">Send interest email</a>
+            </div>
+          </article>
+          <article class="egeria-card">
+            <strong>What happens next</strong>
+            <span>${nextSteps.map((step, index) => `${index + 1}. ${escapeHtml(step)}`).join("<br>")}</span>
+          </article>
+        `;
+      }
+
+      async function startOneTapPilot() {
+        const jobId = document.getElementById("oneTapJobSelect")?.value || "";
+        if (!jobId) {
+          setStatus("oneTapStatus", "Choose the job Egeria should fill first.");
+          return;
+        }
+        setStatus("oneTapStatus", "Egeria is finding the single best internal candidate and preparing the interest email...");
+        document.getElementById("oneTapResult").innerHTML = "";
+        const form = new FormData();
+        form.append("domain", currentDomain());
+        form.append("job_id", jobId);
+        try {
+          const response = await fetch("/api/egeria/one-tap/start", { method: "POST", body: form });
+          const data = await response.json();
+          if (!response.ok || data.ok === false) throw new Error(data.detail || "One-Tap Pilot failed.");
+          oneTapLastRun = data;
+          const candidate = data.candidate || {};
+          const job = data.job || {};
+          sessionStorage.setItem("candidateId", candidate.profile_id || "");
+          sessionStorage.setItem("candidateName", candidate.name || "");
+          sessionStorage.setItem("candidateEmail", candidate.email || "");
+          sessionStorage.setItem("jobId", job.jd_id || "");
+          sessionStorage.setItem("jobID", job.jd_id || "");
+          sessionStorage.setItem("selectedJdId", job.jd_id || "");
+          sessionStorage.setItem("jobTitle", job.title || "");
+          sessionStorage.setItem("jobCompany", job.company || "");
+          sessionStorage.setItem("currentFlowStep", "egeria");
+          sessionStorage.setItem("nextFlowStep", "candidate-interest");
+          setStatus("oneTapStatus", `Egeria selected ${candidate.name || "one candidate"} and opened the interest email draft. The candidate response returns through the secure interest link.`);
+          renderOneTapResult(data);
+          if (candidate.email) {
+            window.location.href = oneTapMailto(data.interest || {});
+          }
+          runPilot();
+        } catch (error) {
+          setStatus("oneTapStatus", error.message || "One-Tap Pilot failed.");
+        }
       }
 
       function renderOpportunity(data) {
@@ -1090,6 +1330,9 @@
 
       document.getElementById("runOpportunityBtn").addEventListener("click", () => runOpportunity(false));
       document.getElementById("runExternalOpportunityBtn").addEventListener("click", () => runOpportunity(true));
+      document.getElementById("oneTapOpenBtn").addEventListener("click", openOneTapPanel);
+      document.getElementById("oneTapRefreshJobsBtn").addEventListener("click", hydrateOneTapJobs);
+      document.getElementById("oneTapStartBtn").addEventListener("click", startOneTapPilot);
       document.getElementById("runPilotBtn").addEventListener("click", runPilot);
       document.getElementById("saveCheckpointBtn").addEventListener("click", saveCheckpoint);
       document.getElementById("rollbackCheckpointBtn").addEventListener("click", rollbackCheckpoint);
@@ -1101,6 +1344,7 @@
       document.getElementById("briefingCustomerSelect").addEventListener("change", () => runBriefing(false));
 
       applyPilotProcessLinks();
+      hydrateOneTapJobs();
       hydrateBriefingCustomers();
       runPilot();
     </script>

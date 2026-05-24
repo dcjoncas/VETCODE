@@ -387,11 +387,20 @@
       }
 
       function enterWorkspace(user) {
-        const domain = selectedLoginDomain();
+        const domain = user.domain || selectedLoginDomain();
         sessionStorage.setItem("domain", domain);
         sessionStorage.setItem("devreadyUser", JSON.stringify(user));
         localStorage.setItem("devreadyUser", JSON.stringify(user));
-        const nextPage = user.role === "candidate" ? "pages/ai-cert.html" : "pages/find-candidate.html";
+        if (user.role === "candidate") {
+          if (user.profile_id || user.candidate_profile_id) {
+            sessionStorage.setItem("candidateId", user.profile_id || user.candidate_profile_id);
+          }
+          if (user.email) sessionStorage.setItem("candidateEmail", user.email);
+          if (user.display_name || user.username) {
+            sessionStorage.setItem("candidateName", user.display_name || user.username);
+          }
+        }
+        const nextPage = user.role === "candidate" ? "pages/candidate-status.html" : "pages/find-candidate.html";
         const separator = nextPage.includes("?") ? "&" : "?";
         window.location.href = `${nextPage}${separator}domain=${encodeURIComponent(domain)}`;
       }
@@ -426,6 +435,7 @@
           return;
         }
         try {
+          body.set("domain", selectedLoginDomain());
           const response = await fetch("/api/access/register", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },

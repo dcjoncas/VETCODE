@@ -214,6 +214,8 @@ TIME_ENTRIES_PATH = os.path.join(DATA_DIR, "time_entries.json")
 ACCOUNTING_RECORDS_PATH = os.path.join(DATA_DIR, "accounting_records.json")
 WORKFLOW_EVENTS_PATH = os.path.join(DATA_DIR, "workflow_events.json")
 EGERIA_PROCESS_LOG_PATH = os.path.join(DATA_DIR, "egeria_process_log.json")
+AI_TECH_DEBT_ASSESSMENTS_PATH = os.path.join(DATA_DIR, "ai_tech_debt_assessments.json")
+AI_TECH_DEBT_LINKS_PATH = os.path.join(DATA_DIR, "ai_tech_debt_links.json")
 INTERVIEW_ARCHIVE_PATH = os.path.join(DATA_DIR, "interview_archive.json")
 CRM_RECORDS_PATH = os.path.join(DATA_DIR, "crm_records.json")
 MEETING_RECORDS_PATH = os.path.join(DATA_DIR, "meeting_records.json")
@@ -233,6 +235,7 @@ MENU_ITEMS = [
     {"key": "time_link", "label": "Time", "href": "time-admin.html"},
     {"key": "status", "label": "Status", "href": "status-tracker.html"},
     {"key": "crm", "label": "CRM", "href": "crm.html"},
+    {"key": "ai_tech_debt", "label": "AI Tech Debt", "href": "ai-tech-debt.html"},
     {"key": "reports", "label": "Reports", "href": "reports.html"},
     {"key": "accounting", "label": "Accounting", "href": "accounting.html"},
     {"key": "invoices", "label": "Invoices", "href": "invoices.html"},
@@ -255,6 +258,7 @@ DEFAULT_INTERNAL_MENU = [
     "time_link",
     "status",
     "crm",
+    "ai_tech_debt",
     "reports",
     "accounting",
     "invoices",
@@ -265,7 +269,7 @@ DEFAULT_INTERNAL_MENU = [
     "admin",
     "agents",
 ]
-DEFAULT_CANDIDATE_MENU = ["test_challenge", "ai_cert", "badges"]
+DEFAULT_CANDIDATE_MENU = ["profiles", "interviews", "time_link", "status"]
 SUPER_MENU = [item["key"] for item in MENU_ITEMS]
 
 
@@ -558,9 +562,11 @@ def _verify_password(password: str, stored_hash: str = "") -> bool:
 
 
 def _default_menu_for_user(role: str, email: str = "") -> list[str]:
+    if role == "candidate":
+        return DEFAULT_CANDIDATE_MENU
     if role == "super_user" or _normalize_user_key(email).endswith("@devready.io"):
         return SUPER_MENU
-    return DEFAULT_CANDIDATE_MENU if role == "candidate" else DEFAULT_INTERNAL_MENU
+    return DEFAULT_INTERNAL_MENU
 
 
 def _seed_access_users() -> dict:
@@ -622,9 +628,45 @@ def _public_user(user: dict) -> dict:
         "role": user.get("role", "internal"),
         "status": user.get("status", "active"),
         "allowed_menu": user.get("allowed_menu", []),
+        "domain": _domain_key(user.get("domain", "dev")),
+        "profile_id": user.get("profile_id", ""),
+        "candidate_profile_id": user.get("candidate_profile_id", user.get("profile_id", "")),
         "created_at": user.get("created_at", ""),
         "updated_at": user.get("updated_at", ""),
     }
+
+
+def _candidate_profile_for_login(email: str = "", username: str = "", domain: str = "dev") -> dict:
+    lookup = (email or username or "").strip()
+    if not lookup:
+        return {}
+    clean_domain = _storage_domain(_domain_key(domain))
+    try:
+        rows = candidates.searchCandidatesByNameEmail(lookup, limit=8, domain=clean_domain)
+    except Exception:
+        return {}
+    target_email = _normalize_user_key(email or lookup)
+    for row in rows or []:
+        row_email = _normalize_user_key(row.get("email", ""))
+        if target_email and row_email == target_email:
+            return row
+    return rows[0] if rows else {}
+
+
+def _refresh_candidate_user_link(user: dict, domain: str = "dev") -> dict:
+    if user.get("role") != "candidate":
+        return user
+    clean_domain = _domain_key(domain or user.get("domain", "dev"))
+    user["domain"] = clean_domain
+    if not user.get("profile_id"):
+        profile = _candidate_profile_for_login(user.get("email", ""), user.get("username", ""), clean_domain)
+        if profile.get("id"):
+            user["profile_id"] = str(profile.get("id"))
+            user["candidate_profile_id"] = str(profile.get("id"))
+    user["allowed_menu"] = [key for key in user.get("allowed_menu", DEFAULT_CANDIDATE_MENU) if key in DEFAULT_CANDIDATE_MENU]
+    if not user["allowed_menu"]:
+        user["allowed_menu"] = list(DEFAULT_CANDIDATE_MENU)
+    return user
 
 
 def _administrator_user(users: dict, username: str = "Administrator") -> dict | None:
@@ -692,6 +734,211 @@ def _normalize_cert_title(level: str, certificate_id: str = "") -> str:
     if certificate_id:
         return "AI Certification Earned"
     return "AI Certified"
+
+
+def _profile_stage_matches_person(record: dict, profile_id: str, email: str, domain: str) -> bool:
+    if not isinstance(record, dict):
+        return False
+    clean_domain = _domain_key(domain)
+    record_domain = _domain_key(record.get("domain", clean_domain))
+    if clean_domain != "all" and record_domain != clean_domain:
+        return False
+    if profile_id and str(record.get("profile_id") or record.get("profileId") or record.get("candidateId") or "") == str(profile_id):
+        return True
+    if email and _normalize_user_key(record.get("email") or record.get("candidate_email") or "") == _normalize_user_key(email):
+        return True
+    context = record.get("context") if isinstance(record.get("context"), dict) else {}
+    if profile_id and str(context.get("candidateId") or context.get("selectedProfileId") or "") == str(profile_id):
+        return True
+    if email and _normalize_user_key(context.get("candidateEmail") or "") == _normalize_user_key(email):
+        return True
+    return False
+
+
+def _profile_process_stage_status(profile_id: str, domain: str = "dev") -> dict:
+    clean_domain = _domain_key(domain)
+    profile_data: dict = {}
+    profile_found = False
+    actual_domain = clean_domain
+    try:
+        if profile_id:
+            actual_domain = _domain_key(candidates.getCandidateDomain(profile_id) or clean_domain)
+            if clean_domain not in {"all", actual_domain}:
+                raise HTTPException(status_code=403, detail="Candidate does not belong to this domain.")
+            profile_data = candidates.getProfile(profile_id) or {}
+            profile_found = True
+    except HTTPException:
+        raise
+    except Exception:
+        profile_data = {}
+
+    core_profile = profile_data.get("profile") if isinstance(profile_data.get("profile"), dict) else {}
+    email = core_profile.get("email") or ""
+    completion = _profile_completion_status_for_onboarding(profile_id, profile_data) if profile_found else {
+        "state": "missing",
+        "complete": False,
+        "hasRegularProfile": False,
+        "hasPersonality": False,
+        "hasCulture": False,
+        "missing": ["profile"],
+    }
+
+    badges = _read_profile_badges().get(str(profile_id), {}) if profile_id else {}
+    tech = badges.get("techChallenge") if isinstance(badges.get("techChallenge"), dict) else {}
+    ai_cert = badges.get("aiCertification") if isinstance(badges.get("aiCertification"), dict) else {}
+
+    onboarding_rows = _read_json_store_with_demo(ONBOARDING_RECORDS_PATH, {})
+    onboarding_values = onboarding_rows.values() if isinstance(onboarding_rows, dict) else onboarding_rows if isinstance(onboarding_rows, list) else []
+    onboarding_matches = [
+        row for row in onboarding_values
+        if _profile_stage_matches_person(row, profile_id, email, actual_domain)
+    ]
+    onboarding_matches.sort(key=lambda row: row.get("updated_at") or row.get("created_at") or "", reverse=True)
+    onboarding_record = onboarding_matches[0] if onboarding_matches else {}
+    onboarding_status = _safe_action_text(onboarding_record.get("status"), 80).lower()
+
+    workflow_rows = _read_json_store_with_demo(WORKFLOW_EVENTS_PATH, [])
+    if not isinstance(workflow_rows, list):
+        workflow_rows = []
+    workflow_matches = [
+        row for row in workflow_rows
+        if _profile_stage_matches_person(row, profile_id, email, actual_domain)
+    ]
+    egeria_rows = _egeria_log_rows()
+    egeria_matches = [
+        row for row in egeria_rows
+        if _profile_stage_matches_person(row, profile_id, email, actual_domain)
+    ]
+
+    workflow_blob = " ".join(
+        _safe_action_text(value, 500).lower()
+        for row in workflow_matches
+        for value in [
+            row.get("event_type"),
+            row.get("status"),
+            row.get("notes"),
+            json.dumps(row.get("payload") or {}, default=str),
+        ]
+    )
+    egeria_blob = " ".join(
+        _safe_action_text(value, 500).lower()
+        for row in egeria_matches
+        for value in [
+            row.get("event_type"),
+            row.get("message"),
+            json.dumps(row.get("context") or {}, default=str),
+            json.dumps(row.get("after") or {}, default=str),
+        ]
+    )
+    activity_blob = " ".join(
+        _safe_action_text(value, 500).lower()
+        for value in [
+            (profile_data.get("platformActivity") or {}).get("step") if isinstance(profile_data.get("platformActivity"), dict) else "",
+            core_profile.get("status"),
+            workflow_blob,
+            egeria_blob,
+        ]
+    )
+
+    screened_done = bool(completion.get("hasRegularProfile")) and completion.get("state") in {"partial", "complete"}
+    screened_current = profile_found and not screened_done
+    vetted_done = (
+        _safe_action_text(tech.get("status"), 80).lower() in {"passed", "completed"}
+        or "candidate_review_complete" in workflow_blob
+        or "candidate review complete" in workflow_blob
+        or "review complete" in workflow_blob
+        or "shortlist" in activity_blob
+        or "vetted" in activity_blob
+    )
+    onboarded_done = onboarding_status in {"paperwork_submitted", "completed", "complete", "onboarded", "active"}
+    onboarded_current = bool(onboarding_record) and not onboarded_done
+    certified_done = _safe_action_text(ai_cert.get("status"), 80).lower() in {"certified", "completed"}
+
+    raw_stage_signals = [
+        {
+            "key": "identified",
+            "label": "Identified",
+            "icon": "fingerprint",
+            "done": profile_found,
+            "current": not profile_found,
+            "detail": "Permanent profile exists in this domain." if profile_found else "Profile has not been loaded into this domain yet.",
+        },
+        {
+            "key": "screened",
+            "label": "Screened",
+            "icon": "clipboard",
+            "done": screened_done,
+            "current": screened_current,
+            "detail": "Resume/profile screening data exists." if screened_done else f"Screening needs {', '.join(completion.get('missing') or ['profile data'])}.",
+        },
+        {
+            "key": "vetted",
+            "label": "Vetted",
+            "icon": "shield",
+            "done": vetted_done,
+            "current": screened_done and not vetted_done,
+            "detail": "Candidate has vetting or review evidence." if vetted_done else "Run candidate review or mark the tech challenge/review complete.",
+        },
+        {
+            "key": "onboarded",
+            "label": "Onboarded",
+            "icon": "briefcase",
+            "done": onboarded_done,
+            "current": onboarded_current,
+            "detail": (
+                f"Onboarding record is {onboarding_record.get('status')}."
+                if onboarding_record
+                else "No onboarding packet has been started for this profile."
+            ),
+        },
+        {
+            "key": "certified",
+            "label": "Certified",
+            "icon": "award",
+            "done": certified_done,
+            "current": onboarded_done and not certified_done,
+            "detail": "AI certification is complete." if certified_done else "AI certification has not been completed.",
+        },
+    ]
+
+    first_open_index = next((index for index, stage in enumerate(raw_stage_signals) if not stage["done"]), len(raw_stage_signals))
+    has_later_progress = [
+        any(later["done"] or later["current"] for later in raw_stage_signals[index + 1 :])
+        for index, _stage in enumerate(raw_stage_signals)
+    ]
+    stages = []
+    for index, stage in enumerate(raw_stage_signals):
+        status = "done" if stage["done"] else "pending"
+        if not stage["done"] and (stage["current"] or index == first_open_index):
+            status = "current"
+        if not stage["done"] and has_later_progress[index]:
+            status = "attention"
+        stages.append({
+            "key": stage["key"],
+            "label": stage["label"],
+            "icon": stage["icon"],
+            "status": status,
+            "detail": stage["detail"],
+        })
+
+    current_stage = next((stage for stage in stages if stage["status"] in {"current", "attention"}), stages[-1])
+    return {
+        "ok": True,
+        "profile_id": str(profile_id),
+        "domain": actual_domain,
+        "current_stage": current_stage.get("key"),
+        "current_stage_label": current_stage.get("label"),
+        "stages": stages,
+        "signals": {
+            "profileFound": profile_found,
+            "completion": completion,
+            "techChallenge": tech,
+            "aiCertification": ai_cert,
+            "onboarding": onboarding_record,
+            "workflowEvents": len(workflow_matches),
+            "egeriaEvents": len(egeria_matches),
+        },
+    }
 
 
 def _ensure_profile_for_certification(
@@ -1263,6 +1510,989 @@ def rollback_egeria_process_pilot(
 def egeria_process_pilot_log(domain: str = "dev", limit: int = 20):
     clean_domain = _domain_key(domain)
     return {"ok": True, "domain": clean_domain, "events": _egeria_recent_log(clean_domain, limit)}
+
+
+@app.get("/api/egeria/one-tap/jobs")
+def egeria_one_tap_jobs(domain: str = "dev", limit: int = 50):
+    clean_domain = _domain_key(domain)
+    try:
+        rows = jobs.listJobs(clean_domain, max(1, min(int(limit or 50), 100)))
+    except Exception:
+        rows = []
+    return {"ok": True, "domain": clean_domain, "jobs": rows}
+
+
+def _egeria_best_internal_candidate_for_job(job: dict, domain: str) -> dict:
+    clean_domain = _domain_key(domain)
+    skills = _radar_skill_terms(job.get("skills") or job.get("jd_skills") or [])
+    description_words = sorted(_radar_words(job.get("description") or job.get("jd_text") or ""))[:16]
+    search_terms = skills or description_words
+    if not search_terms:
+        raise HTTPException(status_code=400, detail="This job needs saved skills or a useful description before Egeria can match it.")
+    try:
+        rows = candidates.searchCandidatesBySkills(",".join(search_terms[:16]), 50, domain=clean_domain)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Could not search internal candidates: {exc}")
+    scored_rows = []
+    for row in rows or []:
+        candidate_id = str(row.get("id") or "")
+        if not candidate_id:
+            continue
+        candidate_skills = row.get("skillMatches") or []
+        weighted = _radar_weighted_skill_score(search_terms[:16], candidate_skills, base_rank=row.get("searchRank") or row.get("skillCount") or 0)
+        role_score = _radar_title_alignment(
+            {
+                "title": job.get("title") or job.get("jobtitle") or "",
+                "company": job.get("company") or "",
+            },
+            f"{row.get('primaryStack', '')} {row.get('firstName', '')} {row.get('lastName', '')}",
+        )
+        process_score = _radar_process_score(row.get("step"))
+        score = min(99, round(float(weighted.get("score") or 0) + role_score + process_score, 1))
+        scored_rows.append({
+            "score": score,
+            "candidate": {
+                "profile_id": candidate_id,
+                "name": _safe_action_text(f"{row.get('firstName', '')} {row.get('lastName', '')}", 180).strip() or f"Profile {candidate_id}",
+                "email": _safe_action_text(row.get("email"), 240),
+                "headline": _safe_action_text(row.get("primaryStack"), 220),
+            },
+            "matched": weighted.get("matched", [])[:8],
+            "gaps": weighted.get("gaps", [])[:6],
+            "score_parts": {
+                **(weighted.get("score_parts") or {}),
+                "role_title": role_score,
+                "process": process_score,
+            },
+            "reason": "Matched: " + ", ".join((weighted.get("matched") or candidate_skills or [])[:5]) if (weighted.get("matched") or candidate_skills) else "Candidate has overlapping internal profile evidence.",
+        })
+    scored_rows.sort(key=lambda item: (item.get("score", 0), len(item.get("matched") or [])), reverse=True)
+    if not scored_rows:
+        raise HTTPException(status_code=404, detail="Egeria did not find an internal candidate for this job yet.")
+    return scored_rows[0]
+
+
+@app.post("/api/egeria/one-tap/start")
+def egeria_one_tap_start(
+    request: Request,
+    domain: str = Form(default="dev"),
+    job_id: str = Form(default=""),
+):
+    clean_domain = _domain_key(domain)
+    job_id = _safe_action_text(job_id, 80)
+    if not job_id:
+        raise HTTPException(status_code=400, detail="Choose a job before starting One-Tap Pilot.")
+    job = jobs.getJob(job_id, clean_domain)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found for this domain.")
+    best = _egeria_best_internal_candidate_for_job(job, clean_domain)
+    candidate = best.get("candidate") or {}
+    profile_id = str(candidate.get("profile_id") or "")
+    candidate_name = candidate.get("name") or "Candidate"
+    candidate_email = candidate.get("email") or ""
+    role_title = job.get("title") or ""
+    company = job.get("company") or ""
+    role_description = job.get("description") or ""
+
+    feedback = profile_role_feedback_link(
+        request=request,
+        profile_id=profile_id,
+        domain=clean_domain,
+        candidate_name=candidate_name,
+        candidate_email=candidate_email,
+        role_title=role_title,
+        role_description=role_description,
+    )
+    interest_url = feedback.get("url", "")
+    subject = f"DevReady role interest: {role_title}"
+    body = (
+        f"Hi {candidate_name},\n\n"
+        f"Egeria found a strong potential match for you.\n\n"
+        f"Role: {role_title}\n"
+        f"Client: {company or 'DevReady client'}\n"
+        f"Why this may fit: {best.get('reason') or 'Your profile aligns with the role requirements.'}\n\n"
+        "Please open this secure link and tell us if you are interested, what looks good, and anything we should know before we schedule an internal review:\n\n"
+        f"{interest_url}\n\n"
+        "Thank you,\nDevReady"
+    )
+    context = {
+        "domain": clean_domain,
+        "currentStep": "one-tap-pilot",
+        "nextStep": "candidate-interest",
+        "candidateId": profile_id,
+        "candidateName": candidate_name,
+        "candidateEmail": candidate_email,
+        "jobId": str(job.get("jd_id") or job_id),
+        "jobTitle": role_title,
+    }
+    event = _egeria_log_event(
+        clean_domain,
+        "one_tap_interest_started",
+        context=context,
+        before={},
+        after={
+            **context,
+            "score": best.get("score"),
+            "interestLink": interest_url,
+            "emailSubject": subject,
+        },
+        message=f"One-Tap Pilot selected {candidate_name} for {role_title} and prepared the interest email.",
+        payload={
+            "job": {
+                "jd_id": job.get("jd_id") or job_id,
+                "company": company,
+                "title": role_title,
+            },
+            "candidate": candidate,
+            "match": best,
+            "interest_url": interest_url,
+        },
+    )
+    return {
+        "ok": True,
+        "domain": clean_domain,
+        "job": {
+            "jd_id": job.get("jd_id") or job_id,
+            "company": company,
+            "title": role_title,
+            "description": role_description,
+            "skills": job.get("skills") or [],
+        },
+        "candidate": candidate,
+        "match": best,
+        "interest": {
+            "url": interest_url,
+            "subject": subject,
+            "body": body,
+        },
+        "next_steps": [
+            "Candidate answers the interest link.",
+            "Egeria records the response as private profile feedback.",
+            "DevReady runs the internal candidate review.",
+            "After approval, Egeria prepares the client interview/outreach.",
+            "After client approval, onboarding is started from the completed profile.",
+        ],
+        "event": event,
+        "recent_log": _egeria_recent_log(clean_domain, 8),
+    }
+
+
+AI_TECH_DEBT_DIMENSIONS = {
+    "strategy": "AI strategy and business outcomes",
+    "data": "Data readiness and knowledge architecture",
+    "architecture": "Application and integration architecture",
+    "risk": "Security, privacy, risk, and compliance",
+    "delivery": "AI delivery lifecycle and LLMOps",
+    "operating_model": "Operating model, talent, and adoption",
+    "automation": "Workflow redesign and automation",
+    "economics": "Vendor, cost, measurement, and observability",
+    "industry": "Industry-specific AI fit",
+}
+
+
+AI_TECH_DEBT_CHOICES = [
+    {"value": 0, "label": "Not started", "description": "No clear owner, artifacts, or repeatable practice exists."},
+    {"value": 1, "label": "Ad hoc / isolated", "description": "Some individual activity exists, but it is informal and hard to repeat."},
+    {"value": 2, "label": "Emerging", "description": "Early pilots or standards exist, but coverage is uneven."},
+    {"value": 3, "label": "Defined", "description": "A documented approach exists and is used by more than one team."},
+    {"value": 4, "label": "Scaled", "description": "The practice is used across major workflows with governance."},
+    {"value": 5, "label": "Optimized / governed", "description": "The practice is measured, improved, and embedded in operations."},
+]
+
+
+def _ai_tech_debt_industry_profile(industry: str) -> dict:
+    key = re.sub(r"[^a-z0-9]+", "_", str(industry or "technology").strip().lower()).strip("_") or "technology"
+    profiles = {
+        "technology": {
+            "label": "Technology / SaaS",
+            "signals": ["software delivery", "support automation", "product telemetry", "security reviews", "developer enablement"],
+            "pilot": "AI delivery cockpit for product support, backlog triage, code review assistance, and release-risk summaries.",
+            "risk": "Protect source code, customer data, production secrets, and model outputs with reviewable controls.",
+        },
+        "healthcare": {
+            "label": "Healthcare",
+            "signals": ["HIPAA", "clinical safety", "patient access", "claims", "prior authorization", "care coordination"],
+            "pilot": "Patient operations assistant for intake, prior authorization support, care-team summaries, and compliance-reviewed handoffs.",
+            "risk": "Separate clinical decision support from administrative automation and enforce human review for patient-impacting outputs.",
+        },
+        "financial_services": {
+            "label": "Financial Services",
+            "signals": ["model risk", "fraud", "KYC", "AML", "auditability", "advisor workflows"],
+            "pilot": "Risk-aware client operations copilot for document intake, KYC exception triage, and audit-ready decision support.",
+            "risk": "Model risk management, explainability, retention, and customer-impact controls must be designed before scaling.",
+        },
+        "manufacturing_engineering": {
+            "label": "Manufacturing / Engineering",
+            "signals": ["quality", "field service", "predictive maintenance", "project controls", "safety", "supplier issues"],
+            "pilot": "Engineering operations copilot for field reports, defect triage, safety observations, and project-control risk summaries.",
+            "risk": "Keep safety-critical decisions and engineered calculations behind expert review and traceable source evidence.",
+        },
+        "construction": {
+            "label": "Construction / Infrastructure",
+            "signals": ["RFI", "submittals", "safety", "schedule risk", "change orders", "field reports"],
+            "pilot": "Project-controls assistant for RFI triage, change-order risk, daily reports, and safety observation summaries.",
+            "risk": "Contract language, safety data, and schedule commitments need strong approval gates before client-facing use.",
+        },
+        "retail": {
+            "label": "Retail / Commerce",
+            "signals": ["personalization", "inventory", "customer support", "pricing", "catalog operations", "returns"],
+            "pilot": "Retail operations assistant for catalog enrichment, support deflection, inventory explanations, and campaign targeting.",
+            "risk": "Customer data use, pricing fairness, brand voice, and fulfillment promises require measurable guardrails.",
+        },
+        "legal": {
+            "label": "Legal / Professional Services",
+            "signals": ["privilege", "matter knowledge", "contract review", "legal ops", "conflicts", "document retention"],
+            "pilot": "Matter-intelligence assistant for contract intake, clause comparison, privilege-aware summaries, and legal ops reporting.",
+            "risk": "Privilege, confidentiality, citations, and attorney review must be explicit in every AI workflow.",
+        },
+        "energy_utilities": {
+            "label": "Energy / Utilities",
+            "signals": ["asset inspection", "grid reliability", "field safety", "regulatory reporting", "maintenance", "outage response"],
+            "pilot": "Asset and field-operations assistant for inspection notes, outage summaries, work-order prioritization, and regulatory evidence packs.",
+            "risk": "Operational reliability, worker safety, critical infrastructure, and regulatory evidence require strict human approval.",
+        },
+        "public_sector": {
+            "label": "Public Sector",
+            "signals": ["citizen service", "records retention", "procurement", "transparency", "accessibility", "policy compliance"],
+            "pilot": "Citizen-service and records assistant for intake routing, policy lookup, accessibility checks, and transparent response drafts.",
+            "risk": "Procurement, public records, accessibility, bias review, and explainability need to be visible from day one.",
+        },
+    }
+    return profiles.get(key, profiles["technology"])
+
+
+def _ai_tech_debt_score_question(question_id: str, dimension: str, prompt: str) -> dict:
+    return {
+        "id": question_id,
+        "type": "score",
+        "dimension": dimension,
+        "prompt": prompt,
+        "choices": AI_TECH_DEBT_CHOICES,
+    }
+
+
+def _ai_tech_debt_text_question(question_id: str, dimension: str, prompt: str) -> dict:
+    return {
+        "id": question_id,
+        "type": "text",
+        "dimension": dimension,
+        "prompt": prompt,
+        "placeholder": "Type the CIO/CTO answer here. Specific examples help the AI recommendations.",
+    }
+
+
+def _ai_tech_debt_questionnaire(industry: str = "technology", company: str = "") -> dict:
+    profile = _ai_tech_debt_industry_profile(industry)
+    company_name = _safe_action_text(company, 180) or "the company"
+    industry_label = profile["label"]
+    sections = [
+        {
+            "id": "strategy",
+            "title": "1. AI Strategy And Executive Outcomes",
+            "description": "Checks whether AI is tied to business value, ownership, and executive operating cadence.",
+            "questions": [
+                _ai_tech_debt_score_question("strategy_1", "strategy", f"How clearly has {company_name} defined the business outcomes AI should improve in {industry_label}?"),
+                _ai_tech_debt_score_question("strategy_2", "strategy", "How well are AI opportunities prioritized by value, risk, effort, and executive sponsorship?"),
+                _ai_tech_debt_score_question("strategy_3", "strategy", "How consistently does leadership review AI progress, blockers, and measurable impact?"),
+                _ai_tech_debt_text_question("strategy_open", "strategy", "What are the top three business outcomes the CIO/CTO wants AI to improve in the next 6 to 12 months?"),
+            ],
+        },
+        {
+            "id": "data",
+            "title": "2. Data Readiness And Knowledge Architecture",
+            "description": "Assesses whether internal data can safely power retrieval, copilots, automation, and analytics.",
+            "questions": [
+                _ai_tech_debt_score_question("data_1", "data", "How clean, current, and well-owned are the data sources that AI would need?"),
+                _ai_tech_debt_score_question("data_2", "data", "How mature are permissions, metadata, lineage, and retention rules for AI-accessible knowledge?"),
+                _ai_tech_debt_score_question("data_3", "data", "How ready is the organization for retrieval-augmented generation across documents, systems, and operational records?"),
+                _ai_tech_debt_text_question("data_open", "data", "Which data sources, systems, or knowledge bases are currently the biggest blocker to trustworthy AI?"),
+            ],
+        },
+        {
+            "id": "architecture",
+            "title": "3. Application And Integration Architecture",
+            "description": "Looks for AI-ready APIs, workflow integration, identity controls, and maintainable application patterns.",
+            "questions": [
+                _ai_tech_debt_score_question("architecture_1", "architecture", "How easily can existing applications expose secure APIs or events for AI workflows?"),
+                _ai_tech_debt_score_question("architecture_2", "architecture", "How ready are identity, role-based access, audit logs, and environment separation for AI agents?"),
+                _ai_tech_debt_score_question("architecture_3", "architecture", "How well can AI outputs be reviewed, edited, approved, and written back to core systems?"),
+            ],
+        },
+        {
+            "id": "risk",
+            "title": "4. Security, Privacy, Risk, And Compliance",
+            "description": "Measures whether AI use can be governed without blocking practical adoption.",
+            "questions": [
+                _ai_tech_debt_score_question("risk_1", "risk", f"How well are {profile['risk']} addressed today?"),
+                _ai_tech_debt_score_question("risk_2", "risk", "How mature are policies for sensitive data, prompt logging, model selection, and external tool use?"),
+                _ai_tech_debt_score_question("risk_3", "risk", "How consistently can the company prove what data an AI workflow used and who approved the final action?"),
+                _ai_tech_debt_text_question("risk_open", "risk", "What is the executive team's biggest concern about AI risk, security, privacy, or compliance?"),
+            ],
+        },
+        {
+            "id": "delivery",
+            "title": "5. AI Delivery Lifecycle And LLMOps",
+            "description": "Checks whether pilots can move into production with test coverage, monitoring, and cost controls.",
+            "questions": [
+                _ai_tech_debt_score_question("delivery_1", "delivery", "How repeatable is the path from AI idea to prototype, pilot, production, and support?"),
+                _ai_tech_debt_score_question("delivery_2", "delivery", "How mature are prompt/version management, evals, regression testing, and human feedback loops?"),
+                _ai_tech_debt_score_question("delivery_3", "delivery", "How visible are AI quality, latency, usage, cost, and failure patterns after launch?"),
+            ],
+        },
+        {
+            "id": "operating_model",
+            "title": "6. Operating Model, Talent, And Adoption",
+            "description": "Assesses whether teams can adopt AI safely and change the way work gets done.",
+            "questions": [
+                _ai_tech_debt_score_question("operating_1", "operating_model", "How clear are ownership, funding, and decision rights for AI initiatives?"),
+                _ai_tech_debt_score_question("operating_2", "operating_model", "How prepared are business users, engineers, and operations teams to use AI tools responsibly?"),
+                _ai_tech_debt_score_question("operating_3", "operating_model", "How well does the organization handle change management, training, and adoption measurement?"),
+                _ai_tech_debt_text_question("operating_open", "operating_model", "Which teams are most ready for an AI pilot, and which teams will need the most coaching?"),
+            ],
+        },
+        {
+            "id": "automation",
+            "title": "7. Workflow Redesign And Automation",
+            "description": "Finds whether AI is being used to redesign workflows, not just add chat on top of broken processes.",
+            "questions": [
+                _ai_tech_debt_score_question("automation_1", "automation", "How well are current workflows mapped with handoffs, decisions, exceptions, and approval points?"),
+                _ai_tech_debt_score_question("automation_2", "automation", "How much manual work could be safely reduced through AI-assisted intake, triage, drafting, or decision support?"),
+                _ai_tech_debt_score_question("automation_3", "automation", "How ready are teams to measure before-and-after workflow impact from an AI pilot?"),
+                _ai_tech_debt_text_question("automation_open", "automation", "Name one workflow that would be valuable enough for a 30 to 60 day AI proof of concept."),
+            ],
+        },
+        {
+            "id": "economics",
+            "title": "8. Vendor, Cost, Measurement, And Observability",
+            "description": "Looks for portfolio discipline: vendor fit, spend visibility, benefits tracking, and run-cost control.",
+            "questions": [
+                _ai_tech_debt_score_question("economics_1", "economics", "How well are AI vendors, models, licenses, and tools inventoried and rationalized?"),
+                _ai_tech_debt_score_question("economics_2", "economics", "How clearly can the company measure AI ROI, time saved, revenue impact, risk reduction, or quality gains?"),
+                _ai_tech_debt_score_question("economics_3", "economics", "How mature are cost guardrails for model usage, data processing, and agent automation?"),
+            ],
+        },
+        {
+            "id": "industry",
+            "title": f"9. Industry-Specific AI Fit: {industry_label}",
+            "description": "These questions are generated around the selected industry's operating constraints and AI opportunity patterns.",
+            "questions": [
+                _ai_tech_debt_score_question("industry_1", "industry", f"How well has {company_name} identified AI use cases around {', '.join(profile['signals'][:3])}?"),
+                _ai_tech_debt_score_question("industry_2", "industry", f"How prepared is the organization to manage industry-specific risk: {profile['risk']}"),
+                _ai_tech_debt_score_question("industry_3", "industry", f"How strong is the case for this practical pilot: {profile['pilot']}"),
+                _ai_tech_debt_text_question("industry_open", "industry", f"What industry-specific AI opportunity or constraint should the AI DevReady Coach understand before designing a pilot for {industry_label}?"),
+            ],
+        },
+    ]
+    return {
+        "ok": True,
+        "generated_by": "Egeria AI Tech Debt",
+        "domain": "dev",
+        "company": company_name,
+        "industry": industry,
+        "industry_label": industry_label,
+        "estimated_minutes": "15-20",
+        "rating_choices": AI_TECH_DEBT_CHOICES,
+        "dimensions": AI_TECH_DEBT_DIMENSIONS,
+        "industry_profile": profile,
+        "sections": sections,
+    }
+
+
+def _ai_tech_debt_grade(score: float) -> str:
+    if score >= 90:
+        return "A"
+    if score >= 80:
+        return "B"
+    if score >= 70:
+        return "C"
+    if score >= 60:
+        return "D"
+    return "F"
+
+
+def _ai_tech_debt_level(score: float) -> str:
+    if score >= 85:
+        return "AI-ready operating system"
+    if score >= 72:
+        return "Strong foundation with targeted debt"
+    if score >= 58:
+        return "Pilot-ready with governance gaps"
+    if score >= 42:
+        return "Early maturity with material AI tech debt"
+    return "High AI tech debt; start with controlled foundations"
+
+
+def _ai_tech_debt_eval_text(value: str, limit: int = 700) -> str:
+    return _safe_action_text(re.sub(r"\s+", " ", str(value or "")).strip(), limit)
+
+
+def _ai_tech_debt_normalize_url(value: str) -> str:
+    clean = _safe_action_text(value, 500).strip()
+    if not clean:
+        return ""
+    if not re.match(r"^https?://", clean, re.I):
+        clean = "https://" + clean
+    return clean
+
+
+def _ai_tech_debt_fetch_website(website_url: str) -> dict:
+    url = _ai_tech_debt_normalize_url(website_url)
+    if not url:
+        return {"ok": False, "url": "", "summary": "No company website provided.", "signals": []}
+    try:
+        response = requests.get(
+            url,
+            timeout=12,
+            headers={"User-Agent": "VETCODE AI Tech Debt assessment/1.0"},
+            allow_redirects=True,
+        )
+        response.raise_for_status()
+        text = _strip_html(response.text)
+        text = re.sub(r"\s+", " ", text).strip()
+        signals = []
+        keywords = [
+            "AI", "artificial intelligence", "automation", "data", "analytics", "cloud", "security",
+            "platform", "customer", "workflow", "operations", "innovation", "machine learning",
+        ]
+        lower_text = text.lower()
+        for keyword in keywords:
+            if keyword.lower() in lower_text:
+                signals.append(keyword)
+        return {
+            "ok": True,
+            "url": response.url or url,
+            "summary": text[:1800],
+            "signals": signals[:12],
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "url": url,
+            "summary": f"Website scan unavailable: {_safe_action_text(str(exc), 220)}",
+            "signals": [],
+        }
+
+
+def _ai_tech_debt_fetch_public_signals(company: str, industry_label: str, limit: int = 8) -> dict:
+    clean_company = _safe_action_text(company, 220)
+    if not clean_company:
+        return {"query": "", "items": []}
+    query = f'"{clean_company}" ({industry_label} OR AI OR automation OR digital transformation OR competitors OR rival OR market)'
+    url = f"https://news.google.com/rss/search?q={quote_plus(query)}&hl=en-US&gl=US&ceid=US:en"
+    try:
+        response = requests.get(
+            url,
+            timeout=12,
+            headers={"User-Agent": "VETCODE AI Tech Debt assessment/1.0"},
+        )
+        response.raise_for_status()
+        root = ET.fromstring(response.content)
+        items = []
+        for item in root.findall(".//item")[: max(1, min(limit, 12))]:
+            source = item.find("source")
+            title = _strip_html(item.findtext("title", ""))[:260]
+            summary = _strip_html(item.findtext("description", ""))[:500]
+            items.append(
+                {
+                    "title": title,
+                    "link": item.findtext("link", ""),
+                    "published": item.findtext("pubDate", ""),
+                    "source": _strip_html(source.text if source is not None else "")[:120],
+                    "summary": summary,
+                    "competitor_signal": bool(re.search(r"\b(competitor|rival|market share|alternative|versus|vs\.?)\b", f"{title} {summary}", re.I)),
+                }
+            )
+        return {"query": query, "items": items}
+    except Exception as exc:
+        return {
+            "query": query,
+            "items": [],
+            "error": _safe_action_text(str(exc), 220),
+        }
+
+
+def _ai_tech_debt_research(company: str, industry: str, website_url: str = "", include_external: bool = False) -> dict:
+    profile = _ai_tech_debt_industry_profile(industry)
+    website = _ai_tech_debt_fetch_website(website_url) if website_url else {
+        "ok": False,
+        "url": "",
+        "summary": "No company website provided.",
+        "signals": [],
+    }
+    public = _ai_tech_debt_fetch_public_signals(company, profile["label"]) if include_external else {
+        "query": "",
+        "items": [],
+    }
+    competitor_items = [
+        item for item in public.get("items", [])
+        if item.get("competitor_signal")
+    ]
+    return {
+        "enabled": bool(include_external or website_url),
+        "company": _safe_action_text(company, 220),
+        "industry_label": profile["label"],
+        "website": website,
+        "public_signals": public,
+        "competitor_signals": competitor_items[:5],
+        "scanned_at": _now_utc(),
+    }
+
+
+def _ai_tech_debt_dimension_recommendation(dimension: str, score: float) -> str:
+    label = AI_TECH_DEBT_DIMENSIONS.get(dimension, dimension)
+    base = {
+        "strategy": "Create a prioritized AI value map with executive owners, measurable outcomes, and a 90-day governance cadence.",
+        "data": "Build a trusted knowledge and data access layer before scaling copilots or agents into operational workflows.",
+        "architecture": "Expose AI-safe APIs, approval states, write-back rules, and audit trails so agents can act without bypassing controls.",
+        "risk": "Define model, data, privacy, and human-approval controls before pilots touch sensitive or customer-impacting workflows.",
+        "delivery": "Create an LLMOps lane with prompt/version control, eval suites, rollback plans, usage monitoring, and feedback capture.",
+        "operating_model": "Stand up an AI operating model with business owners, technical owners, training, and adoption metrics.",
+        "automation": "Map the target workflow end to end, then redesign it around human review points and measurable cycle-time reduction.",
+        "economics": "Inventory AI spend and vendors, then tie pilots to cost, revenue, risk, quality, or productivity measures.",
+        "industry": "Choose one industry-specific use case with strong business value and low enough risk to prove safely in 30 to 60 days.",
+    }.get(dimension, f"Improve {label.lower()} with clearer ownership, evidence, and measurable outcomes.")
+    if score >= 78:
+        return f"Keep scaling {label.lower()}: {base}"
+    if score >= 60:
+        return f"Tighten {label.lower()}: {base}"
+    return f"Address {label.lower()} first: {base}"
+
+
+def _ai_tech_debt_ai_enhance_report(report: dict, company: str, industry: str, business_context: str, research: dict) -> dict:
+    if not business_context and not (research or {}).get("enabled"):
+        return {}
+    try:
+        client = getOpenAPIClient()
+        payload = json.dumps(
+            {
+                "company": company,
+                "industry": _ai_tech_debt_industry_profile(industry).get("label"),
+                "business_context": business_context,
+                "research": research,
+                "current_report": {
+                    "overall_score": report.get("overall_score"),
+                    "overall_grade": report.get("overall_grade"),
+                    "priority_debt": report.get("priority_debt", [])[:4],
+                    "recommended_pilot": report.get("recommended_pilot"),
+                },
+            },
+            ensure_ascii=False,
+        )
+        response = client.chat.completions.create(
+            model=os.getenv("OPENAI_AGENT_MODEL", "gpt-4o-mini"),
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are Egeria for DevReady. Improve an AI Tech Debt assessment using only the CIO/CTO context, "
+                        "website scan, and public/competitor signals provided. Return compact JSON with keys: "
+                        "context_summary, research_summary, competitor_takeaways array, adjusted_recommendations array, "
+                        "pilot_focus, executive_next_step. Do not invent facts; if research is thin, say so."
+                    ),
+                },
+                {"role": "user", "content": payload},
+            ],
+            temperature=0.25,
+        )
+        content = response.choices[0].message.content or ""
+        found = re.search(r"\{.*\}", content, re.S)
+        parsed = json.loads(found.group(0) if found else content)
+        return {
+            "context_summary": _safe_action_text(parsed.get("context_summary"), 900),
+            "research_summary": _safe_action_text(parsed.get("research_summary"), 900),
+            "competitor_takeaways": [_safe_action_text(item, 320) for item in (parsed.get("competitor_takeaways") or [])[:5]],
+            "adjusted_recommendations": [_safe_action_text(item, 420) for item in (parsed.get("adjusted_recommendations") or [])[:6]],
+            "pilot_focus": _safe_action_text(parsed.get("pilot_focus"), 700),
+            "executive_next_step": _safe_action_text(parsed.get("executive_next_step"), 500),
+        }
+    except Exception:
+        signals = []
+        website = (research or {}).get("website") or {}
+        if website.get("signals"):
+            signals.append("Website signals: " + ", ".join(website.get("signals", [])[:8]))
+        competitor_count = len((research or {}).get("competitor_signals") or [])
+        if competitor_count:
+            signals.append(f"{competitor_count} public competitor/market signal(s) were found.")
+        return {
+            "context_summary": business_context[:900] if business_context else "No detailed CIO/CTO narrative was provided.",
+            "research_summary": " ".join(signals) or "External research was limited or unavailable.",
+            "competitor_takeaways": [],
+            "adjusted_recommendations": [],
+            "pilot_focus": "",
+            "executive_next_step": "Review the scorecard and select one controlled AI pilot for an AI DevReady Coach to scope.",
+        }
+
+
+def _ai_tech_debt_evaluate(
+    questionnaire: dict,
+    answers: dict,
+    company: str,
+    industry: str,
+    respondent_title: str = "",
+    business_context: str = "",
+    research: dict | None = None,
+) -> dict:
+    scored_by_dimension = {key: [] for key in AI_TECH_DEBT_DIMENSIONS}
+    open_answers = []
+    for section in questionnaire.get("sections", []):
+        for question in section.get("questions", []):
+            qid = question.get("id")
+            dimension = question.get("dimension")
+            if question.get("type") == "score":
+                try:
+                    value = float(answers.get(qid, 0))
+                except Exception:
+                    value = 0
+                scored_by_dimension.setdefault(dimension, []).append(max(0, min(5, value)))
+            elif question.get("type") == "text":
+                text = _ai_tech_debt_eval_text(answers.get(qid, ""))
+                if text:
+                    open_answers.append({"id": qid, "dimension": dimension, "answer": text})
+
+    scorecard = []
+    total_values = []
+    for dimension, label in AI_TECH_DEBT_DIMENSIONS.items():
+        values = scored_by_dimension.get(dimension) or []
+        avg = (sum(values) / len(values)) if values else 0
+        percent = round((avg / 5) * 100, 1)
+        total_values.extend(values)
+        scorecard.append(
+            {
+                "dimension": dimension,
+                "label": label,
+                "score": percent,
+                "grade": _ai_tech_debt_grade(percent),
+                "level": _ai_tech_debt_level(percent),
+                "recommendation": _ai_tech_debt_dimension_recommendation(dimension, percent),
+            }
+        )
+    overall = round((sum(total_values) / max(1, len(total_values)) / 5) * 100, 1)
+    weakest = sorted(scorecard, key=lambda item: item["score"])[:4]
+    strongest = sorted(scorecard, key=lambda item: item["score"], reverse=True)[:3]
+    industry_profile = _ai_tech_debt_industry_profile(industry)
+    company_name = _safe_action_text(company, 180) or "the company"
+    title = _safe_action_text(respondent_title, 120) or "CIO/CTO"
+    context_text = _ai_tech_debt_eval_text(business_context, 5000)
+    if context_text:
+        open_answers.insert(0, {"id": "cio_business_context", "dimension": "strategy", "answer": context_text})
+    executive_summary = (
+        f"{company_name} is graded {overall}% ({_ai_tech_debt_grade(overall)}) for AI readiness. "
+        f"The assessment suggests {_ai_tech_debt_level(overall).lower()}. "
+        f"For a {industry_profile['label']} environment, the strongest near-term value is a controlled pilot that proves business impact while establishing reusable AI governance."
+    )
+    coach_plan = [
+        {
+            "phase": "First 15 days",
+            "focus": "Confirm executive outcome, map the pilot workflow, inventory data sources, and define risk gates.",
+        },
+        {
+            "phase": "Days 16-45",
+            "focus": "Build a controlled POC with retrieval, human approval, baseline metrics, and prompt/eval versioning.",
+        },
+        {
+            "phase": "Days 46-90",
+            "focus": "Run the pilot with users, measure value, tune controls, and prepare a production readiness decision.",
+        },
+    ]
+    report = {
+        "overall_score": overall,
+        "overall_grade": _ai_tech_debt_grade(overall),
+        "readiness_level": _ai_tech_debt_level(overall),
+        "executive_summary": executive_summary,
+        "scorecard": scorecard,
+        "strongest_areas": strongest,
+        "priority_debt": weakest,
+        "high_level_recommendations": [item["recommendation"] for item in weakest],
+        "recommended_pilot": {
+            "title": f"{industry_profile['label']} AI DevReady Coach Pilot",
+            "description": industry_profile["pilot"],
+            "why": (
+                "This is the best first move because it can be scoped as a controlled proof of concept, "
+                "it forces data and workflow readiness into the open, and it gives leadership a measurable AI adoption path."
+            ),
+            "coach_role": (
+                "An AI DevReady Coach should facilitate the POC, align the business and technology teams, "
+                "define the guardrails, coach users through adoption, and turn the pilot into a repeatable playbook."
+            ),
+        },
+        "coach_plan": coach_plan,
+        "open_answer_signals": open_answers[:12],
+        "prepared_for": title,
+        "business_context": context_text,
+        "external_research": research or {},
+    }
+    ai_context = _ai_tech_debt_ai_enhance_report(report, company_name, industry, context_text, research or {})
+    if ai_context:
+        report["ai_context_analysis"] = ai_context
+        if ai_context.get("adjusted_recommendations"):
+            report["high_level_recommendations"] = ai_context["adjusted_recommendations"][:6]
+        if ai_context.get("pilot_focus"):
+            report["recommended_pilot"]["description"] = ai_context["pilot_focus"]
+        if ai_context.get("executive_next_step"):
+            report["executive_next_step"] = ai_context["executive_next_step"]
+    return report
+
+
+@app.get("/api/ai-tech-debt/questionnaire")
+def ai_tech_debt_questionnaire(domain: str = "dev", industry: str = "technology", company: str = ""):
+    data = _ai_tech_debt_questionnaire(industry, company)
+    data["domain"] = _domain_key(domain)
+    return data
+
+
+def _read_ai_tech_debt_links() -> dict:
+    data = _read_json_store(AI_TECH_DEBT_LINKS_PATH, {"links": {}})
+    if not isinstance(data, dict):
+        data = {"links": {}}
+    data.setdefault("links", {})
+    if not isinstance(data["links"], dict):
+        data["links"] = {}
+    return data
+
+
+def _write_ai_tech_debt_links(data: dict) -> None:
+    data.setdefault("links", {})
+    _write_json_store(AI_TECH_DEBT_LINKS_PATH, data)
+
+
+def _ai_tech_debt_link_url(request: Request, token: str) -> str:
+    base = str(request.base_url).rstrip("/")
+    return f"{base}/ui/pages/ai-tech-debt-survey.html?token={quote_plus(token)}"
+
+
+def _ai_tech_debt_email_packet(link: dict, url: str) -> dict:
+    company = link.get("company") or "your organization"
+    title = link.get("recipient_title") or "executive"
+    subject = f"AI Tech Debt Assessment for {company}"
+    body = (
+        f"Hi {link.get('recipient_name') or title},\n\n"
+        "DevReady prepared a focused AI Tech Debt Assessment for your team. "
+        "It takes about 15 to 20 minutes and helps identify AI readiness, governance, data, integration, security, "
+        "workflow, and pilot opportunities.\n\n"
+        f"Open your assessment link:\n{url}\n\n"
+        "Please include any business priorities, current AI situation, competitor concerns, and focus areas in the "
+        "open response field. Egeria will include that context in the final evaluation.\n\n"
+        "Thank you,\nDevReady"
+    )
+    return {"subject": subject, "body": body}
+
+
+@app.post("/api/ai-tech-debt/link")
+def ai_tech_debt_create_link(
+    request: Request,
+    domain: str = Form(default="dev"),
+    company: str = Form(default=""),
+    industry: str = Form(default="technology"),
+    company_website: str = Form(default=""),
+    recipient_name: str = Form(default=""),
+    recipient_email: str = Form(default=""),
+    recipient_title: str = Form(default="CIO"),
+    include_external_research: str = Form(default="true"),
+):
+    email = _safe_action_text(recipient_email, 220).lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Recipient CTO/CIO email is required.")
+    clean_domain = _domain_key(domain)
+    questionnaire = _ai_tech_debt_questionnaire(industry, company)
+    token = _safe_token("AITD-LINK")
+    include_external = str(include_external_research or "").strip().lower() in {"1", "true", "yes", "on"}
+    link = {
+        "token": token,
+        "domain": clean_domain,
+        "company": _safe_action_text(company, 180) or "Unassigned client",
+        "industry": industry,
+        "industry_label": questionnaire.get("industry_label"),
+        "company_website": _ai_tech_debt_normalize_url(company_website),
+        "recipient_name": _safe_action_text(recipient_name, 160),
+        "recipient_email": email,
+        "recipient_title": _safe_action_text(recipient_title, 120) or "CIO",
+        "include_external_research": include_external,
+        "status": "created",
+        "created_at": _now_utc(),
+        "updated_at": _now_utc(),
+        "sent_at": "",
+        "submitted_at": "",
+        "assessment_id": "",
+    }
+    store = _read_ai_tech_debt_links()
+    store["links"][token] = link
+    _write_ai_tech_debt_links(store)
+    url = _ai_tech_debt_link_url(request, token)
+    packet = _ai_tech_debt_email_packet(link, url)
+    return {"ok": True, "link": {**link, "url": url, "email_subject": packet["subject"], "email_body": packet["body"]}}
+
+
+@app.post("/api/ai-tech-debt/link/{token}/mark-sent")
+def ai_tech_debt_mark_link_sent(token: str):
+    store = _read_ai_tech_debt_links()
+    link = store["links"].get(token)
+    if not link:
+        raise HTTPException(status_code=404, detail="Assessment link not found.")
+    link["status"] = "sent"
+    link["sent_at"] = link.get("sent_at") or _now_utc()
+    link["updated_at"] = _now_utc()
+    store["links"][token] = link
+    _write_ai_tech_debt_links(store)
+    return {"ok": True, "link": link}
+
+
+@app.get("/api/ai-tech-debt/link/{token}")
+def ai_tech_debt_link_detail(request: Request, token: str):
+    store = _read_ai_tech_debt_links()
+    link = store["links"].get(token)
+    if not link:
+        raise HTTPException(status_code=404, detail="Assessment link not found.")
+    questionnaire = _ai_tech_debt_questionnaire(link.get("industry", "technology"), link.get("company", ""))
+    packet = _ai_tech_debt_email_packet(link, _ai_tech_debt_link_url(request, token))
+    safe_link = {key: value for key, value in link.items() if key not in {"answers"}}
+    return {
+        "ok": True,
+        "link": {**safe_link, "url": _ai_tech_debt_link_url(request, token), "email_subject": packet["subject"], "email_body": packet["body"]},
+        "questionnaire": questionnaire,
+    }
+
+
+@app.post("/api/ai-tech-debt/link/{token}/submit")
+def ai_tech_debt_link_submit(
+    token: str,
+    business_context: str = Form(default=""),
+    answers_json: str = Form(default="{}"),
+):
+    store = _read_ai_tech_debt_links()
+    link = store["links"].get(token)
+    if not link:
+        raise HTTPException(status_code=404, detail="Assessment link not found.")
+    if link.get("status") == "submitted":
+        raise HTTPException(status_code=409, detail="This assessment link has already been submitted.")
+    try:
+        answers = json.loads(answers_json or "{}")
+    except Exception:
+        raise HTTPException(status_code=400, detail="answers_json must be valid JSON.")
+    if not isinstance(answers, dict):
+        raise HTTPException(status_code=400, detail="answers_json must be a JSON object.")
+    company = link.get("company", "")
+    industry = link.get("industry", "technology")
+    questionnaire = _ai_tech_debt_questionnaire(industry, company)
+    research = _ai_tech_debt_research(
+        company,
+        industry,
+        link.get("company_website", ""),
+        bool(link.get("include_external_research")),
+    )
+    report = _ai_tech_debt_evaluate(
+        questionnaire,
+        answers,
+        company,
+        industry,
+        link.get("recipient_title", "CIO"),
+        business_context=business_context,
+        research=research,
+    )
+    record = {
+        "id": _safe_token("AITD"),
+        "source_link_token": token,
+        "domain": _domain_key(link.get("domain", "dev")),
+        "company": _safe_action_text(company, 180) or "Unassigned client",
+        "industry": industry,
+        "industry_label": questionnaire.get("industry_label"),
+        "respondent_name": _safe_action_text(link.get("recipient_name", ""), 160),
+        "respondent_title": _safe_action_text(link.get("recipient_title", ""), 120),
+        "respondent_email": _safe_action_text(link.get("recipient_email", ""), 220),
+        "company_website": link.get("company_website", ""),
+        "business_context": _ai_tech_debt_eval_text(business_context, 5000),
+        "external_research": research,
+        "answers": answers,
+        "report": report,
+        "created_at": _now_utc(),
+    }
+    assessments = _read_json_store(AI_TECH_DEBT_ASSESSMENTS_PATH, [])
+    if not isinstance(assessments, list):
+        assessments = []
+    assessments.append(record)
+    _write_json_store(AI_TECH_DEBT_ASSESSMENTS_PATH, assessments[-500:])
+    link["status"] = "submitted"
+    link["submitted_at"] = _now_utc()
+    link["updated_at"] = _now_utc()
+    link["assessment_id"] = record["id"]
+    store["links"][token] = link
+    _write_ai_tech_debt_links(store)
+    return {
+        "ok": True,
+        "assessment": {
+            "id": record["id"],
+            "company": record["company"],
+            "industry_label": record["industry_label"],
+            "overall_score": report.get("overall_score"),
+            "overall_grade": report.get("overall_grade"),
+            "executive_summary": report.get("executive_summary"),
+        },
+    }
+
+
+@app.post("/api/ai-tech-debt/submit")
+def ai_tech_debt_submit(
+    domain: str = Form(default="dev"),
+    company: str = Form(default=""),
+    industry: str = Form(default="technology"),
+    respondent_name: str = Form(default=""),
+    respondent_title: str = Form(default=""),
+    company_website: str = Form(default=""),
+    business_context: str = Form(default=""),
+    include_external_research: str = Form(default="false"),
+    answers_json: str = Form(default="{}"),
+):
+    clean_domain = _domain_key(domain)
+    try:
+        answers = json.loads(answers_json or "{}")
+    except Exception:
+        raise HTTPException(status_code=400, detail="answers_json must be valid JSON.")
+    if not isinstance(answers, dict):
+        raise HTTPException(status_code=400, detail="answers_json must be a JSON object.")
+    questionnaire = _ai_tech_debt_questionnaire(industry, company)
+    include_external = str(include_external_research or "").strip().lower() in {"1", "true", "yes", "on"}
+    clean_website = _ai_tech_debt_normalize_url(company_website)
+    research = _ai_tech_debt_research(company, industry, clean_website, include_external)
+    report = _ai_tech_debt_evaluate(
+        questionnaire,
+        answers,
+        company,
+        industry,
+        respondent_title,
+        business_context=business_context,
+        research=research,
+    )
+    record = {
+        "id": _safe_token("AITD"),
+        "domain": clean_domain,
+        "company": _safe_action_text(company, 180) or "Unassigned client",
+        "industry": industry,
+        "industry_label": questionnaire.get("industry_label"),
+        "respondent_name": _safe_action_text(respondent_name, 160),
+        "respondent_title": _safe_action_text(respondent_title, 120),
+        "company_website": clean_website,
+        "business_context": _ai_tech_debt_eval_text(business_context, 5000),
+        "external_research": research,
+        "answers": answers,
+        "report": report,
+        "created_at": _now_utc(),
+    }
+    store = _read_json_store(AI_TECH_DEBT_ASSESSMENTS_PATH, [])
+    if not isinstance(store, list):
+        store = []
+    store.append(record)
+    _write_json_store(AI_TECH_DEBT_ASSESSMENTS_PATH, store[-500:])
+    return {"ok": True, "assessment": record}
+
+
+@app.get("/api/ai-tech-debt/assessments")
+def ai_tech_debt_assessments(domain: str = "dev", limit: int = 25):
+    clean_domain = _domain_key(domain)
+    rows = _read_json_store(AI_TECH_DEBT_ASSESSMENTS_PATH, [])
+    if not isinstance(rows, list):
+        rows = []
+    filtered = [row for row in rows if clean_domain == "all" or _domain_key(row.get("domain", "dev")) == clean_domain]
+    filtered.sort(key=lambda item: item.get("created_at", ""), reverse=True)
+    return {"ok": True, "domain": clean_domain, "assessments": filtered[: max(1, min(int(limit or 25), 100))]}
 
 
 def _radar_words(value: str) -> set[str]:
@@ -2048,6 +3278,7 @@ def access_login(
     username: str = Form(default=""),
     email: str = Form(default=""),
     password: str = Form(default=""),
+    domain: str = Form(default="dev"),
 ):
     users = _seed_access_users()
     username = (username or "").strip()
@@ -2065,6 +3296,7 @@ def access_login(
         raise HTTPException(status_code=403, detail="This user is blocked. Contact a DevReady admin.")
     if not _verify_password(password, user.get("password_hash", "")):
         raise HTTPException(status_code=403, detail="Incorrect username/email or password.")
+    _refresh_candidate_user_link(user, domain)
     user["last_login_at"] = now
     user["updated_at"] = now
     _write_json_store(ACCESS_USERS_PATH, users)
@@ -2108,6 +3340,7 @@ def access_register(
     confirm_password: str = Form(default=""),
     password_confirm: str = Form(default=""),
     login_type: str = Form(default="internal"),
+    domain: str = Form(default="dev"),
 ):
     users = _seed_access_users()
     username = (username or "").strip()
@@ -2125,6 +3358,8 @@ def access_register(
 
     now = _now_utc()
     role = "candidate" if login_type == "candidate" else "internal"
+    clean_domain = _domain_key(domain)
+    linked_profile = _candidate_profile_for_login(email, username, clean_domain) if role == "candidate" else {}
     user_id = _safe_token("USR")
     users[user_id] = {
         "id": user_id,
@@ -2134,6 +3369,9 @@ def access_register(
         "role": role,
         "status": "active",
         "allowed_menu": _default_menu_for_user(role, email),
+        "domain": clean_domain,
+        "profile_id": str(linked_profile.get("id") or ""),
+        "candidate_profile_id": str(linked_profile.get("id") or ""),
         "password_hash": _password_hash(password),
         "created_at": now,
         "updated_at": now,
@@ -3109,6 +4347,11 @@ def profile_badges(profile_id: str):
         "profile_id": profile_id,
         "badges": badges.get(str(profile_id), {}),
     }
+
+
+@app.get("/api/profile/{profile_id}/process-stage")
+def profile_process_stage(profile_id: str, domain: str = "dev"):
+    return _profile_process_stage_status(profile_id, domain)
 
 
 @app.post("/api/profile/{profile_id}/badges/tech-challenge")
@@ -4169,6 +5412,66 @@ def get_onboarding_admin(domain: str = "all"):
         "ok": True,
         "people": people,
         "count": len(people),
+    }
+
+
+@app.get("/api/candidate/portal")
+def candidate_portal(
+    profile_id: str = "",
+    email: str = "",
+    domain: str = "dev",
+):
+    clean_domain = _domain_key(domain)
+    profile_id = _safe_action_text(profile_id, 80)
+    email_key = _normalize_user_key(email)
+    onboarding = _read_json_store_with_demo(ONBOARDING_RECORDS_PATH, {})
+    matching_onboarding = None
+    for token, record in onboarding.items():
+        record_domain = _domain_key(record.get("domain", "dev"))
+        record_profile = str(record.get("profile_id") or "")
+        record_email = _normalize_user_key(record.get("email", ""))
+        if record_domain != clean_domain:
+            continue
+        if profile_id and record_profile == profile_id:
+            matching_onboarding = {**record, "token": token}
+            break
+        if email_key and record_email == email_key:
+            matching_onboarding = {**record, "token": token}
+            break
+
+    notes_count = 0
+    role_feedback_count = 0
+    if profile_id:
+        notes_data = _read_profile_notes_store()
+        record = _profile_notes_record(notes_data, profile_id, clean_domain)
+        notes_count = len(record.get("notes", []))
+        role_feedback_count = len([
+            link
+            for link in notes_data.get("links", {}).values()
+            if str(link.get("profile_id")) == profile_id and _domain_key(link.get("domain")) == clean_domain
+        ])
+
+    links = {
+        "profile": f"/ui/pages/profile-preview-edit.html?domain={clean_domain}&profileId={quote_plus(profile_id)}" if profile_id else "",
+        "status": f"/ui/pages/candidate-status.html?domain={clean_domain}",
+        "onboarding": "",
+        "time_entry": "",
+    }
+    if matching_onboarding:
+        token = matching_onboarding.get("token", "")
+        links["onboarding"] = f"/ui/pages/onboarding.html?token={quote_plus(token)}"
+        links["time_entry"] = f"/ui/pages/time-entry.html?token={quote_plus(token)}"
+    return {
+        "ok": True,
+        "domain": clean_domain,
+        "profile_id": profile_id,
+        "email": email,
+        "onboarding": matching_onboarding,
+        "links": links,
+        "counts": {
+            "private_notes": notes_count,
+            "role_feedback_links": role_feedback_count,
+        },
     }
 
 

@@ -1295,6 +1295,31 @@ def getProfile(profileId: str):
     for row in culturalExperienceResult:
         culturalExperienceArray.append({'title': row[0], 'level': row[1]})
 
+    # Get internal compensation / vetting values. These stay on internal profile screens only.
+    query = f"""
+        SELECT
+            vi.roletype,
+            vi.role,
+            sr.desiredhourlyrate,
+            sr.minimumicarate,
+            sr.projecthourlyrate,
+            sr.desiredannualsalary,
+            sr.minimumannualsalary
+        FROM person
+        JOIN professional prof ON person.id = prof.personid
+        LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid
+        LEFT JOIN vettinginfo vi ON vi.profileid = profper.id
+        LEFT JOIN salaryrequirement sr ON sr.professionalid = prof.id
+        WHERE person.id = {profileId}
+        ORDER BY sr.id DESC NULLS LAST, vi.id DESC NULLS LAST
+        LIMIT 1
+    """
+    cur.execute(query)
+    compensationResult = cur.fetchone()
+
+    def _money_value(value):
+        return float(value) if value is not None else 0
+
     conn.close()
 
     engineeringPersonality = engineeringSurvey.profile_personality(profileId)
@@ -1333,7 +1358,16 @@ def getProfile(profileId: str):
         'technicalSkills':techSkillArray,
         'portfolioExperience': portfolioSkillArray,
         'features': featureArray,
-        'culturalExperience': culturalExperienceArray
+        'culturalExperience': culturalExperienceArray,
+        'compensation': {
+            'roleType': compensationResult[0] if compensationResult else None,
+            'role': compensationResult[1] if compensationResult else "",
+            'desiredHourlyRate': _money_value(compensationResult[2]) if compensationResult else 0,
+            'minimumIcaRate': _money_value(compensationResult[3]) if compensationResult else 0,
+            'projectHourlyRate': _money_value(compensationResult[4]) if compensationResult else 0,
+            'desiredAnnualSalary': _money_value(compensationResult[5]) if compensationResult else 0,
+            'minimumAnnualSalary': _money_value(compensationResult[6]) if compensationResult else 0,
+        }
     }
 
 def getProfilePublic(profileUrl: str):
@@ -1754,6 +1788,116 @@ def updateCandidateCore(personId: str, firstName: str, lastName: str, city: str 
     conn.close()
 
     return {"status": "success"}
+
+
+def _money_number(value):
+    try:
+        return round(float(str(value or "0").replace(",", "").replace("$", "")), 2)
+    except Exception:
+        return 0
+
+
+def _int_or_none(value):
+    try:
+        parsed = int(value)
+        return parsed if parsed > 0 else None
+    except Exception:
+        return None
+
+
+def updateCandidateCompensation(
+    personId: str,
+    roleType: str = "",
+    role: str = "",
+    desiredHourlyRate: str = "0",
+    minimumIcaRate: str = "0",
+    projectHourlyRate: str = "0",
+    desiredAnnualSalary: str = "0",
+    minimumAnnualSalary: str = "0",
+):
+    conn = client.getConnection()
+    cur = conn.cursor()
+    try:
+        profileId = _candidate_profile_id(cur, personId)
+        cur.execute("SELECT id FROM professional WHERE personid = %s LIMIT 1", (personId,))
+        professional_row = cur.fetchone()
+        if not professional_row:
+            raise HTTPException(status_code=404, detail=f"No professional record exists for person {personId}.")
+        professionalId = professional_row[0]
+
+        role_type_value = _int_or_none(roleType)
+        clean_role = str(role or "").strip()
+
+        cur.execute("SELECT id FROM vettinginfo WHERE profileid = %s ORDER BY id DESC LIMIT 1", (profileId,))
+        vetting_row = cur.fetchone()
+        if vetting_row:
+            cur.execute(
+                "UPDATE vettinginfo SET roletype = %s, role = %s, date = NOW() WHERE id = %s",
+                (role_type_value, clean_role, vetting_row[0]),
+            )
+        else:
+            _sync_identity_sequence(cur, "vettinginfo")
+            cur.execute(
+                "INSERT INTO vettinginfo (profileid, roletype, role, date) VALUES (%s, %s, %s, NOW())",
+                (profileId, role_type_value, clean_role),
+            )
+
+        values = (
+            _money_number(desiredHourlyRate),
+            _money_number(minimumIcaRate),
+            _money_number(projectHourlyRate),
+            _money_number(desiredAnnualSalary),
+            _money_number(minimumAnnualSalary),
+        )
+        cur.execute("SELECT id FROM salaryrequirement WHERE professionalid = %s ORDER BY id DESC LIMIT 1", (professionalId,))
+        salary_row = cur.fetchone()
+        if salary_row:
+            cur.execute(
+                """
+                UPDATE salaryrequirement
+                SET desiredhourlyrate = %s,
+                    minimumicarate = %s,
+                    projecthourlyrate = %s,
+                    desiredannualsalary = %s,
+                    minimumannualsalary = %s
+                WHERE id = %s
+                """,
+                values + (salary_row[0],),
+            )
+        else:
+            _sync_identity_sequence(cur, "salaryrequirement")
+            cur.execute(
+                """
+                INSERT INTO salaryrequirement (
+                    professionalid,
+                    desiredhourlyrate,
+                    minimumicarate,
+                    projecthourlyrate,
+                    desiredannualsalary,
+                    minimumannualsalary
+                ) VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (professionalId,) + values,
+            )
+
+        conn.commit()
+        return {
+            "status": "success",
+            "compensation": {
+                "roleType": role_type_value,
+                "role": clean_role,
+                "desiredHourlyRate": values[0],
+                "minimumIcaRate": values[1],
+                "projectHourlyRate": values[2],
+                "desiredAnnualSalary": values[3],
+                "minimumAnnualSalary": values[4],
+            },
+        }
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 def updateCandidateEmail(personId: str, email: str = ""):
     conn = client.getConnection()

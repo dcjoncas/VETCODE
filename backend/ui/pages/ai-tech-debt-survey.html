@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - AI Tech Debt Survey</title>
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <style>
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at top left, rgba(var(--primary-rgb, 47, 125, 75), 0.15), transparent 34rem),
+          #eef3f0;
+        color: var(--text);
+        font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .survey-shell {
+        width: min(1120px, calc(100% - 28px));
+        margin: 22px auto 54px;
+        display: grid;
+        gap: 14px;
+      }
+
+      .survey-hero,
+      .survey-card,
+      .section-card,
+      .complete-card {
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.18);
+        border-radius: 16px;
+        background:
+          linear-gradient(130deg, rgba(var(--primary-rgb, 47, 125, 75), 0.11), rgba(255, 255, 255, 0.98) 46%, rgba(184, 135, 39, 0.08)),
+          #fff;
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+      }
+
+      .survey-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        padding: 18px;
+      }
+
+      h1,
+      h2,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        margin-bottom: 7px;
+        font-size: clamp(28px, 5vw, 44px);
+        line-height: 1;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .badge {
+        display: inline-flex;
+        width: fit-content;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.22);
+        border-radius: 999px;
+        padding: 6px 10px;
+        background: #fff;
+        color: var(--primary-2);
+        font-size: 12px;
+        font-weight: 950;
+      }
+
+      .ai-orb {
+        display: grid;
+        place-items: center;
+        width: 64px;
+        height: 64px;
+        border-radius: 999px;
+        background:
+          radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.98) 0 11%, rgba(255, 255, 255, 0.34) 12% 25%, transparent 26%),
+          conic-gradient(from 140deg, #f1d477, #a9bbcc, #4e7196, #e4e8ef, #b58d38, #f1d477);
+        color: #fff;
+        font-size: 18px;
+        font-weight: 1000;
+        box-shadow:
+          inset -10px -12px 18px rgba(24, 38, 58, 0.3),
+          inset 8px 8px 13px rgba(255, 255, 255, 0.3),
+          0 18px 34px rgba(65, 90, 124, 0.22);
+      }
+
+      .survey-card {
+        display: grid;
+        gap: 12px;
+        padding: 16px;
+      }
+
+      .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .meta-box {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 11px;
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .meta-box span {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 850;
+        text-transform: uppercase;
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+        font-weight: 900;
+      }
+
+      textarea,
+      select {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        color: var(--text);
+        font: inherit;
+      }
+
+      textarea {
+        min-height: 150px;
+        padding: 12px;
+        resize: vertical;
+      }
+
+      select {
+        min-height: 42px;
+        padding: 8px 10px;
+      }
+
+      .questionnaire {
+        display: grid;
+        gap: 12px;
+      }
+
+      .section-card {
+        overflow: hidden;
+      }
+
+      .section-head {
+        display: grid;
+        gap: 4px;
+        padding: 14px 16px;
+        border-bottom: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.14);
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.08);
+      }
+
+      .section-head h2 {
+        margin: 0;
+        font-size: 19px;
+      }
+
+      .question-list {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+      }
+
+      .question {
+        display: grid;
+        gap: 7px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.88);
+      }
+
+      .question small {
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .submit-bar {
+        position: sticky;
+        bottom: 12px;
+        z-index: 2;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: flex-end;
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.2);
+        border-radius: 999px;
+        padding: 10px;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 18px 38px rgba(15, 23, 42, 0.14);
+      }
+
+      .status {
+        margin-right: auto;
+        color: var(--primary-2);
+        font-weight: 900;
+      }
+
+      .btn {
+        appearance: none;
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.18);
+        border-radius: 999px;
+        padding: 11px 16px;
+        background: #fff;
+        color: var(--primary-2);
+        font-weight: 950;
+        cursor: pointer;
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+      }
+
+      .btn.primary {
+        background: linear-gradient(90deg, var(--primary-2), var(--primary));
+        color: #fff;
+      }
+
+      .complete-card {
+        display: none;
+        padding: 18px;
+      }
+
+      .complete-card.show {
+        display: grid;
+        gap: 8px;
+      }
+
+      @media (max-width: 760px) {
+        .survey-hero,
+        .meta-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .submit-bar {
+          border-radius: 18px;
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .status {
+          margin-right: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="survey-shell">
+      <section class="survey-hero">
+        <div>
+          <span class="badge">Egeria AI Tech Debt Survey</span>
+          <h1>AI readiness and tech debt assessment</h1>
+          <p class="muted">
+            This secure survey helps DevReady evaluate AI readiness, data and integration constraints, governance,
+            workflow fit, security posture, and practical pilot opportunities for your organization.
+          </p>
+        </div>
+        <div class="ai-orb" aria-hidden="true">AI</div>
+      </section>
+
+      <section class="survey-card">
+        <div class="meta-grid" id="surveyMeta"></div>
+        <label class="field">
+          Business needs, current AI situation, competitor concerns, and focus areas
+          <textarea id="businessContext" placeholder="Please describe current AI use, business priorities, systems involved, data constraints, competitors, risks, timelines, desired outcomes, and where leadership wants the assessment to focus."></textarea>
+        </label>
+      </section>
+
+      <section class="questionnaire" id="questionnaire"></section>
+
+      <div class="submit-bar" id="submitBar" hidden>
+        <span class="status" id="statusLine">Loading survey...</span>
+        <button class="btn primary" id="submitBtn" type="button">Submit assessment</button>
+      </div>
+
+      <section class="complete-card" id="completeCard"></section>
+    </main>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get("token") || "";
+      let surveyData = null;
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function apiBase() {
+        return window.location.origin;
+      }
+
+      function setDomainTheme(domain) {
+        const clean = ["dev", "engineer", "law"].includes(domain) ? domain : "dev";
+        document.getElementById("domainCss").href = `../assets/${clean}Styles.css`;
+        document.documentElement.dataset.domain = clean;
+      }
+
+      function choiceOptions(question) {
+        return (question.choices || [])
+          .map((choice) => `<option value="${escapeHtml(choice.value)}">${escapeHtml(choice.label)} - ${escapeHtml(choice.description)}</option>`)
+          .join("");
+      }
+
+      function renderQuestion(question) {
+        if (question.type === "text") {
+          return `
+            <div class="question">
+              <label class="field">
+                ${escapeHtml(question.prompt)}
+                <textarea data-question-id="${escapeHtml(question.id)}" data-question-type="text" placeholder="${escapeHtml(question.placeholder || "")}"></textarea>
+              </label>
+            </div>
+          `;
+        }
+        return `
+          <div class="question">
+            <label class="field">
+              ${escapeHtml(question.prompt)}
+              <select data-question-id="${escapeHtml(question.id)}" data-question-type="score">
+                ${choiceOptions(question)}
+              </select>
+            </label>
+            <small>${escapeHtml(question.dimension || "")}</small>
+          </div>
+        `;
+      }
+
+      function questionCount(data) {
+        return (data.sections || []).reduce((sum, section) => sum + (section.questions || []).length, 0);
+      }
+
+      function renderSurvey(data) {
+        surveyData = data;
+        const link = data.link || {};
+        const questionnaire = data.questionnaire || {};
+        setDomainTheme(link.domain);
+        document.getElementById("surveyMeta").innerHTML = `
+          <div class="meta-box"><span>Company</span><strong>${escapeHtml(link.company)}</strong></div>
+          <div class="meta-box"><span>Industry</span><strong>${escapeHtml(link.industry_label || questionnaire.industry_label || link.industry)}</strong></div>
+          <div class="meta-box"><span>Prepared for</span><strong>${escapeHtml(link.recipient_title || "CIO/CTO")}</strong></div>
+          <div class="meta-box"><span>Time</span><strong>${escapeHtml(questionnaire.estimated_minutes || "15 to 20 minutes")}</strong></div>
+        `;
+        document.getElementById("questionnaire").innerHTML = (questionnaire.sections || []).map((section) => `
+          <article class="section-card">
+            <div class="section-head">
+              <h2>${escapeHtml(section.title)}</h2>
+              <p class="muted">${escapeHtml(section.description)}</p>
+            </div>
+            <div class="question-list">
+              ${(section.questions || []).map(renderQuestion).join("")}
+            </div>
+          </article>
+        `).join("");
+        document.getElementById("submitBar").hidden = false;
+        document.getElementById("statusLine").textContent = `${questionCount(questionnaire)} questions loaded. Add context first, then submit.`;
+      }
+
+      function collectAnswers() {
+        const answers = {};
+        document.querySelectorAll("[data-question-id]").forEach((input) => {
+          answers[input.dataset.questionId] = input.value;
+        });
+        return answers;
+      }
+
+      async function loadSurvey() {
+        if (!token) throw new Error("Assessment token is missing.");
+        const response = await fetch(`${apiBase()}/api/ai-tech-debt/link/${encodeURIComponent(token)}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Unable to load survey.");
+        renderSurvey(data);
+      }
+
+      async function submitSurvey() {
+        const body = new URLSearchParams();
+        body.append("business_context", document.getElementById("businessContext").value);
+        body.append("answers_json", JSON.stringify(collectAnswers()));
+        document.getElementById("statusLine").textContent = "Submitting assessment and preparing DevReady review...";
+        const response = await fetch(`${apiBase()}/api/ai-tech-debt/link/${encodeURIComponent(token)}/submit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Unable to submit survey.");
+        const assessment = data.assessment || {};
+        document.getElementById("submitBar").hidden = true;
+        document.getElementById("questionnaire").hidden = true;
+        document.querySelector(".survey-card").hidden = true;
+        const complete = document.getElementById("completeCard");
+        complete.classList.add("show");
+        complete.innerHTML = `
+          <span class="badge">Submitted</span>
+          <h2>Thank you. Your AI Tech Debt Assessment was received.</h2>
+          <p class="muted">
+            DevReady will review the scorecard, public/website signals, and your executive context before preparing recommendations.
+          </p>
+          <div class="meta-grid">
+            <div class="meta-box"><span>Company</span><strong>${escapeHtml(assessment.company)}</strong></div>
+            <div class="meta-box"><span>Industry</span><strong>${escapeHtml(assessment.industry_label)}</strong></div>
+            <div class="meta-box"><span>Readiness score</span><strong>${escapeHtml(assessment.overall_score)}%</strong></div>
+            <div class="meta-box"><span>Grade</span><strong>${escapeHtml(assessment.overall_grade)}</strong></div>
+          </div>
+        `;
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      document.getElementById("submitBtn").addEventListener("click", () => submitSurvey().catch((error) => {
+        document.getElementById("statusLine").textContent = error.message || "Submit failed.";
+      }));
+
+      loadSurvey().catch((error) => {
+        document.getElementById("questionnaire").innerHTML = `<section class="complete-card show"><h2>Survey unavailable</h2><p class="muted">${escapeHtml(error.message || "Unable to load survey.")}</p></section>`;
+      });
+    </script>
+  </body>
+</html>

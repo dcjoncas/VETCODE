@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Candidate Portal</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html?v=20260522-candidate-portal");
+      });
+    </script>
+    <style>
+      .candidate-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+        gap: 12px;
+        align-items: stretch;
+      }
+
+      .portal-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .portal-action {
+        min-height: 132px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 13px;
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb), 0.1), rgba(var(--primary-rgb), 0.02)),
+          #fff;
+        color: var(--text);
+      }
+
+      .portal-action strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 15px;
+      }
+
+      .portal-action p {
+        margin: 0 0 12px;
+        color: var(--muted);
+        line-height: 1.38;
+      }
+
+      .portal-action.disabled {
+        opacity: 0.68;
+      }
+
+      .status-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .status-row {
+        display: grid;
+        grid-template-columns: 170px minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px;
+        background: #fff;
+      }
+
+      .status-row span {
+        color: var(--muted);
+        font-weight: 850;
+        font-size: 12px;
+      }
+
+      .candidate-update {
+        display: grid;
+        gap: 10px;
+      }
+
+      .candidate-update label {
+        display: grid;
+        gap: 5px;
+        font-weight: 850;
+      }
+
+      @media (max-width: 1000px) {
+        .candidate-hero,
+        .portal-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Candidate Portal</div>
+            <div class="breadcrumb">Your editable profile, meeting requests, status updates, onboarding, and time entry.</div>
+          </div>
+          <button class="btn secondary" type="button" onclick="logoutCandidate()">Sign out</button>
+        </div>
+
+        <section class="card candidate-hero">
+          <div>
+            <h2 id="candidateName">Candidate workspace</h2>
+            <p id="candidateIntro">Loading your secure candidate view...</p>
+            <div id="candidateNotice" class="notice">Only your profile and candidate workflow links are available from this login.</div>
+          </div>
+          <div class="status-list">
+            <div class="status-row"><span>Workspace</span><strong id="candidateDomain">-</strong></div>
+            <div class="status-row"><span>Profile ID</span><strong id="candidateProfile">-</strong></div>
+            <div class="status-row"><span>Email</span><strong id="candidateEmail">-</strong></div>
+          </div>
+        </section>
+
+        <section class="card" id="time">
+          <h2>Candidate actions</h2>
+          <div class="portal-grid" id="portalActions"></div>
+        </section>
+
+        <section class="card" id="status">
+          <h2>Status reporting</h2>
+          <p>Send a private update to DevReady. This is attached to your internal profile notes and is not shown on your public profile.</p>
+          <form class="candidate-update" onsubmit="saveCandidateUpdate(event)">
+            <label>
+              Update type
+              <select id="candidateUpdateType">
+                <option value="Role interest">Role interest</option>
+                <option value="Availability">Availability</option>
+                <option value="Skills update">Skills update</option>
+                <option value="Schedule request">Schedule request</option>
+                <option value="General note">General note</option>
+              </select>
+            </label>
+            <label>
+              Private note for DevReady
+              <textarea id="candidateUpdateNote" rows="5" placeholder="Share interest in a role, availability, timing, missing details, or schedule notes."></textarea>
+            </label>
+            <div class="row-actions">
+              <button class="btn" type="submit">Send update</button>
+              <span id="candidateUpdateStatus" class="muted"></span>
+            </div>
+          </form>
+        </section>
+
+        <section class="card" id="meetings">
+          <h2>Meeting requests</h2>
+          <div id="meetingList" class="status-list">Loading meeting requests...</div>
+        </section>
+      </main>
+    </div>
+
+    <script src="JS/apiScripts.js"></script>
+    <script>
+      let portal = null;
+
+      function currentUser() {
+        try {
+          return JSON.parse(sessionStorage.getItem("devreadyUser") || localStorage.getItem("devreadyUser") || "null");
+        } catch {
+          return null;
+        }
+      }
+
+      function domainLabel(domain) {
+        if (domain === "engineer") return "Engineering";
+        if (domain === "law") return "Law";
+        return "Technology";
+      }
+
+      function safeText(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function absoluteLink(path) {
+        if (!path) return "";
+        return new URL(path, window.location.origin).href;
+      }
+
+      function profileIdFor(user) {
+        return user?.profile_id || user?.candidate_profile_id || sessionStorage.getItem("candidateId") || "";
+      }
+
+      function candidateDomain(user) {
+        return user?.domain || sessionStorage.getItem("domain") || "dev";
+      }
+
+      function renderActions(user, data) {
+        const domain = candidateDomain(user);
+        const profileId = profileIdFor(user);
+        const actions = [
+          {
+            title: "Edit my profile",
+            body: profileId ? "Update your profile completion details and candidate-provided information." : "DevReady has not linked this login to a profile yet.",
+            href: data.links.profile,
+            disabled: !profileId,
+          },
+          {
+            title: "Meeting requests",
+            body: "Review meeting and scheduling next steps attached to your candidate workflow.",
+            href: `candidate-status.html?domain=${encodeURIComponent(domain)}#meetings`,
+          },
+          {
+            title: "Onboarding",
+            body: data.links.onboarding ? "Complete onboarding paperwork and start information." : "Onboarding opens after DevReady starts your hire handoff.",
+            href: data.links.onboarding,
+            disabled: !data.links.onboarding,
+          },
+          {
+            title: "Time entry",
+            body: data.links.time_entry ? "Enter weekly hours for the assignment connected to your profile." : "Time entry opens after onboarding creates your assignment link.",
+            href: data.links.time_entry,
+            disabled: !data.links.time_entry,
+          },
+        ];
+        document.getElementById("portalActions").innerHTML = actions.map((action) => `
+          <article class="portal-action ${action.disabled ? "disabled" : ""}">
+            <strong>${safeText(action.title)}</strong>
+            <p>${safeText(action.body)}</p>
+            ${action.disabled
+              ? `<button class="btn secondary" type="button" disabled>Not active yet</button>`
+              : `<a class="btn secondary" href="${safeText(absoluteLink(action.href))}">Open</a>`}
+          </article>
+        `).join("");
+      }
+
+      function renderMeetings(user) {
+        const domain = candidateDomain(user);
+        const profileId = profileIdFor(user);
+        const email = String(user?.email || "").toLowerCase();
+        let records = [];
+        try {
+          records = JSON.parse(sessionStorage.getItem(`scheduleTracking:${domain}`) || sessionStorage.getItem("scheduleTracking") || "[]");
+        } catch {
+          records = [];
+        }
+        const matches = (records || []).filter((record) => {
+          const recordProfile = String(record.candidateId || record.profile_id || "");
+          const recordEmail = String(record.candidateEmail || "").toLowerCase();
+          return (profileId && recordProfile === String(profileId)) || (email && recordEmail === email);
+        });
+        const host = document.getElementById("meetingList");
+        if (!matches.length) {
+          host.innerHTML = `<div class="notice">No meeting requests are attached to this login yet. DevReady can send or update a request from the internal interview workflow.</div>`;
+          return;
+        }
+        host.innerHTML = matches.map((record) => `
+          <div class="status-row">
+            <span>${safeText(record.status || "Meeting request")}</span>
+            <div>
+              <strong>${safeText(record.subject || record.role || "DevReady meeting")}</strong>
+              <div class="muted">${safeText(record.nextAction || record.message || "Review the meeting request details from DevReady.")}</div>
+            </div>
+          </div>
+        `).join("");
+      }
+
+      async function loadPortal() {
+        const user = currentUser();
+        if (!user || user.role !== "candidate") {
+          window.location.href = "/ui/index.html";
+          return;
+        }
+        const domain = candidateDomain(user);
+        const profileId = profileIdFor(user);
+        sessionStorage.setItem("domain", domain);
+        if (profileId) sessionStorage.setItem("candidateId", profileId);
+        if (user.email) sessionStorage.setItem("candidateEmail", user.email);
+        if (user.display_name || user.username) sessionStorage.setItem("candidateName", user.display_name || user.username);
+
+        document.getElementById("candidateName").textContent = user.display_name || user.username || "Candidate";
+        document.getElementById("candidateIntro").textContent = "This view is limited to your own candidate workflow. Company records, CRM, reports, and internal admin tools are hidden.";
+        document.getElementById("candidateDomain").textContent = domainLabel(domain);
+        document.getElementById("candidateProfile").textContent = profileId || "Not linked yet";
+        document.getElementById("candidateEmail").textContent = user.email || "Not captured";
+
+        const params = new URLSearchParams({
+          domain,
+          profile_id: profileId,
+          email: user.email || "",
+        });
+        portal = await api(`/api/candidate/portal?${params.toString()}`);
+        renderActions(user, portal);
+        renderMeetings(user);
+      }
+
+      async function saveCandidateUpdate(event) {
+        event.preventDefault();
+        const user = currentUser();
+        const profileId = profileIdFor(user);
+        const status = document.getElementById("candidateUpdateStatus");
+        if (!profileId) {
+          status.textContent = "DevReady needs to link your login to a profile before updates can be saved.";
+          return;
+        }
+        const note = document.getElementById("candidateUpdateNote").value.trim();
+        if (!note) {
+          status.textContent = "Add a note before sending.";
+          return;
+        }
+        const type = document.getElementById("candidateUpdateType").value;
+        const domain = candidateDomain(user);
+        const body = new URLSearchParams({
+          domain,
+          note: `${type}: ${note}`,
+          role_title: "Candidate status update",
+          author: user.display_name || user.username || user.email || "Candidate",
+        });
+        try {
+          await api(`/api/profile/${encodeURIComponent(profileId)}/notes`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: body.toString(),
+          });
+          document.getElementById("candidateUpdateNote").value = "";
+          status.textContent = "Update saved to your DevReady profile.";
+        } catch (error) {
+          status.textContent = error.message || "Could not save update.";
+        }
+      }
+
+      function logoutCandidate() {
+        sessionStorage.removeItem("devreadyUser");
+        localStorage.removeItem("devreadyUser");
+        window.location.href = "/ui/index.html";
+      }
+
+      document.addEventListener("DOMContentLoaded", loadPortal);
+    </script>
+  </body>
+</html>

@@ -65,7 +65,7 @@
         $("#processFlow").load("components/processFlow.html?v=20260521-egeria-flow", function () {
           activateTalentProcessFlowScripts(this);
         });
-        $("#searchBar").load("components/searchBar.html?v=20260522-header-plane");
+        $("#searchBar").load("components/searchBar.html?v=20260523-numa-space");
       });
     </script>
     <style>
@@ -336,6 +336,7 @@
                 <th>Match</th>
                 <th>Primary stack</th>
                 <th>Status</th>
+                <th>Stage</th>
                 <th>AI Cert</th>
                 <th></th>
               </tr>
@@ -408,6 +409,7 @@
     </div>
 
     <script src="JS/apiScripts.js"></script>
+    <script src="JS/profileStages.js"></script>
     <script src="JS/updateProcessFlow.js"></script>
     <script src="JS/profileCompletion.js"></script>
     <script src="JS/shortlist.js"></script>
@@ -979,12 +981,18 @@
             //tr.style.cursor = "pointer";
             const cert = r.aiCertification || {};
             const certLabel = cert.level ? `Certified - ${cert.level}` : cert.status || "Not started";
-            tr.innerHTML = `<td class="candidate-select-cell"><input class="candidate-search-check" type="checkbox" data-index="${i}" aria-label="Select ${escapeHtml(r.firstName || r.name || "candidate")}"></td><td>${i + 1}</td><td>${escapeHtml(r.firstName || "")} ${escapeHtml(r.lastName || "")}</td><td>${escapeHtml(r.email || "")}</td><td><span class="match-percent">${Math.round(r.matchPercentage || 0)}%</span><div style="color: var(--muted); font-size: 12px">${escapeHtml(r.matchBasis || "")}</div></td><td>${escapeHtml(r.primaryStack || r.title || "Other")}</td><td><div class="pill">${escapeHtml(r.step || r.status || "")}</div></td><td><a class="pill" href="${aiCertUrl(r)}">${escapeHtml(certLabel)}</a></td><td id="completionAction-${escapeHtml(r.id)}"></td>`;
+            tr.innerHTML = `<td class="candidate-select-cell"><input class="candidate-search-check" type="checkbox" data-index="${i}" aria-label="Select ${escapeHtml(r.firstName || r.name || "candidate")}"></td><td>${i + 1}</td><td>${escapeHtml(r.firstName || "")} ${escapeHtml(r.lastName || "")}</td><td>${escapeHtml(r.email || "")}</td><td><span class="match-percent">${Math.round(r.matchPercentage || 0)}%</span><div style="color: var(--muted); font-size: 12px">${escapeHtml(r.matchBasis || "")}</div></td><td>${escapeHtml(r.primaryStack || r.title || "Other")}</td><td><div class="pill">${escapeHtml(r.step || r.status || "")}</div></td><td><div id="candidateStage-${escapeHtml(r.id)}"></div></td><td><a class="pill" href="${aiCertUrl(r)}">${escapeHtml(certLabel)}</a></td><td id="completionAction-${escapeHtml(r.id)}"></td>`;
             tr.addEventListener("click", () => findSelect(r));
             tr.querySelector("input").addEventListener("click", (event) => event.stopPropagation());
             tr.querySelector("a").addEventListener("click", (event) => event.stopPropagation());
             tr.style.cursor = "pointer";
             tbody.appendChild(tr);
+            if (window.DevReadyProfileStages && r.id) {
+              window.DevReadyProfileStages.load(`candidateStage-${r.id}`, r.id, {
+                compact: true,
+                domain,
+              });
+            }
             addCompletionActionIfNeeded(r, `completionAction-${r.id}`);
           });
         } catch (error) {
