@@ -194,12 +194,12 @@
     width: auto;
     min-width: 0;
     transform: var(--agent-dock-transform, translateX(-50%));
-    border: 1px solid rgba(255, 255, 255, 0.62);
+    border: 1px solid transparent;
     border-radius: 999px;
     padding: 7px 11px 7px 7px;
-    background: rgba(255, 255, 255, 0.92);
-    color: #101827;
-    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+    background: transparent;
+    color: #fff;
+    box-shadow: none;
     cursor: pointer;
     font: inherit;
   }
@@ -209,7 +209,7 @@
   }
 
   .agent-orb {
-    --agent-color: var(--primary-2);
+    --agent-color: #cfd8e3;
     display: inline-grid;
     place-items: center;
     flex: 0 0 auto;
@@ -217,13 +217,13 @@
     height: 34px;
     border-radius: 999px;
     background:
-      radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.96) 0 9%, rgba(255, 255, 255, 0.24) 10% 22%, transparent 23%),
+      radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.96) 0 9%, rgba(255, 255, 255, 0.38) 10% 22%, transparent 23%),
       radial-gradient(circle at 68% 72%, rgba(0, 0, 0, 0.24), transparent 38%),
-      radial-gradient(circle at 36% 34%, color-mix(in srgb, var(--agent-color), white 36%), var(--agent-color) 52%, color-mix(in srgb, var(--agent-color), black 35%) 100%);
+      conic-gradient(from 142deg, #f8fafc, #cfd8e3, #7f8ea1, #e8edf3, #aab6c4, #f8fafc);
     box-shadow:
       inset -8px -10px 16px rgba(0, 0, 0, 0.24),
-      inset 8px 8px 14px rgba(255, 255, 255, 0.26),
-      0 8px 20px color-mix(in srgb, var(--agent-color), transparent 65%);
+      inset 8px 8px 14px rgba(255, 255, 255, 0.34),
+      0 8px 20px rgba(177, 190, 205, 0.36);
   }
 
   .agent-orb svg {
@@ -263,17 +263,12 @@
     gap: 10px;
     width: min(176px, calc(100% - 6px));
     min-height: 48px;
-    border: 1px solid rgba(235, 205, 124, 0.78);
+    border: 1px solid transparent;
     border-radius: 999px;
     padding: 6px 13px 6px 6px;
-    background:
-      linear-gradient(135deg, rgba(255, 248, 218, 0.24), rgba(101, 130, 164, 0.36) 48%, rgba(218, 226, 236, 0.22)),
-      rgba(11, 42, 54, 0.32);
+    background: transparent;
     color: #fffdf2;
-    box-shadow:
-      0 14px 28px rgba(0, 0, 0, 0.22),
-      inset 0 1px 0 rgba(255, 255, 255, 0.24),
-      0 0 0 1px rgba(141, 164, 194, 0.22);
+    box-shadow: none;
     cursor: pointer;
     font: inherit;
     font-size: 13px;
@@ -288,11 +283,8 @@
 
   .egeria-side-button:hover {
     transform: translateY(-1px);
-    border-color: rgba(255, 222, 134, 0.95);
-    box-shadow:
-      0 18px 34px rgba(0, 0, 0, 0.28),
-      0 0 26px rgba(132, 160, 197, 0.22),
-      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    border-color: transparent;
+    box-shadow: none;
   }
 
   .egeria-side-button .agent-orb {
@@ -301,11 +293,11 @@
     background:
       radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.98) 0 9%, rgba(255, 255, 255, 0.4) 10% 22%, transparent 23%),
       radial-gradient(circle at 70% 74%, rgba(20, 31, 47, 0.35), transparent 38%),
-      conic-gradient(from 138deg, #f1d477, #a9bbcc, #4e7196, #e4e8ef, #b58d38, #f1d477);
+      conic-gradient(from 138deg, #fff5c4, #e2bd5d, #9a6a1f, #f8dea0, #bd852b, #fff5c4);
     box-shadow:
       inset -8px -10px 16px rgba(24, 38, 58, 0.3),
       inset 8px 8px 14px rgba(255, 255, 255, 0.32),
-      0 8px 20px rgba(83, 112, 148, 0.42);
+      0 8px 20px rgba(214, 169, 63, 0.36);
   }
 
   .egeria-side-button span {

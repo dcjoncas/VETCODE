@@ -199,6 +199,40 @@
         border-color: rgba(184, 135, 39, 0.28);
       }
 
+      .one-tap-history {
+        display: grid;
+        gap: 8px;
+        grid-column: 1 / -1;
+      }
+
+      .one-tap-history-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        border: 1px solid rgba(184, 135, 39, 0.22);
+        border-radius: 10px;
+        padding: 9px 10px;
+        background: rgba(255, 250, 232, 0.58);
+      }
+
+      .one-tap-history-row strong,
+      .one-tap-history-row span {
+        display: block;
+      }
+
+      .one-tap-history-row strong {
+        color: var(--ink);
+        font-size: 13px;
+      }
+
+      .one-tap-history-row span {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.3;
+      }
+
       .egeria-section {
         position: relative;
         border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.22);
@@ -579,6 +613,7 @@
               </div>
             </div>
             <div id="oneTapResult" class="one-tap-result"></div>
+            <div id="oneTapHistory" class="one-tap-history"></div>
           </div>
         </section>
 
@@ -741,6 +776,7 @@
           candidateId: sessionStorage.getItem("candidateId") || sessionStorage.getItem("selectedProfileId") || "",
           candidateName: sessionStorage.getItem("candidateName") || "",
           candidateEmail: sessionStorage.getItem("candidateEmail") || "",
+          candidateInterestReceived: Boolean(sessionStorage.getItem("candidateInterestStatus")),
           jobId: sessionStorage.getItem("jobId") || sessionStorage.getItem("jobID") || sessionStorage.getItem("selectedJdId") || "",
           jobTitle: sessionStorage.getItem("jobTitle") || "",
           shortlistCount,
@@ -795,9 +831,170 @@
 
       let oneTapLastRun = null;
 
+      function oneTapHistoryKey() {
+        return `egeriaOneTapHistory:${currentDomain()}`;
+      }
+
+      function readOneTapHistory() {
+        try {
+          const rows = JSON.parse(localStorage.getItem(oneTapHistoryKey()) || "[]");
+          return Array.isArray(rows) ? rows : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function writeOneTapHistory(rows) {
+        localStorage.setItem(oneTapHistoryKey(), JSON.stringify((rows || []).slice(0, 25)));
+      }
+
+      function oneTapRunFromEvent(event) {
+        const payload = event?.payload || {};
+        const after = event?.after || {};
+        const context = event?.context || {};
+        const job = payload.job || {};
+        const candidate = payload.candidate || {};
+        const match = payload.match || {};
+        const link = payload.link || {};
+        const note = payload.note || {};
+        const interestUrl = payload.interest_url || after.interestLink || (link.token ? `/ui/pages/role-feedback.html?token=${encodeURIComponent(link.token)}` : "");
+        return {
+          id: event?.id || `one-tap-${Date.now()}`,
+          created_at: event?.created_at || new Date().toISOString(),
+          event_type: event?.event_type || "one_tap_interest_started",
+          status: event?.event_type === "candidate_role_feedback_submitted" ? "Candidate feedback received" : "Waiting for candidate feedback",
+          message: event?.message || "",
+          job: {
+            jd_id: job.jd_id || context.jobId || after.jobId || link.job_id || "",
+            company: job.company || context.jobCompany || link.role_company || "",
+            title: job.title || context.jobTitle || after.jobTitle || link.role_title || "",
+          },
+          candidate: {
+            profile_id: candidate.profile_id || context.candidateId || after.candidateId || link.profile_id || "",
+            name: candidate.name || context.candidateName || after.candidateName || link.candidate_name || "",
+            email: candidate.email || context.candidateEmail || after.candidateEmail || link.candidate_email || "",
+          },
+          match,
+          interest: {
+            url: interestUrl,
+            subject: after.emailSubject || `DevReady role interest: ${job.title || context.jobTitle || link.role_title || ""}`,
+            feedback: note.interest || after.interest || "",
+          },
+          next_steps: event?.event_type === "candidate_role_feedback_submitted"
+            ? ["Candidate interest is saved.", "Confirm profile and shortlist.", "Run the internal candidate review.", "Prepare client interview/outreach."]
+            : ["Candidate answers the interest link.", "Egeria records the response.", "DevReady runs the internal candidate review."],
+        };
+      }
+
+      function rememberOneTapRun(data) {
+        if (!data) return;
+        const run = {
+          ...data,
+          id: data.event?.id || data.id || `one-tap-${Date.now()}`,
+          created_at: data.event?.created_at || data.created_at || new Date().toISOString(),
+          event_type: data.event?.event_type || data.event_type || "one_tap_interest_started",
+          status: data.status || "Waiting for candidate feedback",
+          message: data.event?.message || data.message || "",
+        };
+        const rows = readOneTapHistory().filter((item) => item.id !== run.id);
+        rows.unshift(run);
+        writeOneTapHistory(rows);
+        oneTapLastRun = run;
+      }
+
+      function restoreOneTapRun(run) {
+        if (!run) return;
+        const candidate = run.candidate || {};
+        const job = run.job || {};
+        const feedbackReceived = run.event_type === "candidate_role_feedback_submitted" || /feedback received|submitted/i.test(run.status || "");
+        sessionStorage.setItem("candidateId", candidate.profile_id || "");
+        sessionStorage.setItem("candidateName", candidate.name || "");
+        sessionStorage.setItem("candidateEmail", candidate.email || "");
+        sessionStorage.setItem("jobId", job.jd_id || "");
+        sessionStorage.setItem("jobID", job.jd_id || "");
+        sessionStorage.setItem("selectedJdId", job.jd_id || "");
+        sessionStorage.setItem("jobTitle", job.title || "");
+        sessionStorage.setItem("jobCompany", job.company || "");
+        sessionStorage.setItem("currentFlowStep", "egeria");
+        sessionStorage.setItem("nextFlowStep", feedbackReceived ? "candidate-review" : "candidate-interest");
+        if (feedbackReceived) {
+          sessionStorage.setItem("candidateInterestStatus", JSON.stringify({
+            status: "Candidate feedback received",
+            interest: run.interest?.feedback || "",
+            createdAt: run.created_at || new Date().toISOString(),
+          }));
+        }
+      }
+
+      function renderOneTapHistory() {
+        const target = document.getElementById("oneTapHistory");
+        if (!target) return;
+        const rows = readOneTapHistory();
+        if (!rows.length) {
+          target.innerHTML = `<div class="egeria-notice">No One-Tap Pilot history yet. Started pilots and candidate feedback will stay here after refresh.</div>`;
+          return;
+        }
+        target.innerHTML = `
+          <article class="egeria-card">
+            <strong>One-Tap Pilot history</strong>
+            <span>Pick up an old run, see where it stopped, or reopen the candidate/profile links.</span>
+          </article>
+          ${rows.slice(0, 8).map((run, index) => {
+            const candidate = run.candidate || {};
+            const job = run.job || {};
+            const status = run.status || (run.event_type === "candidate_role_feedback_submitted" ? "Candidate feedback received" : "Waiting for candidate feedback");
+            return `
+              <div class="one-tap-history-row">
+                <div>
+                  <strong>${escapeHtml(candidate.name || "Candidate")} - ${escapeHtml(job.title || "Selected role")}</strong>
+                  <span>${escapeHtml(status)}${job.company ? " - " + escapeHtml(job.company) : ""}${run.created_at ? " - " + escapeHtml(new Date(run.created_at).toLocaleString()) : ""}</span>
+                </div>
+                <div class="egeria-link-row" style="margin-top:0">
+                  <button class="btn secondary" type="button" data-one-tap-resume="${index}">Resume</button>
+                  ${candidate.profile_id ? `<a class="btn secondary" href="profile-preview.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(candidate.profile_id)}">Profile</a>` : ""}
+                  ${run.interest?.url ? `<a class="btn secondary" href="${escapeHtml(run.interest.url)}" target="_blank" rel="noopener">Feedback</a>` : ""}
+                </div>
+              </div>
+            `;
+          }).join("")}
+        `;
+        target.querySelectorAll("[data-one-tap-resume]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const run = rows[Number(button.getAttribute("data-one-tap-resume") || 0)];
+            oneTapLastRun = run;
+            restoreOneTapRun(run);
+            renderOneTapResult(run);
+            setStatus("oneTapStatus", `${run.status || "One-Tap Pilot restored"}. Egeria restored the selected candidate and job context.`);
+            runPilot();
+          });
+        });
+      }
+
+      async function hydrateOneTapHistory() {
+        renderOneTapHistory();
+        try {
+          const response = await fetch(`/api/egeria/process-pilot/log?domain=${encodeURIComponent(currentDomain())}&limit=40`, { cache: "no-store" });
+          const data = await response.json();
+          if (!response.ok || data.ok === false) throw new Error(data.detail || "Could not load Pilot history.");
+          const serverRuns = (Array.isArray(data.events) ? data.events : [])
+            .filter((event) => ["one_tap_interest_started", "candidate_role_feedback_submitted"].includes(event.event_type))
+            .map(oneTapRunFromEvent);
+          if (serverRuns.length) {
+            const byId = new Map(readOneTapHistory().map((run) => [run.id, run]));
+            serverRuns.forEach((run) => byId.set(run.id, { ...(byId.get(run.id) || {}), ...run }));
+            const rows = Array.from(byId.values()).sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+            writeOneTapHistory(rows);
+            const hasSessionContext = Boolean(sessionStorage.getItem("candidateId") && sessionStorage.getItem("jobId"));
+            if (!hasSessionContext && rows[0]) restoreOneTapRun(rows[0]);
+          }
+        } catch {}
+        renderOneTapHistory();
+      }
+
       function openOneTapPanel() {
         document.getElementById("oneTapPanel")?.classList.add("open");
         hydrateOneTapJobs();
+        hydrateOneTapHistory();
       }
 
       async function hydrateOneTapJobs() {
@@ -873,6 +1070,7 @@
           const data = await response.json();
           if (!response.ok || data.ok === false) throw new Error(data.detail || "One-Tap Pilot failed.");
           oneTapLastRun = data;
+          rememberOneTapRun(data);
           const candidate = data.candidate || {};
           const job = data.job || {};
           sessionStorage.setItem("candidateId", candidate.profile_id || "");
@@ -887,6 +1085,7 @@
           sessionStorage.setItem("nextFlowStep", "candidate-interest");
           setStatus("oneTapStatus", `Egeria selected ${candidate.name || "one candidate"} and opened the interest email draft. The candidate response returns through the secure interest link.`);
           renderOneTapResult(data);
+          renderOneTapHistory();
           if (candidate.email) {
             window.location.href = oneTapMailto(data.interest || {});
           }
@@ -965,7 +1164,7 @@
           </article>
           <article class="egeria-card">
             <strong>Recent action log</strong>
-            <span>${log.length ? log.slice(0, 5).map((item) => `${escapeHtml(item.type || "event")}: ${escapeHtml(item.message || item.step || "")}`).join("<br>") : "No Egeria pilot actions logged yet."}</span>
+            <span>${log.length ? log.slice(0, 8).map((item) => `${escapeHtml(item.event_type || item.type || "event")}: ${escapeHtml(item.message || item.step || "")}`).join("<br>") : "No Egeria pilot actions logged yet."}</span>
           </article>
         `;
         document.querySelectorAll("[data-egeria-open]").forEach((button) => {
@@ -1346,7 +1545,7 @@
       applyPilotProcessLinks();
       hydrateOneTapJobs();
       hydrateBriefingCustomers();
-      runPilot();
+      hydrateOneTapHistory().then(runPilot);
     </script>
   </body>
 </html>

@@ -633,9 +633,10 @@
     const style = document.createElement("style");
     style.id = "pageAgentWidgetStyles";
     style.textContent = `
-      body .agent-orb-button{position:fixed;top:var(--agent-dock-top,12px);left:var(--agent-dock-left,auto);right:var(--agent-dock-right,360px);transform:var(--agent-dock-transform,none);z-index:9000;display:none;width:auto;min-width:0;min-height:38px;align-items:center;justify-content:flex-start;gap:7px;border:1px solid rgba(255,255,255,.72);border-radius:999px;padding:4px 10px 4px 4px;background:linear-gradient(135deg,rgba(255,255,255,.96),rgba(255,255,255,.84));color:#101827;box-shadow:0 12px 28px rgba(15,23,42,.16),0 0 0 1px color-mix(in srgb,var(--primary-2,#2f7d4b),transparent 78%);cursor:pointer;font:inherit;backdrop-filter:blur(8px)}
+      body .agent-orb-button{position:fixed;top:var(--agent-dock-top,12px);left:var(--agent-dock-left,auto);right:var(--agent-dock-right,360px);transform:var(--agent-dock-transform,none);z-index:9000;display:none;width:auto;min-width:0;min-height:38px;align-items:center;justify-content:flex-start;gap:7px;border:1px solid rgba(214,224,235,.5);border-radius:999px;padding:4px 10px 4px 4px;background:rgba(10,36,50,.24);color:#fff;box-shadow:0 12px 28px rgba(15,23,42,.16),inset 0 1px 0 rgba(255,255,255,.16);cursor:pointer;font:inherit;backdrop-filter:blur(8px)}
       body .agent-orb-button.visible{display:inline-flex}
-      body .agent-orb{--agent-color:#2f7d4b;position:relative;display:grid;place-items:center;width:30px;height:30px;border-radius:999px;background:radial-gradient(circle at 29% 23%,rgba(255,255,255,.98) 0 8%,rgba(255,255,255,.28) 9% 21%,transparent 22%),radial-gradient(circle at 70% 75%,rgba(0,0,0,.24),transparent 38%),conic-gradient(from 142deg,color-mix(in srgb,var(--agent-color),white 30%),var(--agent-color),color-mix(in srgb,var(--agent-color),black 33%),color-mix(in srgb,var(--agent-color),white 22%));box-shadow:inset -7px -8px 12px rgba(0,0,0,.22),inset 6px 6px 10px rgba(255,255,255,.28),0 8px 16px color-mix(in srgb,var(--agent-color),transparent 68%)}
+      body .agent-orb{--agent-color:#cfd8e3;position:relative;display:grid;place-items:center;width:30px;height:30px;border-radius:999px;background:radial-gradient(circle at 29% 23%,rgba(255,255,255,.98) 0 8%,rgba(255,255,255,.38) 9% 21%,transparent 22%),radial-gradient(circle at 70% 75%,rgba(0,0,0,.24),transparent 38%),conic-gradient(from 142deg,#f8fafc,#cfd8e3,#7f8ea1,#e8edf3,#aab6c4,#f8fafc);box-shadow:inset -7px -8px 12px rgba(0,0,0,.22),inset 6px 6px 10px rgba(255,255,255,.34),0 8px 16px rgba(177,190,205,.36)}
+      body .agent-orb.gold{--agent-color:#d6a93f;background:radial-gradient(circle at 29% 23%,rgba(255,255,255,.98) 0 8%,rgba(255,255,255,.38) 9% 21%,transparent 22%),radial-gradient(circle at 70% 75%,rgba(0,0,0,.24),transparent 38%),conic-gradient(from 142deg,#fff5c4,#e2bd5d,#9a6a1f,#f8dea0,#bd852b,#fff5c4);box-shadow:inset -7px -8px 12px rgba(0,0,0,.22),inset 6px 6px 10px rgba(255,255,255,.34),0 8px 16px rgba(214,169,63,.36)}
       body .agent-orb::before{content:"";position:absolute;inset:4px;border-radius:inherit;border:1px solid rgba(255,255,255,.42);box-shadow:0 0 0 1px color-mix(in srgb,var(--agent-color),white 16%)}
       body .agent-orb::after{content:"";position:absolute;right:5px;top:6px;width:5px;height:5px;border-radius:999px;background:#fff;box-shadow:-12px 11px 0 -2px rgba(255,255,255,.72),-6px 17px 0 -3px rgba(255,255,255,.58)}
       body .agent-orb svg{position:relative;z-index:1;width:46%;height:46%;fill:none;stroke:#fff;stroke-width:2.35;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.28))}
@@ -653,9 +654,9 @@
       .agent-action-card strong{display:block;margin-bottom:4px;font-size:13px}.agent-action-card span{display:block;color:var(--muted,#5b6b62);font-size:12px}
       .agent-action-card button{margin-top:9px;min-height:34px;border:1px solid color-mix(in srgb,var(--primary-2,#2f7d4b),transparent 62%);border-radius:999px;background:#fff;color:var(--primary-2,#2f7d4b);font-weight:900;cursor:pointer}
       .agent-action-card button:disabled{opacity:.62;cursor:not-allowed}
-      body .nav-ai-dock .agent-orb-button{position:static;top:auto;left:auto;right:auto;transform:none;z-index:auto;flex:1 1 0;min-width:0;min-height:42px;padding:5px 9px 5px 5px;background:linear-gradient(135deg,rgba(255,255,255,.96),rgba(255,255,255,.78));box-shadow:inset 0 1px 0 rgba(255,255,255,.32),0 10px 20px rgba(0,0,0,.15);backdrop-filter:none}
+      body .nav-ai-dock .agent-orb-button{position:static;top:auto;left:auto;right:auto;transform:none;z-index:auto;flex:1 1 0;min-width:0;min-height:42px;padding:5px 9px 5px 5px;border-color:transparent;background:transparent;box-shadow:none;backdrop-filter:none}
       body .nav-ai-dock .agent-orb{width:30px;height:30px;flex-basis:30px}
-      body .nav-ai-dock .agent-orb-button span{max-width:74px;color:#101827}
+      body .nav-ai-dock .agent-orb-button span{max-width:74px;color:#fffdf2}
       body.agent-docked-in-nav .agent-chat-panel{top:118px;left:214px;right:auto;transform:none}
       @media(max-width:980px){body .agent-orb-button{right:12px;top:58px}body .agent-chat-panel{right:12px;top:104px}body.agent-docked-in-nav .agent-chat-panel{left:12px;right:12px;top:104px;width:auto}}
     `;
@@ -800,11 +801,13 @@
     button.classList.toggle("visible", Boolean(agent));
     if (!agent) return;
     document.querySelectorAll("#agentOrbButton .agent-orb, #agentPanelOrb").forEach((orb) => {
-      orb.style.setProperty("--agent-color", domainColor());
+      orb.style.setProperty("--agent-color", agent.key === "egeria" || agent.key === "radar" ? "#d6a93f" : "#cfd8e3");
+      orb.classList.toggle("gold", agent.key === "egeria" || agent.key === "radar");
       orb.innerHTML = iconSvg(agent.key);
     });
     const agentName = agent.name || "Numa";
-    document.getElementById("agentOrbLabel").textContent = `Ask ${agentName}`;
+    const buttonName = agentName.toLowerCase().includes("numa") ? "Numa" : agentName;
+    document.getElementById("agentOrbLabel").textContent = buttonName;
     document.getElementById("agentPanelName").textContent = agentName;
     document.getElementById("agentPanelPage").textContent = `${agent.page} specialist`;
     document.getElementById("agentOrbButton")?.setAttribute("aria-label", `Ask ${agentName}`);
@@ -857,7 +860,7 @@
     shell.innerHTML = `
       <button id="agentOrbButton" class="agent-orb-button" type="button" aria-label="Ask Numa">
         <i class="agent-orb" aria-hidden="true"></i>
-        <span id="agentOrbLabel">Ask Numa</span>
+        <span id="agentOrbLabel">Numa</span>
       </button>
       <section id="agentChatPanel" class="agent-chat-panel" aria-label="Ask Numa">
         <div class="agent-chat-head">

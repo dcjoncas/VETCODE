@@ -1350,6 +1350,7 @@ def _egeria_process_assessment(domain: str, context: dict | None = None) -> dict
     candidate_status = _safe_action_text(context.get("candidateStatus"), 220).lower()
     job_id = _safe_action_text(context.get("jobId") or context.get("selectedJdId") or context.get("jdId"), 80)
     job_title = _safe_action_text(context.get("jobTitle"), 220)
+    candidate_interest_received = _egeria_bool_text(context.get("candidateInterestReceived"))
     shortlist_count = 0
     try:
         shortlist_count = int(context.get("shortlistCount") or 0)
@@ -1427,6 +1428,9 @@ def _egeria_process_assessment(domain: str, context: dict | None = None) -> dict
     elif candidate_id and job_id and shortlist_count > 0 and step == "shortlist":
         recommendation = f"{candidate_name or 'Candidate'} is ready for shortlist workflow, but Egeria will keep candidate review as the next safe checkpoint."
         state_label = "Ready with checkpoint"
+    elif candidate_interest_received and candidate_id and job_id and step == "profile":
+        recommendation = f"{candidate_name or 'Candidate'} submitted role feedback. Next action: confirm the profile and add the candidate to the shortlist."
+        state_label = "Interest received"
     elif candidate_id and job_id:
         action_label = actions[0].get("label") if actions else "continue"
         recommendation = f"{candidate_name or 'Candidate'} is connected to {job_title or 'the selected role'}. Next action: {action_label}."
@@ -1600,6 +1604,8 @@ def egeria_one_tap_start(
         domain=clean_domain,
         candidate_name=candidate_name,
         candidate_email=candidate_email,
+        job_id=str(job.get("jd_id") or job_id),
+        role_company=company,
         role_title=role_title,
         role_description=role_description,
     )
@@ -3886,6 +3892,8 @@ def profile_role_feedback_link(
     domain: str = Form(default="dev"),
     candidate_name: str = Form(default=""),
     candidate_email: str = Form(default=""),
+    job_id: str = Form(default=""),
+    role_company: str = Form(default=""),
     role_title: str = Form(default=""),
     role_description: str = Form(default=""),
 ):
@@ -3899,6 +3907,8 @@ def profile_role_feedback_link(
         "domain": _domain_key(domain),
         "candidate_name": _trim_note_text(candidate_name, 240),
         "candidate_email": _trim_note_text(candidate_email, 320),
+        "job_id": _trim_note_text(job_id, 80),
+        "role_company": _trim_note_text(role_company, 240),
         "role_title": _trim_note_text(role_title, 240),
         "role_description": _trim_note_text(role_description, 7000),
         "status": "open",
@@ -3968,6 +3978,31 @@ def profile_role_feedback_submit(
     link["submitted_at"] = item["created_at"]
     link["note_id"] = item["id"]
     _write_profile_notes_store(data)
+    _egeria_log_event(
+        domain,
+        "candidate_role_feedback_submitted",
+        context={
+            "domain": domain,
+            "currentStep": "candidate-interest",
+            "nextStep": "candidate-review",
+            "candidateId": profile_id,
+            "candidateName": link.get("candidate_name") or "",
+            "candidateEmail": link.get("candidate_email") or "",
+            "jobId": link.get("job_id") or "",
+            "jobCompany": link.get("role_company") or "",
+            "jobTitle": link.get("role_title") or "",
+        },
+        before={"link_status": "open", "token": token},
+        after={
+            "link_status": "submitted",
+            "token": token,
+            "note_id": item["id"],
+            "interest": item["interest"],
+            "submitted_at": item["created_at"],
+        },
+        message=f"{link.get('candidate_name') or 'Candidate'} submitted interest feedback for {link.get('role_title') or 'the role'}.",
+        payload={"link": link, "note": item},
+    )
     return {"ok": True, "message": "Feedback submitted. Thank you.", "note_id": item["id"]}
 
 
