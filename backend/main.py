@@ -218,10 +218,15 @@ AI_TECH_DEBT_ASSESSMENTS_PATH = os.path.join(DATA_DIR, "ai_tech_debt_assessments
 AI_TECH_DEBT_LINKS_PATH = os.path.join(DATA_DIR, "ai_tech_debt_links.json")
 INTERVIEW_ARCHIVE_PATH = os.path.join(DATA_DIR, "interview_archive.json")
 CRM_RECORDS_PATH = os.path.join(DATA_DIR, "crm_records.json")
+PROSPECT_REFERENCE_RECORDS_PATH = os.path.join(DATA_DIR, "prospect_reference_records.json")
 MEETING_RECORDS_PATH = os.path.join(DATA_DIR, "meeting_records.json")
 ACCESS_USERS_PATH = os.path.join(DATA_DIR, "access_users.json")
 ACCESS_CANDIDATES_PATH = os.path.join(DATA_DIR, "access_candidates.json")
 ADMIN_SESSION_TOKENS = {}
+
+
+def _crm_record_archived(record: dict) -> bool:
+    return bool((record or {}).get("archived") or (record or {}).get("archivedAt"))
 
 MENU_ITEMS = [
     {"key": "talent", "label": "Talent", "href": "find-candidate.html"},
@@ -234,7 +239,8 @@ MENU_ITEMS = [
     {"key": "onboarding", "label": "Onboarding", "href": "onboarding-admin.html"},
     {"key": "time_link", "label": "Time", "href": "time-admin.html"},
     {"key": "status", "label": "Status", "href": "status-tracker.html"},
-    {"key": "crm", "label": "CRM", "href": "crm.html"},
+    {"key": "crm", "label": "Atlas", "href": "crm.html"},
+    {"key": "prospects", "label": "Prospects", "href": "prospect-reference.html"},
     {"key": "ai_tech_debt", "label": "AI Tech Debt", "href": "ai-tech-debt.html"},
     {"key": "reports", "label": "Reports", "href": "reports.html"},
     {"key": "accounting", "label": "Accounting", "href": "accounting.html"},
@@ -258,6 +264,7 @@ DEFAULT_INTERNAL_MENU = [
     "time_link",
     "status",
     "crm",
+    "prospects",
     "ai_tech_debt",
     "reports",
     "accounting",
@@ -272,17 +279,46 @@ DEFAULT_INTERNAL_MENU = [
 DEFAULT_CANDIDATE_MENU = ["profiles", "interviews", "time_link", "status"]
 SUPER_MENU = [item["key"] for item in MENU_ITEMS]
 
+DOMAIN_ALIASES = {
+    "dev": {
+        "dev",
+        "technology",
+        "tech",
+        "devready",
+        "devready technology",
+        "devready tech",
+        "technology domain",
+    },
+    "engineer": {
+        "engineer",
+        "engineering",
+        "build",
+        "buildready",
+        "buildready engineer",
+        "buildready engineering",
+        "engineer domain",
+        "engineering domain",
+    },
+    "law": {
+        "law",
+        "legal",
+        "legalready",
+        "legal ready",
+        "legayready",
+        "legalready law",
+        "legal ready law",
+        "law domain",
+    },
+}
+
 
 def _domain_key(domain: str = "dev") -> str:
-    value = (domain or "dev").strip().lower()
+    value = re.sub(r"[\s_-]+", " ", (domain or "dev").strip().lower())
     if value in {"all", "*"}:
         return "all"
-    if value in {"technology", "tech", "devready", "dev"}:
-        return "dev"
-    if value in {"engineer", "engineering", "build", "buildready"}:
-        return "engineer"
-    if value in {"law", "legal", "legalready"}:
-        return "law"
+    for canonical, aliases in DOMAIN_ALIASES.items():
+        if value in aliases:
+            return canonical
     return "dev"
 
 
@@ -564,6 +600,10 @@ def _verify_password(password: str, stored_hash: str = "") -> bool:
 def _default_menu_for_user(role: str, email: str = "") -> list[str]:
     if role == "candidate":
         return DEFAULT_CANDIDATE_MENU
+    if role == "sales":
+        return [key for key in ["crm", "prospects", "meet", "reports"] if key in {item["key"] for item in MENU_ITEMS}]
+    if role == "admin":
+        return SUPER_MENU
     if role == "super_user" or _normalize_user_key(email).endswith("@devready.io"):
         return SUPER_MENU
     return DEFAULT_INTERNAL_MENU
@@ -633,6 +673,19 @@ def _public_user(user: dict) -> dict:
         "candidate_profile_id": user.get("candidate_profile_id", user.get("profile_id", "")),
         "created_at": user.get("created_at", ""),
         "updated_at": user.get("updated_at", ""),
+    }
+
+
+def _sales_owner_user(user: dict) -> dict:
+    display_name = user.get("display_name") or user.get("username") or user.get("email") or ""
+    return {
+        "id": user.get("id", ""),
+        "name": display_name,
+        "email": user.get("email", ""),
+        "username": user.get("username", ""),
+        "role": user.get("role", "internal"),
+        "status": user.get("status", "active"),
+        "domain": _domain_key(user.get("domain", "dev")),
     }
 
 
@@ -1787,10 +1840,53 @@ def _ai_tech_debt_text_question(question_id: str, dimension: str, prompt: str) -
     }
 
 
-def _ai_tech_debt_questionnaire(industry: str = "technology", company: str = "") -> dict:
+def _ai_tech_debt_linkedin_profiles(value: str) -> list[str]:
+    text = str(value or "")
+    url_matches = re.findall(r"https?://[^\s,]+linkedin\.com/[^\s,]+|(?:www\.)?linkedin\.com/[^\s,]+", text, flags=re.I)
+    raw = url_matches or re.split(r"[\n,]+", text)
+    profiles = []
+    for item in raw:
+        clean = _safe_action_text(item, 500).strip()
+        if not clean:
+            continue
+        if "linkedin.com" in clean.lower() and not re.match(r"^https?://", clean, re.I):
+            clean = "https://" + clean.lstrip("/")
+        profiles.append(clean)
+    return profiles[:8]
+
+
+def _ai_tech_debt_linkedin_context(profiles: list[str]) -> str:
+    labels = []
+    for profile in profiles:
+        clean = re.sub(r"^https?://(www\.)?linkedin\.com/", "", profile, flags=re.I)
+        clean = clean.strip("/").replace("/", ": ").replace("-", " ")
+        if clean:
+            labels.append(_safe_action_text(clean, 80))
+    if not labels:
+        return ""
+    return "; ".join(labels[:5])
+
+
+def _ai_tech_debt_questionnaire(industry: str = "technology", company: str = "", research: dict | None = None, linkedin_profiles: str = "") -> dict:
     profile = _ai_tech_debt_industry_profile(industry)
-    company_name = _safe_action_text(company, 180) or "the company"
+    raw_company = _safe_action_text(company, 180)
+    standard_mode = not raw_company or raw_company.strip().lower() == "standard"
+    company_name = "Standard AI readiness profile" if standard_mode else raw_company
     industry_label = profile["label"]
+    research = research if isinstance(research, dict) else {}
+    website = research.get("website") if isinstance(research.get("website"), dict) else {}
+    public_items = (research.get("public_signals") or {}).get("items") if isinstance(research.get("public_signals"), dict) else []
+    linkedin_items = _ai_tech_debt_linkedin_profiles(linkedin_profiles or research.get("linkedin_profiles_text") or "")
+    linkedin_context = _ai_tech_debt_linkedin_context(linkedin_items)
+    research_clues = []
+    if website.get("signals"):
+        research_clues.append("website signals: " + ", ".join(website.get("signals", [])[:6]))
+    if public_items:
+        research_clues.append("public/news signal: " + _safe_action_text(public_items[0].get("title"), 180))
+    if linkedin_items:
+        research_clues.append(f"LinkedIn signal(s): {linkedin_context or str(len(linkedin_items)) + ' supplied link(s)'}")
+    research_context = "; ".join(research_clues)
+    company_reference = "a standard organization" if standard_mode else company_name
     sections = [
         {
             "id": "strategy",
@@ -1800,7 +1896,7 @@ def _ai_tech_debt_questionnaire(industry: str = "technology", company: str = "")
                 _ai_tech_debt_score_question("strategy_1", "strategy", f"How clearly has {company_name} defined the business outcomes AI should improve in {industry_label}?"),
                 _ai_tech_debt_score_question("strategy_2", "strategy", "How well are AI opportunities prioritized by value, risk, effort, and executive sponsorship?"),
                 _ai_tech_debt_score_question("strategy_3", "strategy", "How consistently does leadership review AI progress, blockers, and measurable impact?"),
-                _ai_tech_debt_text_question("strategy_open", "strategy", "What are the top three business outcomes the CIO/CTO wants AI to improve in the next 6 to 12 months?"),
+                _ai_tech_debt_text_question("strategy_open", "strategy", f"What are the top three business outcomes the CIO/CTO wants AI to improve in the next 6 to 12 months for {company_reference}?"),
             ],
         },
         {
@@ -1885,23 +1981,69 @@ def _ai_tech_debt_questionnaire(industry: str = "technology", company: str = "")
                 _ai_tech_debt_score_question("industry_1", "industry", f"How well has {company_name} identified AI use cases around {', '.join(profile['signals'][:3])}?"),
                 _ai_tech_debt_score_question("industry_2", "industry", f"How prepared is the organization to manage industry-specific risk: {profile['risk']}"),
                 _ai_tech_debt_score_question("industry_3", "industry", f"How strong is the case for this practical pilot: {profile['pilot']}"),
-                _ai_tech_debt_text_question("industry_open", "industry", f"What industry-specific AI opportunity or constraint should the AI DevReady Coach understand before designing a pilot for {industry_label}?"),
+                _ai_tech_debt_text_question("industry_open", "industry", f"What industry-specific AI opportunity or constraint should the AI DevReady Coach understand before designing a pilot for {company_reference}?"),
             ],
         },
     ]
+    if not standard_mode:
+        sections.insert(
+            1,
+            {
+                "id": "company_research",
+                "title": f"2. Company Research Signal: {company_name}",
+                "description": research_context or "Questions are customized from the selected company, supplied website, public web/news scan, LinkedIn links, and executive context.",
+                "questions": [
+                    _ai_tech_debt_score_question("company_research_1", "strategy", f"How clearly do {company_name}'s website, web/news, competitor, and supplied LinkedIn signals point to AI, automation, data, or workflow modernization opportunities?"),
+                    _ai_tech_debt_score_question("company_research_2", "operating_model", f"How ready does {company_name}'s leadership and operating model appear for an AI adoption program based on the supplied LinkedIn research{(': ' + linkedin_context) if linkedin_context else ''}?"),
+                    _ai_tech_debt_text_question("company_research_open", "strategy", f"Using {company_name}'s website, web/news scan, competitor signals, LinkedIn research{(' (' + linkedin_context + ')') if linkedin_context else ''}, and executive context, what company-specific AI opportunity or risk should be tested first?"),
+                ],
+            },
+        )
     return {
         "ok": True,
         "generated_by": "Egeria AI Tech Debt",
         "domain": "dev",
         "company": company_name,
+        "standard": standard_mode,
         "industry": industry,
         "industry_label": industry_label,
         "estimated_minutes": "15-20",
         "rating_choices": AI_TECH_DEBT_CHOICES,
         "dimensions": AI_TECH_DEBT_DIMENSIONS,
         "industry_profile": profile,
+        "research_context": research_context,
+        "linkedin_profiles": linkedin_items,
+        "linkedin_context": linkedin_context,
         "sections": sections,
     }
+
+
+def _ai_tech_debt_questionnaire_from_json(value: str, fallback: dict) -> dict:
+    if not value:
+        return fallback
+    try:
+        parsed = json.loads(value)
+    except Exception:
+        return fallback
+    if not isinstance(parsed, dict) or not isinstance(parsed.get("sections"), list):
+        return fallback
+
+    def clean_item(item, max_text: int = 2000):
+        if isinstance(item, dict):
+            return {str(key)[:80]: clean_item(val, max_text) for key, val in item.items()}
+        if isinstance(item, list):
+            return [clean_item(val, max_text) for val in item[:80]]
+        if isinstance(item, str):
+            return _safe_action_text(item, max_text)
+        if isinstance(item, (int, float, bool)) or item is None:
+            return item
+        return _safe_action_text(str(item), max_text)
+
+    questionnaire = clean_item(parsed)
+    for key in ("ok", "generated_by", "domain", "company", "standard", "industry", "industry_label", "estimated_minutes", "rating_choices", "dimensions", "industry_profile", "research_context", "linkedin_profiles", "linkedin_context"):
+        if key not in questionnaire and key in fallback:
+            questionnaire[key] = fallback[key]
+    return questionnaire
 
 
 def _ai_tech_debt_grade(score: float) -> str:
@@ -2017,15 +2159,16 @@ def _ai_tech_debt_fetch_public_signals(company: str, industry_label: str, limit:
         }
 
 
-def _ai_tech_debt_research(company: str, industry: str, website_url: str = "", include_external: bool = False) -> dict:
+def _ai_tech_debt_research(company: str, industry: str, website_url: str = "", include_external: bool = False, linkedin_profiles: str = "") -> dict:
     profile = _ai_tech_debt_industry_profile(industry)
+    standard_mode = not _safe_action_text(company, 220) or _safe_action_text(company, 220).strip().lower() == "standard"
     website = _ai_tech_debt_fetch_website(website_url) if website_url else {
         "ok": False,
         "url": "",
         "summary": "No company website provided.",
         "signals": [],
     }
-    public = _ai_tech_debt_fetch_public_signals(company, profile["label"]) if include_external else {
+    public = _ai_tech_debt_fetch_public_signals(company, profile["label"]) if include_external and not standard_mode else {
         "query": "",
         "items": [],
     }
@@ -2040,6 +2183,8 @@ def _ai_tech_debt_research(company: str, industry: str, website_url: str = "", i
         "website": website,
         "public_signals": public,
         "competitor_signals": competitor_items[:5],
+        "linkedin_profiles": _ai_tech_debt_linkedin_profiles(linkedin_profiles),
+        "linkedin_profiles_text": _safe_action_text(linkedin_profiles, 3000),
         "scanned_at": _now_utc(),
     }
 
@@ -2240,9 +2385,21 @@ def _ai_tech_debt_evaluate(
 
 
 @app.get("/api/ai-tech-debt/questionnaire")
-def ai_tech_debt_questionnaire(domain: str = "dev", industry: str = "technology", company: str = ""):
-    data = _ai_tech_debt_questionnaire(industry, company)
+def ai_tech_debt_questionnaire(
+    domain: str = "dev",
+    industry: str = "technology",
+    company: str = "",
+    company_website: str = "",
+    include_external_research: str = "true",
+    linkedin_profiles: str = "",
+):
+    include_external = str(include_external_research or "").strip().lower() in {"1", "true", "yes", "on"}
+    clean_website = _ai_tech_debt_normalize_url(company_website)
+    research = _ai_tech_debt_research(company, industry, clean_website, include_external, linkedin_profiles)
+    data = _ai_tech_debt_questionnaire(industry, company, research=research, linkedin_profiles=linkedin_profiles)
     data["domain"] = _domain_key(domain)
+    data["company_website"] = clean_website
+    data["external_research"] = research
     return data
 
 
@@ -2290,6 +2447,8 @@ def ai_tech_debt_create_link(
     company: str = Form(default=""),
     industry: str = Form(default="technology"),
     company_website: str = Form(default=""),
+    linkedin_profiles: str = Form(default=""),
+    questionnaire_json: str = Form(default=""),
     recipient_name: str = Form(default=""),
     recipient_email: str = Form(default=""),
     recipient_title: str = Form(default="CIO"),
@@ -2299,16 +2458,21 @@ def ai_tech_debt_create_link(
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="Recipient CTO/CIO email is required.")
     clean_domain = _domain_key(domain)
-    questionnaire = _ai_tech_debt_questionnaire(industry, company)
     token = _safe_token("AITD-LINK")
     include_external = str(include_external_research or "").strip().lower() in {"1", "true", "yes", "on"}
+    clean_website = _ai_tech_debt_normalize_url(company_website)
+    research = _ai_tech_debt_research(company, industry, clean_website, include_external, linkedin_profiles)
+    fallback_questionnaire = _ai_tech_debt_questionnaire(industry, company, research=research, linkedin_profiles=linkedin_profiles)
+    questionnaire = _ai_tech_debt_questionnaire_from_json(questionnaire_json, fallback_questionnaire)
     link = {
         "token": token,
         "domain": clean_domain,
         "company": _safe_action_text(company, 180) or "Unassigned client",
         "industry": industry,
         "industry_label": questionnaire.get("industry_label"),
-        "company_website": _ai_tech_debt_normalize_url(company_website),
+        "company_website": clean_website,
+        "linkedin_profiles": _safe_action_text(linkedin_profiles, 3000),
+        "questionnaire": questionnaire,
         "recipient_name": _safe_action_text(recipient_name, 160),
         "recipient_email": email,
         "recipient_title": _safe_action_text(recipient_title, 120) or "CIO",
@@ -2348,13 +2512,22 @@ def ai_tech_debt_link_detail(request: Request, token: str):
     link = store["links"].get(token)
     if not link:
         raise HTTPException(status_code=404, detail="Assessment link not found.")
-    questionnaire = _ai_tech_debt_questionnaire(link.get("industry", "technology"), link.get("company", ""))
+    research = _ai_tech_debt_research(
+        link.get("company", ""),
+        link.get("industry", "technology"),
+        link.get("company_website", ""),
+        bool(link.get("include_external_research")),
+        link.get("linkedin_profiles", ""),
+    )
+    fallback_questionnaire = _ai_tech_debt_questionnaire(link.get("industry", "technology"), link.get("company", ""), research=research, linkedin_profiles=link.get("linkedin_profiles", ""))
+    questionnaire = link.get("questionnaire") if isinstance(link.get("questionnaire"), dict) else fallback_questionnaire
     packet = _ai_tech_debt_email_packet(link, _ai_tech_debt_link_url(request, token))
-    safe_link = {key: value for key, value in link.items() if key not in {"answers"}}
+    safe_link = {key: value for key, value in link.items() if key not in {"answers", "questionnaire"}}
     return {
         "ok": True,
         "link": {**safe_link, "url": _ai_tech_debt_link_url(request, token), "email_subject": packet["subject"], "email_body": packet["body"]},
         "questionnaire": questionnaire,
+        "external_research": research,
     }
 
 
@@ -2378,13 +2551,15 @@ def ai_tech_debt_link_submit(
         raise HTTPException(status_code=400, detail="answers_json must be a JSON object.")
     company = link.get("company", "")
     industry = link.get("industry", "technology")
-    questionnaire = _ai_tech_debt_questionnaire(industry, company)
     research = _ai_tech_debt_research(
         company,
         industry,
         link.get("company_website", ""),
         bool(link.get("include_external_research")),
+        link.get("linkedin_profiles", ""),
     )
+    fallback_questionnaire = _ai_tech_debt_questionnaire(industry, company, research=research, linkedin_profiles=link.get("linkedin_profiles", ""))
+    questionnaire = link.get("questionnaire") if isinstance(link.get("questionnaire"), dict) else fallback_questionnaire
     report = _ai_tech_debt_evaluate(
         questionnaire,
         answers,
@@ -2405,6 +2580,7 @@ def ai_tech_debt_link_submit(
         "respondent_title": _safe_action_text(link.get("recipient_title", ""), 120),
         "respondent_email": _safe_action_text(link.get("recipient_email", ""), 220),
         "company_website": link.get("company_website", ""),
+        "linkedin_profiles": link.get("linkedin_profiles", ""),
         "business_context": _ai_tech_debt_eval_text(business_context, 5000),
         "external_research": research,
         "answers": answers,
@@ -2443,6 +2619,8 @@ def ai_tech_debt_submit(
     respondent_name: str = Form(default=""),
     respondent_title: str = Form(default=""),
     company_website: str = Form(default=""),
+    linkedin_profiles: str = Form(default=""),
+    questionnaire_json: str = Form(default=""),
     business_context: str = Form(default=""),
     include_external_research: str = Form(default="false"),
     answers_json: str = Form(default="{}"),
@@ -2454,10 +2632,11 @@ def ai_tech_debt_submit(
         raise HTTPException(status_code=400, detail="answers_json must be valid JSON.")
     if not isinstance(answers, dict):
         raise HTTPException(status_code=400, detail="answers_json must be a JSON object.")
-    questionnaire = _ai_tech_debt_questionnaire(industry, company)
     include_external = str(include_external_research or "").strip().lower() in {"1", "true", "yes", "on"}
     clean_website = _ai_tech_debt_normalize_url(company_website)
-    research = _ai_tech_debt_research(company, industry, clean_website, include_external)
+    research = _ai_tech_debt_research(company, industry, clean_website, include_external, linkedin_profiles)
+    fallback_questionnaire = _ai_tech_debt_questionnaire(industry, company, research=research, linkedin_profiles=linkedin_profiles)
+    questionnaire = _ai_tech_debt_questionnaire_from_json(questionnaire_json, fallback_questionnaire)
     report = _ai_tech_debt_evaluate(
         questionnaire,
         answers,
@@ -2476,6 +2655,7 @@ def ai_tech_debt_submit(
         "respondent_name": _safe_action_text(respondent_name, 160),
         "respondent_title": _safe_action_text(respondent_title, 120),
         "company_website": clean_website,
+        "linkedin_profiles": _safe_action_text(linkedin_profiles, 3000),
         "business_context": _ai_tech_debt_eval_text(business_context, 5000),
         "external_research": research,
         "answers": answers,
@@ -2613,6 +2793,8 @@ def _radar_crm_records(domain: str, limit: int = 80) -> list[dict]:
     rows = []
     for item in records:
         if not isinstance(item, dict):
+            continue
+        if _crm_record_archived(item):
             continue
         if clean_domain != "all" and _domain_key(item.get("domain", "dev")) != clean_domain:
             continue
@@ -2848,7 +3030,7 @@ def _external_radar_status() -> dict:
         "news": {
             "ready": True,
             "label": "Client news scan",
-            "action": "CRM news scan can check recent public web/news signals for selected customers.",
+            "action": "Atlas news scan can check recent public web/news signals for selected customers.",
         },
     }
 
@@ -2932,7 +3114,7 @@ def opportunity_radar(domain: str = "dev", limit: int = 5, include_external: boo
             if matched:
                 reason_bits.append("Matched: " + ", ".join(matched[:5]))
             if customer:
-                reason_bits.append(f"CRM signal: {customer.get('customer')} is {customer.get('dealStage') or customer.get('contractStatus') or 'active'}")
+                reason_bits.append(f"Atlas signal: {customer.get('customer')} is {customer.get('dealStage') or customer.get('contractStatus') or 'active'}")
             if gaps:
                 reason_bits.append("Check gaps: " + ", ".join(gaps[:3]))
             suggestions.append(
@@ -3045,7 +3227,7 @@ def opportunity_radar(domain: str = "dev", limit: int = 5, include_external: boo
                         "reason": ". ".join(
                             [
                                 "Azure candidate database match: " + ", ".join(matched[:5]) if matched else "",
-                                f"CRM signal: {customer.get('customer')} is {customer.get('dealStage') or customer.get('contractStatus') or 'active'}" if customer else "",
+                                f"Atlas signal: {customer.get('customer')} is {customer.get('dealStage') or customer.get('contractStatus') or 'active'}" if customer else "",
                                 "Check gaps: " + ", ".join(gaps[:3]) if gaps else "",
                             ]
                         ).strip(". ") or "Candidate and role show overlapping database evidence.",
@@ -3387,6 +3569,25 @@ def access_register(
     return {"ok": True, "user": _public_user(users[user_id]), "menu_items": MENU_ITEMS}
 
 
+@app.get("/api/access/sales-owners")
+def access_sales_owners(domain: str = "dev"):
+    clean_domain = _domain_key(domain)
+    users = _seed_access_users()
+    sales_roles = {"sales", "admin", "super_user"}
+    owners = []
+    for user in users.values():
+        if user.get("status", "active") != "active":
+            continue
+        if user.get("role") not in sales_roles:
+            continue
+        user_domain = _domain_key(user.get("domain", clean_domain))
+        if user_domain not in {clean_domain, "dev"} and user.get("role") != "super_user":
+            continue
+        owners.append(_sales_owner_user(user))
+    owners.sort(key=lambda item: (item.get("role") != "sales", item.get("name", "").lower()))
+    return {"ok": True, "owners": owners}
+
+
 @app.get("/api/admin/users")
 def admin_users(x_devready_admin_token: str = Header(default="")):
     _require_admin_token(x_devready_admin_token)
@@ -3463,7 +3664,7 @@ def admin_save_user(
     _require_admin_token(x_devready_admin_token)
     users = _seed_access_users()
     now = _now_utc()
-    role = role if role in {"super_user", "internal", "candidate"} else "internal"
+    role = role if role in {"super_user", "admin", "sales", "internal", "candidate"} else "internal"
     status = status if status in {"active", "blocked"} else "active"
     try:
         allowed_menu = json.loads(allowed_menu_json or "[]")
@@ -3471,7 +3672,7 @@ def admin_save_user(
         allowed_menu = []
     allowed_keys = {item["key"] for item in MENU_ITEMS}
     allowed_menu = [key for key in allowed_menu if key in allowed_keys]
-    if role == "super_user":
+    if role in {"super_user", "admin"}:
         allowed_menu = SUPER_MENU
     elif _normalize_user_key(email).endswith("@devready.io") and set(allowed_menu) == set(DEFAULT_INTERNAL_MENU):
         allowed_menu = SUPER_MENU
@@ -4586,11 +4787,13 @@ def list_interview_archive(
 
 
 @app.get("/api/crm/records")
-def list_crm_records(domain: str = "dev", limit: int = 200):
+def list_crm_records(domain: str = "dev", limit: int = 200, include_archived: bool = False):
     records = _read_json_store_with_demo(CRM_RECORDS_PATH, [])
     wanted_domain = _domain_key(domain)
     if not isinstance(records, list):
         records = []
+    if not include_archived:
+        records = [item for item in records if isinstance(item, dict) and not _crm_record_archived(item)]
     if wanted_domain != "all":
         records = [item for item in records if _domain_key(item.get("domain", "dev")) == wanted_domain]
     records = sorted(records, key=lambda item: item.get("updatedAt") or item.get("createdAt") or "", reverse=True)
@@ -4606,6 +4809,8 @@ def _crm_customer_rows(domain: str = "dev") -> list[dict]:
     seen = set()
     for item in sorted(records, key=lambda row: row.get("updatedAt") or row.get("createdAt") or "", reverse=True):
         if not isinstance(item, dict):
+            continue
+        if _crm_record_archived(item):
             continue
         if clean_domain != "all" and _domain_key(item.get("domain", "dev")) != clean_domain:
             continue
@@ -4644,6 +4849,166 @@ def _crm_customer_for_value(domain: str, value: str) -> dict:
     return {}
 
 
+def _prospect_reference_rows(domain: str = "dev") -> list[dict]:
+    clean_domain = _domain_key(domain)
+    records = _read_json_store(PROSPECT_REFERENCE_RECORDS_PATH, [])
+    if not isinstance(records, list):
+        return []
+    rows = []
+    for item in records:
+        if not isinstance(item, dict):
+            continue
+        if item.get("archived") or item.get("archivedAt"):
+            continue
+        if clean_domain != "all" and _domain_key(item.get("domain", "dev")) != clean_domain:
+            continue
+        rows.append(item)
+    return rows
+
+
+@app.get("/api/prospects/reference")
+def list_prospect_reference(
+    domain: str = "dev",
+    q: str = "",
+    industry: str = "",
+    limit: int = 200,
+    offset: int = 0,
+):
+    clean_query = _safe_action_text(q, 240).lower()
+    clean_industry = _safe_action_text(industry, 180).lower()
+    rows = _prospect_reference_rows(domain)
+    if clean_query:
+        def _matches(item: dict) -> bool:
+            haystack = " ".join(
+                [
+                    _safe_action_text(item.get("company"), 240),
+                    _safe_action_text(item.get("domain_name"), 240),
+                    _safe_action_text(item.get("website"), 240),
+                    _safe_action_text(item.get("industry"), 240),
+                    _safe_action_text(item.get("city"), 120),
+                    _safe_action_text(item.get("state"), 120),
+                    _safe_action_text(item.get("country"), 120),
+                    _safe_action_text(item.get("description"), 1000),
+                    _safe_action_text(item.get("web_technologies"), 1000),
+                ]
+            ).lower()
+            return clean_query in haystack
+
+        rows = [item for item in rows if _matches(item)]
+    if clean_industry:
+        rows = [item for item in rows if clean_industry in _safe_action_text(item.get("industry"), 240).lower()]
+    rows = sorted(rows, key=lambda item: item.get("company", "").lower())
+    safe_limit = max(1, min(limit, 500))
+    safe_offset = max(0, offset)
+    return {
+        "ok": True,
+        "domain": _domain_key(domain),
+        "count": len(rows),
+        "offset": safe_offset,
+        "limit": safe_limit,
+        "records": rows[safe_offset:safe_offset + safe_limit],
+    }
+
+
+@app.post("/api/prospects/reference/promote")
+def promote_prospect_reference(
+    prospect_id: str = Form(default=""),
+    domain: str = Form(default="dev"),
+    owner: str = Form(default=""),
+    next_step: str = Form(default="Review and qualify this promoted prospect."),
+):
+    clean_domain = _domain_key(domain)
+    clean_id = _safe_action_text(prospect_id, 160)
+    if not clean_id:
+        raise HTTPException(status_code=400, detail="Prospect id is required.")
+    prospects = _read_json_store(PROSPECT_REFERENCE_RECORDS_PATH, [])
+    if not isinstance(prospects, list):
+        prospects = []
+    prospect = None
+    for item in prospects:
+        if isinstance(item, dict) and item.get("id") == clean_id:
+            prospect = item
+            break
+    if not prospect:
+        raise HTTPException(status_code=404, detail="Prospect reference not found.")
+    if clean_domain != _domain_key(prospect.get("domain", clean_domain)):
+        raise HTTPException(status_code=400, detail="Prospect belongs to a different domain.")
+
+    crm_records = _read_json_store(CRM_RECORDS_PATH, [])
+    if not isinstance(crm_records, list):
+        crm_records = []
+    for record in crm_records:
+        if isinstance(record, dict) and record.get("sourceProspectId") == clean_id and _domain_key(record.get("domain", clean_domain)) == clean_domain:
+            return {"ok": True, "record": record, "already_promoted": True}
+
+    now = _now_utc()
+    contacts = prospect.get("contacts") if isinstance(prospect.get("contacts"), list) else []
+    primary = contacts[0] if contacts else {}
+    address = ", ".join([part for part in [
+        _safe_action_text(prospect.get("street"), 240),
+        _safe_action_text(prospect.get("city"), 120),
+        _safe_action_text(prospect.get("state"), 80),
+        _safe_action_text(prospect.get("postal_code"), 40),
+        _safe_action_text(prospect.get("country"), 120),
+    ] if part])
+    record = {
+        "id": _safe_token("CRM-PROSPECT"),
+        "domain": clean_domain,
+        "customer": _safe_action_text(prospect.get("company"), 240) or "Promoted prospect",
+        "contact": _safe_action_text(primary.get("name"), 180),
+        "email": _safe_action_text(primary.get("email"), 240),
+        "phone": _safe_action_text(prospect.get("phone"), 80),
+        "owner": _safe_action_text(owner, 120),
+        "territory": "Promoted prospect reference",
+        "industry": _safe_action_text(prospect.get("industry"), 240),
+        "value": 0,
+        "strength": 3,
+        "contractStatus": "Prospect",
+        "dealStage": "Prospect",
+        "dealProbability": 5,
+        "dealTitle": f"Prospect qualification - {_safe_action_text(prospect.get('company'), 160)}",
+        "lastTouched": now[:16],
+        "when": now[:16],
+        "where": "Prospect Reference Library",
+        "what": _safe_action_text(prospect.get("description"), 1200),
+        "why": "Promoted from the passive Prospect Reference Library for active Atlas follow-up.",
+        "nextStep": _safe_action_text(next_step, 500) or "Review and qualify this promoted prospect.",
+        "website": _safe_action_text(prospect.get("website"), 240),
+        "linkedinUrl": _safe_action_text(prospect.get("linkedin_url"), 240),
+        "address": address,
+        "contacts": "\n".join([
+            f"{_safe_action_text(contact.get('name'), 180)} | Prospect Contact | {_safe_action_text(contact.get('email'), 240)} |  |  | Imported from prospect reference. | "
+            for contact in contacts[:12]
+        ]),
+        "teamMembers": [
+            {
+                "id": f"{clean_id}-CONTACT-{idx}",
+                "name": _safe_action_text(contact.get("name"), 180),
+                "relationshipRole": "Prospect Contact" if idx > 1 else "Primary Contact",
+                "email": _safe_action_text(contact.get("email"), 240),
+                "phone": "",
+                "title": "",
+                "jobTitle": "",
+                "description": "Promoted from prospect reference.",
+                "lastConversation": "",
+            }
+            for idx, contact in enumerate(contacts[:12], start=1)
+        ],
+        "sourceSystem": "Prospect Reference Library",
+        "sourceProspectId": clean_id,
+        "sourceFile": prospect.get("source_file", ""),
+        "createdAt": now,
+        "updatedAt": now,
+    }
+    crm_records.insert(0, record)
+    _write_json_store(CRM_RECORDS_PATH, crm_records)
+
+    prospect["promotedAt"] = now
+    prospect["promotedCrmId"] = record["id"]
+    _write_json_store(PROSPECT_REFERENCE_RECORDS_PATH, prospects)
+    return {"ok": True, "record": record, "already_promoted": False}
+
+
 def _strip_html(value: str) -> str:
     text = re.sub(r"<[^>]+>", " ", str(value or ""))
     return re.sub(r"\s+", " ", text).strip()
@@ -4659,7 +5024,7 @@ def _fetch_customer_news(customer: str, location: str = "", limit: int = 8) -> t
     response = requests.get(
         url,
         timeout=12,
-        headers={"User-Agent": "VETCODE CRM news scanner/1.0"},
+        headers={"User-Agent": "VETCODE Atlas news scanner/1.0"},
     )
     response.raise_for_status()
     root = ET.fromstring(response.content)
@@ -4700,7 +5065,7 @@ def _summarize_customer_news(customer: str, location: str, items: list[dict]) ->
                 {
                     "role": "system",
                     "content": (
-                        "You are a CRM research assistant. Read recent web/news search results for a customer. "
+                        "You are an Atlas relationship research assistant. Read recent web/news search results for a customer. "
                         "Return compact JSON with headline, highlights array, recommended_action, and risk_level "
                         "where risk_level is low, medium, or high. Do not invent facts beyond the provided results."
                     ),
@@ -4725,7 +5090,7 @@ def _summarize_customer_news(customer: str, location: str, items: list[dict]) ->
         return {
             "headline": f"Recent news scan found {len(items)} possible signal(s) for {customer}.",
             "highlights": fallback_highlights,
-            "recommended_action": "Review the linked results and decide whether the next CRM touch should reference one of these updates.",
+            "recommended_action": "Review the linked results and decide whether the next Atlas touch should reference one of these updates.",
             "risk_level": "medium" if fallback_highlights else "low",
         }
 
@@ -4950,7 +5315,7 @@ def crm_client_intelligence_briefing(domain: str = "dev", customer: str = "", in
             "domain": clean_domain,
             "generated_at": _now_utc(),
             "empty": True,
-            "today_angle": "No CRM team card is available yet. Add or seed a CRM client first.",
+            "today_angle": "No Atlas team card is available yet. Add or seed an Atlas client first.",
             "signals": [],
             "touch_history": [],
         }
@@ -4968,7 +5333,7 @@ def crm_client_intelligence_briefing(domain: str = "dev", customer: str = "", in
     pitch = roles[0]["title"] if roles else _safe_action_text(record.get("dealTitle"), 220) or "the highest-priority open role"
     today_angle = (
         f"Lead with {customer_name}'s {stage} stage and propose a concrete next touch around {pitch}. "
-        f"{'Refresh the relationship because the last touch is ' + str(days) + ' days old.' if days >= 8 else 'Use the recent CRM context and keep the ask crisp.'}"
+        f"{'Refresh the relationship because the last touch is ' + str(days) + ' days old.' if days >= 8 else 'Use the recent Atlas context and keep the ask crisp.'}"
     )
     news = {}
     if include_news:
@@ -4976,7 +5341,7 @@ def crm_client_intelligence_briefing(domain: str = "dev", customer: str = "", in
             query, items = _fetch_customer_news(customer_name, _safe_action_text(record.get("where") or record.get("location"), 180), limit=6)
             news = {"query": query, "items": items, "summary": _summarize_customer_news(customer_name, "", items)}
         except Exception as exc:
-            news = {"error": _safe_action_text(str(exc), 240), "items": [], "summary": {"headline": "External scan could not complete.", "highlights": [], "recommended_action": "Continue from internal CRM signals.", "risk_level": "low"}}
+            news = {"error": _safe_action_text(str(exc), 240), "items": [], "summary": {"headline": "External scan could not complete.", "highlights": [], "recommended_action": "Continue from internal Atlas signals.", "risk_level": "low"}}
     signals = [
         {"label": "Deal stage", "value": stage},
         {"label": "Last touch", "value": f"{days} day(s) ago" if days < 999 else "Not recorded"},
@@ -4998,7 +5363,7 @@ def crm_client_intelligence_briefing(domain: str = "dev", customer: str = "", in
             "days_since_touch": days,
         },
         "today_angle": today_angle,
-        "who_to_contact": primary_contact.get("name") or _safe_action_text(record.get("contact"), 180) or "Add a named contact to the CRM team card.",
+        "who_to_contact": primary_contact.get("name") or _safe_action_text(record.get("contact"), 180) or "Add a named contact to the Atlas team card.",
         "role_or_candidate_to_pitch": pitch,
         "current_risk": risk,
         "suggested_next_touch": next_step or f"Book a 15-minute client touch to confirm current hiring priority for {pitch}.",
@@ -5096,7 +5461,7 @@ def _sales_todo_for_record(record: dict) -> list[dict]:
                 "priority": "high",
                 "type": "next_step",
                 "title": f"Set next action for {record.get('customer') or 'account'}",
-                "reason": "Main CRM needs a clear next action.",
+                "reason": "Atlas needs a clear next action.",
                 "record_id": record.get("id", ""),
             }
         )
@@ -5125,6 +5490,8 @@ def sales_crm_portal(domain: str = "dev", rep: str = "", territory: str = "", li
     reps = {}
     for item in records:
         if not isinstance(item, dict):
+            continue
+        if _crm_record_archived(item):
             continue
         if clean_domain != "all" and _domain_key(item.get("domain", "dev")) != clean_domain:
             continue
@@ -6088,7 +6455,7 @@ def save_accounting_resource(
     resource_id = resource_id or _safe_token("RES")
     crm_customer = _crm_customer_for_value(domain, crm_customer_id or client)
     if not crm_customer:
-        raise HTTPException(status_code=400, detail="Select a customer from CRM before saving resource financials.")
+        raise HTTPException(status_code=400, detail="Select a customer from Atlas before saving resource financials.")
     resource = {
         "id": resource_id,
         "domain": _domain_key(domain),
@@ -6146,7 +6513,7 @@ def save_accounting_invoice(
     invoice_id = invoice_id or _safe_token("INV")
     crm_customer = _crm_customer_for_value(domain, crm_customer_id or client)
     if not crm_customer:
-        raise HTTPException(status_code=400, detail="Select a customer from CRM before saving an invoice.")
+        raise HTTPException(status_code=400, detail="Select a customer from Atlas before saving an invoice.")
     try:
         line_items = json.loads(line_items_json or "[]")
     except Exception:
@@ -6431,7 +6798,7 @@ def save_invoice_from_time(
 ):
     crm_customer = _crm_customer_for_value(domain, crm_customer_id or client)
     if not crm_customer:
-        raise HTTPException(status_code=400, detail="Select a customer from CRM before saving an invoice.")
+        raise HTTPException(status_code=400, detail="Select a customer from Atlas before saving an invoice.")
     workbench = _invoice_workbench(domain, crm_customer["id"], period_start, period_end)
     line_items = workbench.get("line_items", [])
     try:

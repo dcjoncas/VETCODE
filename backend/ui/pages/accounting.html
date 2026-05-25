@@ -292,15 +292,15 @@
                 <input id="resourceProfileId" type="hidden" />
                 <input id="resourceToken" type="hidden" />
                 <label class="wide">
-                  CRM customer
+                  Atlas customer
                   <select id="resourceClient" onchange="handleResourceCustomerChange()">
-                    <option value="">Select CRM customer</option>
+                    <option value="">Select Atlas customer</option>
                   </select>
                 </label>
                 <label class="wide">
                   Pull from onboarding for selected customer
                   <select id="onboardingSelect" onchange="fillResourceFromOnboarding()">
-                    <option value="">Select CRM customer first</option>
+                    <option value="">Select Atlas customer first</option>
                   </select>
                 </label>
                 <label>
@@ -439,7 +439,7 @@
       function renderControlledResourceChoices(selectedClient = "", selectedBillRate = "", selectedCostRate = "") {
         const customers = accountingState?.crm_customers || [];
         const selectedCustomer = customers.find((item) => item.id === selectedClient || item.name === selectedClient) || {};
-        document.getElementById("resourceClient").innerHTML = '<option value="">Select CRM customer</option>' + customers.map((customer) => {
+        document.getElementById("resourceClient").innerHTML = '<option value="">Select Atlas customer</option>' + customers.map((customer) => {
           const chosen = customer.id === selectedClient || customer.name === selectedClient || customer.id === selectedCustomer.id ? " selected" : "";
           return `<option value="${escapeLocal(customer.id)}"${chosen}>${escapeLocal(customer.name)}</option>`;
         }).join("");
@@ -514,7 +514,7 @@
         const select = document.getElementById("onboardingSelect");
         const customer = selectedCrmCustomer();
         if (!customer) {
-          select.innerHTML = '<option value="">Select CRM customer first</option>';
+          select.innerHTML = '<option value="">Select Atlas customer first</option>';
           return;
         }
         const people = mergedOnboardingPeopleForCustomer(customer.id);
@@ -530,7 +530,7 @@
         });
         select.innerHTML = people.length
           ? '<option value="">Select assigned/onboarded person</option>' + options.join("")
-          : '<option value="">No onboarded resources linked to this CRM customer</option>';
+          : '<option value="">No onboarded resources linked to this Atlas customer</option>';
       }
 
       function handleResourceCustomerChange() {
@@ -539,7 +539,7 @@
         const customer = selectedCrmCustomer();
         document.getElementById("resourceStatusText").textContent = customer
           ? `Showing onboarded resources linked to ${customer.name}.`
-          : "Select a CRM customer to see who is working there.";
+          : "Select an Atlas customer to see who is working there.";
       }
 
       function fillResourceFromOnboarding() {

@@ -26,6 +26,7 @@
   #pageNavInner a.nav-profiles,
   #pageNavInner a.nav-jds,
   #pageNavInner a.crm-link,
+  #pageNavInner a.prospect-reference-link,
   #pageNavInner a.ai-tech-debt-link,
   #pageNavInner a.sales-crm-link,
   #pageNavInner a.recordings-link,
@@ -65,9 +66,13 @@
   }
 
   #pageNavInner a.active {
-    background: rgba(255, 255, 255, 0.94);
-    color: #050505;
-    box-shadow: inset 3px 0 0 #fff;
+    background:
+      linear-gradient(90deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06)),
+      rgba(var(--primary-rgb, 47, 125, 75), 0.16);
+    color: #fff;
+    box-shadow:
+      inset 3px 0 0 var(--primary-3, #d8bc62),
+      0 8px 18px rgba(0, 0, 0, 0.08);
     outline: 0;
   }
 
@@ -198,6 +203,7 @@
   #pageNavInner a.nav-profiles,
   #pageNavInner a.nav-jds,
   #pageNavInner a.crm-link,
+  #pageNavInner a.prospect-reference-link,
   #pageNavInner a.ai-tech-debt-link,
   #pageNavInner a.sales-crm-link,
   #pageNavInner a.recordings-link,
@@ -495,13 +501,20 @@
       ><svg class="nav-icon"><use href="#nav-agents"></use></svg>Agents</a
     >
   </div>
-  <div class="nav-group nav-crm-section" aria-label="Client relationship management">
+  <div class="nav-group nav-crm-section" aria-label="Atlas relationship management">
     <a
       href="crm.html"
       class="crm-link"
       data-menu-key="crm"
-      data-hint="Open client and contact records, review interaction history, and prepare follow-up work tied to the current hiring relationship."
-      ><svg class="nav-icon"><use href="#nav-crm"></use></svg>CRM</a
+      data-hint="Open Atlas client and contact records, review interaction history, and prepare follow-up work tied to the current hiring relationship."
+      ><svg class="nav-icon"><use href="#nav-crm"></use></svg>Atlas</a
+    >
+    <a
+      href="prospect-reference.html"
+      class="prospect-reference-link"
+      data-menu-key="prospects"
+      data-hint="Open the passive prospect reference library. Search older company lists and promote only useful prospects into Atlas."
+      ><svg class="nav-icon"><use href="#nav-search-out"></use></svg>Prospect Reference</a
     >
     <a
       href="ai-tech-debt.html"

@@ -850,7 +850,7 @@
         renderTimeLines();
         renderPreview();
         renderInvoiceTabs();
-        document.getElementById("invoiceStatusText").textContent = "New invoice draft ready. Select a CRM customer and approved time.";
+        document.getElementById("invoiceStatusText").textContent = "New invoice draft ready. Select an Atlas customer and approved time.";
       }
 
       async function loadWorkbench() {
@@ -1103,7 +1103,7 @@
           return;
         }
         if (!hasCustomer) {
-          statusTarget.innerHTML = guidanceHtml("Select a customer first", "Choose a CRM customer. The invoice page will then load linked consultants and approved billable time for the selected period.");
+          statusTarget.innerHTML = guidanceHtml("Select a customer first", "Choose an Atlas customer. The invoice page will then load linked consultants and approved billable time for the selected period.");
           return;
         }
         if (hasLines) {
@@ -1317,7 +1317,7 @@
           } catch (error) {
             document.getElementById("invoiceStatusText").innerHTML = guidanceHtml(
               "Could not save invoice",
-              error.message || "The invoice could not be saved. Check that the CRM customer is still linked.",
+              error.message || "The invoice could not be saved. Check that the Atlas customer is still linked.",
               [linkAction("Open Accounting", openRatesHref(), true)],
               "warn",
             );
@@ -1362,7 +1362,7 @@
         } catch (error) {
           document.getElementById("invoiceStatusText").innerHTML = guidanceHtml(
             "Could not save invoice",
-            error.message || "The invoice could not be saved. Check approved time, bill rates, and the selected CRM customer.",
+            error.message || "The invoice could not be saved. Check approved time, bill rates, and the selected Atlas customer.",
             [linkAction("Approve time", openTimeHref(), true), linkAction("Add bill rate", openRatesHref())],
             "warn",
           );
@@ -1483,7 +1483,7 @@
         if (!invoice.client_email) {
           document.getElementById("invoiceStatusText").innerHTML = guidanceHtml(
             "AP email missing",
-            "Add the customer AP email in CRM or Accounting before sending this invoice.",
+            "Add the customer AP email in Atlas or Accounting before sending this invoice.",
             [linkAction("Open customer", `crm.html?domain=${encodeURIComponent(currentDomain())}&client=${encodeURIComponent(invoice.client || "")}`, true)],
             "warn",
           );
@@ -1498,7 +1498,7 @@
         if (!invoice) return;
         hydrateInvoice(invoice);
         if (!invoice.client_email) {
-          document.getElementById("invoiceStatusText").textContent = "This customer does not have a linked AP email yet. Add it in CRM or Accounting first.";
+          document.getElementById("invoiceStatusText").textContent = "This customer does not have a linked AP email yet. Add it in Atlas or Accounting first.";
           return;
         }
         window.location.href = mailtoHref(invoice);

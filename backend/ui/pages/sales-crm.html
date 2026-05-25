@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DevReady - Sales CRM</title>
+    <title>DevReady - Sales Atlas</title>
     <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
     <script>
@@ -278,12 +278,12 @@
           <img class="domainWordmark" src="../assets/devReadyWordmark.svg" alt="DevReady" />
           <span>Sales Workspace</span>
         </div>
-        <div class="mini-link-note">Focused rep link - updates save back to the shared CRM</div>
+        <div class="mini-link-note">Focused rep link - updates save back to Atlas</div>
       </header>
       <section class="page-shell">
         <div class="page-head">
           <div>
-            <div class="page-title">Sales CRM</div>
+            <div class="page-title">Sales Atlas</div>
             <div class="page-subtitle">Rep relationship link - territory, contracts, daily priorities</div>
           </div>
           <div class="top-controls">
@@ -301,7 +301,7 @@
             <h1>Rep book of business</h1>
             <p>
               Give each sales rep a focused link for their territory. They can update account touches, contract stage,
-              next action, and notes here; every save writes back to the shared CRM record.
+              next action, and notes here; every save writes back to the shared Atlas record.
             </p>
           </div>
           <div class="crm-actions">
@@ -324,7 +324,7 @@
             Relationship link
             <input id="repLinkInput" readonly />
           </label>
-          <button class="btn primary" type="button" onclick="loadPortal()">Load rep CRM</button>
+          <button class="btn primary" type="button" onclick="loadPortal()">Load rep Atlas</button>
         </section>
 
         <section class="sales-stats" aria-label="Sales summary">
@@ -399,7 +399,7 @@
             </label>
           </div>
           <div class="crm-actions" style="margin-top: 12px">
-            <button class="btn primary" type="button" onclick="saveAccountUpdate()">Save back to main CRM</button>
+            <button class="btn primary" type="button" onclick="saveAccountUpdate()">Save back to Atlas</button>
             <button class="btn secondary" type="button" onclick="clearSelection()">Clear selection</button>
           </div>
           <div id="salesStatus" class="notice">Select an account to update, or enter a new account and save it to this rep.</div>
@@ -486,7 +486,7 @@
         updateRepLink();
         const value = document.getElementById("repLinkInput").value;
         await navigator.clipboard?.writeText(value);
-        document.getElementById("salesStatus").textContent = "Sales CRM relationship link copied.";
+        document.getElementById("salesStatus").textContent = "Sales Atlas relationship link copied.";
       }
 
       async function loadPortal() {
@@ -590,7 +590,7 @@
         }
         const data = await apiPostForm("/api/sales-crm/account", payload);
         selectedRecordId = data.record.id;
-        document.getElementById("salesStatus").textContent = "Saved back to the main CRM.";
+        document.getElementById("salesStatus").textContent = "Saved back to Atlas.";
         await loadPortal();
       }
 

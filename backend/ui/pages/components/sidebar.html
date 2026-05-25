@@ -530,7 +530,7 @@
     syncDomainSelect(activeDomain);
     domainUpdate(activeDomain);
     loadPageAgentRuntime(renderActivePageAgent);
-    $("#pageNav").load("components/sideNav.html?v=20260523-ai-dock", function () {
+    $("#pageNav").load("components/sideNav.html?v=20260525-atlas", function () {
       applyMenuAccess();
       applyDomainToLocalLinks(sessionStorage.getItem("domain") || "dev");
       window.DevReadyPageAgents?.mountWidget?.();
@@ -586,6 +586,9 @@
     }
     if (allowed.has("interviews")) {
       allowed.add("status");
+    }
+    if (allowed.has("crm")) {
+      allowed.add("prospects");
     }
     if (allowed.has("status") || allowed.has("profiles") || allowed.has("time_link")) {
       allowed.add("reports");
@@ -745,7 +748,7 @@
       btnviewtempprofiles: "Open temporary outside-sourcing profiles so you can decide what should become permanent.",
       certcandidatesearchbtn: "Find the candidate who should receive the certification link.",
       clearcrmformbtn: "Clear the client card form so you can enter a different account.",
-      clearcrmrecordsbtn: "Remove local demo/client CRM cards for this browser and domain.",
+      clearcrmrecordsbtn: "Remove local demo/client Atlas cards for this browser and domain.",
       copycertlinkbtn: "Copy the candidate certification link for manual sending.",
       copynextcertlinkbtn: "Copy the next certification level link after the candidate passes the current one.",
       emailcertlinkbtn: "Open an email draft that contains the candidate certification link.",
@@ -764,11 +767,11 @@
       refreshcertbtn: "Check the latest certification attempt status for the selected candidate.",
       refreshchallengebtn: "Reload the latest test-challenge result for the selected candidate.",
       resetprocessbtn: "Clear the current workflow context and start a fresh candidate search.",
-      savecrmbtn: "Save the form as a client player card in the active domain CRM.",
+      savecrmbtn: "Save the form as a client player card in the active domain Atlas.",
       saveprogressbtn: "Save the candidate's partial chat answers to the profile without requiring full completion.",
       scancrmbtn: "Generate an AI-style relationship read for the client card from the notes and fields entered.",
       searchprofilesbtn: "Search saved profiles in the current domain using the selected job or typed criteria.",
-      seedcrmbtn: "Add sample client player cards for local CRM testing.",
+      seedcrmbtn: "Add sample client player cards for local Atlas testing.",
       touchcrmbtn: "Record a fresh touchpoint on the current client card.",
       trackcandidatesearchbtn: "Select the candidate to track certification progress for.",
     };
@@ -781,10 +784,10 @@
       "approve": "Mark this time group approved and ready for payment processing.",
       "attach profiles": "Attach selected public profile links to the client message before sending.",
       "block": "Prevent this user or candidate from accessing the app until they are unblocked.",
-      board: "Show CRM records as visual player cards for relationship review.",
+      board: "Show Atlas records as visual player cards for relationship review.",
       cancel: "Close edit mode and keep the current saved values.",
       "clear jd": "Remove the job description from the current workflow without deleting it from saved jobs.",
-      "clear local crm": "Remove local CRM cards stored in this browser for the active domain.",
+      "clear local crm": "Remove local Atlas cards stored in this browser for the active domain.",
       "clear local workflow selection": "Clear selected candidate, job, shortlist, and scheduling context from this browser.",
       close: "Close this panel and return to the page.",
       "copy link": "Copy this link so you can send it manually.",
@@ -807,8 +810,8 @@
       "get ai certified": "Prepare a candidate-only certification link and track the result on the profile.",
       "hide profiles": "Close the all-profiles browser and return to the candidate search area.",
       "list all profiles": "Open a full list of saved profiles in the current domain.",
-      list: "Show CRM records in a compact row layout for faster scanning.",
-      "load demo cards": "Add sample CRM player cards for local testing.",
+      list: "Show Atlas records in a compact row layout for faster scanning.",
+      "load demo cards": "Add sample Atlas player cards for local testing.",
       "load jd": "Apply the selected saved job description so matching can use its requirements.",
       "load jd file": "Read the selected job-description file and place its text into the editor.",
       "load known profile": "Open a searchable picker of saved profiles and load the selected candidate.",
@@ -837,7 +840,7 @@
       "save all": "Save all editable sections on this page.",
       "save edit": "Save every field currently shown in the edit form and return to normal view.",
       "save from file": "Save the job-description text that was loaded from the selected file.",
-      "save player card": "Save the form as a client relationship card in the CRM.",
+      "save player card": "Save the form as a client relationship card in Atlas.",
       "save user": "Save this user's role, account status, and menu access settings.",
       search: "Search using the text or filters entered in this section.",
       "search candidate": "Find a candidate account by name, email, or profile id so access can be managed.",
@@ -1212,7 +1215,7 @@
       return;
     }
     const script = document.createElement("script");
-    script.src = "JS/pageAgents.js?v=20260523-ai-dock";
+    script.src = "JS/pageAgents.js?v=20260525-atlas";
     script.dataset.pageAgentsRuntime = "1";
     script.onload = runCallback;
     document.head.appendChild(script);

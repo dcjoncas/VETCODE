@@ -97,21 +97,43 @@
 
       .setup-grid {
         display: grid;
-        grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto;
+        grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr);
         gap: 10px;
         align-items: end;
         padding: 14px;
       }
 
+      .new-company-fields {
+        display: none;
+        grid-column: 1 / -1;
+        grid-template-columns: minmax(220px, 0.8fr) minmax(260px, 1fr);
+        gap: 10px;
+      }
+
+      .new-company-fields.show {
+        display: grid;
+      }
+
       .context-panel {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(250px, 0.34fr);
+        grid-template-columns: minmax(0, 1fr) minmax(260px, 0.4fr);
         gap: 12px;
         padding: 0 14px 14px;
       }
 
       .context-panel textarea {
         min-height: 150px;
+      }
+
+      .research-stack {
+        display: grid;
+        gap: 10px;
+      }
+
+      .generate-row {
+        display: flex;
+        justify-content: flex-end;
+        padding: 0 14px 14px;
       }
 
       .research-options {
@@ -294,6 +316,23 @@
         display: grid;
         gap: 7px;
         font-weight: 900;
+        line-height: 1.35;
+      }
+
+      .prompt-editor {
+        display: grid;
+        gap: 5px;
+      }
+
+      .prompt-editor span {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .prompt-editor textarea {
+        min-height: 72px;
+        font-weight: 850;
         line-height: 1.35;
       }
 
@@ -506,7 +545,7 @@
             <div class="setup-grid">
               <label class="field">
                 Client / company
-                <span>Loaded from CRM when available.</span>
+                <span>Select a CRM company, add a new company, or choose Standard for a generic baseline.</span>
                 <select id="companySelect"></select>
               </label>
               <label class="field">
@@ -542,7 +581,18 @@
                   <option>Operations Executive</option>
                 </select>
               </label>
-              <button class="btn primary" id="generateBtn" type="button">Generate questionnaire</button>
+              <div class="new-company-fields" id="newCompanyFields">
+                <label class="field">
+                  New company name
+                  <span>Use when the company is not in CRM yet.</span>
+                  <input id="newCompanyName" placeholder="Company name" />
+                </label>
+                <label class="field">
+                  New company URL
+                  <span>This also fills the website scan field.</span>
+                  <input id="newCompanyWebsite" placeholder="https://company.com" />
+                </label>
+              </div>
             </div>
             <div class="context-panel">
               <label class="field">
@@ -553,16 +603,26 @@
                   placeholder="Describe business priorities, current AI tools, pain points, data constraints, competitors, risks, desired outcomes, budget/timeline, and the areas where leadership wants the AI assessment to focus."
                 ></textarea>
               </label>
-              <div class="research-options">
+              <div class="research-stack">
+                <div class="research-options">
                 <label class="check-row">
                   <input id="includeExternalResearch" type="checkbox" checked />
                   <span>Include web, news, and competitor signals</span>
                 </label>
                 <p>
-                  Egeria will scan the supplied website and public web/news signals for company, market, AI, automation,
-                  and competitor context. If the website is blank, the assessment still runs, but website evidence will be marked unavailable.
+                  Egeria generates the assessment questions after company selection and research. For a generic version,
+                  select Standard; otherwise supply the company, website, LinkedIn links, and executive context first.
                 </p>
+                </div>
+                <label class="field">
+                  LinkedIn research links
+                  <span>Paste company, leadership, team, or public LinkedIn URLs after web/news signals are selected. One per line is best.</span>
+                  <textarea id="linkedinProfiles" placeholder="https://www.linkedin.com/company/example&#10;https://www.linkedin.com/in/cto-name"></textarea>
+                </label>
               </div>
+            </div>
+            <div class="generate-row">
+              <button class="btn primary" id="generateBtn" type="button">Generate assessment questions</button>
             </div>
             <div class="client-link-panel">
               <div>
@@ -593,7 +653,7 @@
                     <option>Operations Executive</option>
                   </select>
                 </label>
-                <button class="btn primary" id="createSurveyLinkBtn" type="button">Create survey link</button>
+                <button class="btn primary" id="createSurveyLinkBtn" type="button">Create survey link from generated questions</button>
               </div>
               <div class="generated-link" id="generatedSurveyLink">
                 <code id="surveyLinkText"></code>
@@ -603,7 +663,15 @@
             </div>
           </section>
 
-          <section id="questionnaire" class="questionnaire"></section>
+          <div class="assessment-card status-line" id="setupStatus" style="padding:12px">
+            Select a company or Standard, add website/LinkedIn/context, then generate the assessment questions.
+          </div>
+
+          <section id="questionnaire" class="questionnaire">
+            <div class="assessment-card" style="padding:14px">
+              Select a company or Standard, add website/LinkedIn/context, then generate the assessment questions.
+            </div>
+          </section>
 
           <div class="submit-row" id="submitRow" hidden>
             <span class="status-line" id="assessmentStatus">Answer each scored item and add executive context where it matters.</span>
@@ -641,13 +709,20 @@
         return window.location.origin;
       }
 
+      function setAssessmentStatus(message) {
+        const setup = document.getElementById("setupStatus");
+        const sticky = document.getElementById("assessmentStatus");
+        if (setup) setup.textContent = message;
+        if (sticky) sticky.textContent = message;
+      }
+
       async function loadCrmCompanies() {
         const select = document.getElementById("companySelect");
-        select.innerHTML = `<option value="DevReady AI Client">DevReady AI Client</option>`;
+        select.innerHTML = `<option value="">Select company...</option><option value="__new_company__">Add new company...</option><option value="Standard">Standard - generic AI readiness assessment</option>`;
         try {
           const response = await fetch(`${apiBase()}/api/crm/records?domain=${encodeURIComponent(domain)}&limit=200`);
           const data = await response.json();
-          const seen = new Set(["DevReady AI Client"]);
+          const seen = new Set(["Standard"]);
           (data.records || []).forEach((record) => {
             const name = record.customer || record.company || record.client || "";
             if (!name || seen.has(name)) return;
@@ -663,6 +738,31 @@
         }
       }
 
+      function isNewCompanyMode() {
+        return document.getElementById("companySelect").value === "__new_company__";
+      }
+
+      function selectedCompanyName() {
+        if (isNewCompanyMode()) return document.getElementById("newCompanyName").value.trim();
+        return document.getElementById("companySelect").value;
+      }
+
+      function selectedCompanyWebsite() {
+        if (isNewCompanyMode()) {
+          const newWebsite = document.getElementById("newCompanyWebsite").value.trim();
+          if (newWebsite) return newWebsite;
+        }
+        return document.getElementById("companyWebsite").value.trim();
+      }
+
+      function syncNewCompanyFields() {
+        const fields = document.getElementById("newCompanyFields");
+        fields.classList.toggle("show", isNewCompanyMode());
+        if (isNewCompanyMode()) {
+          document.getElementById("companyWebsite").value = document.getElementById("newCompanyWebsite").value.trim();
+        }
+      }
+
       function choiceOptions(question) {
         return (question.choices || [])
           .map((choice) => `<option value="${choice.value}">${escapeHtml(choice.label)} - ${escapeHtml(choice.description)}</option>`)
@@ -670,11 +770,18 @@
       }
 
       function renderQuestion(question) {
+        const promptEditor = `
+          <label class="prompt-editor">
+            <span>Review / edit question before sending</span>
+            <textarea data-question-prompt-id="${escapeHtml(question.id)}">${escapeHtml(question.prompt)}</textarea>
+          </label>
+        `;
         if (question.type === "text") {
           return `
             <div class="question">
+              ${promptEditor}
               <label>
-                ${escapeHtml(question.prompt)}
+                Answer field preview
                 <textarea data-question-id="${escapeHtml(question.id)}" data-question-type="text" placeholder="${escapeHtml(question.placeholder || "")}"></textarea>
               </label>
             </div>
@@ -682,8 +789,9 @@
         }
         return `
           <div class="question">
+            ${promptEditor}
             <label>
-              ${escapeHtml(question.prompt)}
+              Response choices preview
               <select data-question-id="${escapeHtml(question.id)}" data-question-type="score">
                 ${choiceOptions(question)}
               </select>
@@ -713,18 +821,61 @@
           `)
           .join("");
         document.getElementById("submitRow").hidden = false;
-        document.getElementById("assessmentStatus").textContent = `${data.generated_by} generated ${questionCount(data)} questions for ${data.industry_label}.`;
+        const context = data.standard
+          ? "Standard baseline"
+          : data.research_context || "Company-specific research context included";
+        setAssessmentStatus(`${data.generated_by} generated ${questionCount(data)} questions for ${data.company}. ${context}.`);
       }
 
       function questionCount(data) {
         return (data.sections || []).reduce((sum, section) => sum + (section.questions || []).length, 0);
       }
 
+      function applyQuestionnaireEdits() {
+        if (!currentQuestionnaire) return null;
+        const byId = new Map();
+        (currentQuestionnaire.sections || []).forEach((section) => {
+          (section.questions || []).forEach((question) => byId.set(question.id, question));
+        });
+        document.querySelectorAll("[data-question-prompt-id]").forEach((input) => {
+          const question = byId.get(input.dataset.questionPromptId);
+          if (question) question.prompt = input.value.trim() || question.prompt;
+        });
+        return currentQuestionnaire;
+      }
+
+      function questionnaireJson() {
+        const questionnaire = applyQuestionnaireEdits();
+        return questionnaire ? JSON.stringify(questionnaire) : "";
+      }
+
       async function generateQuestionnaire() {
-        const company = document.getElementById("companySelect").value;
+        syncNewCompanyFields();
+        const company = selectedCompanyName();
         const industry = document.getElementById("industrySelect").value;
-        document.getElementById("assessmentStatus").textContent = "Generating questionnaire...";
-        const response = await fetch(`${apiBase()}/api/ai-tech-debt/questionnaire?domain=${encodeURIComponent(domain)}&company=${encodeURIComponent(company)}&industry=${encodeURIComponent(industry)}`);
+        if (!company) {
+          setAssessmentStatus(isNewCompanyMode()
+            ? "Enter the new company name before generating assessment questions."
+            : "Select a company, add a new company, or choose Standard for a generic assessment.");
+          return;
+        }
+        if (isNewCompanyMode() && !selectedCompanyWebsite()) {
+          setAssessmentStatus("Add the new company URL so Egeria can scan the website before generating questions.");
+          return;
+        }
+        const qs = new URLSearchParams({
+          domain,
+          company,
+          industry,
+          company_website: selectedCompanyWebsite(),
+          linkedin_profiles: document.getElementById("linkedinProfiles").value,
+          include_external_research: document.getElementById("includeExternalResearch").checked ? "true" : "false",
+        });
+        setAssessmentStatus(company === "Standard"
+          ? "Generating Standard AI readiness questions..."
+          : "Researching company signals and generating custom assessment questions...");
+        document.getElementById("questionnaire").innerHTML = `<div class="assessment-card" style="padding:14px">Generating assessment questions...</div>`;
+        const response = await fetch(`${apiBase()}/api/ai-tech-debt/questionnaire?${qs.toString()}`);
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || "Unable to generate questionnaire.");
         renderQuestionnaire(data);
@@ -736,25 +887,32 @@
         const panel = document.getElementById("generatedSurveyLink");
         document.getElementById("surveyLinkText").textContent = link.url || "";
         panel.classList.add("show");
-        document.getElementById("assessmentStatus").textContent = `Client survey link created for ${link.recipient_email}.`;
+        setAssessmentStatus(`Client survey link created for ${link.recipient_email}.`);
       }
 
       async function createSurveyLink() {
+        if (!currentQuestionnaire) {
+          setAssessmentStatus("Generate the assessment questions before creating the client survey link.");
+          return;
+        }
+        applyQuestionnaireEdits();
         const email = document.getElementById("surveyRecipientEmail").value.trim();
         if (!email) {
-          document.getElementById("assessmentStatus").textContent = "Enter the CTO/CIO email before creating the survey link.";
+          setAssessmentStatus("Enter the CTO/CIO email before creating the survey link.");
           return;
         }
         const body = new URLSearchParams();
         body.append("domain", domain);
-        body.append("company", document.getElementById("companySelect").value);
+        body.append("company", selectedCompanyName());
         body.append("industry", document.getElementById("industrySelect").value);
-        body.append("company_website", document.getElementById("companyWebsite").value);
+        body.append("company_website", selectedCompanyWebsite());
+        body.append("linkedin_profiles", document.getElementById("linkedinProfiles").value);
+        body.append("questionnaire_json", questionnaireJson());
         body.append("recipient_name", document.getElementById("surveyRecipientName").value);
         body.append("recipient_email", email);
         body.append("recipient_title", document.getElementById("surveyRecipientTitle").value);
         body.append("include_external_research", document.getElementById("includeExternalResearch").checked ? "true" : "false");
-        document.getElementById("assessmentStatus").textContent = "Creating private CTO/CIO survey link...";
+        setAssessmentStatus("Creating private CTO/CIO survey link...");
         const response = await fetch(`${apiBase()}/api/ai-tech-debt/link`, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -768,7 +926,7 @@
       async function copySurveyLink() {
         if (!currentSurveyLink?.url) return;
         await navigator.clipboard.writeText(currentSurveyLink.url);
-        document.getElementById("assessmentStatus").textContent = "Survey link copied.";
+        setAssessmentStatus("Survey link copied.");
       }
 
       async function emailSurveyLink() {
@@ -784,7 +942,7 @@
         } catch (error) {
           console.warn("Unable to mark survey link sent", error);
         }
-        document.getElementById("assessmentStatus").textContent = "Email draft opened and link marked sent.";
+        setAssessmentStatus("Email draft opened and link marked sent.");
       }
 
       function collectAnswers() {
@@ -796,59 +954,80 @@
       }
 
       function draftKey() {
-        return `devreadyAiTechDebtDraft:${domain}:${document.getElementById("companySelect").value}:${document.getElementById("industrySelect").value}`;
+        return `devreadyAiTechDebtDraft:${domain}:${selectedCompanyName() || document.getElementById("companySelect").value}:${document.getElementById("industrySelect").value}`;
       }
 
       function saveDraft() {
         if (!currentQuestionnaire) return;
+        applyQuestionnaireEdits();
         const payload = {
-          company: document.getElementById("companySelect").value,
-          companyWebsite: document.getElementById("companyWebsite").value,
+          company: selectedCompanyName(),
+          companyMode: isNewCompanyMode() ? "new" : "selected",
+          companyWebsite: selectedCompanyWebsite(),
+          newCompanyName: document.getElementById("newCompanyName").value,
+          newCompanyWebsite: document.getElementById("newCompanyWebsite").value,
+          linkedinProfiles: document.getElementById("linkedinProfiles").value,
           industry: document.getElementById("industrySelect").value,
           respondentTitle: document.getElementById("respondentTitle").value,
           businessContext: document.getElementById("businessContext").value,
           includeExternalResearch: document.getElementById("includeExternalResearch").checked,
+          questionnaire: currentQuestionnaire,
           answers: collectAnswers(),
           savedAt: new Date().toISOString(),
         };
         localStorage.setItem(draftKey(), JSON.stringify(payload));
-        document.getElementById("assessmentStatus").textContent = "Draft saved locally in this browser.";
+        setAssessmentStatus("Draft saved locally in this browser.");
       }
 
       function restoreDraft() {
         try {
           const draft = JSON.parse(localStorage.getItem(draftKey()) || "null");
           if (!draft?.answers) return;
+          if (draft.companyMode === "new") {
+            document.getElementById("companySelect").value = "__new_company__";
+            if (draft.newCompanyName) document.getElementById("newCompanyName").value = draft.newCompanyName;
+            if (draft.newCompanyWebsite) document.getElementById("newCompanyWebsite").value = draft.newCompanyWebsite;
+            syncNewCompanyFields();
+          }
           if (draft.companyWebsite) document.getElementById("companyWebsite").value = draft.companyWebsite;
+          if (draft.linkedinProfiles) document.getElementById("linkedinProfiles").value = draft.linkedinProfiles;
           if (draft.businessContext) document.getElementById("businessContext").value = draft.businessContext;
           if (typeof draft.includeExternalResearch === "boolean") {
             document.getElementById("includeExternalResearch").checked = draft.includeExternalResearch;
+          }
+          if (draft.questionnaire?.sections) {
+            currentQuestionnaire = draft.questionnaire;
+            renderQuestionnaire(currentQuestionnaire);
           }
           Object.entries(draft.answers).forEach(([id, value]) => {
             const input = document.querySelector(`[data-question-id="${CSS.escape(id)}"]`);
             if (input) input.value = value;
           });
-          document.getElementById("assessmentStatus").textContent = `Draft restored from ${new Date(draft.savedAt).toLocaleString()}.`;
+          setAssessmentStatus(`Draft restored from ${new Date(draft.savedAt).toLocaleString()}.`);
         } catch {}
       }
 
       async function submitAssessment() {
         if (!currentQuestionnaire) {
-          await generateQuestionnaire();
+          setAssessmentStatus("Generate the assessment questions before submitting the assessment.");
+          return;
         }
+        applyQuestionnaireEdits();
         const body = new URLSearchParams();
         body.append("domain", domain);
-        body.append("company", document.getElementById("companySelect").value);
+        body.append("company", selectedCompanyName());
         body.append("industry", document.getElementById("industrySelect").value);
         body.append("respondent_name", document.getElementById("respondentTitle").value);
         body.append("respondent_title", document.getElementById("respondentTitle").value);
-        body.append("company_website", document.getElementById("companyWebsite").value);
+        body.append("company_website", selectedCompanyWebsite());
+        body.append("linkedin_profiles", document.getElementById("linkedinProfiles").value);
+        body.append("questionnaire_json", questionnaireJson());
         body.append("business_context", document.getElementById("businessContext").value);
         body.append("include_external_research", document.getElementById("includeExternalResearch").checked ? "true" : "false");
         body.append("answers_json", JSON.stringify(collectAnswers()));
-        document.getElementById("assessmentStatus").textContent = document.getElementById("includeExternalResearch").checked
+        setAssessmentStatus(document.getElementById("includeExternalResearch").checked
           ? "Scoring assessment and scanning website, web, news, and competitor signals..."
-          : "Scoring AI Tech Debt assessment...";
+          : "Scoring AI Tech Debt assessment...");
         const response = await fetch(`${apiBase()}/api/ai-tech-debt/submit`, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -858,7 +1037,7 @@
         if (!response.ok) throw new Error(data.detail || "Unable to submit assessment.");
         renderResults(data.assessment);
         await loadHistory();
-        document.getElementById("assessmentStatus").textContent = "Assessment scored and saved.";
+        setAssessmentStatus("Assessment scored and saved.");
         document.getElementById("resultsCard").scrollIntoView({ behavior: "smooth", block: "start" });
       }
 
@@ -966,39 +1145,66 @@
       }
 
       document.getElementById("generateBtn").addEventListener("click", () => generateQuestionnaire().catch((error) => {
-        document.getElementById("assessmentStatus").textContent = error.message || "Questionnaire generation failed.";
+        setAssessmentStatus(error.message || "Questionnaire generation failed.");
       }));
       document.getElementById("submitBtn").addEventListener("click", () => submitAssessment().catch((error) => {
-        document.getElementById("assessmentStatus").textContent = error.message || "Assessment submit failed.";
+        setAssessmentStatus(error.message || "Assessment submit failed.");
       }));
       document.getElementById("saveDraftBtn").addEventListener("click", saveDraft);
       document.getElementById("createSurveyLinkBtn").addEventListener("click", () => createSurveyLink().catch((error) => {
-        document.getElementById("assessmentStatus").textContent = error.message || "Survey link creation failed.";
+        setAssessmentStatus(error.message || "Survey link creation failed.");
       }));
       document.getElementById("copySurveyLinkBtn").addEventListener("click", () => copySurveyLink().catch((error) => {
-        document.getElementById("assessmentStatus").textContent = error.message || "Unable to copy survey link.";
+        setAssessmentStatus(error.message || "Unable to copy survey link.");
       }));
       document.getElementById("emailSurveyLinkBtn").addEventListener("click", () => emailSurveyLink().catch((error) => {
-        document.getElementById("assessmentStatus").textContent = error.message || "Unable to open email draft.";
+        setAssessmentStatus(error.message || "Unable to open email draft.");
       }));
-      document.getElementById("industrySelect").addEventListener("change", () => {
-        if (currentQuestionnaire) generateQuestionnaire().catch(console.error);
-      });
+      function resetGeneratedQuestions(message = "Inputs changed. Generate the assessment questions again before submitting.") {
+        currentQuestionnaire = null;
+        document.getElementById("submitRow").hidden = true;
+        document.getElementById("questionnaire").innerHTML = `<div class="assessment-card" style="padding:14px">${escapeHtml(message)}</div>`;
+        setAssessmentStatus(message);
+      }
+
+      document.getElementById("industrySelect").addEventListener("change", () => resetGeneratedQuestions());
       document.getElementById("companySelect").addEventListener("change", () => {
-        const record = crmRecordsByCompany[document.getElementById("companySelect").value] || {};
+        syncNewCompanyFields();
+        const selected = document.getElementById("companySelect").value;
+        const record = crmRecordsByCompany[selected] || {};
         const website = record.website || record.website_url || record.url || record.companyWebsite || record.source?.website || "";
-        if (website) document.getElementById("companyWebsite").value = website;
-        if (currentQuestionnaire) generateQuestionnaire().catch(console.error);
+        if (selected === "Standard") {
+          document.getElementById("companyWebsite").value = "";
+        } else if (!isNewCompanyMode() && website) {
+          document.getElementById("companyWebsite").value = website;
+        }
+        resetGeneratedQuestions(isNewCompanyMode()
+          ? "Enter the new company name and URL, add web/news and LinkedIn context, then generate the assessment questions."
+          : "Company changed. Add website/LinkedIn/context, then generate the assessment questions.");
+      });
+      document.getElementById("companyWebsite").addEventListener("input", () => {
+        if (currentQuestionnaire) resetGeneratedQuestions();
+      });
+      document.getElementById("newCompanyName").addEventListener("input", () => {
+        if (currentQuestionnaire) resetGeneratedQuestions();
+      });
+      document.getElementById("newCompanyWebsite").addEventListener("input", () => {
+        if (isNewCompanyMode()) document.getElementById("companyWebsite").value = document.getElementById("newCompanyWebsite").value.trim();
+        if (currentQuestionnaire) resetGeneratedQuestions();
+      });
+      document.getElementById("linkedinProfiles").addEventListener("input", () => {
+        if (currentQuestionnaire) resetGeneratedQuestions();
       });
       document.getElementById("businessContext").addEventListener("input", () => {
         if (currentQuestionnaire) {
-          document.getElementById("assessmentStatus").textContent = "Executive context will be included when you submit the assessment.";
+          setAssessmentStatus("Executive context will be included when you submit the assessment.");
         }
       });
 
-      loadCrmCompanies().then(loadHistory).then(generateQuestionnaire).catch((error) => {
+      loadCrmCompanies().then(loadHistory).catch((error) => {
         document.getElementById("questionnaire").innerHTML = `<div class="assessment-card" style="padding:14px">${escapeHtml(error.message || "Unable to load assessment.")}</div>`;
       });
     </script>
   </body>
 </html>
+

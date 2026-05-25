@@ -376,6 +376,8 @@
                 Role
                 <select id="role" name="role" onchange="syncRolePermissions()">
                   <option value="internal">Internal</option>
+                  <option value="sales">Sales</option>
+                  <option value="admin">Admin</option>
                   <option value="candidate">Candidate</option>
                   <option value="super_user">Super user - Numa full access</option>
                 </select>
@@ -598,6 +600,8 @@
       function syncRolePermissions() {
         const role = document.getElementById("role").value;
         if (role === "super_user") renderPermissionGrid(defaults.super);
+        if (role === "admin") renderPermissionGrid(defaults.super);
+        if (role === "sales") renderPermissionGrid(["crm", "prospects", "meet", "reports"].filter((key) => menuItems.some((item) => item.key === key)));
         if (role === "internal") renderPermissionGrid(defaults.internal);
         if (role === "candidate") renderPermissionGrid(defaults.candidate);
       }

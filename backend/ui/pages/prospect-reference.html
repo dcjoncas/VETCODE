@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Prospect Reference</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = (params.get("domain") || sessionStorage.getItem("domain") || "dev").toLowerCase();
+        const domain = requested === "technology" || requested === "tech" ? "dev" : ["dev", "engineer", "law"].includes(requested) ? requested : "dev";
+        sessionStorage.setItem("domain", domain);
+        document.documentElement.dataset.domain = domain;
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <style>
+      .prospect-hero,
+      .prospect-toolbar,
+      .prospect-row {
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.16);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 14px 32px rgba(15, 23, 42, 0.07);
+      }
+
+      .prospect-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: end;
+        padding: 18px;
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb, 47, 125, 75), 0.12), rgba(255, 255, 255, 0.94)),
+          #fff;
+      }
+
+      .prospect-hero h1 {
+        margin: 0;
+        color: var(--text, #102015);
+        font-size: clamp(28px, 3.6vw, 46px);
+        line-height: 1;
+      }
+
+      .prospect-hero p {
+        max-width: 820px;
+        margin: 8px 0 0;
+        color: var(--muted, #5d6b62);
+      }
+
+      .prospect-toolbar {
+        display: grid;
+        grid-template-columns: minmax(260px, 1fr) minmax(180px, 0.45fr) auto auto;
+        gap: 10px;
+        align-items: end;
+        margin: 14px 0;
+        padding: 12px;
+      }
+
+      .prospect-toolbar label {
+        display: grid;
+        gap: 5px;
+        color: var(--text, #102015);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .prospect-toolbar input,
+      .prospect-toolbar select {
+        min-height: 40px;
+        border: 1px solid var(--line, #dfe7e2);
+        border-radius: 8px;
+        padding: 8px 10px;
+        background: #fff;
+        font: inherit;
+      }
+
+      .prospect-meta {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        color: var(--muted, #5d6b62);
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .prospect-list {
+        display: grid;
+        gap: 9px;
+      }
+
+      .prospect-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 12px;
+      }
+
+      .prospect-row h2 {
+        margin: 0;
+        color: var(--text, #102015);
+        font-size: 17px;
+      }
+
+      .prospect-row p {
+        margin: 6px 0 0;
+        color: var(--muted, #5d6b62);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .prospect-tags {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+
+      .tag {
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.2);
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.08);
+        color: var(--primary-2, #2f7d4b);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .row-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+
+      .notice {
+        margin-top: 10px;
+      }
+
+      @media (max-width: 860px) {
+        .prospect-hero,
+        .prospect-toolbar,
+        .prospect-row {
+          grid-template-columns: 1fr;
+        }
+
+        .row-actions {
+          justify-content: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Prospect Reference</div>
+            <div class="breadcrumb">Passive company library - search, mine, and promote only when useful</div>
+          </div>
+          <div id="searchBar"></div>
+        </div>
+
+        <section class="prospect-hero">
+          <div>
+            <h1>Reference companies, not Atlas cards.</h1>
+            <p>
+              This is the large legacy company universe. Keep it passive, search it when you need ideas or context,
+              and promote only real opportunities into Atlas.
+            </p>
+          </div>
+          <div class="prospect-meta">
+            <span id="prospectCount">Loading...</span>
+          </div>
+        </section>
+
+        <section class="prospect-toolbar" aria-label="Prospect filters">
+          <label>
+            Search
+            <input id="prospectSearch" placeholder="Company, website, industry, city, technology..." />
+          </label>
+          <label>
+            Industry contains
+            <input id="industryFilter" placeholder="Software, healthcare..." />
+          </label>
+          <label>
+            Rows
+            <select id="limitSelect">
+              <option value="100">100</option>
+              <option value="200" selected>200</option>
+              <option value="500">500</option>
+            </select>
+          </label>
+          <button class="btn primary" id="searchBtn" type="button">Search</button>
+        </section>
+
+        <div class="prospect-meta" id="prospectStatus">Loading prospect reference...</div>
+        <section class="prospect-list" id="prospectList"></section>
+      </main>
+    </div>
+
+    <script src="JS/utility.js"></script>
+    <script>
+      $("#siteSidebar").load("components/sidebar.html?v=20260525-atlas");
+      $("#searchBar").load("components/searchBar.html");
+
+      const params = new URLSearchParams(window.location.search);
+      const domain = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+      let currentOffset = 0;
+      let currentCount = 0;
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function money(value) {
+        const amount = Number(value || 0);
+        if (!amount) return "";
+        return amount.toLocaleString([], { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+      }
+
+      function compactNumber(value) {
+        const amount = Number(value || 0);
+        return amount ? amount.toLocaleString() : "";
+      }
+
+      function queryParams() {
+        return new URLSearchParams({
+          domain,
+          q: document.getElementById("prospectSearch").value.trim(),
+          industry: document.getElementById("industryFilter").value.trim(),
+          limit: document.getElementById("limitSelect").value,
+          offset: String(currentOffset),
+        });
+      }
+
+      function renderProspect(record) {
+        const location = [record.city, record.state, record.country].filter(Boolean).join(", ");
+        const meta = [
+          record.industry,
+          location,
+          record.employee_count ? `${compactNumber(record.employee_count)} employees` : "",
+          record.annual_revenue ? `${money(record.annual_revenue)} revenue` : "",
+        ].filter(Boolean);
+        const tech = (record.web_technologies || "").split(";").map((item) => item.trim()).filter(Boolean).slice(0, 4);
+        return `
+          <article class="prospect-row">
+            <div>
+              <h2>${escapeHtml(record.company || record.domain_name || "Unnamed prospect")}</h2>
+              <p>${escapeHtml(meta.join(" - ") || "No profile details available.")}</p>
+              <p>${escapeHtml(record.description || "")}</p>
+              <div class="prospect-tags">
+                ${record.website ? `<span class="tag">${escapeHtml(record.website)}</span>` : ""}
+                ${tech.map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("")}
+                ${record.promotedCrmId ? `<span class="tag">Promoted to Atlas</span>` : ""}
+              </div>
+            </div>
+            <div class="row-actions">
+              ${record.website ? `<a class="btn secondary" href="${escapeHtml(record.website.startsWith("http") ? record.website : `https://${record.website}`)}" target="_blank" rel="noopener">Website</a>` : ""}
+              ${record.linkedin_url ? `<a class="btn secondary" href="${escapeHtml(record.linkedin_url)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}
+              <button class="btn primary" type="button" onclick="promoteProspect('${escapeHtml(record.id)}')" ${record.promotedCrmId ? "disabled" : ""}>Promote to Atlas</button>
+            </div>
+          </article>
+        `;
+      }
+
+      async function loadProspects() {
+        const status = document.getElementById("prospectStatus");
+        status.textContent = "Loading prospect reference...";
+        const response = await fetch(`/api/prospects/reference?${queryParams().toString()}`, { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Unable to load prospect reference.");
+        currentCount = data.count || 0;
+        document.getElementById("prospectCount").textContent = `${currentCount.toLocaleString()} reference companies`;
+        status.innerHTML = `
+          Showing ${Math.min(currentOffset + 1, currentCount).toLocaleString()}-${Math.min(currentOffset + (data.records || []).length, currentCount).toLocaleString()}
+          of ${currentCount.toLocaleString()}
+          <button class="btn secondary" type="button" ${currentOffset <= 0 ? "disabled" : ""} onclick="pageProspects(-1)">Previous</button>
+          <button class="btn secondary" type="button" ${currentOffset + Number(data.limit || 200) >= currentCount ? "disabled" : ""} onclick="pageProspects(1)">Next</button>
+        `;
+        document.getElementById("prospectList").innerHTML = (data.records || []).length
+          ? data.records.map(renderProspect).join("")
+          : '<div class="notice">No matching prospect references found.</div>';
+      }
+
+      function pageProspects(direction) {
+        const limit = Number(document.getElementById("limitSelect").value || 200);
+        currentOffset = Math.max(0, currentOffset + direction * limit);
+        loadProspects().catch((error) => {
+          document.getElementById("prospectStatus").textContent = error.message || "Unable to load prospect reference.";
+        });
+      }
+
+      async function promoteProspect(id) {
+        const body = new URLSearchParams({
+          domain,
+          prospect_id: id,
+          next_step: "Review and qualify this promoted prospect.",
+        });
+        const response = await fetch("/api/prospects/reference/promote", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Unable to promote prospect.");
+        document.getElementById("prospectStatus").textContent = `${data.record?.customer || "Prospect"} promoted to Atlas.`;
+        await loadProspects();
+      }
+
+      document.getElementById("searchBtn").addEventListener("click", () => {
+        currentOffset = 0;
+        loadProspects().catch((error) => {
+          document.getElementById("prospectStatus").textContent = error.message || "Unable to load prospect reference.";
+        });
+      });
+      document.getElementById("prospectSearch").addEventListener("keydown", (event) => {
+        if (event.key === "Enter") document.getElementById("searchBtn").click();
+      });
+      document.getElementById("industryFilter").addEventListener("keydown", (event) => {
+        if (event.key === "Enter") document.getElementById("searchBtn").click();
+      });
+      document.getElementById("limitSelect").addEventListener("change", () => {
+        currentOffset = 0;
+        loadProspects().catch((error) => {
+          document.getElementById("prospectStatus").textContent = error.message || "Unable to load prospect reference.";
+        });
+      });
+
+      loadProspects().catch((error) => {
+        document.getElementById("prospectStatus").textContent = error.message || "Unable to load prospect reference.";
+      });
+    </script>
+  </body>
+</html>

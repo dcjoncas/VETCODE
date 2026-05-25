@@ -246,7 +246,7 @@
         <div class="topbar">
           <div>
             <div class="page-title">Meet</div>
-            <div class="breadcrumb">Recordings - Meeting intelligence - CRM handoff</div>
+            <div class="breadcrumb">Recordings - Meeting intelligence - Atlas handoff</div>
           </div>
           <div id="searchBar"></div>
         </div>
@@ -263,7 +263,7 @@
             <div>
               <div class="meet-folder-eyebrow">Workspace</div>
               <strong>Meeting workspace</strong>
-              <span>Record a scoping call, generate a readout, then move important details into CRM.</span>
+              <span>Record a scoping call, generate a readout, then move important details into Atlas.</span>
             </div>
             <div class="meet-folder-icon" data-meet-icon="workspace">-</div>
           </button>
@@ -272,12 +272,12 @@
               <div>
                 <h2 style="margin-bottom: 4px">Meeting workspace</h2>
                 <p style="margin-top: 0">
-                  Record a scoping call, generate the readout, and move the meeting details into CRM without leaving the DevReady workflow.
+                  Record a scoping call, generate the readout, and move the meeting details into Atlas without leaving the DevReady workflow.
                 </p>
               </div>
               <div class="meet-actions">
                 <button id="refreshMeetBtn" class="btn secondary" type="button">Refresh Meet</button>
-                <a id="openCrmBtn" class="btn secondary" href="crm.html">Open CRM</a>
+                <a id="openCrmBtn" class="btn secondary" href="crm.html">Open Atlas</a>
               </div>
             </div>
           </div>
@@ -294,7 +294,7 @@
             <div>
               <div class="meet-folder-eyebrow">Saved outputs</div>
               <strong>Saved meeting outputs</strong>
-              <span id="meetFolderStatus">Open recordings, previous meeting notes, transcript Q&A, PDFs, and CRM handoff.</span>
+              <span id="meetFolderStatus">Open recordings, previous meeting notes, transcript Q&A, PDFs, and Atlas handoff.</span>
             </div>
             <div id="meetFolderIcon" class="meet-folder-icon" data-meet-icon="outputs">-</div>
           </button>
@@ -302,9 +302,9 @@
             <div class="meet-frame-toolbar">
               <div>
                 <strong>DevReady Meeting Agent</strong>
-                <span id="meetStatus">Loading Meet with CRM handoff enabled...</span>
+                <span id="meetStatus">Loading Meet with Atlas handoff enabled...</span>
               </div>
-              <span>Recordings, saved meetings, and Ask AI stay connected to CRM.</span>
+              <span>Recordings, saved meetings, and Ask AI stay connected to Atlas.</span>
             </div>
             <iframe
               id="meetFrame"
@@ -418,7 +418,7 @@
       }
 
       function loadMeet() {
-        meetStatus.textContent = "Loading Meet with CRM handoff enabled...";
+        meetStatus.textContent = "Loading Meet with Atlas handoff enabled...";
         meetFrameFallback.classList.remove("show");
         openLiveMeetBtn.href = buildLiveMeetUrl();
         meetFrame.src = buildMeetUrl();
@@ -465,8 +465,8 @@
         icon.setAttribute("aria-label", open ? "Collapse section" : "Expand section");
         if (section === "outputs") {
           meetFolderStatus.textContent = open
-            ? "Open recordings, previous meeting notes, transcript Q&A, PDFs, and CRM handoff."
-            : "Closed. Click to open saved outputs, transcript Q&A, PDFs, and CRM handoff.";
+            ? "Open recordings, previous meeting notes, transcript Q&A, PDFs, and Atlas handoff."
+            : "Closed. Click to open saved outputs, transcript Q&A, PDFs, and Atlas handoff.";
         }
         if (persist) localStorage.setItem(sectionStorageKey(section), open ? "1" : "0");
       }
@@ -494,7 +494,7 @@
         if (data.type !== "devready-crm") return;
         saveCrmRecordFromMeet(data);
         openCrmBtn.href = crmUrlFromMeet(data);
-        meetStatus.textContent = "Meeting summary saved to CRM. Open CRM when you are ready to review it.";
+        meetStatus.textContent = "Meeting summary saved to Atlas. Open Atlas when you are ready to review it.";
       });
 
       meetFrame.addEventListener("load", () => {
@@ -510,7 +510,7 @@
         }
         setTimeout(checkMeetFrameHealth, 250);
         setTimeout(checkMeetFrameHealth, 1500);
-        meetStatus.textContent = "Meet is ready. Use Move Meeting to CRM after selecting a saved output.";
+        meetStatus.textContent = "Meet is ready. Use Move Meeting to Atlas after selecting a saved output.";
       });
 
       initializeMeetSections();

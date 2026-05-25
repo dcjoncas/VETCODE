@@ -365,12 +365,12 @@
         { key: "pipelineReadiness", title: "Pipeline readiness", icon: "chart", hint: "End-to-end readiness across candidates, jobs, reviews, interviews, and status handoff." },
         { key: "profileQuality", title: "Profile quality", icon: "profile", hint: "Profile universe, reportable rows, completed profiles, incomplete profiles, and recent records." },
         { key: "roleCoverage", title: "Role coverage", icon: "briefcase", hint: "Open role coverage by client, stale jobs, missing clients, and matching readiness." },
-        { key: "clientHealth", title: "Client health", icon: "chart", hint: "CRM customers by owner, stale touch risk, next-step gaps, and contact coverage." },
+        { key: "clientHealth", title: "Client health", icon: "chart", hint: "Atlas customers by owner, stale touch risk, next-step gaps, and contact coverage." },
         { key: "revenueRisk", title: "Revenue risk", icon: "calculator", hint: "Open receivables, overdue invoices, missing AP details, and collection exposure." },
         { key: "utilization", title: "Utilization", icon: "clock", hint: "Resource coverage, approved hours, bill/cost rate readiness, and assignment gaps." },
         { key: "payrollExceptions", title: "Payroll exceptions", icon: "clipboard", hint: "Submitted, approved, processed, missing time, and review-needed payroll signals." },
         { key: "salesFollowup", title: "Sales follow-up", icon: "search", hint: "Client next-touch gaps, high-value stale accounts, owner coverage, and deal movement." },
-        { key: "aiDataReadiness", title: "AI/data readiness", icon: "chart", hint: "Whether Egeria has enough profiles, jobs, CRM, meetings, time, and external data to reason well." },
+        { key: "aiDataReadiness", title: "AI/data readiness", icon: "chart", hint: "Whether Egeria has enough profiles, jobs, Atlas, meetings, time, and external data to reason well." },
       ];
 
       let reportState = {};
@@ -724,7 +724,7 @@
           ["Internal profile universe", bundle.profileUniverseTotal ? "Ready" : "Needs data", bundle.profileUniverseTotal, "Egeria needs enough people to rank against jobs."],
           ["Reportable profile rows", bundle.profileCount ? "Ready" : "Needs data", bundle.profileCount, "These rows can be opened directly from profile reports."],
           ["Active job descriptions", activeJobs.length ? "Ready" : "Needs current roles", activeJobs.length, "Opportunity matching needs fresh demand."],
-          ["CRM customers", bundle.crmCustomers.length ? "Ready" : "Needs CRM records", bundle.crmCustomers.length, "Client intelligence needs account context."],
+          ["Atlas customers", bundle.crmCustomers.length ? "Ready" : "Needs Atlas records", bundle.crmCustomers.length, "Client intelligence needs account context."],
           ["Meetings", bundle.meetings.length ? "Ready" : "Needs meetings", bundle.meetings.length, "Meeting notes improve next-touch recommendations."],
           ["External TEMP profiles", bundle.tempCount ? "Available" : "Internal only", bundle.tempCount, "External scan stays separate until selected."],
         ];
@@ -857,8 +857,8 @@
             ],
             snapshotRows: [
               ["Metric", "Value", "Notes"],
-              ["CRM customers", bundle.crmCustomers.length, "Customer source is CRM"],
-              ["Resource people", bundle.resources.length, "Onboarded/rated people tied to CRM customers"],
+              ["Atlas customers", bundle.crmCustomers.length, "Customer source is Atlas"],
+              ["Resource people", bundle.resources.length, "Onboarded/rated people tied to Atlas customers"],
               ["Total invoices", invoices.length, money(invoiceTotal)],
               ["Sent invoices", sentInvoices.length, money(sentTotal)],
               ["Overdue invoices", overdueInvoices.length, money(overdueTotal)],
@@ -900,7 +900,7 @@
               ["Total job descriptions", bundle.jobs.length, "Use only current-domain roles for matching"],
               ["Active roles", activeJobs.length, "Ready for Find Candidates"],
               ["Stale roles", staleJobs.length, "Refresh or archive old role demand"],
-              ["Missing client", missingClientJobs.length, "Attach roles to CRM/customer context"],
+              ["Missing client", missingClientJobs.length, "Attach roles to Atlas/customer context"],
               ["Missing extracted skills", missingSkillsJobs.length, "Normalize the JD so candidate ranking is meaningful"],
             ],
             missingClientRows: [["JD ID", "Company", "Title", "Updated"], ...missingClientJobs.map((job) => [job.jd_id || job.id || "", jobCompany(job), jobTitle(job), displayDate(jobDate(job))])],
@@ -910,7 +910,7 @@
             count: bundle.crmCustomers.length,
             rows: [
               ["Metric", "Value", "Meaning"],
-              ["CRM customers", bundle.crmCustomers.length, "Customer records available to sales and accounting"],
+              ["Atlas customers", bundle.crmCustomers.length, "Customer records available to sales and accounting"],
               ["Missing owner", crmUnowned.length, "Needs a sales/account owner"],
               ["Missing next step", crmNoNextStep.length, "Needs a clear follow-up action"],
               ["Stale touch", crmStale.length, "No recent activity found"],
@@ -1184,7 +1184,7 @@
 
       function customerAccountingTable(rows) {
         const data = rows || [];
-        if (!data.length) return '<div class="notice" style="margin:12px">No CRM customers found for this workspace.</div>';
+        if (!data.length) return '<div class="notice" style="margin:12px">No Atlas customers found for this workspace.</div>';
         return tableHtml([
           ["Customer", "Owner", "People", "Invoices", "Total", "Open AR", "Overdue"],
           ...data.map((row) => [
@@ -1328,14 +1328,14 @@
             <section class="card report-panel ${activeReport === "roleCoverage" ? "active" : ""}" data-report-panel="roleCoverage">
               <h2>Role coverage</h2>
               <details class="report-drill" open><summary>Role coverage scorecard <span>${reportState.roleCoverage?.count || 0} roles</span></summary>${tableHtml(reportState.roleCoverage?.rows)}</details>
-              <details class="report-drill"><summary>Roles missing client context <span>CRM/customer link needed</span></summary>${tableHtml(reportState.roleCoverage?.missingClientRows)}</details>
+              <details class="report-drill"><summary>Roles missing client context <span>Atlas/customer link needed</span></summary>${tableHtml(reportState.roleCoverage?.missingClientRows)}</details>
               <details class="report-drill"><summary>Roles missing extracted skills <span>Normalize before matching</span></summary>${tableHtml(reportState.roleCoverage?.missingSkillsRows)}</details>
             </section>
           `,
           clientHealth: `
             <section class="card report-panel ${activeReport === "clientHealth" ? "active" : ""}" data-report-panel="clientHealth">
               <h2>Client health</h2>
-              <details class="report-drill" open><summary>CRM health scorecard <span>${reportState.clientHealth?.count || 0} customers</span></summary>${tableHtml(reportState.clientHealth?.rows)}</details>
+              <details class="report-drill" open><summary>Atlas health scorecard <span>${reportState.clientHealth?.count || 0} customers</span></summary>${tableHtml(reportState.clientHealth?.rows)}</details>
               <details class="report-drill"><summary>Stale client touches <span>Sales follow-up candidates</span></summary>${tableHtml(reportState.clientHealth?.staleRows)}</details>
             </section>
           `,

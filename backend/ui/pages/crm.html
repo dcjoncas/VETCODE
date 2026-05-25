@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DevReady - Relationship CRM</title>
+    <title>DevReady - Atlas</title>
     <link
       class="domainLogo"
       rel="icon"
@@ -255,6 +255,39 @@
         border-color: rgba(47, 125, 75, 0.45);
         background: rgba(127, 191, 63, 0.18);
         color: var(--primary-2);
+      }
+
+      .crm-card-search {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) auto auto;
+        gap: 8px;
+        align-items: center;
+        margin: 0 0 14px;
+      }
+
+      .crm-card-search input {
+        width: 100%;
+        min-height: 38px;
+        border: 1px solid rgba(var(--domain-rgb), 0.18);
+        border-radius: 999px;
+        padding: 9px 14px;
+        background: rgba(255, 255, 255, 0.92);
+        color: var(--crm-ink);
+        font: inherit;
+        font-size: 13px;
+        outline: none;
+      }
+
+      .crm-card-search input:focus {
+        border-color: rgba(var(--domain-rgb), 0.42);
+        box-shadow: 0 0 0 3px rgba(var(--domain-rgb), 0.12);
+      }
+
+      .crm-card-search-status {
+        grid-column: 1 / -1;
+        color: #64746b;
+        font-size: 12px;
+        font-weight: 800;
       }
 
       .crm-stats {
@@ -1037,6 +1070,16 @@
         padding: 10px;
         background: rgba(255, 255, 255, 0.86);
         color: var(--crm-ink);
+        cursor: pointer;
+        transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+      }
+
+      .crm-list-row:not(.header):hover,
+      .crm-list-row:not(.header):focus-visible {
+        border-color: rgba(var(--domain-rgb), 0.38);
+        background: rgba(var(--domain-rgb), 0.06);
+        box-shadow: 0 10px 22px rgba(23, 35, 29, 0.08);
+        outline: none;
       }
 
       .crm-list-row.header {
@@ -1049,6 +1092,7 @@
         font-size: 11px;
         font-weight: 950;
         text-transform: uppercase;
+        cursor: default;
       }
 
       .crm-list-title {
@@ -1408,6 +1452,10 @@
           justify-content: flex-start;
         }
 
+        .crm-card-search {
+          grid-template-columns: 1fr;
+        }
+
         .crm-stats,
         .relationship-board,
         .crm-list-row,
@@ -1455,7 +1503,7 @@
       <main class="main">
         <div class="topbar">
           <div>
-            <div class="page-title">CRM</div>
+            <div class="page-title">Atlas</div>
             <div class="breadcrumb">Relationship radar - Client energy - Meeting handoff</div>
           </div>
           <div id="searchBar"></div>
@@ -1478,7 +1526,7 @@
             <button id="copySalesWorkspaceBtn" class="btn primary" type="button">Copy sales workspace link</button>
             <a class="btn secondary" href="meet.html">Open Meet</a>
             <button id="seedCrmBtn" class="btn secondary" type="button">Load demo cards</button>
-            <button id="clearCrmRecordsBtn" class="btn secondary" type="button">Clear local CRM</button>
+            <button id="clearCrmRecordsBtn" class="btn secondary" type="button">Clear local Atlas</button>
           </div>
         </section>
 
@@ -1530,7 +1578,9 @@
               </div>
               <div class="field">
                 <label>Owner</label>
-                <input id="crmOwner" placeholder="Darrin" />
+                <select id="crmOwner">
+                  <option value="">Unassigned</option>
+                </select>
               </div>
               <div class="thirds">
                 <div class="field">
@@ -1617,10 +1667,16 @@
                 <span>Business card wall</span>
                 <h2>Client team cards</h2>
               </div>
-              <div class="crm-mode" aria-label="CRM view mode">
+              <div class="crm-mode" aria-label="Atlas view mode">
                 <button id="boardModeBtn" class="active" type="button">Board</button>
                 <button id="listModeBtn" type="button">List</button>
               </div>
+            </div>
+            <div class="crm-card-search" role="search" aria-label="Search Atlas cards">
+              <input id="crmCardSearchInput" type="search" placeholder="Search cards by company, contact, email, owner, stage, notes..." />
+              <button id="crmCardSearchBtn" class="btn primary" type="button">Search cards</button>
+              <button id="crmCardSearchClearBtn" class="btn secondary" type="button">Clear</button>
+              <div id="crmCardSearchStatus" class="crm-card-search-status">Showing all cards.</div>
             </div>
             <div id="relationshipBoard" class="relationship-board"></div>
             <div id="relationshipList" class="list-view hidden"></div>
@@ -1630,13 +1686,13 @@
     </div>
 
     <div id="dealDrawerBackdrop" class="deal-drawer-backdrop" aria-hidden="true">
-      <aside class="deal-drawer" aria-label="CRM deal details">
+      <aside class="deal-drawer" aria-label="Atlas deal details">
         <div id="dealDrawerContent"></div>
       </aside>
     </div>
 
     <div id="touchModal" class="touch-modal" aria-hidden="true">
-      <section class="touch-card" aria-label="Record CRM touch">
+      <section class="touch-card" aria-label="Record Atlas touch">
         <div class="touch-card-head">
           <div>
             <span class="breadcrumb">Record client touch</span>
@@ -1711,6 +1767,8 @@
       let editingCrmId = null;
       let cardEditingId = null;
       let crmViewMode = "board";
+      let crmCardSearchQuery = "";
+      let crmOwnerUsers = [];
 
       function currentDomain() {
         return sessionStorage.getItem("domain") || "dev";
@@ -1750,7 +1808,7 @@
         const value = url.toString();
         try {
           await navigator.clipboard?.writeText(value);
-          document.getElementById("crmStatus").textContent = "Sales mini-workspace link copied. Send it to the rep who only needs CRM territory updates.";
+          document.getElementById("crmStatus").textContent = "Sales mini-workspace link copied. Send it to the rep who only needs Atlas territory updates.";
         } catch {
           window.prompt("Copy this sales mini-workspace link:", value);
           document.getElementById("crmStatus").textContent = "Sales mini-workspace link is ready to send.";
@@ -1759,6 +1817,52 @@
 
       function crmStorageKey() {
         return `devreadyCrmRecords:${currentDomain()}`;
+      }
+
+      const archivedSeedCustomerNames = new Set([
+        "northstar health",
+        "ledgerpeak bank",
+        "brightcart retail",
+        "sentinelworks",
+        "routeforge logistics",
+        "learnloop",
+        "gridspring energy",
+        "civicbridge",
+        "forgesight",
+        "framecloud media",
+        "atlas ai health",
+        "forgeline fabrication",
+        "canyon water authority",
+        "apex grid storage",
+        "orbitalworks",
+        "nanofab systems",
+        "copperridge mining",
+        "velocity motors",
+        "corevault data centers",
+        "metroworks civil",
+        "harborfoods manufacturing",
+        "summit grid works",
+        "greenline care",
+        "bluepeak logistics",
+        "summit energy",
+        "civic legal group",
+        "atlas manufacturing",
+      ]);
+
+      function shouldHideArchivedSeedRecord(record = {}) {
+        const id = String(record.id || "");
+        const customer = String(record.customer || "").trim().toLowerCase();
+        const history = String(record.history || "");
+        const email = String(record.email || "");
+        const contacts = String(record.contacts || "");
+        const teamMembers = Array.isArray(record.teamMembers) ? JSON.stringify(record.teamMembers) : "";
+        if (record.archived || record.archivedAt) return true;
+        if (/^CRM-(SEED|DEMO)-/i.test(id)) return true;
+        if (/^CRM-SALES-/i.test(id) && /qa|test|sample/i.test(customer)) return true;
+        if (/sample .*card created for dev testing/i.test(history)) return true;
+        if (archivedSeedCustomerNames.has(customer)) return true;
+        if (!record.sourceImportBatch && /\.example\b/i.test([email, contacts, teamMembers].join(" "))) return true;
+        return false;
       }
 
       function crmFields() {
@@ -1786,11 +1890,67 @@
 
       function crmRecords() {
         const raw = JSON.parse(localStorage.getItem(crmStorageKey()) || "[]");
-        return Array.isArray(raw) ? raw.map(normalizeCrmRecord) : [];
+        return Array.isArray(raw)
+          ? raw.map(normalizeCrmRecord).filter((record) => !shouldHideArchivedSeedRecord(record))
+          : [];
+      }
+
+      function crmCardSearchText(record) {
+        const contactLines = Array.isArray(record.teamMembers)
+          ? record.teamMembers.map((member) => Object.values(member || {}).join(" ")).join(" ")
+          : "";
+        const dealLines = Array.isArray(record.deals)
+          ? record.deals.map((deal) => Object.values(deal || {}).join(" ")).join(" ")
+          : "";
+        return [
+          record.customer,
+          record.contact,
+          record.email,
+          record.phone,
+          record.owner,
+          record.dealTitle,
+          record.dealStage,
+          record.where,
+          record.what,
+          record.why,
+          record.nextStep,
+          record.contacts,
+          record.history,
+          record.sourceImportBatch,
+          contactLines,
+          dealLines,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+      }
+
+      function filterCrmCards(records) {
+        const query = crmCardSearchQuery.trim().toLowerCase();
+        if (!query) return records;
+        const terms = query.split(/\s+/).filter(Boolean);
+        return records.filter((record) => {
+          const haystack = crmCardSearchText(record);
+          return terms.every((term) => haystack.includes(term));
+        });
+      }
+
+      function applyCrmCardSearch() {
+        const input = document.getElementById("crmCardSearchInput");
+        crmCardSearchQuery = input ? input.value : "";
+        renderCrm();
+      }
+
+      function clearCrmCardSearch() {
+        const input = document.getElementById("crmCardSearchInput");
+        if (input) input.value = "";
+        crmCardSearchQuery = "";
+        renderCrm();
       }
 
       function setCrmRecords(records) {
-        localStorage.setItem(crmStorageKey(), JSON.stringify(records.slice(0, 200)));
+        const visibleRecords = (records || []).filter((record) => !shouldHideArchivedSeedRecord(record));
+        localStorage.setItem(crmStorageKey(), JSON.stringify(visibleRecords.slice(0, 200)));
         hydrateBriefingCustomerOptions();
       }
 
@@ -1809,6 +1969,64 @@
           .replace(/>/g, "&gt;")
           .replace(/"/g, "&quot;")
           .replace(/'/g, "&#39;");
+      }
+
+      function ownerDisplayName(owner = {}) {
+        return owner.name || owner.display_name || owner.username || owner.email || "";
+      }
+
+      function ownerOptionLabel(owner = {}) {
+        const name = ownerDisplayName(owner);
+        const role = String(owner.role || "").replace("_", " ");
+        return [name, role ? role.charAt(0).toUpperCase() + role.slice(1) : ""].filter(Boolean).join(" - ");
+      }
+
+      function uniqueOwnerNames(extraNames = []) {
+        const names = [];
+        const seen = new Set();
+        [...crmOwnerUsers.map(ownerDisplayName), ...extraNames].forEach((name) => {
+          const clean = String(name || "").trim();
+          const key = clean.toLowerCase();
+          if (!clean || seen.has(key)) return;
+          seen.add(key);
+          names.push(clean);
+        });
+        return names;
+      }
+
+      function renderOwnerOptions(selectedValue = "") {
+        const selected = String(selectedValue || "").trim();
+        const field = document.getElementById("crmOwner");
+        if (field) {
+          const options = uniqueOwnerNames(selected ? [selected] : []);
+          field.innerHTML = '<option value="">Unassigned</option>' + options
+            .map((name) => `<option value="${escapeHtml(name)}"${name === selected ? " selected" : ""}>${escapeHtml(name)}</option>`)
+            .join("");
+          field.value = selected;
+        }
+      }
+
+      function renderOwnerSelect(name, selectedValue = "") {
+        const selected = String(selectedValue || "").trim();
+        const options = uniqueOwnerNames(selected ? [selected] : []);
+        return `
+          <select name="${escapeHtml(name)}">
+            <option value="">Unassigned</option>
+            ${options.map((value) => `<option value="${escapeHtml(value)}"${value === selected ? " selected" : ""}>${escapeHtml(value)}</option>`).join("")}
+          </select>
+        `;
+      }
+
+      async function loadCrmOwnerUsers() {
+        try {
+          const response = await fetch(`/api/access/sales-owners?domain=${encodeURIComponent(currentDomain())}`, { cache: "no-store" });
+          if (!response.ok) throw new Error("Owner list unavailable.");
+          const data = await response.json();
+          crmOwnerUsers = Array.isArray(data.owners) ? data.owners : [];
+        } catch {
+          crmOwnerUsers = [];
+        }
+        renderOwnerOptions(document.getElementById("crmOwner")?.value || "");
       }
 
       function hydrateBriefingCustomerOptions() {
@@ -1836,7 +2054,7 @@
         if (!data || data.empty) {
           target.innerHTML = `
             <div class="briefing-angle">
-              <strong>${escapeHtml(data?.today_angle || "No CRM clients available yet.")}</strong>
+              <strong>${escapeHtml(data?.today_angle || "No Atlas clients available yet.")}</strong>
               <p>Add a team card or load demo cards, then run the briefing again.</p>
             </div>
           `;
@@ -1851,7 +2069,7 @@
         target.innerHTML = `
           <div class="briefing-angle">
             <strong>${escapeHtml(customer.name || "Client")} - today's angle</strong>
-            <p>${escapeHtml(data.today_angle || "Use CRM context to shape the next client touch.")}</p>
+            <p>${escapeHtml(data.today_angle || "Use Atlas context to shape the next client touch.")}</p>
             <div class="briefing-grid">
               <div class="briefing-card"><span>Who to contact</span><strong>${escapeHtml(data.who_to_contact || "Add a named contact")}</strong></div>
               <div class="briefing-card"><span>Pitch</span><strong>${escapeHtml(data.role_or_candidate_to_pitch || "Open role")}</strong></div>
@@ -1891,7 +2109,7 @@
         const select = document.getElementById("briefingCustomerSelect");
         if (!target) return;
         if (target) {
-          target.innerHTML = '<div class="briefing-angle"><strong>Egeria is building the briefing...</strong><p>Reading internal CRM first. External news runs only when requested.</p></div>';
+          target.innerHTML = '<div class="briefing-angle"><strong>Egeria is building the briefing...</strong><p>Reading internal Atlas first. External news runs only when requested.</p></div>';
         }
         const params = new URLSearchParams({
           domain: currentDomain(),
@@ -2564,6 +2782,7 @@
           else field.value = "";
         });
         document.getElementById("crmDealStage").value = "Discovery";
+        renderOwnerOptions("");
         document.getElementById("crmStrengthValue").textContent = "6";
         document.getElementById("crmWhen").value = localDatetimeNow();
         document.getElementById("builderMode").textContent = "Build from scratch";
@@ -2651,7 +2870,7 @@
         fields.contact.value = read("contact") || read("who") || "";
         fields.email.value = read("email") || "";
         fields.value.value = read("value") || "";
-        fields.owner.value = read("owner") || "";
+        renderOwnerOptions(read("owner") || "");
         fields.dealTitle.value = read("dealTitle") || read("deal") || "";
         fields.dealStage.value = cleanStage(read("dealStage") || read("stage") || "Discovery");
         fields.dealProbability.value = read("dealProbability") || read("probability") || "";
@@ -2678,7 +2897,7 @@
         fields.contact.value = record.contact || "";
         fields.email.value = record.email || emailFor(record) || "";
         fields.value.value = record.value || "";
-        fields.owner.value = record.owner || "";
+        renderOwnerOptions(record.owner || "");
         fields.dealTitle.value = record.dealTitle || primaryDeal(record).title || "";
         fields.dealStage.value = cleanStage(record.dealStage || primaryDeal(record).stage);
         fields.dealProbability.value = record.dealProbability ?? primaryDeal(record).probability ?? "";
@@ -2700,7 +2919,7 @@
       }
 
       function deleteCrmRecord(id) {
-        if (!confirm("Delete this local CRM team card?")) return;
+        if (!confirm("Delete this local Atlas team card?")) return;
         setCrmRecords(crmRecords().filter((record) => record.id !== id));
         if (editingCrmId === id) clearCrmForm();
         renderCrm();
@@ -2887,7 +3106,7 @@
               </label>
               <label>
                 Owner
-                <input name="owner" value="${escapeHtml(record.owner || "")}" />
+                ${renderOwnerSelect("owner", record.owner || "")}
               </label>
               <label>
                 Primary deal
@@ -3090,7 +3309,7 @@
         return `
           <div class="deal-drawer-head">
             <div>
-              <span class="breadcrumb">${escapeHtml(domainLabel())} CRM deal view</span>
+              <span class="breadcrumb">${escapeHtml(domainLabel())} Atlas deal view</span>
               <h2>${escapeHtml(record.customer || "Untitled account")}</h2>
               <div class="muted">${escapeHtml(record.contact || "No primary contact")} ${emailFor(record) ? `- ${escapeHtml(emailFor(record))}` : ""}${phoneFor(record) ? ` - ${escapeHtml(phoneFor(record))}` : ""}</div>
             </div>
@@ -3319,7 +3538,7 @@
       }
 
       function renderCrmList(enriched) {
-        if (!enriched.length) return '<div class="notice">No CRM team cards yet.</div>';
+        if (!enriched.length) return '<div class="notice">No Atlas team cards yet.</div>';
 
         const header = `
           <div class="crm-list-row header" aria-hidden="true">
@@ -3345,7 +3564,7 @@
               ? `<a class="btn secondary" href="${escapeHtml(record.meetingUrl)}" target="_blank" rel="noopener">Meeting</a>`
               : "";
             return `
-              <article class="crm-list-row">
+              <article class="crm-list-row" onclick="openDealDetailFromCard(event, '${escapeHtml(record.id)}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDealDetail('${escapeHtml(record.id)}')}">
                 <div class="crm-list-title">
                   <strong>${escapeHtml(record.customer || "Untitled account")}</strong>
                   <span>${escapeHtml(money(record.value))} &bull; ${escapeHtml(record.owner || "Unowned")}</span>
@@ -3375,23 +3594,35 @@
 
       function renderCrm() {
         const records = crmRecords();
-        const enriched = records
+        const filteredRecords = filterCrmCards(records);
+        const enriched = filteredRecords
           .map((record) => ({ ...record, lane: laneFor(record), heat: heatScore(record) }))
           .sort((a, b) => b.heat - a.heat || Number(b.value || 0) - Number(a.value || 0));
 
-        document.getElementById("crmRecordCount").textContent = records.length;
+        document.getElementById("crmRecordCount").textContent = filteredRecords.length;
         document.getElementById("crmHotCount").textContent = enriched.filter((record) => record.heat >= 7).length;
         document.getElementById("crmAttentionCount").textContent = enriched.filter((record) => daysSinceTouch(record) >= 8 || !record.nextStep).length;
         document.getElementById("crmWeightedValue").textContent = money(enriched.reduce((sum, record) => sum + Number(record.value || 0) * (record.heat / 10), 0));
+        const searchStatus = document.getElementById("crmCardSearchStatus");
+        if (searchStatus) {
+          const query = crmCardSearchQuery.trim();
+          searchStatus.textContent = query
+            ? `Showing ${filteredRecords.length} of ${records.length} cards for "${query}".`
+            : `Showing all ${records.length} cards.`;
+        }
 
         const board = document.getElementById("relationshipBoard");
         board.innerHTML = enriched.length
           ? enriched.map(renderPlayerCard).join("")
-          : '<div class="notice">No CRM team cards yet.</div>';
+          : (crmCardSearchQuery.trim()
+            ? '<div class="notice">No Atlas cards match that search.</div>'
+            : '<div class="notice">No Atlas team cards yet.</div>');
 
         document.getElementById("relationshipList").innerHTML = enriched.length
           ? renderCrmList(enriched)
-          : '<div class="notice">No CRM team cards yet.</div>';
+          : (crmCardSearchQuery.trim()
+            ? '<div class="notice">No Atlas cards match that search.</div>'
+            : '<div class="notice">No Atlas team cards yet.</div>');
       }
 
       function setViewMode(mode) {
@@ -3436,7 +3667,7 @@
 
       function seedDemoCards() {
         const domain = currentDomain();
-        if (crmRecords().length && !confirm(`Add ${domain} sample team cards to the current local CRM?`)) return;
+        if (crmRecords().length && !confirm(`Add ${domain} sample team cards to the current local Atlas?`)) return;
         const now = new Date();
         const daysAgo = (days) => {
           const date = new Date(now);
@@ -3481,7 +3712,7 @@
               description: "Owns the business outcome and approves the shortlist before client interviews.",
               linkedinUrl: demoLinkedInFor({ customer: company }, leadName),
               photoUrl: "",
-              lastConversation: "Confirmed priority, timing, and decision criteria during the last CRM touch.",
+              lastConversation: "Confirmed priority, timing, and decision criteria during the last Atlas touch.",
             },
             {
               id: `${slug}-buyer`,
@@ -3597,7 +3828,7 @@
           const records = crmRecords();
           const existingIds = new Set(records.map((record) => record.id));
           const incoming = seeded
-            .filter((record) => record && record.id && !existingIds.has(record.id))
+            .filter((record) => record && record.id && !existingIds.has(record.id) && !shouldHideArchivedSeedRecord(record))
             .map((record) => {
               const normalized = normalizeCrmRecord(record);
               return { ...normalized, aiScan: normalized.aiScan || scanClientCard(normalized) };
@@ -3613,11 +3844,12 @@
         hydrateFromUrl();
         renderCrm();
         document.getElementById("crmStatus").textContent =
-          "Meeting intelligence moved into CRM as a team card. Review and tune the relationship strength.";
+          "Meeting intelligence moved into Atlas as a team card. Review and tune the relationship strength.";
       });
 
       document.addEventListener("DOMContentLoaded", async () => {
         applyDomainLock();
+        await loadCrmOwnerUsers();
         await importSeededCrmRecords();
         hydrateFromUrl();
         renderCrm();
@@ -3632,6 +3864,14 @@
         document.getElementById("seedCrmBtn").addEventListener("click", seedDemoCards);
         document.getElementById("boardModeBtn").addEventListener("click", () => setViewMode("board"));
         document.getElementById("listModeBtn").addEventListener("click", () => setViewMode("list"));
+        document.getElementById("crmCardSearchBtn").addEventListener("click", applyCrmCardSearch);
+        document.getElementById("crmCardSearchClearBtn").addEventListener("click", clearCrmCardSearch);
+        document.getElementById("crmCardSearchInput").addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            applyCrmCardSearch();
+          }
+        });
         document.getElementById("dealDrawerBackdrop").addEventListener("click", (event) => {
           if (event.target.id === "dealDrawerBackdrop") closeDealDetail();
         });
@@ -3648,7 +3888,7 @@
           document.getElementById("crmStrengthValue").textContent = event.target.value;
         });
         document.getElementById("clearCrmRecordsBtn").addEventListener("click", () => {
-          if (!confirm("Clear all local CRM team cards?")) return;
+          if (!confirm("Clear all local Atlas team cards?")) return;
           localStorage.removeItem(crmStorageKey());
           clearCrmForm();
           renderCrm();
