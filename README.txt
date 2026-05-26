@@ -24,3 +24,16 @@ Run:
 
 Open:
   http://127.0.0.1:8000/ui/index.html
+
+Data storage standard as of 2026-05-25
+======================================
+Long-term operational data should be stored in PostgreSQL tables, not only JSON files.
+
+Current database-backed business tables:
+- atlas_crm_records
+- prospect_reference_records
+- accounting_resources
+- accounting_invoices
+- accounting_expenses
+
+JSON under backend/data is now fallback/import/recovery storage for these areas, not the system of record.

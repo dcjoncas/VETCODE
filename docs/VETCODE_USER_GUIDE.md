@@ -1,6 +1,6 @@
 # VETCODE User Guide
 
-Updated: 2026-05-21
+Updated: 2026-05-25
 
 ## What VETCODE Is
 
@@ -50,7 +50,8 @@ The left navigation is organized around the hiring workflow:
 | Onboarding | Create onboarding links from completed profiles and monitor paperwork status |
 | Time | Review submitted time, approve it, process it, and connect it to accounting |
 | Status | Track where candidates are in the workflow |
-| CRM | Manage client teams, client contacts, deals, touches, and sales follow-up |
+| Atlas | Manage client teams, client contacts, deals, touches, and sales follow-up |
+| Prospect Reference | Search passive prospect companies and promote useful companies into Atlas |
 | Reports | Run operational reports across jobs, profiles, time, onboarding, invoices, and status |
 | Accounting | Manage resource rates, costs, invoice inputs, and accounting setup |
 | Invoices | Build customer invoices from approved billable time |
@@ -281,11 +282,12 @@ Accounting is where resource rates and billing information are managed.
 
 Important concepts:
 
-- A customer must come from CRM.
+- A customer must come from Atlas.
 - A consultant must come from onboarding/resource setup.
 - Bill rate and cost rate must be linked to the onboarded resource.
 - Invoices are built from approved billable time.
-- Invoice customer details come from CRM.
+- Invoice customer details come from Atlas.
+- Accounting resources, invoices, and expenses are stored in database tables.
 
 Invoice workflow:
 
@@ -299,9 +301,9 @@ Invoice workflow:
 
 If the page says no approved billable time exists, go to Time and approve time first or go to Accounting and add the consultant bill rate.
 
-### 14. CRM
+### 14. Atlas
 
-CRM tracks clients, contacts, deals, and touches.
+Atlas tracks clients, contacts, deals, and touches.
 
 Terminology:
 
@@ -331,7 +333,9 @@ Use `Record Touch` for:
 - LinkedIn.
 - Other follow-up.
 
-CRM news scan checks web/news signals for interesting customer updates.
+Atlas news scan checks web/news signals for interesting customer updates.
+
+Atlas cards are stored in Postgres and separated by domain. Prospect Reference is a separate passive library and does not create an Atlas card until a prospect is promoted.
 
 ### 15. Meet
 
@@ -552,4 +556,3 @@ Refresh the page and confirm the domain dropdown. If it still shows wrong data, 
 | Client Contact | Real person at the client company |
 | Numa | Main page-aware app assistant |
 | Egeria | Sidebar helper agent entry point |
-

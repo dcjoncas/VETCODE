@@ -1,6 +1,6 @@
 # VETCODE Technical Developer Guide
 
-Updated: 2026-05-21
+Updated: 2026-05-25
 
 ## Purpose
 
@@ -10,9 +10,9 @@ VETCODE currently combines:
 
 - FastAPI backend.
 - Static HTML/CSS/JavaScript frontend.
-- Azure PostgreSQL candidate/job/profile database.
+- Azure PostgreSQL candidate/job/profile and business operations database.
 - Local SQLite fallback databases.
-- JSON operational stores for workflow, CRM, accounting, time, onboarding, badges, and demo fixtures.
+- JSON demo fixtures and short-term fallback stores only. Long-term operational data must use database tables.
 - OpenAI-powered extraction, agent, summarization, certification, chat, and scheduling support.
 - Railway dev deployment.
 
@@ -137,7 +137,8 @@ Active pages live in `backend/ui/pages/`.
 | `time-entry.html` | Candidate/staff time-entry form |
 | `accounting.html` | Resource rates, costs, accounting setup |
 | `invoices.html` | Invoice workbench and invoice status |
-| `crm.html` | CRM client team cards, contacts, deals, touches |
+| `crm.html` | Atlas client team cards, contacts, deals, touches |
+| `prospect-reference.html` | Passive prospect reference library and promote-to-Atlas workflow |
 | `sales-crm.html` | Sales-rep-specific CRM portal |
 | `meet.html` | Meeting recording/output/CRM handoff |
 | `reports.html` | Operational reports |
@@ -562,9 +563,44 @@ CREATE INDEX IF NOT EXISTS idx_jds_created ON jds(created_at);
 CREATE INDEX IF NOT EXISTS idx_jds_updated ON jds(updated_at);
 ```
 
+### Durable Business Tables
+
+As of 2026-05-25, new long-term operational data should be stored in Azure PostgreSQL tables. JSON files may be used for demo fixtures, local recovery, temporary import staging, or migration fallbacks, but they are not the long-term storage strategy.
+
+The current business operations tables are created/verified by `backend/main.py:_ensure_business_data_tables`.
+
+| Table | Purpose | Key Columns |
+| --- | --- | --- |
+| `atlas_crm_records` | Atlas client team cards, HubSpot-imported accounts, promoted prospects, deals, contacts, touches | `id`, `domain`, `customer`, `owner`, `source_import_batch`, `source_prospect_id`, `archived`, `created_at`, `updated_at`, `data JSONB` |
+| `prospect_reference_records` | Passive prospect reference library imported from legacy DevReady company data | `id`, `domain`, `company`, `domain_name`, `website`, `industry`, `source_import_batch`, `promoted_crm_id`, `archived`, `search_text`, `data JSONB` |
+| `accounting_resources` | Consultant/resource billing setup linked to Atlas customers | `id`, `domain`, `crm_customer_id`, `client`, `name`, `email`, `status`, `data JSONB` |
+| `accounting_invoices` | Customer invoices and invoice status lifecycle | `id`, `domain`, `crm_customer_id`, `client`, `invoice_number`, `status`, `invoice_date`, `due_date`, `total`, `data JSONB` |
+| `accounting_expenses` | Accounting expense records | `id`, `domain`, `category`, `expense_date`, `amount`, `data JSONB` |
+
+Current imported production/dev counts after the 2026-05-25 migration:
+
+| Data Set | Domain Counts |
+| --- | --- |
+| Atlas active cards | `dev`: 423, `engineer`: 421, `law`: 25 |
+| Atlas archived seed/demo cards | `dev`: 25, `engineer`: 25 |
+| Prospect references | `dev`: 6,038 |
+| Accounting resources | `dev`: 3, `engineer`: 2, `law`: 2 |
+| Accounting invoices | `dev`: 3, `engineer`: 1, `law`: 1 |
+| Accounting expenses | `dev`: 1 |
+
+Important API storage behavior:
+
+| Area | Primary Store | Fallback |
+| --- | --- | --- |
+| `/api/crm/records` and Sales Atlas | `atlas_crm_records` | `backend/data/crm_records.json` |
+| `/api/prospects/reference` | `prospect_reference_records` | `backend/data/prospect_reference_records.json` |
+| `/api/accounting/*` and `/api/invoices/*` | `accounting_resources`, `accounting_invoices`, `accounting_expenses` | `backend/data/accounting_records.json` |
+
 ### JSON Stores
 
 Runtime JSON data lives in `backend/data/`. Deployable demo fixtures live in `data/demo_lifecycle_fixtures/`.
+
+Policy: do not add new long-term operational features that depend only on `backend/data/*.json`. Add or reuse a PostgreSQL table first, then optionally keep JSON fallback/migration support.
 
 Relevant constants in `backend/main.py`:
 
@@ -578,8 +614,9 @@ Relevant constants in `backend/main.py`:
 | `MEETING_RECORDS_PATH` | Meeting output records |
 | `ONBOARDING_RECORDS_PATH` | Onboarding records |
 | `TIME_ENTRIES_PATH` | Time-entry records |
-| `CRM_RECORDS_PATH` | CRM team/contact/deal records |
-| `ACCOUNTING_RECORDS_PATH` | Accounting resources, expenses, invoices |
+| `CRM_RECORDS_PATH` | Atlas fallback/migration file only; primary store is `atlas_crm_records` |
+| `PROSPECT_REFERENCE_RECORDS_PATH` | Prospect fallback/migration file only; primary store is `prospect_reference_records` |
+| `ACCOUNTING_RECORDS_PATH` | Accounting fallback/migration file only; primary stores are accounting tables |
 
 Important helper:
 
@@ -645,6 +682,16 @@ technicalindicator
 technicalindicatorscore
 techskill
 vettinginfo
+```
+
+Additional VETCODE-created business tables added after the original schema snapshot:
+
+```text
+atlas_crm_records
+prospect_reference_records
+accounting_resources
+accounting_invoices
+accounting_expenses
 ```
 
 ### Core Candidate/Profile Tables

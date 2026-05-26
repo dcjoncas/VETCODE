@@ -597,6 +597,62 @@ def _ensure_business_data_tables() -> bool:
         cur.execute("CREATE INDEX IF NOT EXISTS idx_prospect_reference_industry ON prospect_reference_records(industry)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_prospect_reference_archived ON prospect_reference_records(archived)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_prospect_reference_search ON prospect_reference_records USING gin(to_tsvector('simple', search_text))")
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS accounting_resources (
+              id TEXT PRIMARY KEY,
+              domain TEXT NOT NULL DEFAULT 'dev',
+              crm_customer_id TEXT,
+              client TEXT,
+              name TEXT,
+              email TEXT,
+              status TEXT,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              data JSONB NOT NULL
+            )
+            """
+        )
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_accounting_resources_domain ON accounting_resources(domain)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_accounting_resources_customer ON accounting_resources(crm_customer_id)")
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS accounting_invoices (
+              id TEXT PRIMARY KEY,
+              domain TEXT NOT NULL DEFAULT 'dev',
+              crm_customer_id TEXT,
+              client TEXT,
+              invoice_number TEXT,
+              status TEXT,
+              invoice_date DATE,
+              due_date DATE,
+              total NUMERIC(12, 2) NOT NULL DEFAULT 0,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              data JSONB NOT NULL
+            )
+            """
+        )
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_accounting_invoices_domain ON accounting_invoices(domain)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_accounting_invoices_customer ON accounting_invoices(crm_customer_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_accounting_invoices_status ON accounting_invoices(status)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_accounting_invoices_date ON accounting_invoices(invoice_date)")
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS accounting_expenses (
+              id TEXT PRIMARY KEY,
+              domain TEXT NOT NULL DEFAULT 'dev',
+              category TEXT,
+              expense_date DATE,
+              amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              data JSONB NOT NULL
+            )
+            """
+        )
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_accounting_expenses_domain ON accounting_expenses(domain)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_accounting_expenses_date ON accounting_expenses(expense_date)")
         conn.commit()
         _BUSINESS_TABLES_READY = True
         return True
@@ -826,6 +882,184 @@ def _prospect_reference_by_id_db(prospect_id: str):
         cur.execute("SELECT data FROM prospect_reference_records WHERE id = %s LIMIT 1", (_safe_action_text(prospect_id, 180),))
         row = cur.fetchone()
         return row[0] if row and isinstance(row[0], dict) else None
+    except Exception:
+        traceback.print_exc()
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+
+def _db_date(value: str):
+    raw = str(value or "").strip()[:10]
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(raw).date()
+    except Exception:
+        return None
+
+
+def _upsert_accounting_resource_db(record: dict) -> bool:
+    if not isinstance(record, dict) or not record.get("id") or not _ensure_business_data_tables():
+        return False
+    conn = None
+    try:
+        conn = _business_data_connection()
+        cur = conn.cursor()
+        now = datetime.utcnow()
+        cur.execute(
+            """
+            INSERT INTO accounting_resources
+              (id, domain, crm_customer_id, client, name, email, status, created_at, updated_at, data)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (id) DO UPDATE SET
+              domain = EXCLUDED.domain,
+              crm_customer_id = EXCLUDED.crm_customer_id,
+              client = EXCLUDED.client,
+              name = EXCLUDED.name,
+              email = EXCLUDED.email,
+              status = EXCLUDED.status,
+              updated_at = EXCLUDED.updated_at,
+              data = EXCLUDED.data
+            """,
+            (
+                _safe_action_text(record.get("id"), 180),
+                _domain_key(record.get("domain", "dev")),
+                _safe_action_text(record.get("crm_customer_id"), 180),
+                _safe_action_text(record.get("client"), 240),
+                _safe_action_text(record.get("name"), 240),
+                _safe_action_text(record.get("email"), 240),
+                _safe_action_text(record.get("status"), 80),
+                _json_record_date(record.get("created_at")) or now,
+                _json_record_date(record.get("updated_at")) or now,
+                Jsonb(record),
+            ),
+        )
+        conn.commit()
+        return True
+    except Exception:
+        if conn:
+            conn.rollback()
+        traceback.print_exc()
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+
+def _upsert_accounting_invoice_db(record: dict) -> bool:
+    if not isinstance(record, dict) or not record.get("id") or not _ensure_business_data_tables():
+        return False
+    conn = None
+    try:
+        conn = _business_data_connection()
+        cur = conn.cursor()
+        now = datetime.utcnow()
+        cur.execute(
+            """
+            INSERT INTO accounting_invoices
+              (id, domain, crm_customer_id, client, invoice_number, status, invoice_date, due_date, total, created_at, updated_at, data)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (id) DO UPDATE SET
+              domain = EXCLUDED.domain,
+              crm_customer_id = EXCLUDED.crm_customer_id,
+              client = EXCLUDED.client,
+              invoice_number = EXCLUDED.invoice_number,
+              status = EXCLUDED.status,
+              invoice_date = EXCLUDED.invoice_date,
+              due_date = EXCLUDED.due_date,
+              total = EXCLUDED.total,
+              updated_at = EXCLUDED.updated_at,
+              data = EXCLUDED.data
+            """,
+            (
+                _safe_action_text(record.get("id"), 180),
+                _domain_key(record.get("domain", "dev")),
+                _safe_action_text(record.get("crm_customer_id"), 180),
+                _safe_action_text(record.get("client"), 240),
+                _safe_action_text(record.get("invoice_number"), 120),
+                _safe_action_text(record.get("status"), 80),
+                _db_date(record.get("invoice_date")),
+                _db_date(record.get("due_date")),
+                _money_float(record.get("total")),
+                _json_record_date(record.get("created_at")) or now,
+                _json_record_date(record.get("updated_at")) or now,
+                Jsonb(record),
+            ),
+        )
+        conn.commit()
+        return True
+    except Exception:
+        if conn:
+            conn.rollback()
+        traceback.print_exc()
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+
+def _upsert_accounting_expense_db(record: dict) -> bool:
+    if not isinstance(record, dict) or not record.get("id") or not _ensure_business_data_tables():
+        return False
+    conn = None
+    try:
+        conn = _business_data_connection()
+        cur = conn.cursor()
+        now = datetime.utcnow()
+        cur.execute(
+            """
+            INSERT INTO accounting_expenses
+              (id, domain, category, expense_date, amount, created_at, updated_at, data)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (id) DO UPDATE SET
+              domain = EXCLUDED.domain,
+              category = EXCLUDED.category,
+              expense_date = EXCLUDED.expense_date,
+              amount = EXCLUDED.amount,
+              updated_at = EXCLUDED.updated_at,
+              data = EXCLUDED.data
+            """,
+            (
+                _safe_action_text(record.get("id"), 180),
+                _domain_key(record.get("domain", "dev")),
+                _safe_action_text(record.get("category"), 160),
+                _db_date(record.get("date")),
+                _money_float(record.get("amount")),
+                _json_record_date(record.get("created_at")) or now,
+                _json_record_date(record.get("updated_at")) or now,
+                Jsonb(record),
+            ),
+        )
+        conn.commit()
+        return True
+    except Exception:
+        if conn:
+            conn.rollback()
+        traceback.print_exc()
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+
+def _accounting_store_db():
+    if not _ensure_business_data_tables():
+        return None
+    conn = None
+    try:
+        conn = _business_data_connection()
+        cur = conn.cursor()
+        store = {}
+        for key, table in [
+            ("resources", "accounting_resources"),
+            ("invoices", "accounting_invoices"),
+            ("expenses", "accounting_expenses"),
+        ]:
+            cur.execute(f"SELECT data FROM {table} ORDER BY updated_at DESC")
+            store[key] = [row[0] for row in cur.fetchall() if isinstance(row[0], dict)]
+        return store
     except Exception:
         traceback.print_exc()
         return None
@@ -5608,7 +5842,7 @@ def _crm_briefing_time_invoice_signals(domain: str, customer: str) -> dict:
                 time_hours += float(item.get("hours") or 0)
             except Exception:
                 pass
-    accounting = _read_json_store_with_demo(ACCOUNTING_RECORDS_PATH, {})
+    accounting = _accounting_store()
     invoices = accounting.get("invoices", []) if isinstance(accounting, dict) else []
     invoice_rows = []
     if isinstance(invoices, list):
@@ -6536,6 +6770,12 @@ def _money_float(value, default: float = 0) -> float:
 
 
 def _accounting_store() -> dict:
+    db_store = _accounting_store_db()
+    if isinstance(db_store, dict):
+        db_store.setdefault("resources", [])
+        db_store.setdefault("invoices", [])
+        db_store.setdefault("expenses", [])
+        return db_store
     fixture = _read_demo_fixture(os.path.basename(ACCOUNTING_RECORDS_PATH), {})
     local = _read_json_store(ACCOUNTING_RECORDS_PATH, {})
     store = {}
@@ -6816,6 +7056,7 @@ def save_accounting_resource(
     if not existing:
         store["resources"].insert(0, resource)
     _write_json_store(ACCOUNTING_RECORDS_PATH, store)
+    _upsert_accounting_resource_db(resource)
     return {"ok": True, "resource": resource, "summary": _accounting_summary_for_domain(domain)}
 
 
@@ -6914,6 +7155,7 @@ def save_accounting_invoice(
     if not existing:
         store["invoices"].insert(0, invoice)
     _write_json_store(ACCOUNTING_RECORDS_PATH, store)
+    _upsert_accounting_invoice_db(invoice)
     return {"ok": True, "invoice": invoice, "summary": _accounting_summary_for_domain(domain)}
 
 
@@ -6939,6 +7181,7 @@ def update_accounting_invoice_status(invoice_id: str, status: str = Form(default
     if not updated:
         raise HTTPException(status_code=404, detail="Invoice not found.")
     _write_json_store(ACCOUNTING_RECORDS_PATH, store)
+    _upsert_accounting_invoice_db(updated)
     return {"ok": True, "invoice": updated, "summary": _accounting_summary_for_domain(updated.get("domain", "dev"))}
 
 
