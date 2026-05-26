@@ -1950,7 +1950,7 @@
 
       function setCrmRecords(records) {
         const visibleRecords = (records || []).filter((record) => !shouldHideArchivedSeedRecord(record));
-        localStorage.setItem(crmStorageKey(), JSON.stringify(visibleRecords.slice(0, 200)));
+        localStorage.setItem(crmStorageKey(), JSON.stringify(visibleRecords.slice(0, 1000)));
         hydrateBriefingCustomerOptions();
       }
 
@@ -3820,7 +3820,7 @@
 
       async function importSeededCrmRecords() {
         try {
-          const response = await fetch(`/api/crm/records?domain=${encodeURIComponent(currentDomain())}&limit=100`, { cache: "no-store" });
+          const response = await fetch(`/api/crm/records?domain=${encodeURIComponent(currentDomain())}&limit=1000`, { cache: "no-store" });
           if (!response.ok) return;
           const data = await response.json();
           const seeded = Array.isArray(data.records) ? data.records : [];
