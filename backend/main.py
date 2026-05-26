@@ -31,7 +31,8 @@ from datetime import datetime, timedelta
 from urllib.parse import quote_plus
 from openAI import pageAgents
 from openAI.client import getOpenAPIClient
-from azureUtils.storage import candidates, jobs
+from azureUtils.storage import candidates, jobs, client as azure_client
+from psycopg.types.json import Jsonb
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UI_DIR = os.path.join(BASE_DIR, "ui")
@@ -535,6 +536,302 @@ def _now_utc() -> str:
 
 def _safe_token(prefix: str = "ONB") -> str:
     return new_id(prefix).replace(" ", "").replace("/", "-")
+
+
+_BUSINESS_TABLES_READY = False
+
+
+def _business_data_connection():
+    return azure_client.getConnection()
+
+
+def _ensure_business_data_tables() -> bool:
+    global _BUSINESS_TABLES_READY
+    if _BUSINESS_TABLES_READY:
+        return True
+    conn = None
+    try:
+        conn = _business_data_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS atlas_crm_records (
+              id TEXT PRIMARY KEY,
+              domain TEXT NOT NULL DEFAULT 'dev',
+              customer TEXT,
+              owner TEXT,
+              source_import_batch TEXT,
+              source_prospect_id TEXT,
+              archived BOOLEAN NOT NULL DEFAULT FALSE,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              data JSONB NOT NULL
+            )
+            """
+        )
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_atlas_crm_records_domain ON atlas_crm_records(domain)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_atlas_crm_records_owner ON atlas_crm_records(owner)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_atlas_crm_records_archived ON atlas_crm_records(archived)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_atlas_crm_records_updated ON atlas_crm_records(updated_at DESC)")
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS prospect_reference_records (
+              id TEXT PRIMARY KEY,
+              domain TEXT NOT NULL DEFAULT 'dev',
+              company TEXT,
+              domain_name TEXT,
+              website TEXT,
+              industry TEXT,
+              source_import_batch TEXT,
+              promoted_crm_id TEXT,
+              archived BOOLEAN NOT NULL DEFAULT FALSE,
+              search_text TEXT NOT NULL DEFAULT '',
+              created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              data JSONB NOT NULL
+            )
+            """
+        )
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_prospect_reference_domain ON prospect_reference_records(domain)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_prospect_reference_company ON prospect_reference_records(company)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_prospect_reference_industry ON prospect_reference_records(industry)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_prospect_reference_archived ON prospect_reference_records(archived)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_prospect_reference_search ON prospect_reference_records USING gin(to_tsvector('simple', search_text))")
+        conn.commit()
+        _BUSINESS_TABLES_READY = True
+        return True
+    except Exception:
+        if conn:
+            conn.rollback()
+        traceback.print_exc()
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+
+def _json_record_date(value: str):
+    clean = str(value or "").strip()
+    if not clean:
+        return None
+    try:
+        return datetime.fromisoformat(clean.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def _prospect_search_text(record: dict) -> str:
+    contacts = record.get("contacts") if isinstance(record.get("contacts"), list) else []
+    contact_text = " ".join(
+        " ".join([_safe_action_text(contact.get("name"), 180), _safe_action_text(contact.get("email"), 240)])
+        for contact in contacts
+        if isinstance(contact, dict)
+    )
+    return " ".join(
+        [
+            _safe_action_text(record.get("company"), 240),
+            _safe_action_text(record.get("domain_name"), 240),
+            _safe_action_text(record.get("website"), 240),
+            _safe_action_text(record.get("industry"), 240),
+            _safe_action_text(record.get("city"), 120),
+            _safe_action_text(record.get("state"), 120),
+            _safe_action_text(record.get("country"), 120),
+            _safe_action_text(record.get("description"), 1600),
+            _safe_action_text(record.get("web_technologies"), 1600),
+            _safe_action_text(record.get("phone"), 120),
+            contact_text,
+        ]
+    )
+
+
+def _upsert_atlas_crm_db(record: dict) -> bool:
+    if not isinstance(record, dict) or not record.get("id") or not _ensure_business_data_tables():
+        return False
+    conn = None
+    try:
+        conn = _business_data_connection()
+        cur = conn.cursor()
+        now = datetime.utcnow()
+        created_at = _json_record_date(record.get("createdAt")) or now
+        updated_at = _json_record_date(record.get("updatedAt")) or _json_record_date(record.get("salesPortalUpdatedAt")) or now
+        cur.execute(
+            """
+            INSERT INTO atlas_crm_records
+              (id, domain, customer, owner, source_import_batch, source_prospect_id, archived, created_at, updated_at, data)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (id) DO UPDATE SET
+              domain = EXCLUDED.domain,
+              customer = EXCLUDED.customer,
+              owner = EXCLUDED.owner,
+              source_import_batch = EXCLUDED.source_import_batch,
+              source_prospect_id = EXCLUDED.source_prospect_id,
+              archived = EXCLUDED.archived,
+              updated_at = EXCLUDED.updated_at,
+              data = EXCLUDED.data
+            """,
+            (
+                _safe_action_text(record.get("id"), 180),
+                _domain_key(record.get("domain", "dev")),
+                _safe_action_text(record.get("customer"), 240),
+                _safe_action_text(record.get("owner"), 160),
+                _safe_action_text(record.get("sourceImportBatch") or record.get("source_import_batch"), 180),
+                _safe_action_text(record.get("sourceProspectId"), 180),
+                _crm_record_archived(record),
+                created_at,
+                updated_at,
+                Jsonb(record),
+            ),
+        )
+        conn.commit()
+        return True
+    except Exception:
+        if conn:
+            conn.rollback()
+        traceback.print_exc()
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+
+def _upsert_prospect_reference_db(record: dict) -> bool:
+    if not isinstance(record, dict) or not record.get("id") or not _ensure_business_data_tables():
+        return False
+    conn = None
+    try:
+        conn = _business_data_connection()
+        cur = conn.cursor()
+        now = datetime.utcnow()
+        created_at = _json_record_date(record.get("importedAt") or record.get("create_date")) or now
+        updated_at = _json_record_date(record.get("updatedAt")) or now
+        cur.execute(
+            """
+            INSERT INTO prospect_reference_records
+              (id, domain, company, domain_name, website, industry, source_import_batch, promoted_crm_id, archived, search_text, created_at, updated_at, data)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (id) DO UPDATE SET
+              domain = EXCLUDED.domain,
+              company = EXCLUDED.company,
+              domain_name = EXCLUDED.domain_name,
+              website = EXCLUDED.website,
+              industry = EXCLUDED.industry,
+              source_import_batch = EXCLUDED.source_import_batch,
+              promoted_crm_id = EXCLUDED.promoted_crm_id,
+              archived = EXCLUDED.archived,
+              search_text = EXCLUDED.search_text,
+              updated_at = EXCLUDED.updated_at,
+              data = EXCLUDED.data
+            """,
+            (
+                _safe_action_text(record.get("id"), 180),
+                _domain_key(record.get("domain", "dev")),
+                _safe_action_text(record.get("company"), 240),
+                _safe_action_text(record.get("domain_name"), 240),
+                _safe_action_text(record.get("website"), 240),
+                _safe_action_text(record.get("industry"), 240),
+                _safe_action_text(record.get("source_import_batch") or record.get("sourceImportBatch"), 180),
+                _safe_action_text(record.get("promotedCrmId"), 180),
+                bool(record.get("archived") or record.get("archivedAt")),
+                _prospect_search_text(record),
+                created_at,
+                updated_at,
+                Jsonb(record),
+            ),
+        )
+        conn.commit()
+        return True
+    except Exception:
+        if conn:
+            conn.rollback()
+        traceback.print_exc()
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+
+def _atlas_crm_records_db(domain: str = "dev", include_archived: bool = False, limit: int = 500):
+    if not _ensure_business_data_tables():
+        return None
+    conn = None
+    try:
+        clean_domain = _domain_key(domain)
+        clauses = []
+        params = []
+        if clean_domain != "all":
+            clauses.append("domain = %s")
+            params.append(clean_domain)
+        if not include_archived:
+            clauses.append("archived = FALSE")
+        where_sql = " WHERE " + " AND ".join(clauses) if clauses else ""
+        params.append(max(1, min(limit, 2000)))
+        conn = _business_data_connection()
+        cur = conn.cursor()
+        cur.execute(f"SELECT data FROM atlas_crm_records{where_sql} ORDER BY updated_at DESC LIMIT %s", tuple(params))
+        return [row[0] for row in cur.fetchall() if isinstance(row[0], dict)]
+    except Exception:
+        traceback.print_exc()
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+
+def _prospect_reference_rows_db(domain: str = "dev", q: str = "", industry: str = "", limit: int = 500, offset: int = 0):
+    if not _ensure_business_data_tables():
+        return None
+    conn = None
+    try:
+        clean_domain = _domain_key(domain)
+        clean_query = _safe_action_text(q, 240).lower()
+        clean_industry = _safe_action_text(industry, 180).lower()
+        clauses = ["archived = FALSE"]
+        params = []
+        if clean_domain != "all":
+            clauses.append("domain = %s")
+            params.append(clean_domain)
+        if clean_query:
+            clauses.append("LOWER(search_text) LIKE %s")
+            params.append(f"%{clean_query}%")
+        if clean_industry:
+            clauses.append("LOWER(COALESCE(industry, '')) LIKE %s")
+            params.append(f"%{clean_industry}%")
+        where_sql = " WHERE " + " AND ".join(clauses)
+        safe_limit = max(1, min(limit, 500))
+        safe_offset = max(0, offset)
+        conn = _business_data_connection()
+        cur = conn.cursor()
+        cur.execute(f"SELECT COUNT(*) FROM prospect_reference_records{where_sql}", tuple(params))
+        count = cur.fetchone()[0] or 0
+        cur.execute(
+            f"SELECT data FROM prospect_reference_records{where_sql} ORDER BY LOWER(COALESCE(company, '')) LIMIT %s OFFSET %s",
+            tuple(params + [safe_limit, safe_offset]),
+        )
+        return [row[0] for row in cur.fetchall() if isinstance(row[0], dict)], count
+    except Exception:
+        traceback.print_exc()
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+
+def _prospect_reference_by_id_db(prospect_id: str):
+    if not _ensure_business_data_tables():
+        return None
+    conn = None
+    try:
+        conn = _business_data_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT data FROM prospect_reference_records WHERE id = %s LIMIT 1", (_safe_action_text(prospect_id, 180),))
+        row = cur.fetchone()
+        return row[0] if row and isinstance(row[0], dict) else None
+    except Exception:
+        traceback.print_exc()
+        return None
+    finally:
+        if conn:
+            conn.close()
 
 
 def _read_profile_notes_store() -> dict:
@@ -2786,7 +3083,9 @@ def _radar_jds(domain: str, limit: int = 12) -> list[dict]:
 
 
 def _radar_crm_records(domain: str, limit: int = 80) -> list[dict]:
-    records = _read_json_store_with_demo(CRM_RECORDS_PATH, [])
+    records = _atlas_crm_records_db(domain, include_archived=False, limit=max(limit, 200))
+    if records is None:
+        records = _read_json_store_with_demo(CRM_RECORDS_PATH, [])
     clean_domain = _domain_key(domain)
     if not isinstance(records, list):
         return []
@@ -4788,6 +5087,9 @@ def list_interview_archive(
 
 @app.get("/api/crm/records")
 def list_crm_records(domain: str = "dev", limit: int = 200, include_archived: bool = False):
+    db_records = _atlas_crm_records_db(domain, include_archived=include_archived, limit=limit)
+    if db_records is not None:
+        return {"ok": True, "records": db_records[: max(1, min(limit, 500))], "storage": "postgres"}
     records = _read_json_store_with_demo(CRM_RECORDS_PATH, [])
     wanted_domain = _domain_key(domain)
     if not isinstance(records, list):
@@ -4797,12 +5099,14 @@ def list_crm_records(domain: str = "dev", limit: int = 200, include_archived: bo
     if wanted_domain != "all":
         records = [item for item in records if _domain_key(item.get("domain", "dev")) == wanted_domain]
     records = sorted(records, key=lambda item: item.get("updatedAt") or item.get("createdAt") or "", reverse=True)
-    return {"ok": True, "records": records[: max(1, min(limit, 500))]}
+    return {"ok": True, "records": records[: max(1, min(limit, 500))], "storage": "json_fallback"}
 
 
 def _crm_customer_rows(domain: str = "dev") -> list[dict]:
     clean_domain = _domain_key(domain)
-    records = _read_json_store_with_demo(CRM_RECORDS_PATH, [])
+    records = _atlas_crm_records_db(clean_domain, include_archived=False, limit=2000)
+    if records is None:
+        records = _read_json_store_with_demo(CRM_RECORDS_PATH, [])
     if not isinstance(records, list):
         records = []
     rows = []
@@ -4851,6 +5155,9 @@ def _crm_customer_for_value(domain: str, value: str) -> dict:
 
 def _prospect_reference_rows(domain: str = "dev") -> list[dict]:
     clean_domain = _domain_key(domain)
+    db_result = _prospect_reference_rows_db(clean_domain, limit=500, offset=0)
+    if db_result is not None:
+        return db_result[0]
     records = _read_json_store(PROSPECT_REFERENCE_RECORDS_PATH, [])
     if not isinstance(records, list):
         return []
@@ -4874,6 +5181,20 @@ def list_prospect_reference(
     limit: int = 200,
     offset: int = 0,
 ):
+    db_result = _prospect_reference_rows_db(domain, q=q, industry=industry, limit=limit, offset=offset)
+    if db_result is not None:
+        db_rows, db_count = db_result
+        safe_limit = max(1, min(limit, 500))
+        safe_offset = max(0, offset)
+        return {
+            "ok": True,
+            "domain": _domain_key(domain),
+            "count": db_count,
+            "offset": safe_offset,
+            "limit": safe_limit,
+            "records": db_rows,
+            "storage": "postgres",
+        }
     clean_query = _safe_action_text(q, 240).lower()
     clean_industry = _safe_action_text(industry, 180).lower()
     rows = _prospect_reference_rows(domain)
@@ -4907,6 +5228,7 @@ def list_prospect_reference(
         "offset": safe_offset,
         "limit": safe_limit,
         "records": rows[safe_offset:safe_offset + safe_limit],
+        "storage": "json_fallback",
     }
 
 
@@ -4924,9 +5246,9 @@ def promote_prospect_reference(
     prospects = _read_json_store(PROSPECT_REFERENCE_RECORDS_PATH, [])
     if not isinstance(prospects, list):
         prospects = []
-    prospect = None
+    prospect = _prospect_reference_by_id_db(clean_id)
     for item in prospects:
-        if isinstance(item, dict) and item.get("id") == clean_id:
+        if not prospect and isinstance(item, dict) and item.get("id") == clean_id:
             prospect = item
             break
     if not prospect:
@@ -4934,7 +5256,9 @@ def promote_prospect_reference(
     if clean_domain != _domain_key(prospect.get("domain", clean_domain)):
         raise HTTPException(status_code=400, detail="Prospect belongs to a different domain.")
 
-    crm_records = _read_json_store(CRM_RECORDS_PATH, [])
+    crm_records = _atlas_crm_records_db(clean_domain, include_archived=True, limit=2000)
+    if crm_records is None:
+        crm_records = _read_json_store(CRM_RECORDS_PATH, [])
     if not isinstance(crm_records, list):
         crm_records = []
     for record in crm_records:
@@ -5002,10 +5326,12 @@ def promote_prospect_reference(
     }
     crm_records.insert(0, record)
     _write_json_store(CRM_RECORDS_PATH, crm_records)
+    _upsert_atlas_crm_db(record)
 
     prospect["promotedAt"] = now
     prospect["promotedCrmId"] = record["id"]
     _write_json_store(PROSPECT_REFERENCE_RECORDS_PATH, prospects)
+    _upsert_prospect_reference_db(prospect)
     return {"ok": True, "record": record, "already_promoted": False}
 
 
@@ -5480,7 +5806,9 @@ def _sales_todo_for_record(record: dict) -> list[dict]:
 
 @app.get("/api/sales-crm/portal")
 def sales_crm_portal(domain: str = "dev", rep: str = "", territory: str = "", limit: int = 200):
-    records = _read_json_store_with_demo(CRM_RECORDS_PATH, [])
+    records = _atlas_crm_records_db(domain, include_archived=False, limit=2000)
+    if records is None:
+        records = _read_json_store_with_demo(CRM_RECORDS_PATH, [])
     if not isinstance(records, list):
         records = []
     clean_domain = _domain_key(domain)
@@ -5554,7 +5882,9 @@ def update_sales_crm_account(
     touch_outcome: str = Form(default=""),
     touch_notes: str = Form(default=""),
 ):
-    records = _read_json_store(CRM_RECORDS_PATH, [])
+    records = _atlas_crm_records_db(domain, include_archived=True, limit=2000)
+    if records is None:
+        records = _read_json_store(CRM_RECORDS_PATH, [])
     if not isinstance(records, list):
         records = []
     clean_domain = _domain_key(domain)
@@ -5611,6 +5941,7 @@ def update_sales_crm_account(
     record["updatedAt"] = now
     record["salesPortalUpdatedAt"] = now
     _write_json_store(CRM_RECORDS_PATH, records)
+    _upsert_atlas_crm_db(record)
     return {"ok": True, "record": record}
 
 
