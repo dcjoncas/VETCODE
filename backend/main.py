@@ -1893,17 +1893,30 @@ def _call_intake_public_base(request: Request) -> str:
 
 def _call_intake_env_status(request: Request) -> dict:
     base_url = _call_intake_public_base(request)
+    provider = os.getenv("CALL_INTAKE_PROVIDER", "twilio").strip().lower() or "twilio"
     twilio_ready = all(os.getenv(key) for key in ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"])
+    retell_ready = bool(os.getenv("RETELL_API_KEY") or os.getenv("RETELL_AGENT_ID"))
+    vapi_ready = bool(os.getenv("VAPI_API_KEY") or os.getenv("VAPI_ASSISTANT_ID"))
     realtime_ready = bool(os.getenv("OPENAI_API_KEY"))
     webhook_ready = bool(os.getenv("CALL_INTAKE_WEBHOOK_SECRET"))
     return {
-        "provider": os.getenv("CALL_INTAKE_PROVIDER", "twilio"),
-        "phone_number": os.getenv("TWILIO_PHONE_NUMBER", ""),
+        "provider": provider,
+        "phone_number": os.getenv("RETELL_PHONE_NUMBER") or os.getenv("VAPI_PHONE_NUMBER") or os.getenv("TWILIO_PHONE_NUMBER", ""),
         "twilio": {
             "configured": twilio_ready,
             "account_sid": bool(os.getenv("TWILIO_ACCOUNT_SID")),
             "auth_token": bool(os.getenv("TWILIO_AUTH_TOKEN")),
             "phone_number": bool(os.getenv("TWILIO_PHONE_NUMBER")),
+        },
+        "retell": {
+            "configured": retell_ready,
+            "api_key": bool(os.getenv("RETELL_API_KEY")),
+            "agent_id": bool(os.getenv("RETELL_AGENT_ID")),
+        },
+        "vapi": {
+            "configured": vapi_ready,
+            "api_key": bool(os.getenv("VAPI_API_KEY")),
+            "assistant_id": bool(os.getenv("VAPI_ASSISTANT_ID")),
         },
         "openai_realtime": {
             "configured": realtime_ready,
@@ -1914,6 +1927,9 @@ def _call_intake_env_status(request: Request) -> dict:
             "configured": webhook_ready,
             "voice": f"{base_url}/api/call-intake/voice",
             "status": f"{base_url}/api/call-intake/status",
+            "provider": f"{base_url}/api/call-intake/provider-webhook",
+            "retell": f"{base_url}/api/call-intake/provider-webhook?provider=retell",
+            "vapi": f"{base_url}/api/call-intake/provider-webhook?provider=vapi",
             "media_stream": f"{base_url.replace('https://', 'wss://').replace('http://', 'ws://')}/api/call-intake/media",
         },
         "storage": {
@@ -2042,8 +2058,53 @@ def _call_intake_profile_skills(skills: list[str]) -> list[dict]:
     return clean[:12]
 
 
+def _call_intake_clean_spoken_email(value: str) -> str:
+    text = _safe_action_text(value, 260).lower()
+    if not text:
+        return ""
+    replacements = [
+        (r"\bat\s+", "@"),
+        (r"\s+at\b", "@"),
+        (r"\s*@\s*", "@"),
+        (r"\bdot\b", "."),
+        (r"\bperiod\b", "."),
+        (r"\bpoint\b", "."),
+        (r"\s*\.\s*", "."),
+    ]
+    text = text.replace("?", "")
+    for pattern, replacement in replacements:
+        text = re.sub(pattern, replacement, text)
+    text = re.sub(r"\s+", "", text)
+    text = text.replace("atevready", "@devready").replace("atdevready", "@devready").replace("dev-ready", "devready")
+    match = re.search(r"[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}", text)
+    if not match:
+        return _safe_action_text(value, 240)
+    email = match.group(0)
+    local, _, domain = email.partition("@")
+    if re.match(r"^[a-z]\.[a-z]{3,}$", local):
+        local = local.replace(".", "")
+    return f"{local}@{domain}"[:240]
+
+
+def _call_intake_clean_phone(value: str) -> str:
+    text = _safe_action_text(value, 160)
+    digits = re.sub(r"\D+", "", text)
+    if len(digits) >= 7:
+        return digits[:18]
+    return text
+
+
+def _call_intake_clean_answers(answers: dict) -> dict:
+    clean = dict(answers or {})
+    if clean.get("caller_email"):
+        clean["caller_email"] = _call_intake_clean_spoken_email(clean.get("caller_email"))
+    if clean.get("caller_phone"):
+        clean["caller_phone"] = _call_intake_clean_phone(clean.get("caller_phone"))
+    return clean
+
+
 def _call_intake_build_jd(session: dict) -> dict:
-    answers = session.get("answers") if isinstance(session.get("answers"), dict) else {}
+    answers = _call_intake_clean_answers(session.get("answers") if isinstance(session.get("answers"), dict) else {})
     role = _safe_action_text(answers.get("role"), 220) or "New role"
     client = _safe_action_text(answers.get("client"), 500) or "DevReady client"
     skills_text = _safe_action_text(answers.get("skills"), 900)
@@ -2181,7 +2242,7 @@ def _call_intake_partial_summary(session: dict) -> dict:
 def _call_intake_record_from_session(event: str, domain: str, session: dict) -> dict:
     return {
         "event": event,
-        "provider": "twilio",
+        "provider": _safe_action_text(session.get("provider") or "twilio", 80),
         "domain": _domain_key(domain),
         "call_sid": _safe_action_text(session.get("call_sid"), 120),
         "source_tag": "Call Ask",
@@ -2190,6 +2251,120 @@ def _call_intake_record_from_session(event: str, domain: str, session: dict) -> 
         "match": session.get("match", {}),
         "summary": session.get("summary", ""),
     }
+
+
+def _call_intake_header_secret(request: Request) -> str:
+    auth = request.headers.get("authorization") or ""
+    if auth.lower().startswith("bearer "):
+        return auth[7:].strip()
+    return (
+        request.headers.get("x-call-intake-secret")
+        or request.headers.get("x-devready-call-secret")
+        or request.query_params.get("secret")
+        or ""
+    ).strip()
+
+
+def _call_intake_require_provider_secret(request: Request) -> None:
+    expected = (os.getenv("CALL_INTAKE_WEBHOOK_SECRET") or "").strip()
+    if not expected:
+        return
+    provided = _call_intake_header_secret(request)
+    if not provided or not hmac.compare_digest(provided, expected):
+        raise HTTPException(status_code=401, detail="Invalid call intake webhook secret")
+
+
+def _call_intake_nested(payload: dict, path: str):
+    current = payload
+    for part in path.split("."):
+        if not isinstance(current, dict):
+            return None
+        current = current.get(part)
+    return current
+
+
+def _call_intake_first(payload: dict, paths: list[str], default=""):
+    for path in paths:
+        value = _call_intake_nested(payload, path) if "." in path else payload.get(path)
+        if value not in (None, "", [], {}):
+            return value
+    return default
+
+
+def _call_intake_find_structured(payload: dict) -> dict:
+    candidates_to_check = [
+        payload,
+        payload.get("data") if isinstance(payload.get("data"), dict) else {},
+        payload.get("call") if isinstance(payload.get("call"), dict) else {},
+        payload.get("message") if isinstance(payload.get("message"), dict) else {},
+        _call_intake_nested(payload, "call.call_analysis") or {},
+        _call_intake_nested(payload, "call_analysis") or {},
+        _call_intake_nested(payload, "message.call.analysis") or {},
+        _call_intake_nested(payload, "message.call.artifact") or {},
+    ]
+    for candidate in candidates_to_check:
+        if not isinstance(candidate, dict):
+            continue
+        for key in ("structured_data", "structuredData", "custom_analysis_data", "customAnalysisData", "result"):
+            value = candidate.get(key)
+            if isinstance(value, dict) and value:
+                return value
+        outputs = candidate.get("structuredOutputs")
+        if isinstance(outputs, dict):
+            for output in outputs.values():
+                if isinstance(output, dict) and isinstance(output.get("result"), dict):
+                    return output["result"]
+    return {}
+
+
+def _call_intake_text(value) -> str:
+    if isinstance(value, list):
+        return ", ".join([_safe_action_text(item, 120) for item in value if _safe_action_text(item, 120)])
+    if isinstance(value, dict):
+        return _safe_action_text(json.dumps(value, ensure_ascii=True), 900)
+    return _safe_action_text(value, 900)
+
+
+def _call_intake_answers_from_provider_payload(payload: dict) -> dict:
+    structured = _call_intake_find_structured(payload)
+    merged = {}
+    for source in [payload, payload.get("data") if isinstance(payload.get("data"), dict) else {}, payload.get("call") if isinstance(payload.get("call"), dict) else {}, structured]:
+        if isinstance(source, dict):
+            merged.update({k: v for k, v in source.items() if v not in (None, "", [], {})})
+    answers = {
+        "role": _call_intake_text(_call_intake_first(merged, ["role", "role_title", "job_title", "title", "position"])),
+        "client": _call_intake_text(_call_intake_first(merged, ["client", "company", "client_company", "team", "account"])),
+        "skills": _call_intake_text(_call_intake_first(merged, ["skills", "required_skills", "must_have_skills", "tech_stack", "requirements"])),
+        "seniority": _call_intake_text(_call_intake_first(merged, ["seniority", "level", "years_experience", "experience"])),
+        "delivery": _call_intake_text(_call_intake_first(merged, ["delivery", "work_model", "location", "employment_type", "engagement_type"])),
+        "constraints": _call_intake_text(_call_intake_first(merged, ["constraints", "timing", "budget", "compliance", "deal_breakers"])),
+        "success": _call_intake_text(_call_intake_first(merged, ["success", "success_profile", "success_criteria", "first_90_days", "outcomes"])),
+        "caller_email": _call_intake_text(_call_intake_first(merged, ["caller_email", "email", "contact_email"])),
+        "caller_phone": _call_intake_text(_call_intake_first(merged, ["caller_phone", "phone", "phone_number", "contact_phone"])),
+    }
+    return _call_intake_clean_answers({key: value for key, value in answers.items() if value})
+
+
+def _call_intake_transcript_from_provider(payload: dict) -> list[dict]:
+    transcript = _call_intake_first(
+        payload,
+        [
+            "transcript",
+            "transcript_object",
+            "transcript_with_tool_calls",
+            "call.transcript",
+            "call.transcript_object",
+            "call.transcript_with_tool_calls",
+            "message.transcript",
+            "message.call.artifact.transcript",
+        ],
+        "",
+    )
+    if isinstance(transcript, list):
+        return [{"question": "Provider transcript", "answer": _call_intake_text(item), "step": index, "at": _now_utc()} for index, item in enumerate(transcript[:20])]
+    if transcript:
+        return [{"question": "Provider transcript", "answer": _call_intake_text(transcript), "step": 0, "at": _now_utc()}]
+    return []
 
 
 def _call_intake_table_ready(cur) -> None:
@@ -2289,10 +2464,24 @@ def _persist_call_intake_ask(session: dict, domain: str) -> None:
 def call_intake_health(request: Request, domain: str = "dev"):
     clean_domain = _domain_key(domain)
     status = _call_intake_env_status(request)
+    provider = str(status.get("provider") or "twilio").lower()
+    provider_ready = (
+        status["retell"]["configured"]
+        if provider == "retell"
+        else status["vapi"]["configured"]
+        if provider == "vapi"
+        else status["twilio"]["configured"] and status["openai_realtime"]["configured"]
+    )
     ready = (
-        status["twilio"]["configured"]
-        and status["openai_realtime"]["configured"]
+        provider_ready
         and status["webhooks"]["configured"]
+    )
+    provider_label = (
+        "Retell API key or agent"
+        if provider == "retell"
+        else "Vapi API key or assistant"
+        if provider == "vapi"
+        else "Twilio account, auth token, phone number, and OpenAI realtime"
     )
     return {
         "ok": True,
@@ -2302,8 +2491,7 @@ def call_intake_health(request: Request, domain: str = "dev"):
         "missing": [
             label
             for label, configured in [
-                ("Twilio account, auth token, and phone number", status["twilio"]["configured"]),
-                ("OpenAI API key for realtime voice", status["openai_realtime"]["configured"]),
+                (provider_label, provider_ready),
                 ("CALL_INTAKE_WEBHOOK_SECRET", status["webhooks"]["configured"]),
             ]
             if not configured
@@ -2470,6 +2658,94 @@ def call_intake_finalize_ask(call_sid: str, domain: str = "dev"):
     _save_call_intake_session(call_sid, final_session)
     _append_call_intake_record(_call_intake_record_from_session("completed_manual_finalize", clean_domain, final_session))
     return {"ok": True, "domain": clean_domain, "ask": final_session}
+
+
+@app.post("/api/call-intake/provider-webhook")
+async def call_intake_provider_webhook(request: Request, domain: str = "dev", provider: str = ""):
+    _call_intake_require_provider_secret(request)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    provider_name = _safe_action_text(
+        provider
+        or payload.get("provider")
+        or _call_intake_nested(payload, "message.provider")
+        or _call_intake_nested(payload, "call.provider")
+        or "voice-agent",
+        80,
+    )
+    event = _safe_action_text(
+        payload.get("event")
+        or payload.get("event_type")
+        or payload.get("type")
+        or _call_intake_nested(payload, "message.type")
+        or "provider_webhook",
+        120,
+    )
+    final_events = {"call_analyzed", "call_ended", "end-of-call-report", "end_of_call_report", "call.completed", "completed"}
+    is_final = event.lower() in final_events or bool(_call_intake_find_structured(payload))
+    call_sid = _safe_action_text(
+        payload.get("call_sid")
+        or payload.get("callSid")
+        or payload.get("call_id")
+        or payload.get("callId")
+        or payload.get("retell_call_id")
+        or payload.get("twilio_call_sid")
+        or _call_intake_nested(payload, "call.call_id")
+        or _call_intake_nested(payload, "call.id")
+        or _call_intake_nested(payload, "message.call.id")
+        or _safe_token("CALL"),
+        120,
+    )
+    clean_domain = _domain_key(
+        _call_intake_first(payload, ["domain", "dynamic_variables.domain", "metadata.domain", "call.metadata.domain"], domain)
+        or domain
+    )
+    answers = _call_intake_answers_from_provider_payload(payload)
+    session = _get_call_intake_session(call_sid, clean_domain)
+    session["provider"] = provider_name
+    session["provider_event"] = event
+    session["source_tag"] = "Call Ask"
+    session["raw_provider_payload"] = {
+        "event": event,
+        "provider": provider_name,
+        "summary": _safe_action_text(
+            _call_intake_first(payload, ["summary", "call_summary", "call_analysis.call_summary", "call.call_analysis.call_summary", "message.call.summary"]),
+            1200,
+        ),
+    }
+    session.setdefault("answers", {}).update(answers)
+    transcript = _call_intake_transcript_from_provider(payload)
+    if transcript:
+        session["transcript"] = transcript
+    session["status"] = "completed" if is_final and answers else "in_progress"
+    _save_call_intake_session(call_sid, session)
+    try:
+        _persist_call_intake_ask(session, clean_domain)
+    except Exception:
+        pass
+    _append_call_intake_record(
+        {
+            "event": event,
+            "provider": provider_name,
+            "domain": clean_domain,
+            "call_sid": call_sid,
+            "source_tag": "Call Ask",
+            "answers": answers,
+            "status": session.get("status"),
+        }
+    )
+    if not is_final:
+        return {"ok": True, "accepted": True, "finalized": False, "domain": clean_domain, "call_sid": call_sid}
+    if not answers:
+        return {"ok": True, "accepted": True, "finalized": False, "domain": clean_domain, "call_sid": call_sid, "message": "No structured answers found yet."}
+    final_session = _call_intake_finalize(session)
+    _save_call_intake_session(call_sid, final_session)
+    _append_call_intake_record(_call_intake_record_from_session(f"completed_{provider_name}", clean_domain, final_session))
+    return {"ok": True, "accepted": True, "finalized": True, "domain": clean_domain, "call_sid": call_sid, "ask": final_session}
 
 
 @app.api_route("/api/call-intake/voice", methods=["GET", "POST"])
