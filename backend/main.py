@@ -2367,6 +2367,73 @@ def _call_intake_transcript_from_provider(payload: dict) -> list[dict]:
     return []
 
 
+def _call_intake_provider_text(payload: dict) -> str:
+    pieces = []
+    for path in [
+        "summary",
+        "call_summary",
+        "call_analysis.call_summary",
+        "call.call_analysis.call_summary",
+        "message.call.summary",
+        "transcript",
+        "call.transcript",
+        "message.transcript",
+        "message.call.artifact.transcript",
+    ]:
+        value = _call_intake_first(payload, [path])
+        if value:
+            pieces.append(_call_intake_text(value))
+    return "\n".join([piece for piece in pieces if piece])[:8000]
+
+
+def _call_intake_ai_answers_from_text(text: str) -> dict:
+    clean_text = _safe_action_text(text, 8000)
+    if not clean_text or not os.getenv("OPENAI_API_KEY"):
+        return {}
+    try:
+        client = getOpenAPIClient()
+        response = client.chat.completions.create(
+            model=os.getenv("OPENAI_AGENT_MODEL", "gpt-4o-mini"),
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Extract a DevReady Call Ask from a phone transcript or call summary. "
+                        "Return only JSON with these string keys when present: role, client, skills, seniority, "
+                        "delivery, constraints, success, caller_email, caller_phone. Clean spoken emails and phone numbers. "
+                        "Do not invent missing details."
+                    ),
+                },
+                {"role": "user", "content": clean_text},
+            ],
+            temperature=0,
+            response_format={"type": "json_object"},
+        )
+        content = response.choices[0].message.content or "{}"
+        parsed = json.loads(content)
+        if not isinstance(parsed, dict):
+            return {}
+        return _call_intake_clean_answers(
+            {
+                key: _call_intake_text(parsed.get(key))
+                for key in [
+                    "role",
+                    "client",
+                    "skills",
+                    "seniority",
+                    "delivery",
+                    "constraints",
+                    "success",
+                    "caller_email",
+                    "caller_phone",
+                ]
+                if parsed.get(key)
+            }
+        )
+    except Exception:
+        return {}
+
+
 def _call_intake_table_ready(cur) -> None:
     cur.execute(
         """
@@ -2705,6 +2772,8 @@ async def call_intake_provider_webhook(request: Request, domain: str = "dev", pr
         or domain
     )
     answers = _call_intake_answers_from_provider_payload(payload)
+    if not answers:
+        answers = _call_intake_ai_answers_from_text(_call_intake_provider_text(payload))
     session = _get_call_intake_session(call_sid, clean_domain)
     session["provider"] = provider_name
     session["provider_event"] = event
