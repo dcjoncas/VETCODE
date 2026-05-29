@@ -256,6 +256,20 @@
         gap: 8px;
       }
 
+      .question-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .question-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
       .question-row {
         display: grid;
         grid-template-columns: 145px minmax(0, 1fr);
@@ -275,6 +289,33 @@
         color: var(--text);
         font-size: 13px;
         line-height: 1.35;
+      }
+
+      .question-edit-row {
+        display: grid;
+        grid-template-columns: minmax(130px, 0.28fr) minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: start;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        background: #fbfcfb;
+      }
+
+      .question-edit-row input,
+      .question-edit-row textarea {
+        width: 100%;
+      }
+
+      .question-edit-row textarea {
+        min-height: 64px;
+        resize: vertical;
+      }
+
+      .question-save-state {
+        min-height: 20px;
+        color: var(--muted);
+        font-size: 12px;
       }
 
       .endpoint-list {
@@ -373,27 +414,6 @@
         font-size: 12px;
       }
 
-      .call-lab {
-        display: grid;
-        gap: 10px;
-      }
-
-      .call-lab textarea {
-        min-height: 140px;
-      }
-
-      .call-output {
-        min-height: 170px;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 11px;
-        background: #fbfcfb;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        font-size: 13px;
-        line-height: 1.42;
-      }
-
       @media (max-width: 1100px) {
         .call-grid,
         .call-intro,
@@ -412,6 +432,7 @@
         .call-flow,
         .call-ask-details,
         .question-row,
+        .question-edit-row,
         .endpoint-row {
           grid-template-columns: 1fr;
         }
@@ -497,13 +518,26 @@
             <div id="callAskList" class="call-asks">Loading call asks...</div>
           </section>
 
+          <section class="call-panel" aria-label="Editable question set">
+            <div class="question-header">
+              <div>
+                <h2>Question set</h2>
+                <p>Edit what Egeria should collect. Saved changes are used by DevReady intake endpoints; copy the prompt into Retell when changing the live Retell agent.</p>
+              </div>
+              <div class="question-actions">
+                <button class="btn" type="button" onclick="saveQuestionSet()">Save questions</button>
+                <button class="btn secondary" type="button" onclick="addQuestion()">Add question</button>
+                <button class="btn secondary" type="button" onclick="copyRetellQuestionPrompt()">Copy Retell prompt</button>
+                <button class="btn secondary" type="button" onclick="resetQuestionSet()">Reset</button>
+              </div>
+            </div>
+            <div id="questionSaveState" class="question-save-state"></div>
+            <div id="questionList" class="question-list"></div>
+          </section>
+
           <details class="call-setup-details">
             <summary>Setup and question details</summary>
             <div class="call-setup-body">
-              <section aria-label="Question set">
-                <h2>What Egeria asks</h2>
-                <div id="questionList" class="question-list"></div>
-              </section>
               <section aria-label="Provider readiness">
                 <h2>Provider readiness</h2>
                 <p id="callMissingSummary">Checking call provider configuration...</p>
@@ -525,8 +559,8 @@
 
     <script>
       let callBlueprint = null;
-      let dryRunPayload = null;
       let activeCallNumber = "";
+      let activeQuestions = [];
 
       function currentDomain() {
         return sessionStorage.getItem("domain") || new URLSearchParams(window.location.search).get("domain") || "dev";
@@ -612,14 +646,8 @@
           `)
           .join("");
 
-        document.getElementById("questionList").innerHTML = (data.questions || [])
-          .map((question) => `
-            <div class="question-row">
-              <strong>${escapeHtml(question.label)}</strong>
-              <span>${escapeHtml(question.prompt)}</span>
-            </div>
-          `)
-          .join("");
+        activeQuestions = (data.questions || []).map((question) => ({ ...question }));
+        renderQuestionEditor();
 
         const webhooks = data.webhooks || {};
         document.getElementById("endpointList").innerHTML = [
@@ -709,6 +737,102 @@
           .join("");
       }
 
+      function renderQuestionEditor() {
+        const host = document.getElementById("questionList");
+        const questions = activeQuestions.length ? activeQuestions : [{ key: "question_1", label: "Question 1", prompt: "", captures: ["question_1"] }];
+        host.innerHTML = questions
+          .map((question, index) => `
+            <div class="question-edit-row" data-index="${index}" data-key="${escapeHtml(question.key || `question_${index + 1}`)}">
+              <label>
+                Label
+                <input type="text" data-field="label" value="${escapeHtml(question.label || `Question ${index + 1}`)}" />
+              </label>
+              <label>
+                Prompt
+                <textarea data-field="prompt">${escapeHtml(question.prompt || "")}</textarea>
+              </label>
+              <button class="btn secondary" type="button" onclick="removeQuestion(${index})">Remove</button>
+            </div>
+          `)
+          .join("");
+      }
+
+      function collectQuestionSet() {
+        return [...document.querySelectorAll(".question-edit-row")]
+          .map((row, index) => {
+            const label = row.querySelector('[data-field="label"]')?.value?.trim() || `Question ${index + 1}`;
+            const prompt = row.querySelector('[data-field="prompt"]')?.value?.trim() || "";
+            const key = row.dataset.key || label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || `question_${index + 1}`;
+            return { key, label, prompt, captures: [key] };
+          })
+          .filter((question) => question.prompt);
+      }
+
+      function setQuestionState(message) {
+        document.getElementById("questionSaveState").textContent = message || "";
+      }
+
+      function addQuestion() {
+        activeQuestions = collectQuestionSet();
+        const next = activeQuestions.length + 1;
+        activeQuestions.push({ key: `question_${next}`, label: `Question ${next}`, prompt: "", captures: [`question_${next}`] });
+        renderQuestionEditor();
+        setQuestionState("New question added. Save when ready.");
+      }
+
+      function removeQuestion(index) {
+        activeQuestions = collectQuestionSet();
+        activeQuestions.splice(index, 1);
+        if (!activeQuestions.length) {
+          activeQuestions.push({ key: "question_1", label: "Question 1", prompt: "", captures: ["question_1"] });
+        }
+        renderQuestionEditor();
+        setQuestionState("Question removed. Save when ready.");
+      }
+
+      async function saveQuestionSet() {
+        const questions = collectQuestionSet();
+        if (!questions.length) {
+          setQuestionState("Add at least one question prompt before saving.");
+          return;
+        }
+        setQuestionState("Saving questions...");
+        try {
+          const result = await callApiPost("/api/call-intake/questions", { questions });
+          activeQuestions = result.questions || questions;
+          renderQuestionEditor();
+          setQuestionState("Saved. New calls will use this question set.");
+        } catch (error) {
+          setQuestionState(`Could not save questions: ${error.message || error}`);
+        }
+      }
+
+      async function resetQuestionSet() {
+        if (!confirm("Reset the Call page questions to the DevReady defaults?")) return;
+        setQuestionState("Resetting questions...");
+        try {
+          const result = await callApiPost("/api/call-intake/questions", { reset: true });
+          activeQuestions = result.questions || [];
+          renderQuestionEditor();
+          setQuestionState("Reset to defaults.");
+        } catch (error) {
+          setQuestionState(`Could not reset questions: ${error.message || error}`);
+        }
+      }
+
+      async function copyRetellQuestionPrompt() {
+        const questions = collectQuestionSet();
+        const prompt = [
+          "You are Egeria, DevReady's voice intake agent.",
+          "Be warm, concise, and natural. Ask one question at a time. Confirm email and phone carefully.",
+          "Use this question set in order:",
+          ...questions.map((question, index) => `${index + 1}. ${question.label}: ${question.prompt}`),
+          "When the caller is done, summarize the role, confirm that DevReady will save the Call Ask, create the JD/profile, and run candidate matching.",
+        ].join("\n");
+        await navigator.clipboard.writeText(prompt);
+        setQuestionState("Retell prompt copied. Paste it into the Retell agent prompt and publish the agent.");
+      }
+
       async function archiveCallAsk(button) {
         const role = button?.dataset?.role || "this Call Ask";
         if (!confirm(`Archive ${role}? The JD and profile will stay saved.`)) return;
@@ -751,30 +875,6 @@
         } catch (error) {
           document.getElementById("callMissingSummary").textContent = `Call intake status could not load: ${error.message || error}`;
         }
-      }
-
-      function buildDryRun() {
-        const transcript = document.getElementById("transcriptInput").value.trim();
-        const questions = (callBlueprint?.questions || []).map((question) => question.key);
-        dryRunPayload = {
-          source: "manual_transcript_lab",
-          domain: currentDomain(),
-          transcript,
-          call_flow: (callBlueprint?.flow || []).map((step) => step.step),
-          expected_captures: questions,
-          next_actions: {
-            create_job_description: callBlueprint?.handoff_contract?.create_job_endpoint || "/api/azureJobs/createJob",
-            create_profile: callBlueprint?.handoff_contract?.create_profile_action || "create_profile",
-            run_match: callBlueprint?.handoff_contract?.match_endpoint || "/api/azureJobs/match/run",
-            deliver_to_caller: callBlueprint?.handoff_contract?.delivery_channels || ["voice_readback", "sms", "email"],
-          },
-        };
-        document.getElementById("dryRunOutput").textContent = JSON.stringify(dryRunPayload, null, 2);
-      }
-
-      async function copyDryRun() {
-        if (!dryRunPayload) buildDryRun();
-        await navigator.clipboard.writeText(JSON.stringify(dryRunPayload, null, 2));
       }
 
       refreshCallPage();

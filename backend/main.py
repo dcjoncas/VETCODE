@@ -224,6 +224,7 @@ MEETING_RECORDS_PATH = os.path.join(DATA_DIR, "meeting_records.json")
 CALL_INTAKE_RECORDS_PATH = os.path.join(DATA_DIR, "call_intake_records.json")
 CALL_INTAKE_SESSIONS_PATH = os.path.join(DATA_DIR, "call_intake_sessions.json")
 CALL_INTAKE_ARCHIVE_PATH = os.path.join(DATA_DIR, "call_intake_archive.json")
+CALL_INTAKE_QUESTIONS_PATH = os.path.join(DATA_DIR, "call_intake_questions.json")
 ACCESS_USERS_PATH = os.path.join(DATA_DIR, "access_users.json")
 ACCESS_CANDIDATES_PATH = os.path.join(DATA_DIR, "access_candidates.json")
 ADMIN_SESSION_TOKENS = {}
@@ -1882,6 +1883,70 @@ CALL_INTAKE_QUESTIONS = [
 ]
 
 
+def _default_call_intake_questions() -> list[dict]:
+    return json.loads(json.dumps(CALL_INTAKE_QUESTIONS))
+
+
+def _normalize_call_intake_question(question: dict, index: int) -> dict | None:
+    if not isinstance(question, dict):
+        return None
+    label = _safe_action_text(question.get("label"), 80) or f"Question {index + 1}"
+    prompt = _safe_action_text(question.get("prompt"), 500)
+    if not prompt:
+        return None
+    key = _safe_action_text(question.get("key"), 80).lower()
+    key = re.sub(r"[^a-z0-9_]+", "_", key).strip("_") or re.sub(r"[^a-z0-9_]+", "_", label.lower()).strip("_")
+    key = key or f"question_{index + 1}"
+    captures = question.get("captures")
+    if not isinstance(captures, list):
+        captures = [key]
+    clean_captures = [
+        _safe_action_text(item, 80)
+        for item in captures
+        if _safe_action_text(item, 80)
+    ][:8]
+    return {
+        "key": key,
+        "label": label,
+        "prompt": prompt,
+        "captures": clean_captures or [key],
+    }
+
+
+def _call_intake_question_store() -> dict:
+    data = _read_json_store(CALL_INTAKE_QUESTIONS_PATH, {})
+    return data if isinstance(data, dict) else {}
+
+
+def _call_intake_questions(domain: str = "dev") -> list[dict]:
+    clean_domain = _domain_key(domain)
+    store = _call_intake_question_store()
+    custom = store.get(clean_domain)
+    if not isinstance(custom, list):
+        return _default_call_intake_questions()
+    questions = [
+        clean
+        for index, question in enumerate(custom[:20])
+        if (clean := _normalize_call_intake_question(question, index))
+    ]
+    return questions or _default_call_intake_questions()
+
+
+def _save_call_intake_questions(domain: str, questions: list[dict]) -> list[dict]:
+    clean_domain = _domain_key(domain)
+    cleaned = [
+        clean
+        for index, question in enumerate((questions or [])[:20])
+        if (clean := _normalize_call_intake_question(question, index))
+    ]
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="At least one question needs a prompt.")
+    store = _call_intake_question_store()
+    store[clean_domain] = cleaned
+    _write_json_store(CALL_INTAKE_QUESTIONS_PATH, store)
+    return cleaned
+
+
 def _call_intake_public_base(request: Request) -> str:
     configured = os.getenv("PUBLIC_BASE_URL") or os.getenv("RAILWAY_PUBLIC_DOMAIN") or ""
     configured = configured.strip().rstrip("/")
@@ -2058,8 +2123,9 @@ def _call_intake_say(text: str) -> str:
 
 def _call_intake_gather_twiml(request: Request, domain: str, call_sid: str, step: int, lead_in: str = "", retry: int = 0) -> str:
     clean_domain = _domain_key(domain)
-    step = max(0, min(int(step or 0), len(CALL_INTAKE_QUESTIONS) - 1))
-    question = CALL_INTAKE_QUESTIONS[step]
+    questions = _call_intake_questions(clean_domain)
+    step = max(0, min(int(step or 0), len(questions) - 1))
+    question = questions[step]
     base_url = _call_intake_public_base(request)
     retry = max(0, min(int(retry or 0), 2))
     action = f"{base_url}/api/call-intake/gather?domain={quote_plus(clean_domain)}&callSid={quote_plus(call_sid)}&step={step}"
@@ -2174,6 +2240,12 @@ def _call_intake_build_jd(session: dict) -> dict:
     caller_email = _safe_action_text(answers.get("caller_email"), 240)
     caller_phone = _safe_action_text(answers.get("caller_phone"), 120)
     delivery_back = _safe_action_text(answers.get("delivery_back"), 700)
+    known_keys = {"role", "client", "skills", "seniority", "delivery", "constraints", "success", "caller_email", "caller_phone", "delivery_back"}
+    extra_answers = [
+        f"{key.replace('_', ' ').title()}: {_safe_action_text(value, 900)}"
+        for key, value in answers.items()
+        if key not in known_keys and _safe_action_text(value, 900)
+    ][:12]
     company = client.split(",")[0].strip()[:180] or "DevReady client"
     title = role[:220]
     call_sid = _safe_action_text(session.get("call_sid"), 120)
@@ -2191,6 +2263,7 @@ def _call_intake_build_jd(session: dict) -> dict:
             f"Caller email: {caller_email or 'To be confirmed'}",
             f"Caller phone: {caller_phone or 'To be confirmed'}",
             f"Caller delivery preference: {delivery_back or 'Voice readback'}",
+            *extra_answers,
         ]
     )
     return {
@@ -2635,10 +2708,12 @@ def call_intake_health(request: Request, domain: str = "dev"):
 def call_intake_blueprint(request: Request, domain: str = "dev"):
     clean_domain = _domain_key(domain)
     status = _call_intake_env_status(request)
+    questions = _call_intake_questions(clean_domain)
     return {
         "ok": True,
         "domain": clean_domain,
-        "questions": CALL_INTAKE_QUESTIONS,
+        "questions": questions,
+        "default_questions": _default_call_intake_questions(),
         "flow": [
             {"step": "answer", "label": "Caller reaches intake number"},
             {"step": "realtime", "label": "Voice agent asks role questions"},
@@ -2655,6 +2730,25 @@ def call_intake_blueprint(request: Request, domain: str = "dev"):
         },
         "webhooks": status["webhooks"],
     }
+
+
+@app.post("/api/call-intake/questions")
+async def call_intake_save_questions(request: Request, domain: str = "dev"):
+    clean_domain = _domain_key(domain)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    if payload.get("reset"):
+        store = _call_intake_question_store()
+        store.pop(clean_domain, None)
+        _write_json_store(CALL_INTAKE_QUESTIONS_PATH, store)
+        questions = _default_call_intake_questions()
+    else:
+        questions = _save_call_intake_questions(clean_domain, payload.get("questions") or [])
+    return {"ok": True, "domain": clean_domain, "questions": questions, "updated_at": _now_utc()}
 
 
 @app.get("/api/call-intake/asks")
@@ -2964,7 +3058,8 @@ async def call_intake_gather(request: Request, domain: str = "dev", callSid: str
             form = {}
     call_sid = _safe_action_text(form.get("CallSid") or callSid or request.query_params.get("callSid"), 120)
     clean_domain = _domain_key(form.get("domain") or request.query_params.get("domain") or domain)
-    step = max(0, min(int(step or request.query_params.get("step") or 0), len(CALL_INTAKE_QUESTIONS) - 1))
+    questions = _call_intake_questions(clean_domain)
+    step = max(0, min(int(step or request.query_params.get("step") or 0), len(questions) - 1))
     try:
         retry_count = int(retry or request.query_params.get("retry") or 0)
     except Exception:
@@ -2973,7 +3068,7 @@ async def call_intake_gather(request: Request, domain: str = "dev", callSid: str
     session = _get_call_intake_session(call_sid, clean_domain, form.get("From") or "")
 
     if speech:
-        question = CALL_INTAKE_QUESTIONS[step]
+        question = questions[step]
         answers = session.setdefault("answers", {})
         transcript = session.setdefault("transcript", [])
         answers[question["key"]] = speech
@@ -2994,7 +3089,7 @@ async def call_intake_gather(request: Request, domain: str = "dev", callSid: str
         except Exception:
             pass
         next_step = step + 1
-        if next_step < len(CALL_INTAKE_QUESTIONS):
+        if next_step < len(questions):
             lead_in = "Great. " if next_step in {1, 4, 7} else ("Perfect. " if next_step in {8, 9} else "Thanks. ")
             return Response(
                 content=_call_intake_gather_twiml(request, clean_domain, call_sid, next_step, lead_in=lead_in),
