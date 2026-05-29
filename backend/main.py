@@ -2932,6 +2932,48 @@ async def call_intake_archive_ask(request: Request, domain: str = "dev"):
     return {"ok": True, "domain": clean_domain, "archived": archived}
 
 
+@app.get("/api/call-intake/asks/archive")
+def call_intake_list_archive(domain: str = "dev", limit: int = 50):
+    clean_domain = _domain_key(domain)
+    max_rows = max(1, min(int(limit or 50), 100))
+    rows = [
+        row
+        for row in _call_intake_archive_rows()
+        if isinstance(row, dict) and _domain_key(row.get("domain") or "") == clean_domain
+    ]
+    rows.sort(key=lambda item: item.get("archived_at") or "", reverse=True)
+    return {"ok": True, "domain": clean_domain, "asks": rows[:max_rows]}
+
+
+@app.post("/api/call-intake/asks/restore")
+async def call_intake_restore_ask(request: Request, domain: str = "dev"):
+    clean_domain = _domain_key(domain)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    archive_key = _safe_action_text(payload.get("archive_key"), 260)
+    call_sid = _safe_action_text(payload.get("call_sid"), 120)
+    jd_id = _safe_action_text(payload.get("jd_id"), 80)
+    if not archive_key:
+        archive_key = _call_intake_archive_key(clean_domain, call_sid, jd_id)
+    if not archive_key:
+        raise HTTPException(status_code=400, detail="Archived Call Ask needs an archive key, call ID, or JD ID.")
+
+    rows = _call_intake_archive_rows()
+    restored = None
+    kept = []
+    for row in rows:
+        if isinstance(row, dict) and _domain_key(row.get("domain") or "") == clean_domain and row.get("archive_key") == archive_key:
+            restored = row
+            continue
+        kept.append(row)
+    _write_json_store(CALL_INTAKE_ARCHIVE_PATH, kept[:500])
+    return {"ok": True, "domain": clean_domain, "restored": restored or {"archive_key": archive_key}}
+
+
 @app.post("/api/call-intake/provider-webhook")
 async def call_intake_provider_webhook(request: Request, domain: str = "dev", provider: str = ""):
     _call_intake_require_provider_secret(request)

@@ -521,8 +521,8 @@
           <section class="call-panel" aria-label="Editable question set">
             <div class="question-header">
               <div>
-                <h2>Question set</h2>
-                <p>Edit what Egeria should collect. Saved changes are used by DevReady intake endpoints; copy the prompt into Retell when changing the live Retell agent.</p>
+                <h2>What Egeria asks</h2>
+                <p>Edit the labels and prompts below, then save. These are remembered for this domain and used by DevReady intake endpoints; copy the Retell prompt after changes to update the live Retell agent.</p>
               </div>
               <div class="question-actions">
                 <button class="btn" type="button" onclick="saveQuestionSet()">Save questions</button>
@@ -534,6 +534,17 @@
             <div id="questionSaveState" class="question-save-state"></div>
             <div id="questionList" class="question-list"></div>
           </section>
+
+          <details class="call-setup-details">
+            <summary>Archived call asks</summary>
+            <div class="call-setup-body">
+              <section aria-label="Archived call asks">
+                <h2>Archived call asks</h2>
+                <p>Archived items are hidden from recent results but the saved JD/profile stays in DevReady.</p>
+                <div id="callArchiveList" class="call-asks">Loading archive...</div>
+              </section>
+            </div>
+          </details>
 
           <details class="call-setup-details">
             <summary>Setup and question details</summary>
@@ -737,6 +748,60 @@
           .join("");
       }
 
+      function renderArchivedCallAsks(data) {
+        const asks = data.asks || [];
+        const host = document.getElementById("callArchiveList");
+        if (!host) return;
+        if (!asks.length) {
+          host.innerHTML = `<div class="notice">No archived Call Asks yet.</div>`;
+          return;
+        }
+        host.innerHTML = asks
+          .map((ask) => {
+            const jdUrl = ask.jd_id ? `job-descriptions.html?domain=${encodeURIComponent(currentDomain())}&jdId=${encodeURIComponent(ask.jd_id)}` : "";
+            const archivedAt = ask.archived_at || "";
+            return `
+              <article class="call-ask-card">
+                <header>
+                  <div>
+                    <h3>${escapeHtml(ask.role || "Call Ask")}</h3>
+                    <p>${escapeHtml(ask.company || "Client to confirm")}</p>
+                  </div>
+                  <span class="call-tag">Archived</span>
+                </header>
+                <div class="call-ask-details">
+                  <div class="call-detail">
+                    <span>Archived</span>
+                    <strong>${escapeHtml(archivedAt || "Unknown")}</strong>
+                  </div>
+                  <div class="call-detail">
+                    <span>Call ID</span>
+                    <strong>${escapeHtml(ask.call_sid || "No call ID")}</strong>
+                  </div>
+                  <div class="call-detail">
+                    <span>JD</span>
+                    <strong>${escapeHtml(ask.jd_id ? `JD ${ask.jd_id}` : "JD pending")}</strong>
+                  </div>
+                  <div class="call-detail">
+                    <span>Archive key</span>
+                    <strong>${escapeHtml(ask.archive_key || "")}</strong>
+                  </div>
+                </div>
+                <div class="row-actions">
+                  ${jdUrl ? `<a class="btn secondary" href="${jdUrl}">Open JD</a>` : ""}
+                  <button
+                    class="btn secondary"
+                    type="button"
+                    data-archive-key="${escapeHtml(ask.archive_key || "")}"
+                    onclick="restoreCallAsk(this)"
+                  >Restore</button>
+                </div>
+              </article>
+            `;
+          })
+          .join("");
+      }
+
       function renderQuestionEditor() {
         const host = document.getElementById("questionList");
         const questions = activeQuestions.length ? activeQuestions : [{ key: "question_1", label: "Question 1", prompt: "", captures: ["question_1"] }];
@@ -846,10 +911,27 @@
             company: button.dataset.company || "",
           });
           renderCallAsks(await callApi("/api/call-intake/asks"));
+          renderArchivedCallAsks(await callApi("/api/call-intake/asks/archive"));
         } catch (error) {
           button.disabled = false;
           button.textContent = "Archive";
           alert(`Could not archive this Call Ask: ${error.message || error}`);
+        }
+      }
+
+      async function restoreCallAsk(button) {
+        button.disabled = true;
+        button.textContent = "Restoring...";
+        try {
+          await callApiPost("/api/call-intake/asks/restore", {
+            archive_key: button.dataset.archiveKey || "",
+          });
+          renderCallAsks(await callApi("/api/call-intake/asks"));
+          renderArchivedCallAsks(await callApi("/api/call-intake/asks/archive"));
+        } catch (error) {
+          button.disabled = false;
+          button.textContent = "Restore";
+          alert(`Could not restore this Call Ask: ${error.message || error}`);
         }
       }
 
@@ -871,7 +953,12 @@
           ]);
           renderHealth(health);
           renderBlueprint(blueprint);
-          renderCallAsks(await callApi("/api/call-intake/asks"));
+          const [asks, archive] = await Promise.all([
+            callApi("/api/call-intake/asks"),
+            callApi("/api/call-intake/asks/archive"),
+          ]);
+          renderCallAsks(asks);
+          renderArchivedCallAsks(archive);
         } catch (error) {
           document.getElementById("callMissingSummary").textContent = `Call intake status could not load: ${error.message || error}`;
         }
