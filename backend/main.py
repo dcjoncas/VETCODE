@@ -222,6 +222,7 @@ CRM_RECORDS_PATH = os.path.join(DATA_DIR, "crm_records.json")
 PROSPECT_REFERENCE_RECORDS_PATH = os.path.join(DATA_DIR, "prospect_reference_records.json")
 MEETING_RECORDS_PATH = os.path.join(DATA_DIR, "meeting_records.json")
 CALL_INTAKE_RECORDS_PATH = os.path.join(DATA_DIR, "call_intake_records.json")
+CALL_INTAKE_SESSIONS_PATH = os.path.join(DATA_DIR, "call_intake_sessions.json")
 ACCESS_USERS_PATH = os.path.join(DATA_DIR, "access_users.json")
 ACCESS_CANDIDATES_PATH = os.path.join(DATA_DIR, "access_candidates.json")
 ADMIN_SESSION_TOKENS = {}
@@ -1932,6 +1933,48 @@ def _append_call_intake_record(record: dict) -> dict:
     return clean
 
 
+def _call_intake_sessions() -> dict:
+    rows = _read_json_store(CALL_INTAKE_SESSIONS_PATH, {})
+    return rows if isinstance(rows, dict) else {}
+
+
+def _call_intake_session_key(call_sid: str) -> str:
+    return _safe_action_text(call_sid, 120) or _safe_token("CALL")
+
+
+def _save_call_intake_session(call_sid: str, session: dict) -> dict:
+    sessions = _call_intake_sessions()
+    key = _call_intake_session_key(call_sid)
+    session["call_sid"] = key
+    session["updated_at"] = _now_utc()
+    sessions[key] = session
+    _write_json_store(CALL_INTAKE_SESSIONS_PATH, sessions)
+    return session
+
+
+def _get_call_intake_session(call_sid: str, domain: str = "dev", from_number: str = "") -> dict:
+    key = _call_intake_session_key(call_sid)
+    sessions = _call_intake_sessions()
+    session = sessions.get(key)
+    if not isinstance(session, dict):
+        session = {
+            "call_sid": key,
+            "domain": _domain_key(domain),
+            "from": _safe_action_text(from_number, 80),
+            "answers": {},
+            "transcript": [],
+            "status": "in_progress",
+            "created_at": _now_utc(),
+        }
+    session.setdefault("answers", {})
+    session.setdefault("transcript", [])
+    if domain:
+        session["domain"] = _domain_key(session.get("domain") or domain)
+    if from_number and not session.get("from"):
+        session["from"] = _safe_action_text(from_number, 80)
+    return session
+
+
 def _xml_escape(value) -> str:
     return (
         str(value or "")
@@ -1943,22 +1986,116 @@ def _xml_escape(value) -> str:
     )
 
 
-def _call_intake_twiml(request: Request, domain: str, call_sid: str = "") -> str:
-    status = _call_intake_env_status(request)
-    stream_url = status["webhooks"]["media_stream"]
-    callback_url = status["webhooks"]["status"]
+def _call_intake_say(text: str) -> str:
+    voice = os.getenv("CALL_INTAKE_TWILIO_VOICE", "Polly.Joanna-Neural")
+    return f'<Say voice="{_xml_escape(voice)}" language="en-US">{_xml_escape(text)}</Say>'
+
+
+def _call_intake_gather_twiml(request: Request, domain: str, call_sid: str, step: int, lead_in: str = "") -> str:
     clean_domain = _domain_key(domain)
-    call_id = _xml_escape(call_sid or _safe_token("CALL"))
+    step = max(0, min(int(step or 0), len(CALL_INTAKE_QUESTIONS) - 1))
+    question = CALL_INTAKE_QUESTIONS[step]
+    base_url = _call_intake_public_base(request)
+    action = f"{base_url}/api/call-intake/gather?domain={quote_plus(clean_domain)}&callSid={quote_plus(call_sid)}&step={step}"
+    prompt = question["prompt"]
+    intro = lead_in or ("Welcome to DevReady. I will ask a few quick questions about the role, then create the job description and look for the best candidate match. " if step == 0 else "")
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say>Welcome to DevReady. I will ask a few questions about the role, create the job description, match candidates, and return the best fit.</Say>
-  <Connect>
-    <Stream url="{_xml_escape(stream_url)}" name="devready-call-intake" statusCallback="{_xml_escape(callback_url)}">
-      <Parameter name="domain" value="{_xml_escape(clean_domain)}" />
-      <Parameter name="callId" value="{call_id}" />
-    </Stream>
-  </Connect>
+  {_call_intake_say(intro + prompt)}
+  <Gather input="speech" action="{_xml_escape(action)}" method="POST" speechTimeout="auto" timeout="8" enhanced="true" speechModel="phone_call">
+    {_call_intake_say("Please answer after the tone.")}
+  </Gather>
+  <Redirect method="POST">{_xml_escape(action)}&amp;retry=1</Redirect>
 </Response>"""
+
+
+def _call_intake_extract_skills(text: str) -> list[str]:
+    try:
+        normalized = normalize_all_skills(text or "")
+    except Exception:
+        normalized = []
+    if normalized:
+        return list(dict.fromkeys([str(skill).strip() for skill in normalized if str(skill).strip()]))[:12]
+    parts = re.split(r",|;|\band\b|\bor\b", text or "", flags=re.I)
+    return list(dict.fromkeys([_safe_action_text(part, 80) for part in parts if _safe_action_text(part, 80)]))[:10]
+
+
+def _call_intake_build_jd(session: dict) -> dict:
+    answers = session.get("answers") if isinstance(session.get("answers"), dict) else {}
+    role = _safe_action_text(answers.get("role"), 220) or "New role"
+    client = _safe_action_text(answers.get("client"), 500) or "DevReady client"
+    skills_text = _safe_action_text(answers.get("skills"), 900)
+    seniority = _safe_action_text(answers.get("seniority"), 700)
+    delivery = _safe_action_text(answers.get("delivery"), 700)
+    constraints = _safe_action_text(answers.get("constraints"), 700)
+    success = _safe_action_text(answers.get("success"), 900)
+    delivery_back = _safe_action_text(answers.get("delivery_back"), 700)
+    company = client.split(",")[0].strip()[:180] or "DevReady client"
+    title = role[:220]
+    jd_text = "\n".join(
+        [
+            f"Role target: {role}",
+            f"Client context: {client}",
+            f"Required skills: {skills_text or 'To be confirmed'}",
+            f"Seniority: {seniority or 'To be confirmed'}",
+            f"Delivery model: {delivery or 'To be confirmed'}",
+            f"Constraints: {constraints or 'To be confirmed'}",
+            f"Success profile: {success or 'To be confirmed'}",
+            f"Caller delivery preference: {delivery_back or 'Voice readback'}",
+        ]
+    )
+    return {
+        "company": company,
+        "title": title,
+        "description": jd_text,
+        "skills": _call_intake_extract_skills(skills_text + "\n" + jd_text),
+    }
+
+
+def _call_intake_finalize(session: dict) -> dict:
+    if session.get("status") == "completed" and session.get("summary"):
+        return session
+    domain = _domain_key(session.get("domain") or "dev")
+    jd = _call_intake_build_jd(session)
+    created = {}
+    match = {}
+    try:
+        created = jobs.uploadJob(jd["company"], jd["title"], domain, jd["description"], jd["skills"]) or {}
+        jd_id = str(created.get("jd_id") or "")
+        session["job"] = {**jd, "jd_id": jd_id}
+        if jd_id:
+            saved_job = jobs.getJob(jd_id, domain) or session["job"]
+            try:
+                match = _egeria_best_internal_candidate_for_job(saved_job, domain)
+            except Exception as match_error:
+                match = {"error": _safe_action_text(str(match_error), 500)}
+    except Exception as create_error:
+        session["job"] = jd
+        session["error"] = _safe_action_text(str(create_error), 500)
+
+    session["match"] = match
+    candidate = match.get("candidate") if isinstance(match, dict) else {}
+    if isinstance(candidate, dict) and candidate.get("name"):
+        summary = (
+            f"I created the job description for {jd['title']}. "
+            f"The best current match I found is {candidate.get('name')}, "
+            f"{candidate.get('headline') or 'a candidate in the system'}, with a score of {match.get('score', 'available')}. "
+            "I saved this intake so the team can review the full match."
+        )
+    elif session.get("error"):
+        summary = (
+            "I captured the intake, but I could not save the job description automatically. "
+            "The team can review the call intake record and finish it manually."
+        )
+    else:
+        summary = (
+            f"I created the job description for {jd['title']}. "
+            "I did not find a confident candidate match yet, so the team should review the saved job and run a deeper search."
+        )
+    session["summary"] = summary
+    session["status"] = "completed"
+    session["completed_at"] = _now_utc()
+    return session
 
 
 @app.get("/api/call-intake/health")
@@ -2032,10 +2169,87 @@ async def call_intake_voice(request: Request, domain: str = "dev"):
             "domain": clean_domain,
             "call_sid": call_sid,
             "from": from_number,
-            "status": "connected_to_stream",
+            "status": "speech_gather_started",
         }
     )
-    return Response(content=_call_intake_twiml(request, clean_domain, call_sid), media_type="application/xml")
+    session = _get_call_intake_session(call_sid, clean_domain, from_number)
+    _save_call_intake_session(call_sid, session)
+    return Response(content=_call_intake_gather_twiml(request, clean_domain, call_sid, 0), media_type="application/xml")
+
+
+@app.api_route("/api/call-intake/gather", methods=["GET", "POST"])
+async def call_intake_gather(request: Request, domain: str = "dev", callSid: str = "", step: int = 0, retry: int = 0):
+    form = {}
+    if request.method == "POST":
+        try:
+            form = dict(await request.form())
+        except Exception:
+            form = {}
+    call_sid = _safe_action_text(form.get("CallSid") or callSid or request.query_params.get("callSid"), 120)
+    clean_domain = _domain_key(form.get("domain") or request.query_params.get("domain") or domain)
+    step = max(0, min(int(step or request.query_params.get("step") or 0), len(CALL_INTAKE_QUESTIONS) - 1))
+    speech = _safe_action_text(form.get("SpeechResult") or request.query_params.get("SpeechResult"), 2400)
+    session = _get_call_intake_session(call_sid, clean_domain, form.get("From") or "")
+
+    if speech:
+        question = CALL_INTAKE_QUESTIONS[step]
+        answers = session.setdefault("answers", {})
+        transcript = session.setdefault("transcript", [])
+        answers[question["key"]] = speech
+        transcript.append({"question": question["prompt"], "answer": speech, "step": step, "at": _now_utc()})
+        _append_call_intake_record(
+            {
+                "event": "answer",
+                "provider": "twilio",
+                "domain": clean_domain,
+                "call_sid": call_sid,
+                "question": question["key"],
+                "answer": speech,
+            }
+        )
+        _save_call_intake_session(call_sid, session)
+        next_step = step + 1
+        if next_step < len(CALL_INTAKE_QUESTIONS):
+            lead_in = "Got it. "
+            return Response(
+                content=_call_intake_gather_twiml(request, clean_domain, call_sid, next_step, lead_in=lead_in),
+                media_type="application/xml",
+            )
+
+        final_session = _call_intake_finalize(session)
+        _save_call_intake_session(call_sid, final_session)
+        _append_call_intake_record(
+            {
+                "event": "completed",
+                "provider": "twilio",
+                "domain": clean_domain,
+                "call_sid": call_sid,
+                "job": final_session.get("job", {}),
+                "match": final_session.get("match", {}),
+                "summary": final_session.get("summary", ""),
+            }
+        )
+        return Response(
+            content=f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  {_call_intake_say(final_session.get("summary") or "The intake is complete.")}
+  {_call_intake_say("Thank you. Goodbye.")}
+  <Hangup/>
+</Response>""",
+            media_type="application/xml",
+        )
+
+    if retry:
+        lead_in = "I did not catch that. "
+        return Response(
+            content=_call_intake_gather_twiml(request, clean_domain, call_sid, step, lead_in=lead_in),
+            media_type="application/xml",
+        )
+
+    return Response(
+        content=_call_intake_gather_twiml(request, clean_domain, call_sid, step),
+        media_type="application/xml",
+    )
 
 
 @app.api_route("/api/call-intake/status", methods=["GET", "POST"])
