@@ -52,6 +52,7 @@
 
       .call-number {
         min-width: 230px;
+        max-width: 260px;
         border: 1px solid rgba(var(--primary-rgb), 0.28);
         border-radius: 12px;
         padding: 12px;
@@ -70,12 +71,21 @@
         margin-top: 4px;
         font-size: 20px;
         line-height: 1.15;
+        overflow-wrap: anywhere;
+      }
+
+      #callReadyLabel {
+        margin-top: 6px;
+        line-height: 1.25;
+        white-space: normal;
       }
 
       .call-number .call-web-button {
         width: 100%;
-        margin-top: 10px;
+        min-height: 36px;
+        margin-top: 12px;
         justify-content: center;
+        white-space: nowrap;
       }
 
       .call-actions {
