@@ -2762,13 +2762,18 @@ def call_intake_health(request: Request, domain: str = "dev"):
         provider_ready
         and status["webhooks"]["configured"]
     )
-    provider_label = (
-        "Retell API key or agent"
-        if provider == "retell"
-        else "Vapi API key or assistant"
-        if provider == "vapi"
-        else "Twilio account, auth token, phone number, and OpenAI realtime"
-    )
+    if provider == "retell":
+        retell = status.get("retell") or {}
+        missing_retell = []
+        if not retell.get("agent_id"):
+            missing_retell.append("RETELL_AGENT_ID")
+        if not retell.get("api_key"):
+            missing_retell.append("RETELL_API_KEY")
+        provider_label = ", ".join(missing_retell) or "Retell agent/API key"
+    elif provider == "vapi":
+        provider_label = "Vapi API key or assistant"
+    else:
+        provider_label = "Twilio account, auth token, phone number, and OpenAI realtime"
     return {
         "ok": True,
         "ready": ready,
