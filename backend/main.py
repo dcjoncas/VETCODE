@@ -2096,6 +2096,12 @@ def _call_intake_finalize(session: dict) -> dict:
         created = jobs.uploadJob(jd["company"], jd["title"], domain, jd["description"], jd["skills"]) or {}
         jd_id = str(created.get("jd_id") or "")
         session["job"] = {**jd, "jd_id": jd_id, "source_tag": "Call Ask"}
+        if jd_id:
+            saved_job = jobs.getJob(jd_id, domain) or session["job"]
+            try:
+                match = _egeria_best_internal_candidate_for_job(saved_job, domain)
+            except Exception as match_error:
+                match = {"error": _safe_action_text(str(match_error), 500)}
         try:
             profile_result = candidates.uploadProfile(
                 skills=_call_intake_profile_skills(jd["skills"]),
@@ -2123,12 +2129,6 @@ def _call_intake_finalize(session: dict) -> dict:
                 "email": jd.get("caller_email") or "",
                 "phone": jd.get("caller_phone") or "",
             }
-        if jd_id:
-            saved_job = jobs.getJob(jd_id, domain) or session["job"]
-            try:
-                match = _egeria_best_internal_candidate_for_job(saved_job, domain)
-            except Exception as match_error:
-                match = {"error": _safe_action_text(str(match_error), 500)}
     except Exception as create_error:
         session["job"] = jd
         session["error"] = _safe_action_text(str(create_error), 500)
