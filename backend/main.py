@@ -1827,7 +1827,7 @@ CALL_INTAKE_QUESTIONS = [
     {
         "key": "role",
         "label": "Role target",
-        "prompt": "Great to talk with you. What role are you hiring for?",
+        "prompt": "Great to talk with you. What role can I help you fill today?",
         "captures": ["job_title", "business_outcome"],
     },
     {
@@ -1869,13 +1869,13 @@ CALL_INTAKE_QUESTIONS = [
     {
         "key": "caller_email",
         "label": "Caller email",
-        "prompt": "What email should I use for the match summary?",
+        "prompt": "What is the best email for the match summary?",
         "captures": ["caller_email"],
     },
     {
         "key": "caller_phone",
         "label": "Caller phone",
-        "prompt": "And what phone number should I keep on the request?",
+        "prompt": "What phone number should I keep on the request?",
         "captures": ["caller_phone"],
     },
     {
@@ -1998,9 +1998,15 @@ def _xml_escape(value) -> str:
     )
 
 
+def _call_intake_speech_text(text: str) -> str:
+    rate = os.getenv("CALL_INTAKE_TWILIO_RATE", "112%").strip() or "112%"
+    escaped = _xml_escape(text)
+    return f'<prosody rate="{_xml_escape(rate)}">{escaped}</prosody>'
+
+
 def _call_intake_say(text: str) -> str:
     voice = os.getenv("CALL_INTAKE_TWILIO_VOICE", "Polly.Joanna-Neural")
-    return f'<Say voice="{_xml_escape(voice)}" language="en-US">{_xml_escape(text)}</Say>'
+    return f'<Say voice="{_xml_escape(voice)}" language="en-US">{_call_intake_speech_text(text)}</Say>'
 
 
 def _call_intake_gather_twiml(request: Request, domain: str, call_sid: str, step: int, lead_in: str = "") -> str:
@@ -2010,7 +2016,7 @@ def _call_intake_gather_twiml(request: Request, domain: str, call_sid: str, step
     base_url = _call_intake_public_base(request)
     action = f"{base_url}/api/call-intake/gather?domain={quote_plus(clean_domain)}&callSid={quote_plus(call_sid)}&step={step}"
     prompt = question["prompt"]
-    intro = lead_in or ("Hi, this is DevReady. I will grab the key details and look for a strong match. " if step == 0 else "")
+    intro = lead_in or ("Hi, this is Ava with DevReady. Happy to help. I will grab the key details and look for a strong match. " if step == 0 else "")
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather input="speech" action="{_xml_escape(action)}" method="POST" speechTimeout="auto" timeout="5" enhanced="true" speechModel="phone_call">
@@ -2225,7 +2231,7 @@ async def call_intake_gather(request: Request, domain: str = "dev", callSid: str
         _save_call_intake_session(call_sid, session)
         next_step = step + 1
         if next_step < len(CALL_INTAKE_QUESTIONS):
-            lead_in = "Great. " if next_step in {1, 4, 7} else "Thanks. "
+            lead_in = "Great. " if next_step in {1, 4, 7} else ("Perfect. " if next_step in {8, 9} else "Thanks. ")
             return Response(
                 content=_call_intake_gather_twiml(request, clean_domain, call_sid, next_step, lead_in=lead_in),
                 media_type="application/xml",
