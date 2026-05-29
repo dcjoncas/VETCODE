@@ -2037,6 +2037,15 @@ def _call_intake_extract_skills(text: str) -> list[str]:
     return list(dict.fromkeys([_safe_action_text(part, 80) for part in parts if _safe_action_text(part, 80)]))[:10]
 
 
+def _call_intake_profile_skills(skills: list[str]) -> list[dict]:
+    clean = []
+    for skill in skills or []:
+        title = _safe_action_text(skill, 80)
+        if title:
+            clean.append({"title": title, "years": 1})
+    return clean[:12]
+
+
 def _call_intake_build_jd(session: dict) -> dict:
     answers = session.get("answers") if isinstance(session.get("answers"), dict) else {}
     role = _safe_action_text(answers.get("role"), 220) or "New role"
@@ -2051,8 +2060,11 @@ def _call_intake_build_jd(session: dict) -> dict:
     delivery_back = _safe_action_text(answers.get("delivery_back"), 700)
     company = client.split(",")[0].strip()[:180] or "DevReady client"
     title = role[:220]
+    call_sid = _safe_action_text(session.get("call_sid"), 120)
     jd_text = "\n".join(
         [
+            "Source tag: Call Ask",
+            f"Call ID: {call_sid or 'Unknown'}",
             f"Role target: {role}",
             f"Client context: {client}",
             f"Required skills: {skills_text or 'To be confirmed'}",
@@ -2070,6 +2082,10 @@ def _call_intake_build_jd(session: dict) -> dict:
         "title": title,
         "description": jd_text,
         "skills": _call_intake_extract_skills(skills_text + "\n" + jd_text),
+        "source_tag": "Call Ask",
+        "call_sid": call_sid,
+        "caller_email": caller_email,
+        "caller_phone": caller_phone,
     }
 
 
@@ -2083,7 +2099,34 @@ def _call_intake_finalize(session: dict) -> dict:
     try:
         created = jobs.uploadJob(jd["company"], jd["title"], domain, jd["description"], jd["skills"]) or {}
         jd_id = str(created.get("jd_id") or "")
-        session["job"] = {**jd, "jd_id": jd_id}
+        session["job"] = {**jd, "jd_id": jd_id, "source_tag": "Call Ask"}
+        try:
+            profile_result = candidates.uploadProfile(
+                skills=_call_intake_profile_skills(jd["skills"]),
+                fullName=f"Call Ask - {jd['title']}"[:180],
+                candidateDescription=(
+                    "Call Ask intake profile generated from a phone request. "
+                    "Use this as the caller/request profile until a human owner confirms details.\n\n"
+                    + jd["description"]
+                )[:2400],
+                domain=domain,
+                email=jd.get("caller_email") or None,
+                candidateTitle=f"Call Ask - {jd['title']}"[:200],
+            )
+            session["profile"] = {
+                "source_tag": "Call Ask",
+                "profile_id": str((profile_result or {}).get("personid") or ""),
+                "name": (profile_result or {}).get("name") or f"Call Ask - {jd['title']}",
+                "email": jd.get("caller_email") or "",
+                "phone": jd.get("caller_phone") or "",
+            }
+        except Exception as profile_error:
+            session["profile"] = {
+                "source_tag": "Call Ask",
+                "error": _safe_action_text(str(profile_error), 500),
+                "email": jd.get("caller_email") or "",
+                "phone": jd.get("caller_phone") or "",
+            }
         if jd_id:
             saved_job = jobs.getJob(jd_id, domain) or session["job"]
             try:
@@ -2172,6 +2215,45 @@ def call_intake_blueprint(request: Request, domain: str = "dev"):
     }
 
 
+@app.get("/api/call-intake/asks")
+def call_intake_asks(domain: str = "dev", limit: int = 25):
+    clean_domain = _domain_key(domain)
+    max_rows = max(1, min(int(limit or 25), 100))
+    sessions = _call_intake_sessions()
+    rows = []
+    for session in sessions.values():
+        if not isinstance(session, dict):
+            continue
+        if _domain_key(session.get("domain") or "dev") != clean_domain:
+            continue
+        answers = session.get("answers") if isinstance(session.get("answers"), dict) else {}
+        job = session.get("job") if isinstance(session.get("job"), dict) else {}
+        profile = session.get("profile") if isinstance(session.get("profile"), dict) else {}
+        match = session.get("match") if isinstance(session.get("match"), dict) else {}
+        candidate = match.get("candidate") if isinstance(match.get("candidate"), dict) else {}
+        rows.append(
+            {
+                "call_sid": _safe_action_text(session.get("call_sid"), 120),
+                "source_tag": session.get("source_tag") or job.get("source_tag") or "Call Ask",
+                "status": _safe_action_text(session.get("status") or "in_progress", 80),
+                "created_at": session.get("created_at") or "",
+                "completed_at": session.get("completed_at") or "",
+                "updated_at": session.get("updated_at") or "",
+                "role": _safe_action_text(answers.get("role") or job.get("title"), 220),
+                "company": _safe_action_text(job.get("company") or answers.get("client"), 220),
+                "caller_email": _safe_action_text(answers.get("caller_email") or job.get("caller_email") or profile.get("email"), 240),
+                "caller_phone": _safe_action_text(answers.get("caller_phone") or job.get("caller_phone") or profile.get("phone"), 120),
+                "jd_id": _safe_action_text(job.get("jd_id"), 80),
+                "profile_id": _safe_action_text(profile.get("profile_id"), 80),
+                "match_name": _safe_action_text(candidate.get("name"), 180),
+                "match_score": match.get("score") if isinstance(match, dict) else None,
+                "summary": _safe_action_text(session.get("summary"), 900),
+            }
+        )
+    rows.sort(key=lambda item: item.get("updated_at") or item.get("created_at") or "", reverse=True)
+    return {"ok": True, "domain": clean_domain, "asks": rows[:max_rows]}
+
+
 @app.api_route("/api/call-intake/voice", methods=["GET", "POST"])
 async def call_intake_voice(request: Request, domain: str = "dev"):
     form = {}
@@ -2245,7 +2327,9 @@ async def call_intake_gather(request: Request, domain: str = "dev", callSid: str
                 "provider": "twilio",
                 "domain": clean_domain,
                 "call_sid": call_sid,
+                "source_tag": "Call Ask",
                 "job": final_session.get("job", {}),
+                "profile": final_session.get("profile", {}),
                 "match": final_session.get("match", {}),
                 "summary": final_session.get("summary", ""),
             }

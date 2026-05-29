@@ -235,6 +235,54 @@
         color: var(--text);
       }
 
+      .call-asks {
+        display: grid;
+        gap: 10px;
+      }
+
+      .call-ask-card {
+        display: grid;
+        gap: 8px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 11px;
+        background: #fbfcfb;
+      }
+
+      .call-ask-card header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .call-ask-card h3 {
+        margin: 0;
+        font-size: 15px;
+      }
+
+      .call-ask-card p {
+        margin: 0;
+      }
+
+      .call-ask-meta {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .call-tag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 22px;
+        border-radius: 999px;
+        padding: 3px 8px;
+        background: rgba(var(--primary-rgb), 0.12);
+        color: var(--primary-1);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
       .call-lab {
         display: grid;
         gap: 10px;
@@ -341,6 +389,12 @@
               <h2>Webhook configuration</h2>
               <p>Use these values in the voice provider once Twilio or another phone service is connected.</p>
               <div id="endpointList" class="endpoint-list"></div>
+            </section>
+
+            <section class="call-panel" aria-label="Call ask results">
+              <h2>Call asks</h2>
+              <p>Completed calls save here as tagged Call Ask JDs and request profiles.</p>
+              <div id="callAskList" class="call-asks">Loading call asks...</div>
             </section>
 
             <section class="call-panel" aria-label="Account setup">
@@ -490,6 +544,43 @@
           .join("");
       }
 
+      function renderCallAsks(data) {
+        const asks = data.asks || [];
+        const host = document.getElementById("callAskList");
+        if (!asks.length) {
+          host.innerHTML = `<div class="notice">No completed call asks yet. Call the intake number, finish the questions, and the saved JD/profile will appear here.</div>`;
+          return;
+        }
+        host.innerHTML = asks
+          .map((ask) => {
+            const jdUrl = ask.jd_id ? `job-descriptions.html?domain=${encodeURIComponent(currentDomain())}&jdId=${encodeURIComponent(ask.jd_id)}` : "";
+            const profileUrl = ask.profile_id ? `profile-preview.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(ask.profile_id)}` : "";
+            return `
+              <article class="call-ask-card">
+                <header>
+                  <div>
+                    <h3>${escapeHtml(ask.role || "Call Ask")}</h3>
+                    <p>${escapeHtml(ask.company || "Client to confirm")}</p>
+                  </div>
+                  <span class="call-tag">${escapeHtml(ask.source_tag || "Call Ask")}</span>
+                </header>
+                <div class="call-ask-meta">
+                  <span class="call-tag">${escapeHtml(ask.status || "saved")}</span>
+                  ${ask.caller_email ? `<span class="call-tag">${escapeHtml(ask.caller_email)}</span>` : ""}
+                  ${ask.caller_phone ? `<span class="call-tag">${escapeHtml(ask.caller_phone)}</span>` : ""}
+                  ${ask.match_name ? `<span class="call-tag">Match: ${escapeHtml(ask.match_name)}${ask.match_score ? ` ${escapeHtml(ask.match_score)}` : ""}</span>` : ""}
+                </div>
+                <p>${escapeHtml(ask.summary || "Saved as a Call Ask intake.")}</p>
+                <div class="row-actions">
+                  ${jdUrl ? `<a class="btn secondary" href="${jdUrl}">Open JD</a>` : ""}
+                  ${profileUrl ? `<a class="btn secondary" href="${profileUrl}">Open profile</a>` : ""}
+                </div>
+              </article>
+            `;
+          })
+          .join("");
+      }
+
       async function copyEndpoint(button) {
         const value = button?.dataset?.copy || "";
         if (value) await navigator.clipboard.writeText(value);
@@ -503,6 +594,7 @@
           ]);
           renderHealth(health);
           renderBlueprint(blueprint);
+          renderCallAsks(await callApi("/api/call-intake/asks"));
         } catch (error) {
           document.getElementById("callMissingSummary").textContent = `Call intake status could not load: ${error.message || error}`;
         }
