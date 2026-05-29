@@ -2554,7 +2554,7 @@ def _call_intake_answers_from_provider_payload(payload: dict) -> dict:
         "constraints": _call_intake_text(_call_intake_first(merged, ["constraints", "timing", "budget", "compliance", "deal_breakers"])),
         "success": _call_intake_text(_call_intake_first(merged, ["success", "success_profile", "success_criteria", "first_90_days", "outcomes"])),
         "caller_email": _call_intake_text(_call_intake_first(merged, ["caller_email", "email", "contact_email"])),
-        "caller_phone": _call_intake_text(_call_intake_first(merged, ["caller_phone", "phone", "phone_number", "contact_phone"])),
+        "caller_phone": _call_intake_text(_call_intake_first(merged, ["caller_phone", "phone", "phone_number", "contact_phone", "from_number", "caller_number"])),
     }
     return _call_intake_clean_answers({key: value for key, value in answers.items() if value})
 
