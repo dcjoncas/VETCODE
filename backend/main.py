@@ -2103,6 +2103,28 @@ def _call_intake_clean_answers(answers: dict) -> dict:
     return clean
 
 
+def _call_intake_existing_profile_by_email(email: str, domain: str) -> dict:
+    clean_email = _call_intake_clean_spoken_email(email)
+    if not clean_email:
+        return {}
+    try:
+        matches = candidates.searchCandidatesByNameEmail(clean_email, limit=5, domain=domain) or []
+        for match in matches:
+            if (match.get("email") or "").strip().lower() == clean_email.lower():
+                first = _safe_action_text(match.get("firstname"), 80)
+                last = _safe_action_text(match.get("lastname"), 80)
+                return {
+                    "source_tag": "Call Ask",
+                    "profile_id": _safe_action_text(match.get("personid") or match.get("id"), 80),
+                    "name": _safe_action_text(" ".join([first, last]).strip() or match.get("name") or clean_email, 180),
+                    "email": clean_email,
+                    "existing": True,
+                }
+    except Exception:
+        return {}
+    return {}
+
+
 def _call_intake_build_jd(session: dict) -> dict:
     answers = _call_intake_clean_answers(session.get("answers") if isinstance(session.get("answers"), dict) else {})
     role = _safe_action_text(answers.get("role"), 220) or "New role"
@@ -2163,33 +2185,38 @@ def _call_intake_finalize(session: dict) -> dict:
                 match = _egeria_best_internal_candidate_for_job(saved_job, domain)
             except Exception as match_error:
                 match = {"error": _safe_action_text(str(match_error), 500)}
-        try:
-            profile_result = candidates.uploadProfile(
-                skills=_call_intake_profile_skills(jd["skills"]),
-                fullName=f"Call Ask - {jd['title']}"[:180],
-                candidateDescription=(
-                    "Call Ask intake profile generated from a phone request. "
-                    "Use this as the caller/request profile until a human owner confirms details.\n\n"
-                    + jd["description"]
-                )[:2400],
-                domain=domain,
-                email=jd.get("caller_email") or None,
-                candidateTitle=f"Call Ask - {jd['title']}"[:200],
-            )
-            session["profile"] = {
-                "source_tag": "Call Ask",
-                "profile_id": str((profile_result or {}).get("personid") or ""),
-                "name": (profile_result or {}).get("name") or f"Call Ask - {jd['title']}",
-                "email": jd.get("caller_email") or "",
-                "phone": jd.get("caller_phone") or "",
-            }
-        except Exception as profile_error:
-            session["profile"] = {
-                "source_tag": "Call Ask",
-                "error": _safe_action_text(str(profile_error), 500),
-                "email": jd.get("caller_email") or "",
-                "phone": jd.get("caller_phone") or "",
-            }
+        existing_profile = _call_intake_existing_profile_by_email(jd.get("caller_email"), domain)
+        if existing_profile:
+            existing_profile["phone"] = jd.get("caller_phone") or ""
+            session["profile"] = existing_profile
+        else:
+            try:
+                profile_result = candidates.uploadProfile(
+                    skills=_call_intake_profile_skills(jd["skills"]),
+                    fullName=f"Call Ask - {jd['title']}"[:180],
+                    candidateDescription=(
+                        "Call Ask intake profile generated from a phone request. "
+                        "Use this as the caller/request profile until a human owner confirms details.\n\n"
+                        + jd["description"]
+                    )[:2400],
+                    domain=domain,
+                    email=jd.get("caller_email") or None,
+                    candidateTitle=f"Call Ask - {jd['title']}"[:200],
+                )
+                session["profile"] = {
+                    "source_tag": "Call Ask",
+                    "profile_id": str((profile_result or {}).get("personid") or ""),
+                    "name": (profile_result or {}).get("name") or f"Call Ask - {jd['title']}",
+                    "email": jd.get("caller_email") or "",
+                    "phone": jd.get("caller_phone") or "",
+                }
+            except Exception as profile_error:
+                session["profile"] = {
+                    "source_tag": "Call Ask",
+                    "error": _safe_action_text(str(profile_error), 500),
+                    "email": jd.get("caller_email") or "",
+                    "phone": jd.get("caller_phone") or "",
+                }
     except Exception as create_error:
         session["job"] = jd
         session["error"] = _safe_action_text(str(create_error), 500)
