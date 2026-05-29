@@ -441,7 +441,6 @@
     <a href="mine-candidate-external.html" class="nav-find-out" data-menu-key="find_out" data-hint="Use the outside-search workflow when internal matches are weak. Results come in as temporary profiles so you can review them before adding anything permanent."><svg class="nav-icon"><use href="#nav-search-out"></use></svg>Find Candidates (Out)</a>
     <a href="job-descriptions.html" class="nav-jds" data-menu-key="job_descriptions" data-hint="Manage job descriptions for the active domain only. Saved jobs here are what matching uses when ranking candidates and showing missing skills."><svg class="nav-icon"><use href="#nav-briefcase"></use></svg>Job Descriptions</a>
     <a href="profile-preview.html" class="nav-profiles" data-menu-key="profiles" data-hint="Open the current candidate profile to inspect resume data, portfolio roles, personality results, badges, public profile status, and missing completion pieces."><svg class="nav-icon"><use href="#nav-profile"></use></svg>Profiles</a>
-    <a href="call.html" class="call-link" data-menu-key="call" data-hint="Open the phone intake workspace for AI-led job-description calls, JD creation, profile creation, matching, and caller delivery."><svg class="nav-icon"><use href="#nav-phone"></use></svg>Call</a>
     <a href="meet.html" class="recordings-link" data-menu-key="meet" data-hint="Open the meeting workspace for recordings, notes, summaries, and Atlas handoff in the current domain."><svg class="nav-icon"><use href="#nav-interview"></use></svg>Meeting</a>
   </div>
   <div class="nav-group nav-finance-section" aria-label="Finance and operations">
@@ -637,7 +636,7 @@
   }
 
   const currentNavPath = window.location.pathname.replace(/\/$/, "");
-  const navLinks = document.querySelectorAll("#pageNav a");
+  const navLinks = document.querySelectorAll("#pageNav a, #sidebarCallLink");
   navLinks.forEach((link) => {
     const linkPath = new URL(link.href).pathname.replace(/\/$/, "");
 
