@@ -1878,12 +1878,6 @@ CALL_INTAKE_QUESTIONS = [
         "prompt": "What phone number should I keep on the request?",
         "captures": ["caller_phone"],
     },
-    {
-        "key": "delivery_back",
-        "label": "Caller delivery",
-        "prompt": "Last one. Should we text, email, or read back the match summary?",
-        "captures": ["caller_name", "delivery_channel"],
-    },
 ]
 
 
@@ -2176,6 +2170,20 @@ def _call_intake_partial_summary(session: dict) -> dict:
     return session
 
 
+def _call_intake_record_from_session(event: str, domain: str, session: dict) -> dict:
+    return {
+        "event": event,
+        "provider": "twilio",
+        "domain": _domain_key(domain),
+        "call_sid": _safe_action_text(session.get("call_sid"), 120),
+        "source_tag": "Call Ask",
+        "job": session.get("job", {}),
+        "profile": session.get("profile", {}),
+        "match": session.get("match", {}),
+        "summary": session.get("summary", ""),
+    }
+
+
 @app.get("/api/call-intake/health")
 def call_intake_health(request: Request, domain: str = "dev"):
     clean_domain = _domain_key(domain)
@@ -2268,6 +2276,18 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
     return {"ok": True, "domain": clean_domain, "asks": rows[:max_rows]}
 
 
+@app.post("/api/call-intake/asks/{call_sid}/finalize")
+def call_intake_finalize_ask(call_sid: str, domain: str = "dev"):
+    clean_domain = _domain_key(domain)
+    session = _get_call_intake_session(call_sid, clean_domain)
+    if not session.get("answers"):
+        raise HTTPException(status_code=404, detail="Call Ask not found or has no captured answers.")
+    final_session = _call_intake_finalize(session)
+    _save_call_intake_session(call_sid, final_session)
+    _append_call_intake_record(_call_intake_record_from_session("completed_manual_finalize", clean_domain, final_session))
+    return {"ok": True, "domain": clean_domain, "ask": final_session}
+
+
 @app.api_route("/api/call-intake/voice", methods=["GET", "POST"])
 async def call_intake_voice(request: Request, domain: str = "dev"):
     form = {}
@@ -2339,19 +2359,7 @@ async def call_intake_gather(request: Request, domain: str = "dev", callSid: str
 
         final_session = _call_intake_finalize(session)
         _save_call_intake_session(call_sid, final_session)
-        _append_call_intake_record(
-            {
-                "event": "completed",
-                "provider": "twilio",
-                "domain": clean_domain,
-                "call_sid": call_sid,
-                "source_tag": "Call Ask",
-                "job": final_session.get("job", {}),
-                "profile": final_session.get("profile", {}),
-                "match": final_session.get("match", {}),
-                "summary": final_session.get("summary", ""),
-            }
-        )
+        _append_call_intake_record(_call_intake_record_from_session("completed", clean_domain, final_session))
         return Response(
             content=f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
