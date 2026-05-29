@@ -1827,50 +1827,62 @@ CALL_INTAKE_QUESTIONS = [
     {
         "key": "role",
         "label": "Role target",
-        "prompt": "What role or outcome are you trying to hire for?",
+        "prompt": "Great to talk with you. What role are you hiring for?",
         "captures": ["job_title", "business_outcome"],
     },
     {
         "key": "client",
         "label": "Client context",
-        "prompt": "Who is the client or business unit, and what problem should this person solve?",
+        "prompt": "Who is the client or team, and what problem should this person solve?",
         "captures": ["company", "team", "problem_statement"],
     },
     {
         "key": "skills",
         "label": "Required skills",
-        "prompt": "Which technologies, platforms, tools, or domain skills are required on day one?",
+        "prompt": "What skills, tools, or platforms are must-haves on day one?",
         "captures": ["required_skills", "domain_stack"],
     },
     {
         "key": "seniority",
         "label": "Seniority",
-        "prompt": "What seniority level, leadership scope, and years of experience feel right?",
+        "prompt": "What seniority level and years of experience feel right?",
         "captures": ["seniority", "leadership_scope", "years_experience"],
     },
     {
         "key": "delivery",
         "label": "Delivery model",
-        "prompt": "Is this remote, hybrid, onsite, contract, contract-to-hire, or full time?",
+        "prompt": "Is the role remote, hybrid, onsite, contract, or full time?",
         "captures": ["location", "work_model", "engagement_type"],
     },
     {
         "key": "constraints",
         "label": "Constraints",
-        "prompt": "What timing, budget, compliance, clearance, or must-not-have constraints matter?",
+        "prompt": "Any timing, budget, compliance, clearance, or deal-breaker constraints?",
         "captures": ["start_date", "rate_range", "compliance", "exclusions"],
     },
     {
         "key": "success",
         "label": "Success profile",
-        "prompt": "What would make the hire successful in the first 30 to 90 days?",
+        "prompt": "What would success look like in the first 30 to 90 days?",
         "captures": ["success_metrics", "deliverables"],
+    },
+    {
+        "key": "caller_email",
+        "label": "Caller email",
+        "prompt": "What email should I use for the match summary?",
+        "captures": ["caller_email"],
+    },
+    {
+        "key": "caller_phone",
+        "label": "Caller phone",
+        "prompt": "And what phone number should I keep on the request?",
+        "captures": ["caller_phone"],
     },
     {
         "key": "delivery_back",
         "label": "Caller delivery",
-        "prompt": "Should I text, email, or read back the best-match summary after matching?",
-        "captures": ["caller_name", "caller_email", "caller_phone", "delivery_channel"],
+        "prompt": "Last one. Should we text, email, or read back the match summary?",
+        "captures": ["caller_name", "delivery_channel"],
     },
 ]
 
@@ -1998,12 +2010,11 @@ def _call_intake_gather_twiml(request: Request, domain: str, call_sid: str, step
     base_url = _call_intake_public_base(request)
     action = f"{base_url}/api/call-intake/gather?domain={quote_plus(clean_domain)}&callSid={quote_plus(call_sid)}&step={step}"
     prompt = question["prompt"]
-    intro = lead_in or ("Welcome to DevReady. I will ask a few quick questions about the role, then create the job description and look for the best candidate match. " if step == 0 else "")
+    intro = lead_in or ("Hi, this is DevReady. I will grab the key details and look for a strong match. " if step == 0 else "")
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  {_call_intake_say(intro + prompt)}
-  <Gather input="speech" action="{_xml_escape(action)}" method="POST" speechTimeout="auto" timeout="8" enhanced="true" speechModel="phone_call">
-    {_call_intake_say("Please answer after the tone.")}
+  <Gather input="speech" action="{_xml_escape(action)}" method="POST" speechTimeout="auto" timeout="5" enhanced="true" speechModel="phone_call">
+    {_call_intake_say(intro + prompt)}
   </Gather>
   <Redirect method="POST">{_xml_escape(action)}&amp;retry=1</Redirect>
 </Response>"""
@@ -2029,6 +2040,8 @@ def _call_intake_build_jd(session: dict) -> dict:
     delivery = _safe_action_text(answers.get("delivery"), 700)
     constraints = _safe_action_text(answers.get("constraints"), 700)
     success = _safe_action_text(answers.get("success"), 900)
+    caller_email = _safe_action_text(answers.get("caller_email"), 240)
+    caller_phone = _safe_action_text(answers.get("caller_phone"), 120)
     delivery_back = _safe_action_text(answers.get("delivery_back"), 700)
     company = client.split(",")[0].strip()[:180] or "DevReady client"
     title = role[:220]
@@ -2041,6 +2054,8 @@ def _call_intake_build_jd(session: dict) -> dict:
             f"Delivery model: {delivery or 'To be confirmed'}",
             f"Constraints: {constraints or 'To be confirmed'}",
             f"Success profile: {success or 'To be confirmed'}",
+            f"Caller email: {caller_email or 'To be confirmed'}",
+            f"Caller phone: {caller_phone or 'To be confirmed'}",
             f"Caller delivery preference: {delivery_back or 'Voice readback'}",
         ]
     )
@@ -2077,20 +2092,20 @@ def _call_intake_finalize(session: dict) -> dict:
     candidate = match.get("candidate") if isinstance(match, dict) else {}
     if isinstance(candidate, dict) and candidate.get("name"):
         summary = (
-            f"I created the job description for {jd['title']}. "
+            f"All set. I created the job description for {jd['title']}. "
             f"The best current match I found is {candidate.get('name')}, "
-            f"{candidate.get('headline') or 'a candidate in the system'}, with a score of {match.get('score', 'available')}. "
-            "I saved this intake so the team can review the full match."
+            f"{candidate.get('headline') or 'a candidate in the system'}, with a match score of {match.get('score', 'available')}. "
+            "I saved the intake and the team can review the full match."
         )
     elif session.get("error"):
         summary = (
-            "I captured the intake, but I could not save the job description automatically. "
-            "The team can review the call intake record and finish it manually."
+            "Thanks, I captured the intake. I am sending it to the DevReady team for review, "
+            "and they will follow up with the best match."
         )
     else:
         summary = (
-            f"I created the job description for {jd['title']}. "
-            "I did not find a confident candidate match yet, so the team should review the saved job and run a deeper search."
+            f"Perfect, I created the job description for {jd['title']}. "
+            "I saved it for matching review, and the DevReady team will follow up with the best fit."
         )
     session["summary"] = summary
     session["status"] = "completed"
@@ -2210,7 +2225,7 @@ async def call_intake_gather(request: Request, domain: str = "dev", callSid: str
         _save_call_intake_session(call_sid, session)
         next_step = step + 1
         if next_step < len(CALL_INTAKE_QUESTIONS):
-            lead_in = "Got it. "
+            lead_in = "Great. " if next_step in {1, 4, 7} else "Thanks. "
             return Response(
                 content=_call_intake_gather_twiml(request, clean_domain, call_sid, next_step, lead_in=lead_in),
                 media_type="application/xml",
@@ -2240,7 +2255,7 @@ async def call_intake_gather(request: Request, domain: str = "dev", callSid: str
         )
 
     if retry:
-        lead_in = "I did not catch that. "
+        lead_in = "Sorry, I missed that. "
         return Response(
             content=_call_intake_gather_twiml(request, clean_domain, call_sid, step, lead_in=lead_in),
             media_type="application/xml",
