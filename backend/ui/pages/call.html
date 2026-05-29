@@ -637,7 +637,7 @@
           : "Voice intake services are configured.";
         document.getElementById("callStatusGrid").innerHTML = [
           statusTile("Active provider", data.ready, provider === "retell" ? "Retell voice agent selected." : provider === "vapi" ? "Vapi voice agent selected." : "Twilio speech gather selected."),
-          statusTile("Retell agent", retell.configured, retell.configured ? "Retell trial/API settings present." : "Add RETELL_API_KEY or RETELL_AGENT_ID for better voice."),
+          statusTile("Retell agent", retell.configured, retell.configured ? "Retell agent and API key are connected." : retell.agent_id ? "Add RETELL_API_KEY so DevReady can verify Retell and process completed calls." : "Add RETELL_AGENT_ID and RETELL_API_KEY."),
           statusTile("Realtime AI", realtime.configured, realtime.configured ? `Model: ${realtime.model || "gpt-realtime"}` : "Add an OpenAI API key for the live voice agent."),
           statusTile("Webhook secret", webhooks.configured, webhooks.configured ? "Signed webhook validation can be enforced." : "Add CALL_INTAKE_WEBHOOK_SECRET."),
           statusTile("DevReady handoff", storage.jobs && storage.profiles && storage.matching, "JD, profile, and matching services are available."),

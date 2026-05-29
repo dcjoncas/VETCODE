@@ -1961,7 +1961,9 @@ def _call_intake_env_status(request: Request) -> dict:
     base_url = _call_intake_public_base(request)
     provider = os.getenv("CALL_INTAKE_PROVIDER", "twilio").strip().lower() or "twilio"
     twilio_ready = all(os.getenv(key) for key in ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"])
-    retell_ready = bool(os.getenv("RETELL_API_KEY") or os.getenv("RETELL_AGENT_ID"))
+    retell_api_key = bool(os.getenv("RETELL_API_KEY"))
+    retell_agent_id = bool(os.getenv("RETELL_AGENT_ID"))
+    retell_ready = bool(retell_api_key and retell_agent_id)
     vapi_ready = bool(os.getenv("VAPI_API_KEY") or os.getenv("VAPI_ASSISTANT_ID"))
     realtime_ready = bool(os.getenv("OPENAI_API_KEY"))
     webhook_ready = bool(os.getenv("CALL_INTAKE_WEBHOOK_SECRET"))
@@ -1976,8 +1978,9 @@ def _call_intake_env_status(request: Request) -> dict:
         },
         "retell": {
             "configured": retell_ready,
-            "api_key": bool(os.getenv("RETELL_API_KEY")),
-            "agent_id": bool(os.getenv("RETELL_AGENT_ID")),
+            "api_key": retell_api_key,
+            "agent_id": retell_agent_id,
+            "webhook_verification": "retell_signature" if retell_api_key else "call_intake_secret",
         },
         "vapi": {
             "configured": vapi_ready,
@@ -2162,9 +2165,14 @@ def _call_intake_profile_skills(skills: list[str]) -> list[dict]:
 
 
 def _call_intake_clean_spoken_email(value: str) -> str:
-    text = _safe_action_text(value, 260).lower()
+    original = _safe_action_text(value, 260)
+    text = original.lower()
     if not text:
         return ""
+    text = re.sub(r"\bquestion mark\b", "", text)
+    text = re.sub(r"\bunderscore\b", "_", text)
+    text = re.sub(r"\bdash\b|\bhyphen\b", "-", text)
+    text = re.sub(r"\bplus\b", "+", text)
     replacements = [
         (r"\bat\s+", "@"),
         (r"\s+at\b", "@"),
@@ -2177,14 +2185,18 @@ def _call_intake_clean_spoken_email(value: str) -> str:
     text = text.replace("?", "")
     for pattern, replacement in replacements:
         text = re.sub(pattern, replacement, text)
+    text = re.sub(r"(?<=\b[a-z])\.\s*(?=[a-z]\b)", "", text)
+    text = re.sub(r"(?<=\b[a-z])\s+(?=[a-z]\b)", "", text)
     text = re.sub(r"\s+", "", text)
     text = text.replace("atevready", "@devready").replace("atdevready", "@devready").replace("dev-ready", "devready")
+    text = text.replace("devready?", "devready").replace("ready?", "ready")
     match = re.search(r"[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}", text)
     if not match:
-        return _safe_action_text(value, 240)
+        return original[:240]
     email = match.group(0)
     local, _, domain = email.partition("@")
-    if re.match(r"^[a-z]\.[a-z]{3,}$", local):
+    local = local.replace("..", ".").strip(".")
+    if re.match(r"^[a-z]\.[a-z]{3,}$", local) or re.match(r"^[a-z](?:\.[a-z]){2,}$", local):
         local = local.replace(".", "")
     return f"{local}@{domain}"[:240]
 
@@ -2402,7 +2414,34 @@ def _call_intake_header_secret(request: Request) -> str:
     ).strip()
 
 
-def _call_intake_require_provider_secret(request: Request) -> None:
+def _call_intake_verify_retell_signature(raw_body: bytes, api_key: str, signature: str) -> bool:
+    if not raw_body or not api_key or not signature:
+        return False
+    match = re.match(r"v=(\d+),d=([a-fA-F0-9]+)", signature.strip())
+    if not match:
+        return False
+    timestamp = match.group(1)
+    digest = match.group(2)
+    try:
+        sent_ms = int(timestamp)
+        now_ms = int(datetime.utcnow().timestamp() * 1000)
+        if abs(now_ms - sent_ms) > 5 * 60 * 1000:
+            return False
+        expected = hmac.new(
+            api_key.encode("utf-8"),
+            raw_body + timestamp.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        return hmac.compare_digest(expected, digest)
+    except Exception:
+        return False
+
+
+def _call_intake_require_provider_secret(request: Request, raw_body: bytes | None = None) -> None:
+    retell_key = (os.getenv("RETELL_API_KEY") or "").strip()
+    retell_signature = request.headers.get("x-retell-signature") or request.headers.get("X-Retell-Signature") or ""
+    if retell_key and retell_signature and _call_intake_verify_retell_signature(raw_body or b"", retell_key, retell_signature):
+        return
     expected = (os.getenv("CALL_INTAKE_WEBHOOK_SECRET") or "").strip()
     if not expected:
         return
@@ -2434,6 +2473,8 @@ def _call_intake_find_structured(payload: dict) -> dict:
         payload.get("data") if isinstance(payload.get("data"), dict) else {},
         payload.get("call") if isinstance(payload.get("call"), dict) else {},
         payload.get("message") if isinstance(payload.get("message"), dict) else {},
+        _call_intake_nested(payload, "data.call_analysis") or {},
+        _call_intake_nested(payload, "data.call.call_analysis") or {},
         _call_intake_nested(payload, "call.call_analysis") or {},
         _call_intake_nested(payload, "call_analysis") or {},
         _call_intake_nested(payload, "message.call.analysis") or {},
@@ -2460,6 +2501,42 @@ def _call_intake_text(value) -> str:
     if isinstance(value, dict):
         return _safe_action_text(json.dumps(value, ensure_ascii=True), 900)
     return _safe_action_text(value, 900)
+
+
+def _call_intake_transcript_line(item) -> str:
+    if isinstance(item, str):
+        return _safe_action_text(item, 1200)
+    if not isinstance(item, dict):
+        return _call_intake_text(item)
+    role = _safe_action_text(
+        item.get("role")
+        or item.get("speaker")
+        or item.get("user")
+        or item.get("source")
+        or item.get("participant")
+        or "",
+        80,
+    )
+    content = _safe_action_text(
+        item.get("content")
+        or item.get("text")
+        or item.get("transcript")
+        or item.get("message")
+        or item.get("words")
+        or "",
+        1200,
+    )
+    if not content and isinstance(item.get("arguments"), dict):
+        content = _call_intake_text(item.get("arguments"))
+    if role and content:
+        return f"{role}: {content}"
+    return content or _call_intake_text(item)
+
+
+def _call_intake_flatten_transcript(value) -> str:
+    if isinstance(value, list):
+        return "\n".join([line for line in (_call_intake_transcript_line(item) for item in value) if line])[:12000]
+    return _safe_action_text(value, 12000)
 
 
 def _call_intake_answers_from_provider_payload(payload: dict) -> dict:
@@ -2498,7 +2575,7 @@ def _call_intake_transcript_from_provider(payload: dict) -> list[dict]:
         "",
     )
     if isinstance(transcript, list):
-        return [{"question": "Provider transcript", "answer": _call_intake_text(item), "step": index, "at": _now_utc()} for index, item in enumerate(transcript[:20])]
+        return [{"question": "Provider transcript", "answer": _call_intake_transcript_line(item), "step": index, "at": _now_utc()} for index, item in enumerate(transcript[:40])]
     if transcript:
         return [{"question": "Provider transcript", "answer": _call_intake_text(transcript), "step": 0, "at": _now_utc()}]
     return []
@@ -2519,7 +2596,10 @@ def _call_intake_provider_text(payload: dict) -> str:
     ]:
         value = _call_intake_first(payload, [path])
         if value:
-            pieces.append(_call_intake_text(value))
+            pieces.append(_call_intake_flatten_transcript(value))
+    structured = _call_intake_find_structured(payload)
+    if structured:
+        pieces.append("Structured call analysis:\n" + _call_intake_text(structured))
     return "\n".join([piece for piece in pieces if piece])[:8000]
 
 
@@ -2538,7 +2618,9 @@ def _call_intake_ai_answers_from_text(text: str) -> dict:
                         "Extract a DevReady Call Ask from a phone transcript or call summary. "
                         "Return only JSON with these string keys when present: role, client, skills, seniority, "
                         "delivery, constraints, success, caller_email, caller_phone. Clean spoken emails and phone numbers. "
-                        "Do not invent missing details."
+                        "For emails, convert spoken letters, 'at', 'dot', 'underscore', and 'dash' into a valid address when possible. "
+                        "For client, prefer the company/team being hired for, not the caller's personal name. "
+                        "For role, create a concise job title. Do not invent missing details."
                     ),
                 },
                 {"role": "user", "content": clean_text},
@@ -2976,9 +3058,10 @@ async def call_intake_restore_ask(request: Request, domain: str = "dev"):
 
 @app.post("/api/call-intake/provider-webhook")
 async def call_intake_provider_webhook(request: Request, domain: str = "dev", provider: str = ""):
-    _call_intake_require_provider_secret(request)
+    raw_body = await request.body()
+    _call_intake_require_provider_secret(request, raw_body)
     try:
-        payload = await request.json()
+        payload = json.loads(raw_body.decode("utf-8") or "{}")
     except Exception:
         payload = {}
     if not isinstance(payload, dict):
