@@ -26,7 +26,7 @@
 
       .call-intro {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
         gap: 14px;
         align-items: center;
         border: 1px solid rgba(var(--primary-rgb), 0.2);
@@ -51,11 +51,9 @@
       }
 
       .call-number {
-        min-width: 230px;
-        max-width: 260px;
         border: 1px solid rgba(var(--primary-rgb), 0.28);
         border-radius: 12px;
-        padding: 12px;
+        padding: 14px;
         background: #fff;
       }
 
@@ -69,7 +67,7 @@
       .call-number strong {
         display: block;
         margin-top: 4px;
-        font-size: 20px;
+        font-size: 24px;
         line-height: 1.15;
         overflow-wrap: anywhere;
       }
@@ -85,6 +83,47 @@
         gap: 8px;
         flex-wrap: wrap;
         margin-top: 10px;
+      }
+
+      .call-primary-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .call-primary-actions .btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .btn.disabled {
+        pointer-events: none;
+        opacity: 0.55;
+      }
+
+      .call-next {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .call-next-item {
+        border: 1px solid rgba(var(--primary-rgb), 0.18);
+        border-radius: 10px;
+        padding: 11px;
+        background: linear-gradient(180deg, #fff, rgba(var(--primary-rgb), 0.05));
+      }
+
+      .call-next-item strong {
+        display: block;
+        margin-bottom: 5px;
+      }
+
+      .call-next-item span {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.35;
       }
 
       .call-grid {
@@ -111,6 +150,28 @@
         margin-top: 0;
         color: var(--muted);
         line-height: 1.42;
+      }
+
+      .call-setup-details {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        padding: 0;
+        overflow: hidden;
+      }
+
+      .call-setup-details summary {
+        cursor: pointer;
+        padding: 13px 14px;
+        font-weight: 900;
+      }
+
+      .call-setup-body {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 14px;
+        border-top: 1px solid var(--line);
+        padding: 14px;
       }
 
       .call-status-grid {
@@ -335,7 +396,9 @@
 
       @media (max-width: 1100px) {
         .call-grid,
-        .call-intro {
+        .call-intro,
+        .call-next,
+        .call-setup-body {
           grid-template-columns: 1fr;
         }
 
@@ -350,6 +413,10 @@
         .call-ask-details,
         .question-row,
         .endpoint-row {
+          grid-template-columns: 1fr;
+        }
+
+        .call-primary-actions {
           grid-template-columns: 1fr;
         }
 
@@ -386,88 +453,72 @@
             <div>
               <h1>AI phone intake</h1>
               <p>
-                A caller describes a role by phone, the live voice agent collects the missing job details, then DevReady saves the JD, creates or updates the caller profile, ranks internal candidates, and returns the best-match summary.
+                Call Egeria, describe the role, and DevReady turns the conversation into a Call Ask job description, caller profile, and candidate match result.
               </p>
               <div class="call-actions">
+                <a id="callNowHero" class="btn" href="#">Call Egeria</a>
                 <button class="btn" type="button" onclick="refreshCallPage()">Refresh status</button>
                 <a class="btn secondary" href="job-descriptions.html">Open JDs</a>
                 <a class="btn secondary" href="match-role.html">Open matching</a>
-                <a class="btn secondary" href="https://dashboard.retellai.com/phoneNumbers" target="_blank" rel="noopener">Open Retell</a>
               </div>
             </div>
             <div class="call-number">
               <span>Intake number</span>
               <strong id="callPhoneNumber">Not configured</strong>
               <span id="callReadyLabel">Checking provider status...</span>
+              <div class="call-primary-actions">
+                <a id="callNowNumber" class="btn" href="#">Call now</a>
+                <button class="btn secondary" type="button" onclick="copyCallNumber()">Copy number</button>
+              </div>
             </div>
           </section>
 
-          <section class="call-panel" aria-label="Call flow">
-            <h2>Call structure</h2>
-            <div id="callFlow" class="call-flow"></div>
+          <section class="call-panel" aria-label="What happens next">
+            <h2>What happens next</h2>
+            <div class="call-next">
+              <div class="call-next-item">
+                <strong>1. Call Egeria</strong>
+                <span>Give the role, company, must-have skills, timing, contact email, and phone number.</span>
+              </div>
+              <div class="call-next-item">
+                <strong>2. DevReady builds the ask</strong>
+                <span>The transcript becomes a saved Call Ask JD and request profile.</span>
+              </div>
+              <div class="call-next-item">
+                <strong>3. Review the result</strong>
+                <span>Open the saved JD/profile, review the best match, and archive old tests when done.</span>
+              </div>
+            </div>
           </section>
 
           <section class="call-panel" aria-label="Call ask results">
-            <h2>Call asks</h2>
-            <p>Completed calls save here as tagged Call Ask JDs and request profiles.</p>
+            <h2>Recent call results</h2>
+            <p>Completed calls appear here as tagged Call Ask job descriptions and request profiles.</p>
             <div id="callAskList" class="call-asks">Loading call asks...</div>
           </section>
 
-          <div class="call-grid">
-            <section class="call-panel" aria-label="Question set">
-              <h2>Question set</h2>
-              <div id="questionList" class="question-list"></div>
-            </section>
-
-            <section class="call-panel" aria-label="Transcript lab">
-              <h2>Transcript lab</h2>
-              <div class="call-lab">
-                <label>
-                  Sample call transcript
-                  <textarea id="transcriptInput">Caller needs a senior AI platform engineer for a financial services client. Must know Python, FastAPI, Azure, PostgreSQL, vector search, and production LLM systems. Remote is fine, start in two weeks, contract-to-hire preferred.</textarea>
-                </label>
-                <div class="row-actions">
-                  <button class="btn" type="button" onclick="buildDryRun()">Build dry run</button>
-                  <button class="btn secondary" type="button" onclick="copyDryRun()">Copy payload</button>
-                </div>
-                <div id="dryRunOutput" class="call-output">Dry run output will appear here.</div>
-              </div>
-            </section>
-
-            <section class="call-panel" aria-label="Provider readiness">
-              <h2>Provider readiness</h2>
-              <p id="callMissingSummary">Checking call provider configuration...</p>
-              <div id="callStatusGrid" class="call-status-grid"></div>
-            </section>
-
-            <section class="call-panel" aria-label="Webhook configuration">
-              <h2>Webhook configuration</h2>
-              <p>Use these values in the voice provider once Twilio or another phone service is connected.</p>
-              <div id="endpointList" class="endpoint-list"></div>
-            </section>
-
-            <section class="call-panel" aria-label="Account setup">
-              <h2>Account setup</h2>
-              <div class="question-list">
-                <div class="question-row">
-                  <strong>1. Voice provider</strong>
-                  <span>Start a Retell trial first for a more natural Egeria phone agent. Keep Twilio as the number/SIP option if needed.</span>
-                </div>
-                <div class="question-row">
-                  <strong>2. Provider webhook</strong>
-                  <span>Set Retell's call event webhook to the Provider or Retell URL shown on this page, with the shared secret.</span>
-                </div>
-                <div class="question-row">
-                  <strong>3. Secrets</strong>
-                  <span>Add CALL_INTAKE_PROVIDER=retell, RETELL_API_KEY, RETELL_AGENT_ID, RETELL_PHONE_NUMBER, and CALL_INTAKE_WEBHOOK_SECRET to Railway.</span>
-                </div>
-                <div class="question-row">
-                  <strong>4. Structured output</strong>
-                  <span>Configure the agent to return clean JSON for caller contact, job description, skills, constraints, and success criteria.</span>
-                </div>
-              </div>
-            </section>
-          </div>
+          <details class="call-setup-details">
+            <summary>Setup and question details</summary>
+            <div class="call-setup-body">
+              <section aria-label="Question set">
+                <h2>What Egeria asks</h2>
+                <div id="questionList" class="question-list"></div>
+              </section>
+              <section aria-label="Provider readiness">
+                <h2>Provider readiness</h2>
+                <p id="callMissingSummary">Checking call provider configuration...</p>
+                <div id="callStatusGrid" class="call-status-grid"></div>
+              </section>
+              <section aria-label="Call flow">
+                <h2>Call flow</h2>
+                <div id="callFlow" class="call-flow"></div>
+              </section>
+              <section aria-label="Webhook configuration">
+                <h2>Webhook configuration</h2>
+                <div id="endpointList" class="endpoint-list"></div>
+              </section>
+            </div>
+          </details>
         </div>
       </main>
     </div>
@@ -475,6 +526,7 @@
     <script>
       let callBlueprint = null;
       let dryRunPayload = null;
+      let activeCallNumber = "";
 
       function currentDomain() {
         return sessionStorage.getItem("domain") || new URLSearchParams(window.location.search).get("domain") || "dev";
@@ -527,16 +579,20 @@
         const storage = status.storage || {};
         const provider = status.provider || "twilio";
         const phoneNumber = status.phone_number || "";
+        activeCallNumber = phoneNumber || "";
+        const callHref = phoneNumber ? `tel:${phoneNumber.replace(/[^\d+]/g, "")}` : "#";
         document.getElementById("callPhoneNumber").textContent = phoneNumber || "Not configured";
         document.getElementById("callReadyLabel").textContent = data.ready ? "Ready for live intake" : "Configuration needed";
+        document.getElementById("callNowHero").href = callHref;
+        document.getElementById("callNowNumber").href = callHref;
+        document.getElementById("callNowHero").classList.toggle("disabled", !phoneNumber);
+        document.getElementById("callNowNumber").classList.toggle("disabled", !phoneNumber);
         document.getElementById("callMissingSummary").textContent = data.missing?.length
           ? `Missing: ${data.missing.join("; ")}.`
           : "Voice intake services are configured.";
         document.getElementById("callStatusGrid").innerHTML = [
           statusTile("Active provider", data.ready, provider === "retell" ? "Retell voice agent selected." : provider === "vapi" ? "Vapi voice agent selected." : "Twilio speech gather selected."),
-          statusTile("Twilio voice", twilio.configured, twilio.configured ? "Account, token, and phone number present." : "Add Twilio account SID, auth token, and phone number."),
           statusTile("Retell agent", retell.configured, retell.configured ? "Retell trial/API settings present." : "Add RETELL_API_KEY or RETELL_AGENT_ID for better voice."),
-          statusTile("Vapi agent", vapi.configured, vapi.configured ? "Vapi settings present." : "Optional alternate voice-agent provider."),
           statusTile("Realtime AI", realtime.configured, realtime.configured ? `Model: ${realtime.model || "gpt-realtime"}` : "Add an OpenAI API key for the live voice agent."),
           statusTile("Webhook secret", webhooks.configured, webhooks.configured ? "Signed webhook validation can be enforced." : "Add CALL_INTAKE_WEBHOOK_SECRET."),
           statusTile("DevReady handoff", storage.jobs && storage.profiles && storage.matching, "JD, profile, and matching services are available."),
@@ -676,6 +732,11 @@
       async function copyEndpoint(button) {
         const value = button?.dataset?.copy || "";
         if (value) await navigator.clipboard.writeText(value);
+      }
+
+      async function copyCallNumber() {
+        if (!activeCallNumber) return;
+        await navigator.clipboard.writeText(activeCallNumber);
       }
 
       async function refreshCallPage() {
