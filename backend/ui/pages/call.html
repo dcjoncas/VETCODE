@@ -735,6 +735,7 @@
                   <button
                     class="btn secondary"
                     type="button"
+                    data-archive-key="${escapeHtml(ask.archive_key || "")}"
                     data-call-sid="${escapeHtml(ask.call_sid || "")}"
                     data-jd-id="${escapeHtml(ask.jd_id || "")}"
                     data-role="${escapeHtml(ask.role || "Call Ask")}"
@@ -905,6 +906,7 @@
         button.textContent = "Archiving...";
         try {
           await callApiPost("/api/call-intake/asks/archive", {
+            archive_key: button.dataset.archiveKey || "",
             call_sid: button.dataset.callSid || "",
             jd_id: button.dataset.jdId || "",
             role,

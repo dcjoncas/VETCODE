@@ -2049,6 +2049,16 @@ def _call_intake_archive_keys(domain: str) -> set[str]:
         key = row.get("archive_key") or _call_intake_archive_key(clean_domain, row.get("call_sid"), row.get("jd_id"))
         if key:
             keys.add(key)
+        for alias in row.get("archive_keys") or []:
+            alias_key = _safe_action_text(alias, 260)
+            if alias_key:
+                keys.add(alias_key)
+        call_key = _call_intake_archive_key(clean_domain, row.get("call_sid"), "")
+        jd_key = _call_intake_archive_key(clean_domain, "", row.get("jd_id"))
+        if call_key:
+            keys.add(call_key)
+        if jd_key:
+            keys.add(jd_key)
     return keys
 
 
@@ -2995,18 +3005,34 @@ async def call_intake_archive_ask(request: Request, domain: str = "dev"):
     jd_id = _safe_action_text(payload.get("jd_id"), 80)
     role = _safe_action_text(payload.get("role"), 220)
     company = _safe_action_text(payload.get("company"), 220)
-    archive_key = _call_intake_archive_key(clean_domain, call_sid, jd_id)
+    archive_key = _safe_action_text(payload.get("archive_key"), 260) or _call_intake_archive_key(clean_domain, call_sid, jd_id)
     if not archive_key:
         raise HTTPException(status_code=400, detail="Call Ask needs a call ID or JD ID to archive.")
+    archive_keys = [
+        key
+        for key in [
+            archive_key,
+            _call_intake_archive_key(clean_domain, call_sid, ""),
+            _call_intake_archive_key(clean_domain, "", jd_id),
+        ]
+        if key
+    ]
 
     rows = _call_intake_archive_rows()
-    kept = [
-        row
-        for row in rows
-        if not isinstance(row, dict) or row.get("archive_key") != archive_key
-    ]
+    archive_key_set = set(archive_keys)
+    kept = []
+    for row in rows:
+        if not isinstance(row, dict):
+            kept.append(row)
+            continue
+        row_keys = {row.get("archive_key")}
+        if isinstance(row.get("archive_keys"), list):
+            row_keys.update(row.get("archive_keys") or [])
+        if not row_keys & archive_key_set:
+            kept.append(row)
     archived = {
         "archive_key": archive_key,
+        "archive_keys": archive_keys,
         "domain": clean_domain,
         "call_sid": call_sid,
         "jd_id": jd_id,
@@ -3053,7 +3079,10 @@ async def call_intake_restore_ask(request: Request, domain: str = "dev"):
     restored = None
     kept = []
     for row in rows:
-        if isinstance(row, dict) and _domain_key(row.get("domain") or "") == clean_domain and row.get("archive_key") == archive_key:
+        row_keys = {row.get("archive_key")} if isinstance(row, dict) else set()
+        if isinstance(row, dict) and isinstance(row.get("archive_keys"), list):
+            row_keys.update(row.get("archive_keys") or [])
+        if isinstance(row, dict) and _domain_key(row.get("domain") or "") == clean_domain and archive_key in row_keys:
             restored = row
             continue
         kept.append(row)
