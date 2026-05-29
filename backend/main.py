@@ -1869,7 +1869,7 @@ CALL_INTAKE_QUESTIONS = [
     {
         "key": "caller_email",
         "label": "Caller email",
-        "prompt": "What is the best email for the match summary?",
+        "prompt": "What email should I save on this request?",
         "captures": ["caller_email"],
     },
     {
@@ -2155,6 +2155,10 @@ def _call_intake_finalize(session: dict) -> dict:
     session["summary"] = summary
     session["status"] = "completed"
     session["completed_at"] = _now_utc()
+    try:
+        _persist_call_intake_ask(session, domain)
+    except Exception as persist_error:
+        session["persist_error"] = _safe_action_text(str(persist_error), 500)
     return session
 
 
@@ -2167,6 +2171,10 @@ def _call_intake_partial_summary(session: dict) -> dict:
         "The DevReady team will review this Call Ask and follow up."
     )
     session["completed_at"] = session.get("completed_at") or _now_utc()
+    try:
+        _persist_call_intake_ask(session, session.get("domain") or "dev")
+    except Exception as persist_error:
+        session["persist_error"] = _safe_action_text(str(persist_error), 500)
     return session
 
 
@@ -2182,6 +2190,99 @@ def _call_intake_record_from_session(event: str, domain: str, session: dict) -> 
         "match": session.get("match", {}),
         "summary": session.get("summary", ""),
     }
+
+
+def _call_intake_table_ready(cur) -> None:
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS callask_records (
+            call_sid TEXT PRIMARY KEY,
+            domain TEXT NOT NULL,
+            source_tag TEXT,
+            status TEXT,
+            role TEXT,
+            company TEXT,
+            caller_email TEXT,
+            caller_phone TEXT,
+            jd_id TEXT,
+            profile_id TEXT,
+            match_name TEXT,
+            match_score DOUBLE PRECISION,
+            summary TEXT,
+            created_at TIMESTAMPTZ,
+            completed_at TIMESTAMPTZ,
+            updated_at TIMESTAMPTZ
+        )
+        """
+    )
+
+
+def _call_intake_row_from_session(session: dict, domain: str) -> dict:
+    answers = session.get("answers") if isinstance(session.get("answers"), dict) else {}
+    job = session.get("job") if isinstance(session.get("job"), dict) else {}
+    profile = session.get("profile") if isinstance(session.get("profile"), dict) else {}
+    match = session.get("match") if isinstance(session.get("match"), dict) else {}
+    candidate = match.get("candidate") if isinstance(match.get("candidate"), dict) else {}
+    return {
+        "call_sid": _safe_action_text(session.get("call_sid"), 120),
+        "domain": _domain_key(session.get("domain") or domain),
+        "source_tag": session.get("source_tag") or job.get("source_tag") or "Call Ask",
+        "status": _safe_action_text(session.get("status") or "in_progress", 80),
+        "created_at": session.get("created_at") or _now_utc(),
+        "completed_at": session.get("completed_at") or None,
+        "updated_at": session.get("updated_at") or _now_utc(),
+        "role": _safe_action_text(answers.get("role") or job.get("title"), 220),
+        "company": _safe_action_text(job.get("company") or answers.get("client"), 220),
+        "caller_email": _safe_action_text(answers.get("caller_email") or job.get("caller_email") or profile.get("email"), 240),
+        "caller_phone": _safe_action_text(answers.get("caller_phone") or job.get("caller_phone") or profile.get("phone"), 120),
+        "jd_id": _safe_action_text(job.get("jd_id"), 80),
+        "profile_id": _safe_action_text(profile.get("profile_id"), 80),
+        "match_name": _safe_action_text(candidate.get("name"), 180),
+        "match_score": match.get("score") if isinstance(match.get("score"), (int, float)) else None,
+        "summary": _safe_action_text(session.get("summary"), 900),
+    }
+
+
+def _persist_call_intake_ask(session: dict, domain: str) -> None:
+    row = _call_intake_row_from_session(session, domain)
+    if not row["call_sid"]:
+        return
+    conn = azure_client.getConnection()
+    cur = conn.cursor()
+    try:
+        _call_intake_table_ready(cur)
+        cur.execute(
+            """
+            INSERT INTO callask_records (
+                call_sid, domain, source_tag, status, role, company, caller_email, caller_phone,
+                jd_id, profile_id, match_name, match_score, summary, created_at, completed_at, updated_at
+            )
+            VALUES (
+                %(call_sid)s, %(domain)s, %(source_tag)s, %(status)s, %(role)s, %(company)s,
+                %(caller_email)s, %(caller_phone)s, %(jd_id)s, %(profile_id)s, %(match_name)s,
+                %(match_score)s, %(summary)s, %(created_at)s, %(completed_at)s, %(updated_at)s
+            )
+            ON CONFLICT (call_sid) DO UPDATE SET
+                domain = EXCLUDED.domain,
+                source_tag = EXCLUDED.source_tag,
+                status = EXCLUDED.status,
+                role = EXCLUDED.role,
+                company = EXCLUDED.company,
+                caller_email = EXCLUDED.caller_email,
+                caller_phone = EXCLUDED.caller_phone,
+                jd_id = EXCLUDED.jd_id,
+                profile_id = EXCLUDED.profile_id,
+                match_name = EXCLUDED.match_name,
+                match_score = EXCLUDED.match_score,
+                summary = EXCLUDED.summary,
+                completed_at = EXCLUDED.completed_at,
+                updated_at = EXCLUDED.updated_at
+            """,
+            row,
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 @app.get("/api/call-intake/health")
@@ -2241,12 +2342,95 @@ def call_intake_blueprint(request: Request, domain: str = "dev"):
 def call_intake_asks(domain: str = "dev", limit: int = 25):
     clean_domain = _domain_key(domain)
     max_rows = max(1, min(int(limit or 25), 100))
-    sessions = _call_intake_sessions()
     rows = []
+    try:
+        conn = azure_client.getConnection()
+        cur = conn.cursor()
+        try:
+            _call_intake_table_ready(cur)
+            cur.execute(
+                """
+                SELECT call_sid, source_tag, status, created_at, completed_at, updated_at, role, company,
+                       caller_email, caller_phone, jd_id, profile_id, match_name, match_score, summary
+                FROM callask_records
+                WHERE domain = %s
+                ORDER BY COALESCE(updated_at, created_at) DESC
+                LIMIT %s
+                """,
+                (clean_domain, max_rows),
+            )
+            for row in cur.fetchall():
+                rows.append(
+                    {
+                        "call_sid": row[0] or "",
+                        "source_tag": row[1] or "Call Ask",
+                        "status": row[2] or "",
+                        "created_at": row[3].isoformat() if row[3] else "",
+                        "completed_at": row[4].isoformat() if row[4] else "",
+                        "updated_at": row[5].isoformat() if row[5] else "",
+                        "role": row[6] or "",
+                        "company": row[7] or "",
+                        "caller_email": row[8] or "",
+                        "caller_phone": row[9] or "",
+                        "jd_id": row[10] or "",
+                        "profile_id": row[11] or "",
+                        "match_name": row[12] or "",
+                        "match_score": row[13],
+                        "summary": row[14] or "",
+                    }
+                )
+            if len(rows) < max_rows:
+                existing_jd_ids = {str(item.get("jd_id") or "") for item in rows}
+                cur.execute(
+                    """
+                    SELECT id, company, jobtitle, description
+                    FROM jobdescription
+                    WHERE domain = %s AND description ILIKE 'Source tag: Call Ask%%'
+                    ORDER BY id DESC
+                    LIMIT %s
+                    """,
+                    (clean_domain, max_rows),
+                )
+                for jd_id, company, title, description in cur.fetchall():
+                    if str(jd_id) in existing_jd_ids:
+                        continue
+                    text = description or ""
+                    email_match = re.search(r"Caller email:\s*(.+)", text)
+                    phone_match = re.search(r"Caller phone:\s*(.+)", text)
+                    call_match = re.search(r"Call ID:\s*(.+)", text)
+                    rows.append(
+                        {
+                            "call_sid": _safe_action_text(call_match.group(1) if call_match else "", 120),
+                            "source_tag": "Call Ask",
+                            "status": "completed",
+                            "created_at": "",
+                            "completed_at": "",
+                            "updated_at": "",
+                            "role": title or "",
+                            "company": company or "",
+                            "caller_email": _safe_action_text(email_match.group(1) if email_match else "", 240),
+                            "caller_phone": _safe_action_text(phone_match.group(1) if phone_match else "", 120),
+                            "jd_id": str(jd_id),
+                            "profile_id": "",
+                            "match_name": "",
+                            "match_score": None,
+                            "summary": "Saved as a Call Ask job description.",
+                        }
+                    )
+                    existing_jd_ids.add(str(jd_id))
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception:
+        rows = []
+
+    sessions = _call_intake_sessions()
     for session in sessions.values():
         if not isinstance(session, dict):
             continue
         if _domain_key(session.get("domain") or "dev") != clean_domain:
+            continue
+        if any(row.get("call_sid") == _safe_action_text(session.get("call_sid"), 120) for row in rows):
             continue
         answers = session.get("answers") if isinstance(session.get("answers"), dict) else {}
         job = session.get("job") if isinstance(session.get("job"), dict) else {}
@@ -2349,6 +2533,10 @@ async def call_intake_gather(request: Request, domain: str = "dev", callSid: str
             }
         )
         _save_call_intake_session(call_sid, session)
+        try:
+            _persist_call_intake_ask(session, clean_domain)
+        except Exception:
+            pass
         next_step = step + 1
         if next_step < len(CALL_INTAKE_QUESTIONS):
             lead_in = "Great. " if next_step in {1, 4, 7} else ("Perfect. " if next_step in {8, 9} else "Thanks. ")
