@@ -2009,20 +2009,22 @@ def _call_intake_say(text: str) -> str:
     return f'<Say voice="{_xml_escape(voice)}" language="en-US">{_call_intake_speech_text(text)}</Say>'
 
 
-def _call_intake_gather_twiml(request: Request, domain: str, call_sid: str, step: int, lead_in: str = "") -> str:
+def _call_intake_gather_twiml(request: Request, domain: str, call_sid: str, step: int, lead_in: str = "", retry: int = 0) -> str:
     clean_domain = _domain_key(domain)
     step = max(0, min(int(step or 0), len(CALL_INTAKE_QUESTIONS) - 1))
     question = CALL_INTAKE_QUESTIONS[step]
     base_url = _call_intake_public_base(request)
+    retry = max(0, min(int(retry or 0), 2))
     action = f"{base_url}/api/call-intake/gather?domain={quote_plus(clean_domain)}&callSid={quote_plus(call_sid)}&step={step}"
+    no_answer_action = f"{action}&retry={retry + 1}"
     prompt = question["prompt"]
-    intro = lead_in or ("Hi, this is Ava with DevReady. Happy to help. I will grab the key details and look for a strong match. " if step == 0 else "")
+    intro = lead_in or ("Hi, this is Egeria with DevReady. Happy to help. I will grab the key details and look for a strong match. " if step == 0 else "")
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather input="speech" action="{_xml_escape(action)}" method="POST" speechTimeout="auto" timeout="5" enhanced="true" speechModel="phone_call">
     {_call_intake_say(intro + prompt)}
   </Gather>
-  <Redirect method="POST">{_xml_escape(action)}&amp;retry=1</Redirect>
+  <Redirect method="POST">{_xml_escape(no_answer_action)}</Redirect>
 </Response>"""
 
 
@@ -2162,6 +2164,18 @@ def _call_intake_finalize(session: dict) -> dict:
     return session
 
 
+def _call_intake_partial_summary(session: dict) -> dict:
+    answers = session.get("answers") if isinstance(session.get("answers"), dict) else {}
+    role = _safe_action_text(answers.get("role"), 220) or "your request"
+    session["status"] = "needs_follow_up"
+    session["summary"] = (
+        f"Thanks, I saved what I have for {role}. "
+        "The DevReady team will review this Call Ask and follow up."
+    )
+    session["completed_at"] = session.get("completed_at") or _now_utc()
+    return session
+
+
 @app.get("/api/call-intake/health")
 def call_intake_health(request: Request, domain: str = "dev"):
     clean_domain = _domain_key(domain)
@@ -2291,6 +2305,10 @@ async def call_intake_gather(request: Request, domain: str = "dev", callSid: str
     call_sid = _safe_action_text(form.get("CallSid") or callSid or request.query_params.get("callSid"), 120)
     clean_domain = _domain_key(form.get("domain") or request.query_params.get("domain") or domain)
     step = max(0, min(int(step or request.query_params.get("step") or 0), len(CALL_INTAKE_QUESTIONS) - 1))
+    try:
+        retry_count = int(retry or request.query_params.get("retry") or 0)
+    except Exception:
+        retry_count = 0
     speech = _safe_action_text(form.get("SpeechResult") or request.query_params.get("SpeechResult"), 2400)
     session = _get_call_intake_session(call_sid, clean_domain, form.get("From") or "")
 
@@ -2344,10 +2362,32 @@ async def call_intake_gather(request: Request, domain: str = "dev", callSid: str
             media_type="application/xml",
         )
 
-    if retry:
+    if retry_count:
+        if retry_count >= 2:
+            partial_session = _call_intake_partial_summary(session)
+            _save_call_intake_session(call_sid, partial_session)
+            _append_call_intake_record(
+                {
+                    "event": "partial_completed",
+                    "provider": "twilio",
+                    "domain": clean_domain,
+                    "call_sid": call_sid,
+                    "source_tag": "Call Ask",
+                    "summary": partial_session.get("summary", ""),
+                }
+            )
+            return Response(
+                content=f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  {_call_intake_say(partial_session.get("summary") or "Thanks, I saved what I have.")}
+  {_call_intake_say("Goodbye.")}
+  <Hangup/>
+</Response>""",
+                media_type="application/xml",
+            )
         lead_in = "Sorry, I missed that. "
         return Response(
-            content=_call_intake_gather_twiml(request, clean_domain, call_sid, step, lead_in=lead_in),
+            content=_call_intake_gather_twiml(request, clean_domain, call_sid, step, lead_in=lead_in, retry=retry_count),
             media_type="application/xml",
         )
 
