@@ -742,6 +742,16 @@
                     data-company="${escapeHtml(ask.company || "")}"
                     onclick="archiveCallAsk(this)"
                   >Archive</button>
+                  <button
+                    class="btn secondary"
+                    type="button"
+                    data-archive-key="${escapeHtml(ask.archive_key || "")}"
+                    data-call-sid="${escapeHtml(ask.call_sid || "")}"
+                    data-jd-id="${escapeHtml(ask.jd_id || "")}"
+                    data-role="${escapeHtml(ask.role || "Call Ask")}"
+                    data-company="${escapeHtml(ask.company || "")}"
+                    onclick="deleteCallAsk(this)"
+                  >Delete</button>
                 </div>
               </article>
             `;
@@ -796,6 +806,16 @@
                     data-archive-key="${escapeHtml(ask.archive_key || "")}"
                     onclick="restoreCallAsk(this)"
                   >Restore</button>
+                  <button
+                    class="btn secondary"
+                    type="button"
+                    data-archive-key="${escapeHtml(ask.archive_key || "")}"
+                    data-call-sid="${escapeHtml(ask.call_sid || "")}"
+                    data-jd-id="${escapeHtml(ask.jd_id || "")}"
+                    data-role="${escapeHtml(ask.role || "Call Ask")}"
+                    data-company="${escapeHtml(ask.company || "")}"
+                    onclick="deleteCallAsk(this)"
+                  >Delete</button>
                 </div>
               </article>
             `;
@@ -934,6 +954,32 @@
           button.disabled = false;
           button.textContent = "Restore";
           alert(`Could not restore this Call Ask: ${error.message || error}`);
+        }
+      }
+
+      async function deleteCallAsk(button) {
+        const role = button?.dataset?.role || "this Call Ask";
+        if (!confirm(`Delete ${role} from the Call page? The saved JD/profile will stay in DevReady.`)) return;
+        button.disabled = true;
+        button.textContent = "Deleting...";
+        try {
+          await callApiPost("/api/call-intake/asks/delete", {
+            archive_key: button.dataset.archiveKey || "",
+            call_sid: button.dataset.callSid || "",
+            jd_id: button.dataset.jdId || "",
+            role,
+            company: button.dataset.company || "",
+          });
+          const [asks, archive] = await Promise.all([
+            callApi("/api/call-intake/asks"),
+            callApi("/api/call-intake/asks/archive"),
+          ]);
+          renderCallAsks(asks);
+          renderArchivedCallAsks(archive);
+        } catch (error) {
+          button.disabled = false;
+          button.textContent = "Delete";
+          alert(`Could not delete this Call Ask: ${error.message || error}`);
         }
       }
 

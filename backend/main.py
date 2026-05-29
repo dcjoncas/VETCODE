@@ -224,6 +224,7 @@ MEETING_RECORDS_PATH = os.path.join(DATA_DIR, "meeting_records.json")
 CALL_INTAKE_RECORDS_PATH = os.path.join(DATA_DIR, "call_intake_records.json")
 CALL_INTAKE_SESSIONS_PATH = os.path.join(DATA_DIR, "call_intake_sessions.json")
 CALL_INTAKE_ARCHIVE_PATH = os.path.join(DATA_DIR, "call_intake_archive.json")
+CALL_INTAKE_DELETED_PATH = os.path.join(DATA_DIR, "call_intake_deleted.json")
 CALL_INTAKE_QUESTIONS_PATH = os.path.join(DATA_DIR, "call_intake_questions.json")
 ACCESS_USERS_PATH = os.path.join(DATA_DIR, "access_users.json")
 ACCESS_CANDIDATES_PATH = os.path.join(DATA_DIR, "access_candidates.json")
@@ -2029,6 +2030,11 @@ def _call_intake_archive_rows() -> list[dict]:
     return rows if isinstance(rows, list) else []
 
 
+def _call_intake_deleted_rows() -> list[dict]:
+    rows = _read_json_store(CALL_INTAKE_DELETED_PATH, [])
+    return rows if isinstance(rows, list) else []
+
+
 def _call_intake_archive_key(domain: str, call_sid: str = "", jd_id: str = "") -> str:
     clean_domain = _domain_key(domain)
     clean_call = _safe_action_text(call_sid, 120)
@@ -2070,6 +2076,36 @@ def _call_intake_is_archived(domain: str, call_sid: str = "", jd_id: str = "", k
     )
 
 
+def _call_intake_deleted_keys(domain: str) -> set[str]:
+    clean_domain = _domain_key(domain)
+    keys = set()
+    for row in _call_intake_deleted_rows():
+        if not isinstance(row, dict) or _domain_key(row.get("domain") or "") != clean_domain:
+            continue
+        for key in [
+            row.get("delete_key"),
+            row.get("archive_key"),
+            _call_intake_archive_key(clean_domain, row.get("call_sid"), ""),
+            _call_intake_archive_key(clean_domain, "", row.get("jd_id")),
+        ]:
+            clean_key = _safe_action_text(key, 260)
+            if clean_key:
+                keys.add(clean_key)
+        for alias in row.get("delete_keys") or row.get("archive_keys") or []:
+            clean_key = _safe_action_text(alias, 260)
+            if clean_key:
+                keys.add(clean_key)
+    return keys
+
+
+def _call_intake_is_deleted(domain: str, call_sid: str = "", jd_id: str = "", keys: set[str] | None = None) -> bool:
+    deleted_keys = keys if keys is not None else _call_intake_deleted_keys(domain)
+    return bool(
+        _call_intake_archive_key(domain, call_sid, "") in deleted_keys
+        or _call_intake_archive_key(domain, "", jd_id) in deleted_keys
+    )
+
+
 def _call_intake_sessions() -> dict:
     rows = _read_json_store(CALL_INTAKE_SESSIONS_PATH, {})
     return rows if isinstance(rows, dict) else {}
@@ -2087,6 +2123,16 @@ def _save_call_intake_session(call_sid: str, session: dict) -> dict:
     sessions[key] = session
     _write_json_store(CALL_INTAKE_SESSIONS_PATH, sessions)
     return session
+
+
+def _delete_call_intake_session(call_sid: str) -> bool:
+    key = _call_intake_session_key(call_sid)
+    sessions = _call_intake_sessions()
+    existed = key in sessions
+    if existed:
+        sessions.pop(key, None)
+        _write_json_store(CALL_INTAKE_SESSIONS_PATH, sessions)
+    return existed
 
 
 def _get_call_intake_session(call_sid: str, domain: str = "dev", from_number: str = "") -> dict:
@@ -2853,6 +2899,7 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
     clean_domain = _domain_key(domain)
     max_rows = max(1, min(int(limit or 25), 100))
     archived_keys = _call_intake_archive_keys(clean_domain)
+    deleted_keys = _call_intake_deleted_keys(clean_domain)
     rows = []
     try:
         conn = azure_client.getConnection()
@@ -2871,6 +2918,8 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
                 (clean_domain, max_rows),
             )
             for row in cur.fetchall():
+                if _call_intake_is_deleted(clean_domain, row[0], row[10], deleted_keys):
+                    continue
                 if _call_intake_is_archived(clean_domain, row[0], row[10], archived_keys):
                     continue
                 rows.append(
@@ -2907,6 +2956,8 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
                 )
                 for jd_id, company, title, description in cur.fetchall():
                     if str(jd_id) in existing_jd_ids:
+                        continue
+                    if _call_intake_is_deleted(clean_domain, "", str(jd_id), deleted_keys):
                         continue
                     if _call_intake_is_archived(clean_domain, "", str(jd_id), archived_keys):
                         continue
@@ -2951,6 +3002,8 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
             continue
         answers = session.get("answers") if isinstance(session.get("answers"), dict) else {}
         job = session.get("job") if isinstance(session.get("job"), dict) else {}
+        if _call_intake_is_deleted(clean_domain, session.get("call_sid"), job.get("jd_id"), deleted_keys):
+            continue
         if _call_intake_is_archived(clean_domain, session.get("call_sid"), job.get("jd_id"), archived_keys):
             continue
         profile = session.get("profile") if isinstance(session.get("profile"), dict) else {}
@@ -3049,10 +3102,12 @@ async def call_intake_archive_ask(request: Request, domain: str = "dev"):
 def call_intake_list_archive(domain: str = "dev", limit: int = 50):
     clean_domain = _domain_key(domain)
     max_rows = max(1, min(int(limit or 50), 100))
+    deleted_keys = _call_intake_deleted_keys(clean_domain)
     rows = [
         row
         for row in _call_intake_archive_rows()
         if isinstance(row, dict) and _domain_key(row.get("domain") or "") == clean_domain
+        and not _call_intake_is_deleted(clean_domain, row.get("call_sid"), row.get("jd_id"), deleted_keys)
     ]
     rows.sort(key=lambda item: item.get("archived_at") or "", reverse=True)
     return {"ok": True, "domain": clean_domain, "asks": rows[:max_rows]}
@@ -3088,6 +3143,99 @@ async def call_intake_restore_ask(request: Request, domain: str = "dev"):
         kept.append(row)
     _write_json_store(CALL_INTAKE_ARCHIVE_PATH, kept[:500])
     return {"ok": True, "domain": clean_domain, "restored": restored or {"archive_key": archive_key}}
+
+
+@app.post("/api/call-intake/asks/delete")
+async def call_intake_delete_ask(request: Request, domain: str = "dev"):
+    clean_domain = _domain_key(domain)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    archive_key = _safe_action_text(payload.get("archive_key"), 260)
+    call_sid = _safe_action_text(payload.get("call_sid"), 120)
+    jd_id = _safe_action_text(payload.get("jd_id"), 80)
+    role = _safe_action_text(payload.get("role"), 220)
+    company = _safe_action_text(payload.get("company"), 220)
+    if not archive_key:
+        archive_key = _call_intake_archive_key(clean_domain, call_sid, jd_id)
+    delete_keys = [
+        key
+        for key in [
+            archive_key,
+            _call_intake_archive_key(clean_domain, call_sid, ""),
+            _call_intake_archive_key(clean_domain, "", jd_id),
+        ]
+        if key
+    ]
+    if not delete_keys:
+        raise HTTPException(status_code=400, detail="Call Ask needs a call ID or JD ID to delete.")
+
+    deleted_session = _delete_call_intake_session(call_sid) if call_sid else False
+    deleted_tracking_row = False
+    try:
+        conn = azure_client.getConnection()
+        cur = conn.cursor()
+        try:
+            _call_intake_table_ready(cur)
+            if call_sid and jd_id:
+                cur.execute("DELETE FROM callask_records WHERE domain = %s AND (call_sid = %s OR jd_id = %s)", (clean_domain, call_sid, jd_id))
+            elif call_sid:
+                cur.execute("DELETE FROM callask_records WHERE domain = %s AND call_sid = %s", (clean_domain, call_sid))
+            elif jd_id:
+                cur.execute("DELETE FROM callask_records WHERE domain = %s AND jd_id = %s", (clean_domain, jd_id))
+            deleted_tracking_row = bool(cur.rowcount)
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception:
+        deleted_tracking_row = False
+
+    delete_key_set = set(delete_keys)
+    archive_rows = []
+    for row in _call_intake_archive_rows():
+        if not isinstance(row, dict):
+            archive_rows.append(row)
+            continue
+        row_keys = {row.get("archive_key")}
+        if isinstance(row.get("archive_keys"), list):
+            row_keys.update(row.get("archive_keys") or [])
+        if not row_keys & delete_key_set:
+            archive_rows.append(row)
+    _write_json_store(CALL_INTAKE_ARCHIVE_PATH, archive_rows[:500])
+
+    deleted_rows = _call_intake_deleted_rows()
+    kept_deleted = []
+    for row in deleted_rows:
+        if not isinstance(row, dict):
+            kept_deleted.append(row)
+            continue
+        row_keys = {row.get("delete_key"), row.get("archive_key")}
+        if isinstance(row.get("delete_keys"), list):
+            row_keys.update(row.get("delete_keys") or [])
+        if not row_keys & delete_key_set:
+            kept_deleted.append(row)
+    deleted = {
+        "delete_key": delete_keys[0],
+        "delete_keys": delete_keys,
+        "domain": clean_domain,
+        "call_sid": call_sid,
+        "jd_id": jd_id,
+        "role": role,
+        "company": company,
+        "deleted_at": _now_utc(),
+        "note": "Hidden from Call Ask page. Saved JD/profile records are retained.",
+    }
+    kept_deleted.insert(0, deleted)
+    _write_json_store(CALL_INTAKE_DELETED_PATH, kept_deleted[:500])
+    return {
+        "ok": True,
+        "domain": clean_domain,
+        "deleted": deleted,
+        "removed": {"session": deleted_session, "tracking_row": deleted_tracking_row},
+    }
 
 
 @app.post("/api/call-intake/provider-webhook")
