@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Call</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" || requested === "tech" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <style>
+      .call-shell {
+        display: grid;
+        gap: 14px;
+      }
+
+      .call-intro {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: center;
+        border: 1px solid rgba(var(--primary-rgb), 0.2);
+        border-radius: 12px;
+        padding: 15px;
+        background:
+          linear-gradient(120deg, rgba(var(--primary-rgb), 0.12), rgba(255, 255, 255, 0.96) 54%, rgba(47, 128, 237, 0.1)),
+          #fff;
+      }
+
+      .call-intro h1 {
+        margin: 0;
+        font-size: 26px;
+        line-height: 1.08;
+      }
+
+      .call-intro p {
+        margin: 6px 0 0;
+        max-width: 900px;
+        color: var(--muted);
+        line-height: 1.42;
+      }
+
+      .call-number {
+        min-width: 230px;
+        border: 1px solid rgba(var(--primary-rgb), 0.28);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fff;
+      }
+
+      .call-number span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .call-number strong {
+        display: block;
+        margin-top: 4px;
+        font-size: 20px;
+        line-height: 1.15;
+      }
+
+      .call-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      .call-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .call-panel {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        padding: 14px;
+        box-shadow: 0 10px 24px rgba(16, 32, 24, 0.05);
+      }
+
+      .call-panel h2 {
+        margin: 0 0 8px;
+        font-size: 18px;
+      }
+
+      .call-panel p {
+        margin-top: 0;
+        color: var(--muted);
+        line-height: 1.42;
+      }
+
+      .call-status-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px;
+      }
+
+      .call-status {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        background: #fbfcfb;
+        min-height: 76px;
+      }
+
+      .call-status.ready {
+        border-color: rgba(47, 125, 75, 0.35);
+        background: rgba(127, 191, 63, 0.1);
+      }
+
+      .call-status.missing {
+        border-color: rgba(190, 120, 22, 0.36);
+        background: rgba(255, 242, 220, 0.86);
+      }
+
+      .call-status strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 13px;
+      }
+
+      .call-status span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .call-flow {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .call-step {
+        position: relative;
+        min-height: 92px;
+        border: 1px solid rgba(var(--primary-rgb), 0.22);
+        border-radius: 10px;
+        padding: 10px;
+        background: linear-gradient(180deg, #fff, rgba(var(--primary-rgb), 0.06));
+      }
+
+      .call-step b {
+        display: inline-grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        background: var(--primary);
+        color: #fff;
+        font-size: 12px;
+      }
+
+      .call-step strong {
+        display: block;
+        margin-top: 7px;
+        font-size: 12.5px;
+        line-height: 1.2;
+      }
+
+      .call-step span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 11.5px;
+        line-height: 1.25;
+      }
+
+      .question-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .question-row {
+        display: grid;
+        grid-template-columns: 145px minmax(0, 1fr);
+        gap: 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        background: #fbfcfb;
+      }
+
+      .question-row strong {
+        color: var(--primary-2);
+        font-size: 13px;
+      }
+
+      .question-row span {
+        color: var(--text);
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      .endpoint-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .endpoint-row {
+        display: grid;
+        grid-template-columns: 90px minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px;
+        background: #fbfcfb;
+      }
+
+      .endpoint-row code {
+        overflow-wrap: anywhere;
+        color: var(--text);
+      }
+
+      .call-lab {
+        display: grid;
+        gap: 10px;
+      }
+
+      .call-lab textarea {
+        min-height: 140px;
+      }
+
+      .call-output {
+        min-height: 170px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 11px;
+        background: #fbfcfb;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font-size: 13px;
+        line-height: 1.42;
+      }
+
+      @media (max-width: 1100px) {
+        .call-grid,
+        .call-intro {
+          grid-template-columns: 1fr;
+        }
+
+        .call-flow {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 700px) {
+        .call-status-grid,
+        .call-flow,
+        .question-row,
+        .endpoint-row {
+          grid-template-columns: 1fr;
+        }
+
+        .endpoint-row .btn {
+          width: 100%;
+        }
+      }
+    </style>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html?v=20260528-call");
+        $("#processFlow").load("components/processFlow.html?v=20260528-call");
+        $("#searchBar").load("components/searchBar.html?v=20260528-call");
+      });
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Call</div>
+            <div class="breadcrumb">Voice intake - JD creation - profile creation - matching</div>
+          </div>
+          <div id="searchBar"></div>
+        </div>
+
+        <div id="processFlow"></div>
+
+        <div class="call-shell">
+          <section class="call-intro" aria-label="Call intake summary">
+            <div>
+              <h1>AI phone intake</h1>
+              <p>
+                A caller describes a role by phone, the live voice agent collects the missing job details, then DevReady saves the JD, creates or updates the caller profile, ranks internal candidates, and returns the best-match summary.
+              </p>
+              <div class="call-actions">
+                <button class="btn" type="button" onclick="refreshCallPage()">Refresh status</button>
+                <a class="btn secondary" href="job-descriptions.html">Open JDs</a>
+                <a class="btn secondary" href="match-role.html">Open matching</a>
+                <a class="btn secondary" href="https://console.twilio.com/" target="_blank" rel="noopener">Open Twilio</a>
+              </div>
+            </div>
+            <div class="call-number">
+              <span>Intake number</span>
+              <strong id="callPhoneNumber">Not configured</strong>
+              <span id="callReadyLabel">Checking provider status...</span>
+            </div>
+          </section>
+
+          <section class="call-panel" aria-label="Call flow">
+            <h2>Call structure</h2>
+            <div id="callFlow" class="call-flow"></div>
+          </section>
+
+          <div class="call-grid">
+            <section class="call-panel" aria-label="Provider readiness">
+              <h2>Provider readiness</h2>
+              <p id="callMissingSummary">Checking call provider configuration...</p>
+              <div id="callStatusGrid" class="call-status-grid"></div>
+            </section>
+
+            <section class="call-panel" aria-label="Webhook configuration">
+              <h2>Webhook configuration</h2>
+              <p>Use these values in the voice provider once Twilio or another phone service is connected.</p>
+              <div id="endpointList" class="endpoint-list"></div>
+            </section>
+
+            <section class="call-panel" aria-label="Account setup">
+              <h2>Account setup</h2>
+              <div class="question-list">
+                <div class="question-row">
+                  <strong>1. Phone provider</strong>
+                  <span>Create or authorize a Twilio account, then buy a voice-capable phone number.</span>
+                </div>
+                <div class="question-row">
+                  <strong>2. Voice webhook</strong>
+                  <span>Set the number's incoming call webhook to the Voice URL shown on this page.</span>
+                </div>
+                <div class="question-row">
+                  <strong>3. Secrets</strong>
+                  <span>Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, OPENAI_API_KEY, and CALL_INTAKE_WEBHOOK_SECRET to Railway.</span>
+                </div>
+                <div class="question-row">
+                  <strong>4. Live AI</strong>
+                  <span>Use Twilio Media Streams now, then connect OpenAI Realtime voice or SIP for the production live-agent loop.</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="call-panel" aria-label="Question set">
+              <h2>Question set</h2>
+              <div id="questionList" class="question-list"></div>
+            </section>
+
+            <section class="call-panel" aria-label="Transcript lab">
+              <h2>Transcript lab</h2>
+              <div class="call-lab">
+                <label>
+                  Sample call transcript
+                  <textarea id="transcriptInput">Caller needs a senior AI platform engineer for a financial services client. Must know Python, FastAPI, Azure, PostgreSQL, vector search, and production LLM systems. Remote is fine, start in two weeks, contract-to-hire preferred.</textarea>
+                </label>
+                <div class="row-actions">
+                  <button class="btn" type="button" onclick="buildDryRun()">Build dry run</button>
+                  <button class="btn secondary" type="button" onclick="copyDryRun()">Copy payload</button>
+                </div>
+                <div id="dryRunOutput" class="call-output">Dry run output will appear here.</div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      let callBlueprint = null;
+      let dryRunPayload = null;
+
+      function currentDomain() {
+        return sessionStorage.getItem("domain") || new URLSearchParams(window.location.search).get("domain") || "dev";
+      }
+
+      async function callApi(path) {
+        const separator = path.includes("?") ? "&" : "?";
+        const response = await fetch(`${path}${separator}domain=${encodeURIComponent(currentDomain())}`, { cache: "no-store" });
+        if (!response.ok) throw new Error(await response.text());
+        return response.json();
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function statusTile(title, ready, detail) {
+        return `
+          <div class="call-status ${ready ? "ready" : "missing"}">
+            <strong>${escapeHtml(title)}</strong>
+            <span>${escapeHtml(detail)}</span>
+          </div>
+        `;
+      }
+
+      function renderHealth(data) {
+        const status = data.status || {};
+        const twilio = status.twilio || {};
+        const realtime = status.openai_realtime || {};
+        const webhooks = status.webhooks || {};
+        const storage = status.storage || {};
+        document.getElementById("callPhoneNumber").textContent = status.phone_number || "Not configured";
+        document.getElementById("callReadyLabel").textContent = data.ready ? "Ready for live intake" : "Configuration needed";
+        document.getElementById("callMissingSummary").textContent = data.missing?.length
+          ? `Missing: ${data.missing.join("; ")}.`
+          : "Voice intake services are configured.";
+        document.getElementById("callStatusGrid").innerHTML = [
+          statusTile("Twilio voice", twilio.configured, twilio.configured ? "Account, token, and phone number present." : "Add Twilio account SID, auth token, and phone number."),
+          statusTile("Realtime AI", realtime.configured, realtime.configured ? `Model: ${realtime.model || "gpt-realtime"}` : "Add an OpenAI API key for the live voice agent."),
+          statusTile("Webhook secret", webhooks.configured, webhooks.configured ? "Signed webhook validation can be enforced." : "Add CALL_INTAKE_WEBHOOK_SECRET."),
+          statusTile("DevReady handoff", storage.jobs && storage.profiles && storage.matching, "JD, profile, and matching services are available."),
+        ].join("");
+      }
+
+      function renderBlueprint(data) {
+        callBlueprint = data;
+        const flow = data.flow || [];
+        document.getElementById("callFlow").innerHTML = flow
+          .map((step, index) => `
+            <div class="call-step">
+              <b>${index + 1}</b>
+              <strong>${escapeHtml(step.label)}</strong>
+              <span>${escapeHtml(step.step)}</span>
+            </div>
+          `)
+          .join("");
+
+        document.getElementById("questionList").innerHTML = (data.questions || [])
+          .map((question) => `
+            <div class="question-row">
+              <strong>${escapeHtml(question.label)}</strong>
+              <span>${escapeHtml(question.prompt)}</span>
+            </div>
+          `)
+          .join("");
+
+        const webhooks = data.webhooks || {};
+        document.getElementById("endpointList").innerHTML = [
+          ["Voice", webhooks.voice],
+          ["Status", webhooks.status],
+          ["Stream", webhooks.media_stream],
+        ]
+          .map(([label, value]) => `
+            <div class="endpoint-row">
+              <strong>${escapeHtml(label)}</strong>
+              <code>${escapeHtml(value || "Not available")}</code>
+              <button class="btn secondary" type="button" data-copy="${escapeHtml(value || "")}" onclick="copyEndpoint(this)">Copy</button>
+            </div>
+          `)
+          .join("");
+      }
+
+      async function copyEndpoint(button) {
+        const value = button?.dataset?.copy || "";
+        if (value) await navigator.clipboard.writeText(value);
+      }
+
+      async function refreshCallPage() {
+        try {
+          const [health, blueprint] = await Promise.all([
+            callApi("/api/call-intake/health"),
+            callApi("/api/call-intake/blueprint"),
+          ]);
+          renderHealth(health);
+          renderBlueprint(blueprint);
+        } catch (error) {
+          document.getElementById("callMissingSummary").textContent = `Call intake status could not load: ${error.message || error}`;
+        }
+      }
+
+      function buildDryRun() {
+        const transcript = document.getElementById("transcriptInput").value.trim();
+        const questions = (callBlueprint?.questions || []).map((question) => question.key);
+        dryRunPayload = {
+          source: "manual_transcript_lab",
+          domain: currentDomain(),
+          transcript,
+          call_flow: (callBlueprint?.flow || []).map((step) => step.step),
+          expected_captures: questions,
+          next_actions: {
+            create_job_description: callBlueprint?.handoff_contract?.create_job_endpoint || "/api/azureJobs/createJob",
+            create_profile: callBlueprint?.handoff_contract?.create_profile_action || "create_profile",
+            run_match: callBlueprint?.handoff_contract?.match_endpoint || "/api/azureJobs/match/run",
+            deliver_to_caller: callBlueprint?.handoff_contract?.delivery_channels || ["voice_readback", "sms", "email"],
+          },
+        };
+        document.getElementById("dryRunOutput").textContent = JSON.stringify(dryRunPayload, null, 2);
+      }
+
+      async function copyDryRun() {
+        if (!dryRunPayload) buildDryRun();
+        await navigator.clipboard.writeText(JSON.stringify(dryRunPayload, null, 2));
+      }
+
+      refreshCallPage();
+    </script>
+  </body>
+</html>

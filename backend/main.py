@@ -19,11 +19,11 @@ def top_matches_from_parts(parts: dict, limit: int = 8):
     return out
 
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Header, Request
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Header, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
-import os, shutil, traceback, json, base64, hashlib, hmac, re
+import os, shutil, traceback, json, base64, hashlib, hmac, re, asyncio
 import requests
 import xml.etree.ElementTree as ET
 from typing import Optional
@@ -221,6 +221,7 @@ INTERVIEW_ARCHIVE_PATH = os.path.join(DATA_DIR, "interview_archive.json")
 CRM_RECORDS_PATH = os.path.join(DATA_DIR, "crm_records.json")
 PROSPECT_REFERENCE_RECORDS_PATH = os.path.join(DATA_DIR, "prospect_reference_records.json")
 MEETING_RECORDS_PATH = os.path.join(DATA_DIR, "meeting_records.json")
+CALL_INTAKE_RECORDS_PATH = os.path.join(DATA_DIR, "call_intake_records.json")
 ACCESS_USERS_PATH = os.path.join(DATA_DIR, "access_users.json")
 ACCESS_CANDIDATES_PATH = os.path.join(DATA_DIR, "access_candidates.json")
 ADMIN_SESSION_TOKENS = {}
@@ -235,6 +236,7 @@ MENU_ITEMS = [
     {"key": "find_out", "label": "Find Candidates (Out)", "href": "mine-candidate-external.html"},
     {"key": "profiles", "label": "Profiles", "href": "profile-preview.html"},
     {"key": "job_descriptions", "label": "Job Descriptions", "href": "job-descriptions.html"},
+    {"key": "call", "label": "Call", "href": "call.html"},
     {"key": "meet", "label": "Meet", "href": "meet.html"},
     {"key": "interviews", "label": "Interviews", "href": "schedule-interview.html?interview=ready"},
     {"key": "onboarding", "label": "Onboarding", "href": "onboarding-admin.html"},
@@ -259,6 +261,7 @@ DEFAULT_INTERNAL_MENU = [
     "find_out",
     "profiles",
     "job_descriptions",
+    "call",
     "meet",
     "interviews",
     "onboarding",
@@ -1132,7 +1135,7 @@ def _default_menu_for_user(role: str, email: str = "") -> list[str]:
     if role == "candidate":
         return DEFAULT_CANDIDATE_MENU
     if role == "sales":
-        return [key for key in ["crm", "prospects", "meet", "reports"] if key in {item["key"] for item in MENU_ITEMS}]
+        return [key for key in ["crm", "prospects", "call", "meet", "reports"] if key in {item["key"] for item in MENU_ITEMS}]
     if role == "admin":
         return SUPER_MENU
     if role == "super_user" or _normalize_user_key(email).endswith("@devready.io"):
@@ -1817,6 +1820,297 @@ def access_menu():
         "default_candidate_menu": DEFAULT_CANDIDATE_MENU,
         "super_menu": SUPER_MENU,
     }
+
+
+CALL_INTAKE_QUESTIONS = [
+    {
+        "key": "role",
+        "label": "Role target",
+        "prompt": "What role or outcome are you trying to hire for?",
+        "captures": ["job_title", "business_outcome"],
+    },
+    {
+        "key": "client",
+        "label": "Client context",
+        "prompt": "Who is the client or business unit, and what problem should this person solve?",
+        "captures": ["company", "team", "problem_statement"],
+    },
+    {
+        "key": "skills",
+        "label": "Required skills",
+        "prompt": "Which technologies, platforms, tools, or domain skills are required on day one?",
+        "captures": ["required_skills", "domain_stack"],
+    },
+    {
+        "key": "seniority",
+        "label": "Seniority",
+        "prompt": "What seniority level, leadership scope, and years of experience feel right?",
+        "captures": ["seniority", "leadership_scope", "years_experience"],
+    },
+    {
+        "key": "delivery",
+        "label": "Delivery model",
+        "prompt": "Is this remote, hybrid, onsite, contract, contract-to-hire, or full time?",
+        "captures": ["location", "work_model", "engagement_type"],
+    },
+    {
+        "key": "constraints",
+        "label": "Constraints",
+        "prompt": "What timing, budget, compliance, clearance, or must-not-have constraints matter?",
+        "captures": ["start_date", "rate_range", "compliance", "exclusions"],
+    },
+    {
+        "key": "success",
+        "label": "Success profile",
+        "prompt": "What would make the hire successful in the first 30 to 90 days?",
+        "captures": ["success_metrics", "deliverables"],
+    },
+    {
+        "key": "delivery_back",
+        "label": "Caller delivery",
+        "prompt": "Should I text, email, or read back the best-match summary after matching?",
+        "captures": ["caller_name", "caller_email", "caller_phone", "delivery_channel"],
+    },
+]
+
+
+def _call_intake_public_base(request: Request) -> str:
+    configured = os.getenv("PUBLIC_BASE_URL") or os.getenv("RAILWAY_PUBLIC_DOMAIN") or ""
+    configured = configured.strip().rstrip("/")
+    if configured:
+        if configured.startswith("http"):
+            return configured
+        return f"https://{configured}"
+    return str(request.base_url).rstrip("/")
+
+
+def _call_intake_env_status(request: Request) -> dict:
+    base_url = _call_intake_public_base(request)
+    twilio_ready = all(os.getenv(key) for key in ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"])
+    realtime_ready = bool(os.getenv("OPENAI_API_KEY"))
+    webhook_ready = bool(os.getenv("CALL_INTAKE_WEBHOOK_SECRET"))
+    return {
+        "provider": os.getenv("CALL_INTAKE_PROVIDER", "twilio"),
+        "phone_number": os.getenv("TWILIO_PHONE_NUMBER", ""),
+        "twilio": {
+            "configured": twilio_ready,
+            "account_sid": bool(os.getenv("TWILIO_ACCOUNT_SID")),
+            "auth_token": bool(os.getenv("TWILIO_AUTH_TOKEN")),
+            "phone_number": bool(os.getenv("TWILIO_PHONE_NUMBER")),
+        },
+        "openai_realtime": {
+            "configured": realtime_ready,
+            "api_key": realtime_ready,
+            "model": os.getenv("CALL_INTAKE_REALTIME_MODEL", "gpt-realtime"),
+        },
+        "webhooks": {
+            "configured": webhook_ready,
+            "voice": f"{base_url}/api/call-intake/voice",
+            "status": f"{base_url}/api/call-intake/status",
+            "media_stream": f"{base_url.replace('https://', 'wss://').replace('http://', 'ws://')}/api/call-intake/media",
+        },
+        "storage": {
+            "jobs": True,
+            "profiles": True,
+            "matching": True,
+        },
+    }
+
+
+def _call_intake_records() -> list[dict]:
+    rows = _read_json_store(CALL_INTAKE_RECORDS_PATH, [])
+    return rows if isinstance(rows, list) else []
+
+
+def _append_call_intake_record(record: dict) -> dict:
+    rows = _call_intake_records()
+    clean = record if isinstance(record, dict) else {}
+    clean["id"] = clean.get("id") or _safe_token("CALL")
+    clean["created_at"] = clean.get("created_at") or _now_utc()
+    rows.insert(0, clean)
+    _write_json_store(CALL_INTAKE_RECORDS_PATH, rows[:500])
+    return clean
+
+
+def _xml_escape(value) -> str:
+    return (
+        str(value or "")
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&apos;")
+    )
+
+
+def _call_intake_twiml(request: Request, domain: str, call_sid: str = "") -> str:
+    status = _call_intake_env_status(request)
+    stream_url = status["webhooks"]["media_stream"]
+    callback_url = status["webhooks"]["status"]
+    clean_domain = _domain_key(domain)
+    call_id = _xml_escape(call_sid or _safe_token("CALL"))
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say>Welcome to DevReady. I will ask a few questions about the role, create the job description, match candidates, and return the best fit.</Say>
+  <Connect>
+    <Stream url="{_xml_escape(stream_url)}" name="devready-call-intake" statusCallback="{_xml_escape(callback_url)}">
+      <Parameter name="domain" value="{_xml_escape(clean_domain)}" />
+      <Parameter name="callId" value="{call_id}" />
+    </Stream>
+  </Connect>
+</Response>"""
+
+
+@app.get("/api/call-intake/health")
+def call_intake_health(request: Request, domain: str = "dev"):
+    clean_domain = _domain_key(domain)
+    status = _call_intake_env_status(request)
+    ready = (
+        status["twilio"]["configured"]
+        and status["openai_realtime"]["configured"]
+        and status["webhooks"]["configured"]
+    )
+    return {
+        "ok": True,
+        "ready": ready,
+        "domain": clean_domain,
+        "status": status,
+        "missing": [
+            label
+            for label, configured in [
+                ("Twilio account, auth token, and phone number", status["twilio"]["configured"]),
+                ("OpenAI API key for realtime voice", status["openai_realtime"]["configured"]),
+                ("CALL_INTAKE_WEBHOOK_SECRET", status["webhooks"]["configured"]),
+            ]
+            if not configured
+        ],
+        "updated_at": _now_utc(),
+    }
+
+
+@app.get("/api/call-intake/blueprint")
+def call_intake_blueprint(request: Request, domain: str = "dev"):
+    clean_domain = _domain_key(domain)
+    status = _call_intake_env_status(request)
+    return {
+        "ok": True,
+        "domain": clean_domain,
+        "questions": CALL_INTAKE_QUESTIONS,
+        "flow": [
+            {"step": "answer", "label": "Caller reaches intake number"},
+            {"step": "realtime", "label": "Voice agent asks role questions"},
+            {"step": "jd", "label": "Transcript becomes a saved job description"},
+            {"step": "profile", "label": "Caller/contact profile is created or updated"},
+            {"step": "match", "label": "Internal candidates are ranked against the JD"},
+            {"step": "deliver", "label": "Best-match summary is returned to the caller"},
+        ],
+        "handoff_contract": {
+            "create_job_endpoint": "/api/azureJobs/createJob",
+            "create_profile_action": "create_profile",
+            "match_endpoint": "/api/azureJobs/match/run",
+            "delivery_channels": ["voice_readback", "sms", "email"],
+        },
+        "webhooks": status["webhooks"],
+    }
+
+
+@app.api_route("/api/call-intake/voice", methods=["GET", "POST"])
+async def call_intake_voice(request: Request, domain: str = "dev"):
+    form = {}
+    if request.method == "POST":
+        try:
+            form = dict(await request.form())
+        except Exception:
+            form = {}
+    call_sid = _safe_action_text(form.get("CallSid") or request.query_params.get("CallSid"), 120)
+    from_number = _safe_action_text(form.get("From") or request.query_params.get("From"), 80)
+    clean_domain = _domain_key(form.get("domain") or request.query_params.get("domain") or domain)
+    _append_call_intake_record(
+        {
+            "event": "voice_webhook",
+            "provider": "twilio",
+            "domain": clean_domain,
+            "call_sid": call_sid,
+            "from": from_number,
+            "status": "connected_to_stream",
+        }
+    )
+    return Response(content=_call_intake_twiml(request, clean_domain, call_sid), media_type="application/xml")
+
+
+@app.api_route("/api/call-intake/status", methods=["GET", "POST"])
+async def call_intake_status(request: Request, domain: str = "dev"):
+    payload = {}
+    if request.method == "POST":
+        try:
+            payload = dict(await request.form())
+        except Exception:
+            payload = {}
+    payload.update({k: v for k, v in request.query_params.items() if k not in payload})
+    record = _append_call_intake_record(
+        {
+            "event": _safe_action_text(payload.get("StreamEvent") or payload.get("CallStatus") or "status", 80),
+            "provider": "twilio",
+            "domain": _domain_key(payload.get("domain") or domain),
+            "call_sid": _safe_action_text(payload.get("CallSid"), 120),
+            "stream_sid": _safe_action_text(payload.get("StreamSid"), 120),
+            "status": _safe_action_text(payload.get("CallStatus") or payload.get("StreamEvent"), 120),
+            "error": _safe_action_text(payload.get("StreamError"), 500),
+        }
+    )
+    return {"ok": True, "record": record}
+
+
+@app.websocket("/api/call-intake/media")
+async def call_intake_media(websocket: WebSocket):
+    await websocket.accept()
+    call_sid = ""
+    stream_sid = ""
+    domain = "dev"
+    media_packets = 0
+    try:
+        while True:
+            message = await websocket.receive_text()
+            try:
+                data = json.loads(message)
+            except Exception:
+                data = {}
+            event = data.get("event")
+            if event == "start":
+                start = data.get("start") or {}
+                stream_sid = _safe_action_text(start.get("streamSid") or data.get("streamSid"), 120)
+                call_sid = _safe_action_text(start.get("callSid"), 120)
+                params = start.get("customParameters") or {}
+                domain = _domain_key(params.get("domain") or domain)
+                _append_call_intake_record(
+                    {
+                        "event": "media_start",
+                        "provider": "twilio",
+                        "domain": domain,
+                        "call_sid": call_sid,
+                        "stream_sid": stream_sid,
+                        "status": "websocket_connected",
+                    }
+                )
+            elif event == "media":
+                media_packets += 1
+            elif event == "stop":
+                break
+            await asyncio.sleep(0)
+    except WebSocketDisconnect:
+        pass
+    finally:
+        _append_call_intake_record(
+            {
+                "event": "media_stop",
+                "provider": "twilio",
+                "domain": domain,
+                "call_sid": call_sid,
+                "stream_sid": stream_sid,
+                "media_packets": media_packets,
+                "status": "websocket_closed",
+            }
+        )
 
 
 def _agent_context_with_access(context_json: str = "{}", domain: str = "dev", admin_token: str = "", numa_change_mode: str = "off") -> dict:
