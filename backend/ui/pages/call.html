@@ -293,6 +293,33 @@
         font-weight: 900;
       }
 
+      .call-ask-details {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .call-detail {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px;
+        background: #fff;
+      }
+
+      .call-detail span {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .call-detail strong {
+        display: block;
+        margin-top: 3px;
+        overflow-wrap: anywhere;
+        font-size: 12px;
+      }
+
       .call-lab {
         display: grid;
         gap: 10px;
@@ -328,6 +355,7 @@
       @media (max-width: 700px) {
         .call-status-grid,
         .call-flow,
+        .call-ask-details,
         .question-row,
         .endpoint-row {
           grid-template-columns: 1fr;
@@ -388,7 +416,33 @@
             <div id="callFlow" class="call-flow"></div>
           </section>
 
+          <section class="call-panel" aria-label="Call ask results">
+            <h2>Call asks</h2>
+            <p>Completed calls save here as tagged Call Ask JDs and request profiles.</p>
+            <div id="callAskList" class="call-asks">Loading call asks...</div>
+          </section>
+
           <div class="call-grid">
+            <section class="call-panel" aria-label="Question set">
+              <h2>Question set</h2>
+              <div id="questionList" class="question-list"></div>
+            </section>
+
+            <section class="call-panel" aria-label="Transcript lab">
+              <h2>Transcript lab</h2>
+              <div class="call-lab">
+                <label>
+                  Sample call transcript
+                  <textarea id="transcriptInput">Caller needs a senior AI platform engineer for a financial services client. Must know Python, FastAPI, Azure, PostgreSQL, vector search, and production LLM systems. Remote is fine, start in two weeks, contract-to-hire preferred.</textarea>
+                </label>
+                <div class="row-actions">
+                  <button class="btn" type="button" onclick="buildDryRun()">Build dry run</button>
+                  <button class="btn secondary" type="button" onclick="copyDryRun()">Copy payload</button>
+                </div>
+                <div id="dryRunOutput" class="call-output">Dry run output will appear here.</div>
+              </div>
+            </section>
+
             <section class="call-panel" aria-label="Provider readiness">
               <h2>Provider readiness</h2>
               <p id="callMissingSummary">Checking call provider configuration...</p>
@@ -399,12 +453,6 @@
               <h2>Webhook configuration</h2>
               <p>Use these values in the voice provider once Twilio or another phone service is connected.</p>
               <div id="endpointList" class="endpoint-list"></div>
-            </section>
-
-            <section class="call-panel" aria-label="Call ask results">
-              <h2>Call asks</h2>
-              <p>Completed calls save here as tagged Call Ask JDs and request profiles.</p>
-              <div id="callAskList" class="call-asks">Loading call asks...</div>
             </section>
 
             <section class="call-panel" aria-label="Account setup">
@@ -426,26 +474,6 @@
                   <strong>4. Live AI</strong>
                   <span>Use Twilio Media Streams now, then connect OpenAI Realtime voice or SIP for the production live-agent loop.</span>
                 </div>
-              </div>
-            </section>
-
-            <section class="call-panel" aria-label="Question set">
-              <h2>Question set</h2>
-              <div id="questionList" class="question-list"></div>
-            </section>
-
-            <section class="call-panel" aria-label="Transcript lab">
-              <h2>Transcript lab</h2>
-              <div class="call-lab">
-                <label>
-                  Sample call transcript
-                  <textarea id="transcriptInput">Caller needs a senior AI platform engineer for a financial services client. Must know Python, FastAPI, Azure, PostgreSQL, vector search, and production LLM systems. Remote is fine, start in two weeks, contract-to-hire preferred.</textarea>
-                </label>
-                <div class="row-actions">
-                  <button class="btn" type="button" onclick="buildDryRun()">Build dry run</button>
-                  <button class="btn secondary" type="button" onclick="copyDryRun()">Copy payload</button>
-                </div>
-                <div id="dryRunOutput" class="call-output">Dry run output will appear here.</div>
               </div>
             </section>
           </div>
@@ -565,6 +593,11 @@
           .map((ask) => {
             const jdUrl = ask.jd_id ? `job-descriptions.html?domain=${encodeURIComponent(currentDomain())}&jdId=${encodeURIComponent(ask.jd_id)}` : "";
             const profileUrl = ask.profile_id ? `profile-preview.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(ask.profile_id)}` : "";
+            const timeLabel = ask.completed_at || ask.updated_at || ask.created_at || "";
+            const personLabel = ask.caller_email || ask.caller_phone || "Caller to confirm";
+            const profileLabel = ask.profile_id ? `Profile ${ask.profile_id}` : "Profile pending";
+            const jdLabel = ask.jd_id ? `JD ${ask.jd_id}` : "JD pending";
+            const matchLabel = ask.match_name ? `${ask.match_name}${ask.match_score ? ` (${ask.match_score})` : ""}` : "Match pending";
             return `
               <article class="call-ask-card">
                 <header>
@@ -574,6 +607,24 @@
                   </div>
                   <span class="call-tag">${escapeHtml(ask.source_tag || "Call Ask")}</span>
                 </header>
+                <div class="call-ask-details">
+                  <div class="call-detail">
+                    <span>Call time</span>
+                    <strong>${escapeHtml(timeLabel || "Unknown")}</strong>
+                  </div>
+                  <div class="call-detail">
+                    <span>Person</span>
+                    <strong>${escapeHtml(personLabel)}</strong>
+                  </div>
+                  <div class="call-detail">
+                    <span>JD / profile</span>
+                    <strong>${escapeHtml(`${jdLabel} / ${profileLabel}`)}</strong>
+                  </div>
+                  <div class="call-detail">
+                    <span>Match</span>
+                    <strong>${escapeHtml(matchLabel)}</strong>
+                  </div>
+                </div>
                 <div class="call-ask-meta">
                   <span class="call-tag">${escapeHtml(ask.status || "saved")}</span>
                   ${ask.caller_email ? `<span class="call-tag">${escapeHtml(ask.caller_email)}</span>` : ""}
