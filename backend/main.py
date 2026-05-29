@@ -223,6 +223,7 @@ PROSPECT_REFERENCE_RECORDS_PATH = os.path.join(DATA_DIR, "prospect_reference_rec
 MEETING_RECORDS_PATH = os.path.join(DATA_DIR, "meeting_records.json")
 CALL_INTAKE_RECORDS_PATH = os.path.join(DATA_DIR, "call_intake_records.json")
 CALL_INTAKE_SESSIONS_PATH = os.path.join(DATA_DIR, "call_intake_sessions.json")
+CALL_INTAKE_ARCHIVE_PATH = os.path.join(DATA_DIR, "call_intake_archive.json")
 ACCESS_USERS_PATH = os.path.join(DATA_DIR, "access_users.json")
 ACCESS_CANDIDATES_PATH = os.path.join(DATA_DIR, "access_candidates.json")
 ADMIN_SESSION_TOKENS = {}
@@ -1955,6 +1956,42 @@ def _append_call_intake_record(record: dict) -> dict:
     return clean
 
 
+def _call_intake_archive_rows() -> list[dict]:
+    rows = _read_json_store(CALL_INTAKE_ARCHIVE_PATH, [])
+    return rows if isinstance(rows, list) else []
+
+
+def _call_intake_archive_key(domain: str, call_sid: str = "", jd_id: str = "") -> str:
+    clean_domain = _domain_key(domain)
+    clean_call = _safe_action_text(call_sid, 120)
+    clean_jd = _safe_action_text(jd_id, 80)
+    if clean_call:
+        return f"{clean_domain}:call:{clean_call}"
+    if clean_jd:
+        return f"{clean_domain}:jd:{clean_jd}"
+    return ""
+
+
+def _call_intake_archive_keys(domain: str) -> set[str]:
+    clean_domain = _domain_key(domain)
+    keys = set()
+    for row in _call_intake_archive_rows():
+        if not isinstance(row, dict) or _domain_key(row.get("domain") or "") != clean_domain:
+            continue
+        key = row.get("archive_key") or _call_intake_archive_key(clean_domain, row.get("call_sid"), row.get("jd_id"))
+        if key:
+            keys.add(key)
+    return keys
+
+
+def _call_intake_is_archived(domain: str, call_sid: str = "", jd_id: str = "", keys: set[str] | None = None) -> bool:
+    archive_keys = keys if keys is not None else _call_intake_archive_keys(domain)
+    return bool(
+        _call_intake_archive_key(domain, call_sid, "") in archive_keys
+        or _call_intake_archive_key(domain, "", jd_id) in archive_keys
+    )
+
+
 def _call_intake_sessions() -> dict:
     rows = _read_json_store(CALL_INTAKE_SESSIONS_PATH, {})
     return rows if isinstance(rows, dict) else {}
@@ -2624,6 +2661,7 @@ def call_intake_blueprint(request: Request, domain: str = "dev"):
 def call_intake_asks(domain: str = "dev", limit: int = 25):
     clean_domain = _domain_key(domain)
     max_rows = max(1, min(int(limit or 25), 100))
+    archived_keys = _call_intake_archive_keys(clean_domain)
     rows = []
     try:
         conn = azure_client.getConnection()
@@ -2642,6 +2680,8 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
                 (clean_domain, max_rows),
             )
             for row in cur.fetchall():
+                if _call_intake_is_archived(clean_domain, row[0], row[10], archived_keys):
+                    continue
                 rows.append(
                     {
                         "call_sid": row[0] or "",
@@ -2659,6 +2699,7 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
                         "match_name": row[12] or "",
                         "match_score": row[13],
                         "summary": row[14] or "",
+                        "archive_key": _call_intake_archive_key(clean_domain, row[0], row[10]),
                     }
                 )
             if len(rows) < max_rows:
@@ -2675,6 +2716,8 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
                 )
                 for jd_id, company, title, description in cur.fetchall():
                     if str(jd_id) in existing_jd_ids:
+                        continue
+                    if _call_intake_is_archived(clean_domain, "", str(jd_id), archived_keys):
                         continue
                     text = description or ""
                     email_match = re.search(r"Caller email:\s*(.+)", text)
@@ -2697,6 +2740,7 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
                             "match_name": "",
                             "match_score": None,
                             "summary": "Saved as a Call Ask job description.",
+                            "archive_key": _call_intake_archive_key(clean_domain, "", str(jd_id)),
                         }
                     )
                     existing_jd_ids.add(str(jd_id))
@@ -2716,6 +2760,8 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
             continue
         answers = session.get("answers") if isinstance(session.get("answers"), dict) else {}
         job = session.get("job") if isinstance(session.get("job"), dict) else {}
+        if _call_intake_is_archived(clean_domain, session.get("call_sid"), job.get("jd_id"), archived_keys):
+            continue
         profile = session.get("profile") if isinstance(session.get("profile"), dict) else {}
         match = session.get("match") if isinstance(session.get("match"), dict) else {}
         candidate = match.get("candidate") if isinstance(match.get("candidate"), dict) else {}
@@ -2736,6 +2782,7 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
                 "match_name": _safe_action_text(candidate.get("name"), 180),
                 "match_score": match.get("score") if isinstance(match, dict) else None,
                 "summary": _safe_action_text(session.get("summary"), 900),
+                "archive_key": _call_intake_archive_key(clean_domain, session.get("call_sid"), job.get("jd_id")),
             }
         )
     rows.sort(key=lambda item: item.get("updated_at") or item.get("created_at") or "", reverse=True)
@@ -2752,6 +2799,43 @@ def call_intake_finalize_ask(call_sid: str, domain: str = "dev"):
     _save_call_intake_session(call_sid, final_session)
     _append_call_intake_record(_call_intake_record_from_session("completed_manual_finalize", clean_domain, final_session))
     return {"ok": True, "domain": clean_domain, "ask": final_session}
+
+
+@app.post("/api/call-intake/asks/archive")
+async def call_intake_archive_ask(request: Request, domain: str = "dev"):
+    clean_domain = _domain_key(domain)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    call_sid = _safe_action_text(payload.get("call_sid"), 120)
+    jd_id = _safe_action_text(payload.get("jd_id"), 80)
+    role = _safe_action_text(payload.get("role"), 220)
+    company = _safe_action_text(payload.get("company"), 220)
+    archive_key = _call_intake_archive_key(clean_domain, call_sid, jd_id)
+    if not archive_key:
+        raise HTTPException(status_code=400, detail="Call Ask needs a call ID or JD ID to archive.")
+
+    rows = _call_intake_archive_rows()
+    kept = [
+        row
+        for row in rows
+        if not isinstance(row, dict) or row.get("archive_key") != archive_key
+    ]
+    archived = {
+        "archive_key": archive_key,
+        "domain": clean_domain,
+        "call_sid": call_sid,
+        "jd_id": jd_id,
+        "role": role,
+        "company": company,
+        "archived_at": _now_utc(),
+    }
+    kept.insert(0, archived)
+    _write_json_store(CALL_INTAKE_ARCHIVE_PATH, kept[:500])
+    return {"ok": True, "domain": clean_domain, "archived": archived}
 
 
 @app.post("/api/call-intake/provider-webhook")

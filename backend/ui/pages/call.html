@@ -392,7 +392,7 @@
                 <button class="btn" type="button" onclick="refreshCallPage()">Refresh status</button>
                 <a class="btn secondary" href="job-descriptions.html">Open JDs</a>
                 <a class="btn secondary" href="match-role.html">Open matching</a>
-                <a class="btn secondary" href="https://console.twilio.com/" target="_blank" rel="noopener">Open Twilio</a>
+                <a class="btn secondary" href="https://dashboard.retellai.com/phoneNumbers" target="_blank" rel="noopener">Open Retell</a>
               </div>
             </div>
             <div class="call-number">
@@ -483,6 +483,18 @@
       async function callApi(path) {
         const separator = path.includes("?") ? "&" : "?";
         const response = await fetch(`${path}${separator}domain=${encodeURIComponent(currentDomain())}`, { cache: "no-store" });
+        if (!response.ok) throw new Error(await response.text());
+        return response.json();
+      }
+
+      async function callApiPost(path, payload) {
+        const separator = path.includes("?") ? "&" : "?";
+        const response = await fetch(`${path}${separator}domain=${encodeURIComponent(currentDomain())}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload || {}),
+          cache: "no-store",
+        });
         if (!response.ok) throw new Error(await response.text());
         return response.json();
       }
@@ -625,11 +637,40 @@
                 <div class="row-actions">
                   ${jdUrl ? `<a class="btn secondary" href="${jdUrl}">Open JD</a>` : ""}
                   ${profileUrl ? `<a class="btn secondary" href="${profileUrl}">Open profile</a>` : ""}
+                  <button
+                    class="btn secondary"
+                    type="button"
+                    data-call-sid="${escapeHtml(ask.call_sid || "")}"
+                    data-jd-id="${escapeHtml(ask.jd_id || "")}"
+                    data-role="${escapeHtml(ask.role || "Call Ask")}"
+                    data-company="${escapeHtml(ask.company || "")}"
+                    onclick="archiveCallAsk(this)"
+                  >Archive</button>
                 </div>
               </article>
             `;
           })
           .join("");
+      }
+
+      async function archiveCallAsk(button) {
+        const role = button?.dataset?.role || "this Call Ask";
+        if (!confirm(`Archive ${role}? The JD and profile will stay saved.`)) return;
+        button.disabled = true;
+        button.textContent = "Archiving...";
+        try {
+          await callApiPost("/api/call-intake/asks/archive", {
+            call_sid: button.dataset.callSid || "",
+            jd_id: button.dataset.jdId || "",
+            role,
+            company: button.dataset.company || "",
+          });
+          renderCallAsks(await callApi("/api/call-intake/asks"));
+        } catch (error) {
+          button.disabled = false;
+          button.textContent = "Archive";
+          alert(`Could not archive this Call Ask: ${error.message || error}`);
+        }
       }
 
       async function copyEndpoint(button) {
