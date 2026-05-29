@@ -80,14 +80,6 @@
         white-space: normal;
       }
 
-      .call-number .call-web-button {
-        width: 100%;
-        min-height: 36px;
-        margin-top: 12px;
-        justify-content: center;
-        white-space: nowrap;
-      }
-
       .call-actions {
         display: flex;
         gap: 8px;
@@ -407,7 +399,6 @@
               <span>Intake number</span>
               <strong id="callPhoneNumber">Not configured</strong>
               <span id="callReadyLabel">Checking provider status...</span>
-              <a id="callNowLink" class="btn call-web-button" href="#" aria-disabled="true">Call now</a>
             </div>
           </section>
 
@@ -523,16 +514,6 @@
         const phoneNumber = status.phone_number || "";
         document.getElementById("callPhoneNumber").textContent = phoneNumber || "Not configured";
         document.getElementById("callReadyLabel").textContent = data.ready ? "Ready for live intake" : "Configuration needed";
-        const callNowLink = document.getElementById("callNowLink");
-        if (phoneNumber) {
-          callNowLink.href = `tel:${phoneNumber.replace(/[^\d+]/g, "")}`;
-          callNowLink.removeAttribute("aria-disabled");
-          callNowLink.textContent = "Call now";
-        } else {
-          callNowLink.href = "#";
-          callNowLink.setAttribute("aria-disabled", "true");
-          callNowLink.textContent = "Number unavailable";
-        }
         document.getElementById("callMissingSummary").textContent = data.missing?.length
           ? `Missing: ${data.missing.join("; ")}.`
           : "Voice intake services are configured.";
