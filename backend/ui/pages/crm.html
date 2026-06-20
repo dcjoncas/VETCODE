@@ -2259,6 +2259,28 @@
         return String(record.id || "").startsWith("demo-") || /sample .*card created for dev testing/i.test(String(record.history || ""));
       }
 
+      function isImportedClientRecord(record = {}) {
+        return /hubspot/i.test(String(record.sourceSystem || "")) ||
+          /^hubspot-/i.test(String(record.sourceImportBatch || record.source_import_batch || ""));
+      }
+
+      function isGeneratedSupportPlayer(player = {}) {
+        const name = String(player.name || "").trim().toLowerCase();
+        const generatedNames = new Set([
+          "maya chen",
+          "jordan blake",
+          "priya shah",
+          "evan brooks",
+          "nina alvarez",
+          "caleb wright",
+          "morgan lee",
+        ]);
+        const generatedDescription = /DevReady engagement|vendor onboarding|day-to-day delivery expectations|technical fit|invoice routing|placed resources|first-week coordination/i
+          .test(String(player.description || ""));
+        return generatedNames.has(name) &&
+          (/\.example$/i.test(String(player.email || "")) || generatedDescription);
+      }
+
       function demoEmailFor(record = {}, name = "contact") {
         return `${contactSlug(name)}@${contactSlug(record.customer || "client")}.example`;
       }
@@ -2359,7 +2381,8 @@
           : Array.isArray(record.players)
             ? record.players
             : [];
-        const demoRecord = isDemoTeamRecord(record) || Boolean(record.customer && !record.email && !record.phone);
+        const importedClientRecord = isImportedClientRecord(record);
+        const demoRecord = isDemoTeamRecord(record);
         const members = raw
           .map((player) => {
             const nameTitle = splitContactNameTitle(player.name || player.contact || "");
@@ -2380,9 +2403,10 @@
             };
           })
           .filter(Boolean)
+          .filter((player) => !(importedClientRecord && isGeneratedSupportPlayer(player)))
           .filter((player) => player.name || player.email || player.phone);
         if (members.length) {
-          return members.length < 3 ? [...members, ...demoSupportPlayers(record, members)] : members;
+          return demoRecord && members.length < 3 ? [...members, ...demoSupportPlayers(record, members)] : members;
         }
         const parsed = String(record.contacts || "")
           .split(/\r?\n/)
@@ -2407,9 +2431,9 @@
               photoUrl: "",
             },
           ];
-          return [...primary, ...demoSupportPlayers(record, primary)];
+          return demoRecord ? [...primary, ...demoSupportPlayers(record, primary)] : primary;
         }
-        return demoSupportPlayers(record, []);
+        return demoRecord ? demoSupportPlayers(record, []) : [];
       }
 
       function primaryTeamMember(record = {}) {
@@ -2503,6 +2527,11 @@
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         return now.toISOString().slice(0, 16);
+      }
+
+      function recordUpdatedTime(record = {}) {
+        const value = Date.parse(record.updatedAt || record.salesPortalUpdatedAt || record.importedAt || record.createdAt || "");
+        return Number.isFinite(value) ? value : 0;
       }
 
       function parseTouchDate(record) {
@@ -3826,14 +3855,34 @@
           const seeded = Array.isArray(data.records) ? data.records : [];
           if (!seeded.length) return;
           const records = crmRecords();
-          const existingIds = new Set(records.map((record) => record.id));
-          const incoming = seeded
-            .filter((record) => record && record.id && !existingIds.has(record.id) && !shouldHideArchivedSeedRecord(record))
-            .map((record) => {
+          const merged = [...records];
+          const existingIndexById = new Map(records.map((record, index) => [record.id, index]));
+          const newIncoming = [];
+          let changed = false;
+          seeded
+            .filter((record) => record && record.id && !shouldHideArchivedSeedRecord(record))
+            .forEach((record) => {
               const normalized = normalizeCrmRecord(record);
-              return { ...normalized, aiScan: normalized.aiScan || scanClientCard(normalized) };
+              const incoming = { ...normalized, aiScan: normalized.aiScan || scanClientCard(normalized) };
+              const existingIndex = existingIndexById.get(incoming.id);
+              if (existingIndex === undefined) {
+                newIncoming.push(incoming);
+                existingIndexById.set(incoming.id, -1);
+                changed = true;
+                return;
+              }
+              const existing = merged[existingIndex] || {};
+              const serverHasNewerImport = isImportedClientRecord(incoming) && recordUpdatedTime(incoming) >= recordUpdatedTime(existing);
+              if (serverHasNewerImport) {
+                merged[existingIndex] = {
+                  ...existing,
+                  ...incoming,
+                  aiScan: existing.aiScan || incoming.aiScan || scanClientCard(incoming),
+                };
+                changed = true;
+              }
             });
-          if (incoming.length) setCrmRecords([...incoming, ...records]);
+          if (changed) setCrmRecords([...newIncoming, ...merged]);
         } catch {}
       }
 

@@ -25,6 +25,7 @@
   #pageNavInner a.nav-find-out,
   #pageNavInner a.nav-profiles,
   #pageNavInner a.nav-jds,
+  #pageNavInner a.channels-link,
   #pageNavInner a.call-link,
   #pageNavInner a.crm-link,
   #pageNavInner a.prospect-reference-link,
@@ -203,6 +204,7 @@
   #pageNavInner a.nav-find-out,
   #pageNavInner a.nav-profiles,
   #pageNavInner a.nav-jds,
+  #pageNavInner a.channels-link,
   #pageNavInner a.call-link,
   #pageNavInner a.crm-link,
   #pageNavInner a.prospect-reference-link,
@@ -405,6 +407,7 @@
     <symbol id="nav-profile" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"></rect><circle cx="12" cy="9" r="3"></circle><path d="M7.5 17a4.5 4.5 0 0 1 9 0"></path></symbol>
     <symbol id="nav-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M3 12h18"></path></symbol>
     <symbol id="nav-phone" viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.7.6 2.5a2 2 0 0 1-.5 2.1L8 9.5a16 16 0 0 0 6.5 6.5l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.6.5 2.5.6A2 2 0 0 1 22 16.9z"></path></symbol>
+    <symbol id="nav-channel" viewBox="0 0 24 24"><path d="M4 5h16v10H8l-4 4V5z"></path><path d="M8 9h8"></path><path d="M8 12h5"></path></symbol>
     <symbol id="nav-crm" viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"></circle><circle cx="17" cy="9" r="2.5"></circle><path d="M3 19a5 5 0 0 1 10 0"></path><path d="M14 19a4 4 0 0 1 7 0"></path></symbol>
     <symbol id="nav-ai-debt" viewBox="0 0 24 24"><path d="M12 3 4 7v6c0 4.5 3.2 7.6 8 9 4.8-1.4 8-4.5 8-9V7z"></path><path d="M8 12h8"></path><path d="M12 8v8"></path><circle cx="12" cy="12" r="2"></circle></symbol>
     <symbol id="nav-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path><path d="M8 21h8"></path></symbol>
@@ -424,7 +427,7 @@
   <div class="nav-heading" aria-label="AI assistants">
     <div id="navAiDock" class="nav-ai-dock">
     <a
-      class="nav-fastboard"
+      class="nav-fastboard nav-egeria-link"
       href="egeria.html"
       data-hint="Open Egeria's dedicated AI workspace for opportunity scanning, process-pilot checkpoints, rollback support, and client intelligence briefings."
       title="Open Egeria"
@@ -437,11 +440,13 @@
   </div>
   <div class="nav-group nav-talent-section" aria-label="Talent workflow">
     <a href="find-candidate.html" class="nav-talent" data-menu-key="talent" data-hint="Go to the main talent workspace. From there you can upload a resume, search existing profiles, pick a saved job description, and start a candidate shortlist in the current domain."><svg class="nav-icon"><use href="#nav-home"></use></svg>Talent</a>
+    <a href="channels.html" class="channels-link" data-menu-key="channels" data-hint="Open Channels, the internal message room for users and candidates. Use the share link when everyone needs the same thread in a new tab."><svg class="nav-icon"><use href="#nav-channel"></use></svg>Channels</a>
     <a href="match-role.html" class="nav-find-in" data-menu-key="find_in" data-hint="Compare candidates already in this domain against the selected job description, then rank matches and build the shortlist without searching outside the database."><svg class="nav-icon"><use href="#nav-user-search"></use></svg>Find Candidates (In)</a>
     <a href="mine-candidate-external.html" class="nav-find-out" data-menu-key="find_out" data-hint="Use the outside-search workflow when internal matches are weak. Results come in as temporary profiles so you can review them before adding anything permanent."><svg class="nav-icon"><use href="#nav-search-out"></use></svg>Find Candidates (Out)</a>
     <a href="job-descriptions.html" class="nav-jds" data-menu-key="job_descriptions" data-hint="Manage job descriptions for the active domain only. Saved jobs here are what matching uses when ranking candidates and showing missing skills."><svg class="nav-icon"><use href="#nav-briefcase"></use></svg>Job Descriptions</a>
     <a href="profile-preview.html" class="nav-profiles" data-menu-key="profiles" data-hint="Open the current candidate profile to inspect resume data, portfolio roles, personality results, badges, public profile status, and missing completion pieces."><svg class="nav-icon"><use href="#nav-profile"></use></svg>Profiles</a>
     <a href="meet.html" class="recordings-link" data-menu-key="meet" data-hint="Open the meeting workspace for recordings, notes, summaries, and Atlas handoff in the current domain."><svg class="nav-icon"><use href="#nav-interview"></use></svg>Meeting</a>
+    <a href="mobile.html" class="mobile-link" data-menu-key="talent" data-hint="Open the phone-first module launcher for trimmed workflows: talent, JD, matching, Atlas, invoices, meetings, Egeria, and onboarding."><svg class="nav-icon"><use href="#nav-agents"></use></svg>Mobile Modules</a>
   </div>
   <div class="nav-group nav-finance-section" aria-label="Finance and operations">
     <a
@@ -503,6 +508,13 @@
       data-menu-key="agents"
       data-hint="Unlock protected Numa/page-agent administration with the Administrator password."
       ><svg class="nav-icon"><use href="#nav-agents"></use></svg>Agents</a
+    >
+    <a
+      href="agent-handoff.html"
+      class="agents-link"
+      data-menu-key="agents"
+      data-hint="Open the live AI agent handoff dashboard to watch process ownership move from agent to agent."
+      ><svg class="nav-icon"><use href="#nav-agents"></use></svg>Agent Handoff</a
     >
   </div>
   <div class="nav-group nav-crm-section" aria-label="Atlas relationship management">

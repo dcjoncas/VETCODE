@@ -84,6 +84,105 @@
         justify-content: center;
       }
 
+      .meeting-schedule-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      .meeting-schedule-card {
+        border: 1px solid rgba(var(--primary-rgb), 0.22);
+        border-radius: 10px;
+        padding: 12px;
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb), 0.1), rgba(255, 255, 255, 0.96)),
+          #fff;
+      }
+
+      .meeting-schedule-card.client {
+        border-color: rgba(47, 128, 237, 0.25);
+        background:
+          linear-gradient(135deg, rgba(47, 128, 237, 0.1), rgba(255, 255, 255, 0.96)),
+          #fff;
+      }
+
+      .meeting-schedule-card h3 {
+        margin: 0 0 6px;
+        font-size: 15px;
+      }
+
+      .meeting-schedule-card p {
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .meeting-status-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .meeting-status-pill {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 9px 10px;
+        background: #fff;
+        min-height: 58px;
+        cursor: pointer;
+        text-align: left;
+        transition:
+          border-color 160ms ease,
+          box-shadow 160ms ease,
+          transform 160ms ease;
+      }
+
+      .meeting-status-pill:hover,
+      .meeting-status-pill:focus-visible {
+        border-color: rgba(var(--primary-rgb), 0.42);
+        box-shadow: 0 10px 22px rgba(16, 32, 24, 0.08);
+        transform: translateY(-1px);
+        outline: none;
+      }
+
+      .meeting-status-pill strong {
+        display: block;
+        font-size: 12px;
+        margin-bottom: 4px;
+      }
+
+      .meeting-status-pill span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .meeting-status-pill.ready {
+        border-color: rgba(47, 125, 75, 0.35);
+        background: rgba(127, 191, 63, 0.1);
+      }
+
+      .latest-meeting-panel {
+        margin-top: 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.86);
+      }
+
+      .latest-meeting-panel strong,
+      .latest-meeting-panel span {
+        display: block;
+      }
+
+      .latest-meeting-panel span {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 3px;
+      }
+
       .meet-workspace-body {
         padding: 12px 14px;
         background:
@@ -228,6 +327,11 @@
         .meet-actions {
           justify-content: flex-start;
         }
+
+        .meeting-schedule-grid,
+        .meeting-status-row {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
     <script>
@@ -276,9 +380,51 @@
                 </p>
               </div>
               <div class="meet-actions">
+                <a id="candidateReviewLink" class="btn" href="schedule-interview.html?interview=ready">Candidate Review</a>
+                <a id="clientInterviewLink" class="btn secondary" href="schedule-interview.html?interview=client">Client Interview</a>
                 <button id="refreshMeetBtn" class="btn secondary" type="button">Refresh Meet</button>
                 <a id="openCrmBtn" class="btn secondary" href="crm.html">Open Atlas</a>
               </div>
+            </div>
+            <div class="meeting-schedule-grid" aria-label="Meeting calendar actions">
+              <div class="meeting-schedule-card">
+                <h3>Candidate meeting</h3>
+                <p>Schedule a candidate review before client outreach, with the candidate, role, interviewer, talking points, and status tracking connected.</p>
+                <div class="row-actions">
+                  <a id="candidateReviewCardLink" class="btn" href="schedule-interview.html?interview=ready">Open Candidate Review</a>
+                  <a id="candidateReviewPurposeLink" class="btn secondary" href="schedule-interview.html?interview=ready&purpose=community">Community touch base</a>
+                </div>
+              </div>
+              <div class="meeting-schedule-card client">
+                <h3>Client meeting</h3>
+                <p>Schedule the client interview with client contact, candidate, role, calendar provider, invite archive, and status handoff in one place.</p>
+                <div class="row-actions">
+                  <a id="clientInterviewCardLink" class="btn" href="schedule-interview.html?interview=client">Open Client Interview</a>
+                  <a id="statusLink" class="btn secondary" href="status-tracker.html">View Status</a>
+                </div>
+              </div>
+            </div>
+            <div class="meeting-status-row" aria-label="Calendar readiness">
+              <button id="meetBackendTile" class="meeting-status-pill" type="button" data-meet-action="refresh-calendar">
+                <strong>Calendar backend</strong>
+                <span>Checking...</span>
+              </button>
+              <button id="meetGoogleTile" class="meeting-status-pill" type="button" data-meet-action="google-calendar">
+                <strong>Google</strong>
+                <span>Checking...</span>
+              </button>
+              <button id="meetOutlookTile" class="meeting-status-pill" type="button" data-meet-action="outlook-calendar">
+                <strong>Outlook</strong>
+                <span>Checking...</span>
+              </button>
+              <button id="meetArchiveTile" class="meeting-status-pill" type="button" data-meet-action="interview-archive">
+                <strong>Interview archive</strong>
+                <span>Loading...</span>
+              </button>
+            </div>
+            <div id="latestMeetingPanel" class="latest-meeting-panel">
+              <strong>No scheduled interview selected yet.</strong>
+              <span>Use Candidate Review or Client Interview to generate an email, book Calendly, or send a Google/Outlook invite.</span>
             </div>
           </div>
         </section>
@@ -337,12 +483,19 @@
       const meetFrameFallback = document.getElementById("meetFrameFallback");
       const openLiveMeetBtn = document.getElementById("openLiveMeetBtn");
       const meetFolderStatus = document.getElementById("meetFolderStatus");
+      const candidateReviewLink = document.getElementById("candidateReviewLink");
+      const clientInterviewLink = document.getElementById("clientInterviewLink");
+      const candidateReviewCardLink = document.getElementById("candidateReviewCardLink");
+      const candidateReviewPurposeLink = document.getElementById("candidateReviewPurposeLink");
+      const clientInterviewCardLink = document.getElementById("clientInterviewCardLink");
+      const statusLink = document.getElementById("statusLink");
       const meetOrigin = "https://web-production-268c2.up.railway.app";
       const domainMeetTheme = {
         dev: { primary: "#7fbf3f", primary2: "#2f7d4b", primaryRgb: "127, 191, 63" },
         engineer: { primary: "#2f80ed", primary2: "#145db2", primaryRgb: "47, 128, 237" },
         law: { primary: "#a06b39", primary2: "#754f2b", primaryRgb: "160, 107, 57" },
       };
+      let latestMeetingHealth = null;
 
       function buildMeetUrl() {
         const meetUrl = new URL(meetBaseUrl, window.location.origin);
@@ -371,6 +524,173 @@
 
       function currentDomain() {
         return sessionStorage.getItem("domain") || "dev";
+      }
+
+      function api(path, options = {}) {
+        return fetch(path, options).then(async (response) => {
+          const text = await response.text();
+          const data = text ? JSON.parse(text) : {};
+          if (!response.ok) {
+            throw new Error(data.detail || data.error || response.statusText);
+          }
+          return data;
+        });
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function scheduleUrl(interview, extra = {}) {
+        const url = new URL("schedule-interview.html", window.location.href);
+        url.searchParams.set("domain", currentDomain());
+        url.searchParams.set("interview", interview);
+        Object.entries(extra).forEach(([key, value]) => {
+          if (value) url.searchParams.set(key, value);
+        });
+        return url.href;
+      }
+
+      function updateMeetingLinks() {
+        candidateReviewLink.href = scheduleUrl("ready");
+        candidateReviewCardLink.href = scheduleUrl("ready");
+        candidateReviewPurposeLink.href = scheduleUrl("ready", { purpose: "community" });
+        clientInterviewLink.href = scheduleUrl("client");
+        clientInterviewCardLink.href = scheduleUrl("client");
+        const statusUrl = new URL("status-tracker.html", window.location.href);
+        statusUrl.searchParams.set("domain", currentDomain());
+        statusLink.href = statusUrl.href;
+        openCrmBtn.href = `crm.html?domain=${encodeURIComponent(currentDomain())}`;
+      }
+
+      function setMeetingTile(id, ready, message) {
+        const tile = document.getElementById(id);
+        if (!tile) return;
+        tile.classList.toggle("ready", Boolean(ready));
+        tile.querySelector("span").textContent = message;
+      }
+
+      function openScheduleWithProvider(provider) {
+        const interview = provider === "google" || provider === "outlook"
+          ? "client"
+          : "ready";
+        window.location.href = scheduleUrl(interview, { provider });
+      }
+
+      function openInterviewArchive() {
+        const domain = currentDomain();
+        const latest = JSON.parse(sessionStorage.getItem(`latestScheduleTracking:${domain}`) || sessionStorage.getItem("latestScheduleTracking") || "null");
+        const url = new URL("status-tracker.html", window.location.href);
+        url.searchParams.set("domain", domain);
+        if (latest && latest.id) url.searchParams.set("record", latest.id);
+        window.location.href = url.href;
+      }
+
+      function handleMeetingStatusClick(action) {
+        if (action === "refresh-calendar") {
+          setMeetingTile("meetBackendTile", true, "Refreshing...");
+          refreshCalendarReadiness();
+          loadLatestInterviewArchive();
+          return;
+        }
+        if (action === "google-calendar") {
+          sessionStorage.setItem("preferredCalendarProvider", "google");
+          if (latestMeetingHealth && latestMeetingHealth.google && latestMeetingHealth.google.connected) {
+            openScheduleWithProvider("google");
+          } else {
+            window.location.href = "/auth/google";
+          }
+          return;
+        }
+        if (action === "outlook-calendar") {
+          sessionStorage.setItem("preferredCalendarProvider", "outlook");
+          if (latestMeetingHealth && latestMeetingHealth.outlook && latestMeetingHealth.outlook.connected) {
+            openScheduleWithProvider("outlook");
+          } else {
+            window.location.href = "/auth/outlook";
+          }
+          return;
+        }
+        if (action === "interview-archive") {
+          openInterviewArchive();
+        }
+      }
+
+      function formatMeetingDate(value) {
+        if (!value) return "";
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return String(value);
+        return parsed.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+      }
+
+      function renderLatestMeeting(record) {
+        const panel = document.getElementById("latestMeetingPanel");
+        if (!panel) return;
+        if (!record) {
+          panel.innerHTML = `
+            <strong>No scheduled interview selected yet.</strong>
+            <span>Use Candidate Review or Client Interview to generate an email, book Calendly, or send a Google/Outlook invite.</span>
+          `;
+          return;
+        }
+        const kind = record.interviewType === "client" ? "Client Interview" : "Candidate Review";
+        const label = [kind, record.candidateName || record.candidateEmail || "Candidate", record.role || ""]
+          .filter(Boolean)
+          .join(" - ");
+        const detail = [
+          record.status || "Recorded",
+          record.provider || "",
+          formatMeetingDate(record.scheduledStart || record.windowStart || record.createdAt || record.archivedAt),
+        ].filter(Boolean).join(" - ");
+        const client = [record.clientCompany || record.company || "", record.clientContactName || ""].filter(Boolean).join(" - ");
+        const eventLink = record.eventLink || record.meetingLink || "";
+        const statusUrl = new URL("status-tracker.html", window.location.href);
+        statusUrl.searchParams.set("domain", currentDomain());
+        statusUrl.searchParams.set("record", record.id || "");
+        panel.innerHTML = `
+          <strong>${escapeHtml(label)}</strong>
+          <span>${escapeHtml(detail)}</span>
+          ${client ? `<span>${escapeHtml(client)}</span>` : ""}
+          <div class="row-actions" style="margin-top: 10px">
+            <a class="btn secondary" href="${statusUrl.href}">Open Status</a>
+            ${eventLink ? `<a class="btn secondary" href="${escapeHtml(eventLink)}" target="_blank" rel="noopener">Open Event</a>` : ""}
+          </div>
+        `;
+      }
+
+      async function refreshCalendarReadiness() {
+        try {
+          const health = await api("/api/calendar/health");
+          latestMeetingHealth = health;
+          setMeetingTile("meetBackendTile", true, "Ready");
+          setMeetingTile("meetGoogleTile", health.google && health.google.connected, health.google && health.google.connected ? "Connected" : "Not connected");
+          setMeetingTile("meetOutlookTile", health.outlook && health.outlook.connected, health.outlook && health.outlook.connected ? "Connected" : "Not connected");
+        } catch {
+          latestMeetingHealth = null;
+          setMeetingTile("meetBackendTile", false, "Unavailable");
+          setMeetingTile("meetGoogleTile", false, "Unknown");
+          setMeetingTile("meetOutlookTile", false, "Unknown");
+        }
+      }
+
+      async function loadLatestInterviewArchive() {
+        const domain = currentDomain();
+        const localRows = JSON.parse(sessionStorage.getItem(`scheduleTracking:${domain}`) || sessionStorage.getItem("scheduleTracking") || "[]")
+          .filter((record) => !record.domain || record.domain === domain);
+        let rows = localRows;
+        try {
+          const data = await api(`/api/interviews/archive?domain=${encodeURIComponent(domain)}&limit=25`);
+          rows = data.records && data.records.length ? data.records : localRows;
+        } catch {
+          rows = localRows;
+        }
+        setMeetingTile("meetArchiveTile", rows.length > 0, rows.length ? `${rows.length} saved` : "No records");
+        renderLatestMeeting(rows[0] || null);
       }
 
       function crmStorageKey() {
@@ -480,6 +800,9 @@
       }
 
       refreshMeetBtn.addEventListener("click", loadMeet);
+      document.querySelectorAll("[data-meet-action]").forEach((tile) => {
+        tile.addEventListener("click", () => handleMeetingStatusClick(tile.dataset.meetAction));
+      });
       document.querySelectorAll("[data-meet-toggle]").forEach((toggle) => {
         toggle.addEventListener("click", () => {
           const section = toggle.dataset.meetToggle;
@@ -514,6 +837,9 @@
       });
 
       initializeMeetSections();
+      updateMeetingLinks();
+      refreshCalendarReadiness();
+      loadLatestInterviewArchive();
       loadMeet();
     </script>
   </body>

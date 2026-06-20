@@ -76,6 +76,47 @@
         padding-bottom: 10px;
       }
 
+      .call-ask-strip {
+        display: none;
+        margin-top: 12px;
+        padding: 10px;
+        border: 1px solid rgba(var(--primary-rgb), 0.22);
+        border-radius: 8px;
+        background:
+          linear-gradient(90deg, rgba(var(--primary-rgb), 0.08), rgba(255, 255, 255, 0.94)),
+          #fff;
+      }
+
+      .call-ask-strip h3 {
+        margin: 0 0 8px;
+        font-size: 14px;
+      }
+
+      .call-ask-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+        gap: 8px;
+      }
+
+      .call-ask-jd {
+        border: 1px solid rgba(var(--primary-rgb), 0.18);
+        border-radius: 8px;
+        padding: 9px;
+        background: #fff;
+      }
+
+      .call-ask-jd strong,
+      .call-ask-jd span {
+        display: block;
+        overflow-wrap: anywhere;
+      }
+
+      .call-ask-jd span {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
       #jdGroups {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
@@ -576,6 +617,7 @@
             </div>
           </div>
           <div id="jdStatus" class="notice">Loading job descriptions...</div>
+          <div id="callAskJds" class="call-ask-strip"></div>
           <div id="jdGroups"></div>
         </section>
       </main>
@@ -588,6 +630,7 @@
       const jdById = new Map();
       const clientJdPages = new Map();
       let allJdGroups = [];
+      let recentCallAsks = [];
       let jdLibraryPage = 0;
       let editingJdId = "";
       const GROUPS_PER_LIBRARY_PAGE = 4;
@@ -700,18 +743,26 @@
         const domain = currentDomain();
         const status = document.getElementById("jdStatus");
         const groupsEl = document.getElementById("jdGroups");
+        const callAskEl = document.getElementById("callAskJds");
         document.getElementById("domainName").textContent = domainLabel(domain);
         status.className = "notice";
         status.style.display = "block";
         status.textContent = "Loading job descriptions...";
         groupsEl.innerHTML = "";
+        if (callAskEl) callAskEl.innerHTML = "";
         const existingPager = document.getElementById("jdLibraryPager");
         if (existingPager) existingPager.innerHTML = "";
 
         try {
-          const jds = await api(`/api/azureJobs/list/${encodeURIComponent(domain)}/200`);
+          const [jds, callAskData] = await Promise.all([
+            api(`/api/azureJobs/list/${encodeURIComponent(domain)}/200`),
+            api(`/api/call-intake/asks?domain=${encodeURIComponent(domain)}&limit=8`).catch(() => ({ asks: [] })),
+          ]);
           jdById.clear();
           (jds || []).forEach((jd) => jdById.set(String(jd.jd_id), jd));
+          recentCallAsks = (callAskData?.asks || [])
+            .filter((ask) => ask && ask.jd_id)
+            .slice(0, 6);
           const grouped = groupByClient(jds || []);
           allJdGroups = grouped;
           jdLibraryPage = Math.min(jdLibraryPage, Math.max(0, Math.ceil(grouped.length / GROUPS_PER_LIBRARY_PAGE) - 1));
@@ -719,6 +770,7 @@
           document.getElementById("clientCount").textContent = grouped.length;
 
           if (!jds.length) {
+            renderRecentCallAsks();
             status.className = "empty-state";
             status.textContent =
               "No job descriptions are saved for this domain yet. Add one from Talent.";
@@ -726,11 +778,44 @@
           }
 
           status.style.display = "none";
+          renderRecentCallAsks();
           renderJobLibrary();
         } catch (error) {
           status.className = "empty-state";
           status.textContent = `Could not load job descriptions: ${error.message || error}`;
         }
+      }
+
+      function renderRecentCallAsks() {
+        const host = document.getElementById("callAskJds");
+        if (!host) return;
+        if (!recentCallAsks.length) {
+          host.style.display = "none";
+          host.innerHTML = "";
+          return;
+        }
+        host.style.display = "block";
+        host.innerHTML = `
+          <h3>Recent Call Ask JDs</h3>
+          <div class="call-ask-list">
+            ${recentCallAsks.map((ask) => {
+              const jd = jdById.get(String(ask.jd_id)) || {};
+              const title = jd.title || ask.role || "Role title to be confirmed";
+              const company = jd.company || ask.company || "Client to be confirmed";
+              return `
+                <div class="call-ask-jd">
+                  <strong>${escapeHtml(title)}</strong>
+                  <span>${escapeHtml(company)} &bull; JD ${escapeHtml(ask.jd_id)}</span>
+                  <div class="row-actions">
+                    <button class="btn" type="button" onclick="selectJd('${escapeHtml(ask.jd_id)}')">Use JD</button>
+                    <button class="btn secondary" type="button" onclick="editJd('${escapeHtml(ask.jd_id)}')">Edit</button>
+                    <button class="btn secondary" type="button" onclick="toggleJd('${escapeHtml(ask.jd_id)}')">View</button>
+                  </div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        `;
       }
 
       function renderJobLibrary() {

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>VETCODE Mobile</title>
+    <title>DevReady Mobile Modules</title>
     <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
     <script>
@@ -142,6 +142,109 @@
         box-shadow: 0 8px 22px rgba(var(--primary-rgb, 47, 125, 75), 0.24);
       }
 
+      .module-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px;
+        margin-top: 12px;
+      }
+
+      .module-card {
+        min-height: 118px;
+        border: 1px solid var(--mobile-line);
+        border-radius: 15px;
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb, 47, 125, 75), 0.08), rgba(255, 255, 255, 0.95)),
+          #fff;
+        padding: 11px;
+        text-align: left;
+        color: inherit;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, 0.07);
+      }
+
+      .module-card.active {
+        border-color: rgba(var(--primary-rgb, 47, 125, 75), 0.62);
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb, 47, 125, 75), 0.18), rgba(255, 255, 255, 0.98)),
+          #fff;
+        box-shadow: 0 14px 30px rgba(var(--primary-rgb, 47, 125, 75), 0.16);
+      }
+
+      .module-card strong,
+      .module-card span {
+        display: block;
+      }
+
+      .module-card strong {
+        font-size: 15px;
+        line-height: 1.15;
+      }
+
+      .module-card span {
+        margin-top: 7px;
+        color: var(--muted, #58675e);
+        font-size: 12px;
+        line-height: 1.32;
+      }
+
+      .module-pill {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        min-height: 22px;
+        border-radius: 999px;
+        padding: 0 8px;
+        margin-bottom: 8px;
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.12);
+        color: var(--primary-2, #145c32);
+        font-size: 10px;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      .module-actions {
+        display: grid;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .module-action {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        border: 1px solid var(--mobile-line);
+        border-radius: 14px;
+        padding: 11px;
+        background: #fff;
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .module-action strong,
+      .module-action span {
+        display: block;
+      }
+
+      .module-action span {
+        margin-top: 4px;
+        color: var(--muted, #58675e);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .module-action i {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.12);
+        color: var(--primary-2, #145c32);
+        font-style: normal;
+        font-weight: 950;
+      }
+
       .panel {
         border: 1px solid var(--mobile-line);
         border-radius: 18px;
@@ -149,6 +252,11 @@
         box-shadow: var(--mobile-shadow);
         padding: 14px;
         margin: 12px 0;
+      }
+
+      .module-detail[hidden],
+      .onboarding-module[hidden] {
+        display: none;
       }
 
       .panel h2 {
@@ -330,7 +438,7 @@
             <img id="brandWordmark" class="brand-wordmark" src="../assets/devReadyWordmark.svg" alt="DevReady" />
             <div>
               <h1 id="brandTitle">DevReady</h1>
-              <p>Mobile pick + onboard</p>
+              <p>Mobile modules</p>
             </div>
           </div>
           <select id="domainSelect" class="domain-select" aria-label="Domain">
@@ -347,6 +455,18 @@
       </header>
 
       <section class="panel">
+        <h2>Choose a mobile module</h2>
+        <p>Pick the part of the workflow you need right now. Each module is trimmed for phone use: capture, inspect, or jump to the next step without loading the full desktop workspace.</p>
+        <div id="moduleGrid" class="module-grid" aria-label="Mobile modules"></div>
+      </section>
+
+      <section id="moduleDetail" class="panel module-detail">
+        <h2 id="moduleTitle">Mobile module</h2>
+        <p id="modulePurpose">Choose a module to see mobile-ready actions.</p>
+        <div id="moduleActions" class="module-actions"></div>
+      </section>
+
+      <section class="panel onboarding-module">
         <h2>Pick the job</h2>
         <p>Use a saved job from the current workspace. If none are saved yet, pick a starter role and finish the detailed JD in the full web app later.</p>
         <label>
@@ -361,7 +481,7 @@
         </div>
       </section>
 
-      <section class="panel">
+      <section class="panel onboarding-module">
         <h2>Pick the candidate</h2>
         <p>Only completed profiles are shown, so onboarding cannot start from an unfinished profile.</p>
         <label>
@@ -379,7 +499,7 @@
         </div>
       </section>
 
-      <section class="panel">
+      <section class="panel onboarding-module">
         <h2>Create onboarding link</h2>
         <p>This creates the HR onboarding packet from the completed profile and selected job.</p>
         <label>
@@ -404,7 +524,7 @@
         </div>
       </section>
 
-      <section class="panel">
+      <section class="panel onboarding-module">
         <h2>Recent onboarding</h2>
         <p>Quick check for the current domain.</p>
         <div id="recentList" class="notice">Loading recent onboarding records...</div>
@@ -429,7 +549,107 @@
         recent: [],
         selectedJobId: "",
         selectedCandidateId: "",
+        activeModule: "talent",
       };
+
+      const mobileModules = [
+        {
+          key: "talent",
+          label: "Talent",
+          pill: "Find",
+          purpose: "Search talent, open profiles, and move into matching from a phone.",
+          next: "jobs",
+          actions: [
+            ["Search profiles", "Find an existing candidate by name, email, or role fit.", "profile-search-results.html"],
+            ["Open Talent", "Use the full talent workspace when deeper profile work is needed.", "find-candidate.html"],
+            ["Continue to JD", "Move to the job-description module.", "#module:jobs"],
+          ],
+        },
+        {
+          key: "jobs",
+          label: "Job Description",
+          pill: "Create",
+          purpose: "Capture or review the role requirements that matching will use.",
+          next: "match",
+          actions: [
+            ["Create JD", "Add or normalize a job description.", "job-descriptions.html"],
+            ["Call Egeria", "Use voice intake to turn a call into a JD and match request.", "call.html"],
+            ["Find matches", "Use the selected JD to search internal profiles.", "match-role.html"],
+          ],
+        },
+        {
+          key: "match",
+          label: "Match",
+          pill: "Rank",
+          purpose: "Review internal candidates and move the best option into shortlist/interview.",
+          next: "schedule",
+          actions: [
+            ["Find Candidates In", "Rank internal DevReady profiles against the selected JD.", "match-role.html"],
+            ["Shortlist", "Open the client communication/shortlist workspace.", "client-comm.html"],
+            ["Schedule", "Create candidate review or client interview context.", "schedule-interview.html?interview=ready"],
+          ],
+        },
+        {
+          key: "egeria",
+          label: "Egeria + Numa",
+          pill: "AI",
+          purpose: "Ask the agents, run call intake, or show the AI proof handoff.",
+          next: "talent",
+          actions: [
+            ["AI proof", "Show what the AI evaluated and the OpenAI-backed output.", "agent-handoff.html"],
+            ["Call intake", "Open phone intake and Call Ask records.", "call.html"],
+            ["Agent hub", "Manage page agents and prompts.", "agents.html"],
+          ],
+        },
+        {
+          key: "atlas",
+          label: "Atlas",
+          pill: "Sales",
+          purpose: "Review client/account context and relationship next steps.",
+          next: "meeting",
+          actions: [
+            ["Open Atlas", "Review client cards, contacts, and next touches.", "crm.html"],
+            ["Prospects", "Search and promote prospect references.", "prospect-reference.html"],
+            ["Sales workspace", "Review sales activity and account motion.", "sales-crm.html"],
+          ],
+        },
+        {
+          key: "meeting",
+          label: "Meetings",
+          pill: "Notes",
+          purpose: "Capture meeting notes, transcript, summaries, and handoff details.",
+          next: "atlas",
+          actions: [
+            ["Meeting workspace", "Record or paste meeting context and generate a readout.", "meet.html"],
+            ["Schedule interview", "Prepare candidate or client meeting context.", "schedule-interview.html?interview=client"],
+            ["Status tracker", "Check the current handoff status.", "status-tracker.html"],
+          ],
+        },
+        {
+          key: "finance",
+          label: "Invoices",
+          pill: "Ops",
+          purpose: "Review invoices, accounting, and operating reports.",
+          next: "atlas",
+          actions: [
+            ["Invoices", "Create or review customer invoices.", "invoices.html"],
+            ["Accounting", "Review finance reports.", "accounting.html"],
+            ["Reports", "Open company status and workflow reports.", "reports.html"],
+          ],
+        },
+        {
+          key: "onboarding",
+          label: "Onboarding",
+          pill: "Start",
+          purpose: "Pick a completed candidate and selected job, then create onboarding/time links.",
+          next: "finance",
+          actions: [
+            ["Use mobile onboarding", "Use the mobile form below to create onboarding links.", "#onboarding"],
+            ["Open full onboarding", "Review onboarding records in the full app.", "onboarding.html"],
+            ["Time admin", "Review time links and submitted time.", "time-admin.html"],
+          ],
+        },
+      ];
 
       const byId = (id) => document.getElementById(id);
 
@@ -464,6 +684,80 @@
         byId("stepJob").classList.toggle("on", !state.selectedJobId);
         byId("stepCandidate").classList.toggle("on", Boolean(state.selectedJobId && !state.selectedCandidateId));
         byId("stepOnboard").classList.toggle("on", canOnboard());
+      }
+
+      function moduleByKey(key) {
+        return mobileModules.find((item) => item.key === key) || mobileModules[0];
+      }
+
+      function mobileHref(href) {
+        if (!href) return "#";
+        if (href.startsWith("#module:")) return href;
+        if (href === "#onboarding") return href;
+        const url = new URL(href, window.location.href);
+        url.searchParams.set("domain", state.domain);
+        return url.href;
+      }
+
+      function renderModules() {
+        byId("moduleGrid").innerHTML = mobileModules
+          .map((module) => `
+            <button class="module-card ${module.key === state.activeModule ? "active" : ""}" type="button" data-module="${escapeHtml(module.key)}">
+              <span class="module-pill">${escapeHtml(module.pill)}</span>
+              <strong>${escapeHtml(module.label)}</strong>
+              <span>${escapeHtml(module.purpose)}</span>
+            </button>
+          `)
+          .join("");
+        document.querySelectorAll("[data-module]").forEach((button) => {
+          button.addEventListener("click", () => selectModule(button.dataset.module));
+        });
+      }
+
+      function renderModuleDetail() {
+        const module = moduleByKey(state.activeModule);
+        byId("moduleTitle").textContent = `${module.label} module`;
+        byId("modulePurpose").textContent = module.purpose;
+        byId("moduleActions").innerHTML = module.actions
+          .map(([label, detail, href]) => `
+            <a class="module-action" href="${escapeHtml(mobileHref(href))}" data-module-action="${escapeHtml(href)}">
+              <span><strong>${escapeHtml(label)}</strong><span>${escapeHtml(detail)}</span></span>
+              <i>›</i>
+            </a>
+          `)
+          .join("");
+        document.querySelectorAll("[data-module-action]").forEach((link) => {
+          link.addEventListener("click", (event) => {
+            const action = link.dataset.moduleAction || "";
+            if (action.startsWith("#module:")) {
+              event.preventDefault();
+              selectModule(action.replace("#module:", ""));
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+            if (action === "#onboarding") {
+              event.preventDefault();
+              selectModule("onboarding");
+              document.querySelector(".onboarding-module")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          });
+        });
+      }
+
+      function renderModuleVisibility() {
+        const showOnboarding = state.activeModule === "onboarding";
+        document.querySelectorAll(".onboarding-module").forEach((section) => {
+          section.hidden = !showOnboarding;
+        });
+      }
+
+      function selectModule(key) {
+        state.activeModule = moduleByKey(key).key;
+        const url = new URL(window.location.href);
+        url.searchParams.set("module", state.activeModule);
+        window.history.replaceState({}, "", url.toString());
+        renderModules();
+        renderModuleDetail();
+        renderModuleVisibility();
       }
 
       function starterJobs(domain) {
@@ -521,7 +815,10 @@
         if (css) css.href = `../assets/${state.domain}Styles.css`;
         const url = new URL(window.location.href);
         url.searchParams.set("domain", state.domain);
+        url.searchParams.set("module", state.activeModule);
         window.history.replaceState({}, "", url.toString());
+        renderModules();
+        renderModuleDetail();
       }
 
       function renderJobs() {
@@ -689,6 +986,10 @@
       function init() {
         const params = new URLSearchParams(window.location.search);
         applyDomain(params.get("domain") || sessionStorage.getItem("domain") || "dev");
+        state.activeModule = moduleByKey(params.get("module") || "talent").key;
+        renderModules();
+        renderModuleDetail();
+        renderModuleVisibility();
         byId("startDate").value = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
         byId("domainSelect").addEventListener("change", (event) => {
           applyDomain(event.target.value);

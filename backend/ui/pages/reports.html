@@ -60,6 +60,10 @@
         background:
           linear-gradient(135deg, rgba(var(--primary-rgb), 0.08), rgba(var(--primary-rgb), 0.02)),
           #fff;
+        display: grid;
+        grid-template-rows: 34px minmax(36px, auto) minmax(42px, 1fr) auto;
+        align-items: start;
+        row-gap: 8px;
         text-align: left;
         color: var(--text);
         cursor: pointer;
@@ -79,7 +83,7 @@
         border-radius: 10px;
         background: var(--primary-2);
         color: #fff;
-        margin-bottom: 10px;
+        justify-self: start;
       }
 
       .report-icon-card svg {
@@ -99,14 +103,12 @@
 
       .report-icon-card span {
         display: block;
-        margin-top: 4px;
         color: var(--muted);
         font-size: 12px;
         line-height: 1.35;
       }
 
       .report-icon-card .number {
-        margin-top: 10px;
         color: var(--primary-2);
         font-size: 22px;
         font-weight: 950;

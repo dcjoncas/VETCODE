@@ -530,6 +530,7 @@
                 <button id="scheduleActionButton" class="btn" type="button" onclick="scheduleSelectedProvider()">
                   Book with Calendly
                 </button>
+                <a id="openMeetButton" class="btn secondary" href="meet.html">Open Meeting workspace</a>
                 <a class="btn secondary" href="status-tracker.html">View Status</a>
               </div>
 
@@ -714,6 +715,12 @@
           outlook: "Microsoft Teams",
         }[provider];
         updateCalendlyLink();
+      }
+
+      function updateCrossWorkflowLinks() {
+        const domain = sessionStorage.getItem("domain") || "dev";
+        const meetButton = byId("openMeetButton");
+        if (meetButton) meetButton.href = `meet.html?domain=${encodeURIComponent(domain)}`;
       }
 
       function showResult(message, isError = false) {
@@ -1555,6 +1562,8 @@
         if (params.get("connected")) {
           selectProvider(params.get("connected"));
           showResult(`${params.get("connected")} connected.`);
+        } else if (params.get("provider")) {
+          selectProvider(normalizeNumaProvider(params.get("provider")) || "calendly");
         } else {
           selectProvider("calendly");
         }
@@ -1567,6 +1576,7 @@
           if (interviewType === "client") byId("clientCompanyInput").value = byId("companyInput").value;
         });
         updateCalendlyLink();
+        updateCrossWorkflowLinks();
         await refreshHealth();
       });
     </script>

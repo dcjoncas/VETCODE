@@ -596,7 +596,7 @@
     syncDomainSelect(activeDomain);
     domainUpdate(activeDomain);
     loadPageAgentRuntime(renderActivePageAgent);
-    $("#pageNav").load("components/sideNav.html?v=20260529-call-header", function () {
+    $("#pageNav").load("components/sideNav.html?v=20260620-channels", function () {
       applyMenuAccess();
       applyDomainToLocalLinks(sessionStorage.getItem("domain") || "dev");
       window.DevReadyPageAgents?.mountWidget?.();
@@ -646,6 +646,7 @@
     }
     if (isSuperUser) return;
     const allowed = new Set(user.allowed_menu || []);
+    allowed.add("channels");
     if (isAdministrator) {
       allowed.add("admin");
       allowed.add("agents");
@@ -711,6 +712,11 @@
         href: safeProfileHref,
         hint: "Edit your own profile details, completion items, and candidate-provided information only.",
       },
+      channels: {
+        label: "Channels",
+        href: `channels.html?domain=${encodeURIComponent(domain)}`,
+        hint: "Open the shared DevReady message channel in a new tab-friendly workspace.",
+      },
       interviews: {
         label: "Meeting Requests",
         href: `candidate-status.html?domain=${encodeURIComponent(domain)}#meetings`,
@@ -727,7 +733,8 @@
         hint: "See your workflow status and send private updates back to the DevReady team.",
       },
     };
-    const allowed = new Set((user.allowed_menu || ["profiles", "interviews", "time_link", "status"]).filter((key) => candidateLinks[key]));
+    const allowed = new Set((user.allowed_menu || ["profiles", "channels", "interviews", "time_link", "status"]).filter((key) => candidateLinks[key]));
+    allowed.add("channels");
     document.querySelectorAll("#pageNavInner [data-menu-key]").forEach((item) => {
       const key = item.dataset.menuKey;
       const candidateLink = candidateLinks[key];
@@ -753,7 +760,7 @@
         return;
       }
     }
-    const safePages = new Set(["candidate-status.html", "profile-preview-edit.html"]);
+    const safePages = new Set(["candidate-status.html", "profile-preview-edit.html", "channels.html"]);
     if (!safePages.has(page)) {
       window.location.href = `candidate-status.html?domain=${encodeURIComponent(domain)}`;
     }

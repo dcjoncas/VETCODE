@@ -1,0 +1,1684 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Agent Handoff</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="JS/pageAgents.js?v=20260601-agent-handoff"></script>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html?v=20260601-agent-handoff");
+        $("#searchBar").load("components/searchBar.html");
+        $("#processFlow").load("components/processFlow.html");
+      });
+    </script>
+    <style>
+      .handoff-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+        gap: 14px;
+        align-items: stretch;
+      }
+
+      .handoff-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 12px;
+      }
+
+      .handoff-summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .handoff-metric {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: rgba(var(--primary-rgb), 0.06);
+      }
+
+      .handoff-metric strong {
+        display: block;
+        font-size: 24px;
+        line-height: 1.05;
+      }
+
+      .handoff-metric span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .handoff-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
+        gap: 14px;
+        margin-top: 14px;
+        align-items: start;
+      }
+
+      .agent-flow {
+        display: grid;
+        gap: 10px;
+      }
+
+      .agent-step {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) minmax(210px, 0.38fr) auto;
+        gap: 10px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 11px;
+        background: #fff;
+      }
+
+      .agent-step.active {
+        border-color: rgba(var(--primary-rgb), 0.55);
+        background:
+          linear-gradient(90deg, rgba(var(--primary-rgb), 0.13), rgba(255, 255, 255, 0.96)),
+          #fff;
+        box-shadow: inset 4px 0 0 var(--primary);
+      }
+
+      .agent-step.done {
+        border-color: rgba(47, 125, 75, 0.35);
+      }
+
+      .step-num {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        background: rgba(var(--primary-rgb), 0.12);
+        color: var(--primary-2);
+        font-weight: 950;
+      }
+
+      .step-main strong,
+      .agent-owner strong {
+        display: block;
+      }
+
+      .step-main span,
+      .agent-owner span,
+      .assignment-row span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .agent-owner {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+      }
+
+      .agent-dot {
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        background: var(--primary-2);
+        font-size: 11px;
+        font-weight: 950;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
+      }
+
+      .step-status {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 5px 9px;
+        background: #fbfcfb;
+        font-size: 11px;
+        font-weight: 900;
+        width: fit-content;
+      }
+
+      .step-status.active {
+        border-color: rgba(var(--primary-rgb), 0.42);
+        color: var(--primary-2);
+        background: rgba(var(--primary-rgb), 0.1);
+      }
+
+      .assignment-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .assignment-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        background: #fff;
+      }
+
+      .assignment-row label {
+        display: grid;
+        gap: 5px;
+        font-weight: 850;
+      }
+
+      .assignment-row select {
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        padding: 7px 9px;
+        font: inherit;
+      }
+
+      .terminal {
+        border: 1px solid rgba(10, 20, 16, 0.28);
+        border-radius: 12px;
+        overflow: hidden;
+        background: #0b1411;
+        color: #d8ffe7;
+        box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+      }
+
+      .terminal-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.05);
+        color: #fff;
+      }
+
+      .terminal-log {
+        min-height: 360px;
+        max-height: 460px;
+        overflow-y: auto;
+        padding: 12px;
+        font: 12px/1.45 Consolas, "Courier New", monospace;
+        white-space: pre-wrap;
+      }
+
+      .terminal-line {
+        margin-bottom: 7px;
+      }
+
+      .terminal-line .time {
+        color: #8fd1a6;
+      }
+
+      .terminal-line .agent {
+        color: #f7d67a;
+      }
+
+      .terminal-line .event {
+        color: #9bdcff;
+      }
+
+      .terminal-line .ok {
+        color: #8ff0a4;
+      }
+
+      .terminal-line .warn {
+        color: #ffd479;
+      }
+
+      .context-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .context-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        background: #fff;
+      }
+
+      .context-card strong,
+      .context-card span {
+        display: block;
+      }
+
+      .context-card span {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 4px;
+      }
+
+      .handoff-note {
+        border: 1px dashed rgba(var(--primary-rgb), 0.36);
+        border-radius: 12px;
+        padding: 10px;
+        background: rgba(var(--primary-rgb), 0.08);
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .handoff-report {
+        display: grid;
+        gap: 12px;
+      }
+
+      .report-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .report-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .report-block {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        padding: 12px;
+      }
+
+      .report-block.full {
+        grid-column: 1 / -1;
+      }
+
+      .report-block h3 {
+        margin: 0 0 8px;
+        font-size: 15px;
+      }
+
+      .report-block p,
+      .report-block li {
+        line-height: 1.45;
+      }
+
+      .ai-action {
+        border-left: 4px solid var(--primary);
+        background: rgba(var(--primary-rgb), 0.08);
+        padding: 8px 10px;
+        margin: 7px 0;
+        border-radius: 0 10px 10px 0;
+      }
+
+      .email-envelope {
+        display: grid;
+        gap: 5px;
+        border: 1px dashed rgba(var(--primary-rgb), 0.34);
+        background: rgba(var(--primary-rgb), 0.05);
+        border-radius: 10px;
+        padding: 10px;
+        margin-top: 8px;
+      }
+
+      .code-snippet {
+        margin: 8px 0 0;
+        border-radius: 10px;
+        background: #0b1411;
+        color: #d8ffe7;
+        padding: 10px;
+        overflow: auto;
+        font: 12px/1.45 Consolas, "Courier New", monospace;
+        white-space: pre-wrap;
+      }
+
+      .report-empty {
+        border: 1px dashed rgba(var(--primary-rgb), 0.36);
+        border-radius: 12px;
+        padding: 18px;
+        color: var(--muted);
+        background: rgba(var(--primary-rgb), 0.06);
+      }
+
+      .proof-panel {
+        display: grid;
+        gap: 10px;
+      }
+
+      .proof-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        padding: 11px;
+        display: grid;
+        gap: 7px;
+      }
+
+      .proof-card.ok {
+        border-color: rgba(47, 125, 75, 0.38);
+        background: linear-gradient(135deg, rgba(47, 125, 75, 0.08), #fff);
+      }
+
+      .proof-card.warn {
+        border-color: rgba(219, 146, 38, 0.5);
+        background: linear-gradient(135deg, rgba(219, 146, 38, 0.1), #fff);
+      }
+
+      .proof-card strong {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .proof-pill {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 3px 8px;
+        background: #fbfcfb;
+        font-size: 11px;
+        font-weight: 950;
+        white-space: nowrap;
+      }
+
+      .proof-detail {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .proof-output {
+        border-radius: 10px;
+        border: 1px dashed rgba(var(--primary-rgb), 0.3);
+        background: rgba(var(--primary-rgb), 0.05);
+        padding: 8px;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .ai-moment-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .ai-moment {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background:
+          linear-gradient(135deg, rgba(var(--primary-rgb), 0.08), rgba(255, 255, 255, 0.96)),
+          #fff;
+        padding: 12px;
+      }
+
+      .ai-moment strong,
+      .ai-moment span {
+        display: block;
+      }
+
+      .ai-moment span {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+        margin-top: 6px;
+      }
+
+      .source-ref {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        margin-top: 7px;
+        border-radius: 999px;
+        border: 1px solid rgba(var(--primary-rgb), 0.24);
+        background: rgba(var(--primary-rgb), 0.06);
+        padding: 4px 8px;
+        color: var(--primary-2);
+        font: 11px/1.2 Consolas, "Courier New", monospace;
+        font-weight: 850;
+      }
+
+      @media (max-width: 1100px) {
+        .handoff-hero,
+        .handoff-layout,
+        .handoff-summary,
+        .context-grid,
+        .report-grid,
+        .ai-moment-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .agent-step {
+          grid-template-columns: auto minmax(0, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">AI Agent Handoff</div>
+            <div class="breadcrumb">Process flow - agent ownership - live terminal</div>
+          </div>
+          <div id="searchBar"></div>
+        </div>
+
+        <div id="processFlow"></div>
+
+        <section class="handoff-hero">
+          <div class="card">
+            <h2>Human-visible agent handoff</h2>
+            <p>
+              Watch the DevReady workflow move from agent to agent, then run a proof pass that calls the AI drafting layer, reads live Call Ask/JD/profile evidence, and shows the buyer exactly what was evaluated.
+            </p>
+            <div class="handoff-actions">
+              <button class="btn" type="button" onclick="runHandoffSimulation()">Run simulation</button>
+              <button class="btn secondary" type="button" onclick="runEndToEndTest()">Run E2E test</button>
+              <button class="btn secondary" type="button" onclick="runAiProofDemo()">Run AI proof</button>
+              <button class="btn secondary" type="button" onclick="refreshHandoffContext()">Refresh context</button>
+              <button class="btn secondary" type="button" onclick="clearTerminal()">Clear terminal</button>
+              <a class="btn secondary" href="agents.html">Open Agent Hub</a>
+            </div>
+          </div>
+          <div class="card">
+            <h2>Current run</h2>
+            <div class="handoff-summary">
+              <div class="handoff-metric"><strong id="activeStepMetric">--</strong><span>Active step</span></div>
+              <div class="handoff-metric"><strong id="agentCountMetric">--</strong><span>Assigned agents</span></div>
+              <div class="handoff-metric"><strong id="eventCountMetric">0</strong><span>Terminal events</span></div>
+            </div>
+            <div class="context-grid">
+              <div class="context-card"><strong id="contextCandidate">No candidate</strong><span>Selected candidate</span></div>
+              <div class="context-card"><strong id="contextJob">No job</strong><span>Selected job</span></div>
+              <div class="context-card"><strong id="contextSchedule">No interview</strong><span>Latest schedule handoff</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="handoff-layout">
+          <div class="card">
+            <h2>Process flow ownership</h2>
+            <div id="agentFlow" class="agent-flow"></div>
+          </div>
+          <div class="card">
+            <h2>Assign agents</h2>
+            <p class="muted">Assignments are saved in this browser for now. This is the control surface before we persist named agent ownership on the backend.</p>
+            <div id="assignmentList" class="assignment-list"></div>
+          </div>
+        </section>
+
+        <section class="handoff-layout">
+          <div class="terminal">
+            <div class="terminal-head">
+              <strong>Agent handoff terminal</strong>
+              <span id="terminalMode">Live observer ready</span>
+            </div>
+            <div id="terminalLog" class="terminal-log" aria-live="polite"></div>
+          </div>
+          <div class="card">
+            <h2>What this proves</h2>
+            <p>
+              This demo makes the IP visible: Egeria captures a real intake, turns it into a job description, reads live DevReady profile evidence, prepares a match/scheduling handoff, and uses OpenAI to generate a buyer-safe interview draft without sending it.
+            </p>
+            <div class="handoff-note">
+              The terminal is idle until you run it. Use Simulation for a quick visual story, E2E Test for platform readiness, or AI Proof to show the actual inputs, OpenAI-backed draft output, model/config status, and workflow evidence a buyer can inspect.
+            </div>
+          </div>
+        </section>
+
+        <section class="handoff-layout">
+          <div class="card">
+            <div class="report-toolbar">
+              <div>
+                <h2>AI proof trail</h2>
+                <p class="muted">
+                  Shows what the AI evaluated, which platform endpoint produced it, and whether OpenAI-backed work returned usable output.
+                </p>
+              </div>
+              <button class="btn secondary" type="button" onclick="runAiProofDemo()">Run AI proof</button>
+            </div>
+            <div class="ai-moment-grid">
+              <div class="ai-moment">
+                <strong>1. The agent reads the live packet</strong>
+                <span>It does not start from a generic demo. It pulls the latest Call Ask, saved JD, profile evidence, and interview archive context.</span>
+                <span class="source-ref">agent-handoff.html -> buildHandoffPacket()</span>
+              </div>
+              <div class="ai-moment">
+                <strong>2. The API verifies AI readiness</strong>
+                <span>The page checks whether OpenAI and the voice provider are configured server-side without exposing secrets to the browser.</span>
+                <span class="source-ref">main.py -> _call_intake_env_status()</span>
+              </div>
+              <div class="ai-moment">
+                <strong>3. OpenAI receives structured context</strong>
+                <span>The interview draft endpoint sends role, company, JD text, profile context, attendees, and rules to OpenAI for a strict JSON draft.</span>
+                <span class="source-ref">calendar_router.py -> invite_draft()</span>
+              </div>
+              <div class="ai-moment">
+                <strong>4. The result becomes workflow output</strong>
+                <span>The returned AI draft is rendered as proof: title, subject, agenda, body preview, model/config status, and elapsed time.</span>
+                <span class="source-ref">agent-handoff.html -> runAiProofEvaluation()</span>
+              </div>
+            </div>
+            <div id="aiProofTrail" class="proof-panel">
+              <div class="report-empty">No proof run yet. Click <strong>Run AI proof</strong> or <strong>Run E2E test</strong>.</div>
+            </div>
+          </div>
+          <div class="card">
+            <h2>Buyer demo talking points</h2>
+            <div class="proof-card ok">
+              <strong>Visible IP <span class="proof-pill">Demo-ready</span></strong>
+              <div class="proof-detail">A buyer can see the system listen, extract, normalize, match, draft, schedule, and archive rather than hearing a generic AI claim.</div>
+            </div>
+            <div class="proof-card ok">
+              <strong>Evidence, not theater <span class="proof-pill">Traceable</span></strong>
+              <div class="proof-detail">Each proof row names the source endpoint, the selected JD/profile evidence, the model/config status, and the output returned by the AI workflow.</div>
+            </div>
+            <div class="proof-card warn">
+              <strong>No accidental outreach <span class="proof-pill">Safe test</span></strong>
+              <div class="proof-detail">Drafting proves the AI layer without sending email, creating calendar invites, or contacting candidates/clients.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card handoff-report">
+          <div class="report-toolbar">
+            <div>
+              <h2>Test extract document</h2>
+              <p class="muted">
+                Run the E2E test to generate the actual flow packet, role context, candidate profile extract, contact plan, AI actions, and code evidence.
+              </p>
+            </div>
+            <div class="handoff-actions">
+              <button class="btn secondary" type="button" onclick="copyHandoffReport()">Copy report</button>
+              <button class="btn secondary" type="button" onclick="downloadHandoffDoc()">Download doc</button>
+            </div>
+          </div>
+          <div id="handoffReport" class="report-empty">
+            No extract yet. Click <strong>Run E2E test</strong> and the report will appear here.
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const flowSteps = [
+        { key: "talent", label: "Talent intake", num: "1", href: "find-candidate.html", defaultAgent: "talent", event: "Candidate/profile context collected" },
+        { key: "jobs", label: "Job description", num: "JD", href: "job-descriptions.html", defaultAgent: "jobs", event: "Role requirements normalized for matching" },
+        { key: "find_in", label: "Find candidates in", num: "2", href: "match-role.html", defaultAgent: "match", event: "Internal profiles ranked against the role" },
+        { key: "find_out", label: "Find candidates out", num: "2*", href: "mine-candidate-external.html", defaultAgent: "external", event: "External fallback checked when internal fit is weak" },
+        { key: "profile", label: "Profile build", num: "3", href: "profile-preview.html", defaultAgent: "profile", event: "Candidate profile reviewed and strengthened" },
+        { key: "candidate_chat", label: "Candidate chat", num: "4", href: "candidate-chat.html", defaultAgent: "profile", event: "Candidate context captured and fed back to profile" },
+        { key: "shortlist", label: "Shortlist", num: "5", href: "client-comm.html", defaultAgent: "clientcomms", event: "Client-ready shortlist package prepared" },
+        { key: "candidate_review", label: "Candidate review", num: "6A", href: "schedule-interview.html?interview=ready", defaultAgent: "schedule", event: "Candidate review scheduled and archived" },
+        { key: "client_interview", label: "Client interview", num: "6B", href: "schedule-interview.html?interview=client", defaultAgent: "schedule", event: "Client interview invite created and tracked" },
+        { key: "meet", label: "Meeting readout", num: "M", href: "meet.html", defaultAgent: "meet", event: "Meeting transcript and actions handed to Atlas" },
+        { key: "status", label: "Status handoff", num: "7", href: "status-tracker.html", defaultAgent: "egeria", event: "Status, next action, and follow-up owner set" },
+      ];
+      let terminalEvents = [];
+      let handoffTimer = null;
+      let lastContextSignature = "";
+      let latestHandoffPacket = null;
+      let latestTestChecks = [];
+      let latestAiProof = [];
+      const handoffTestEmail = "darrin.joncas@devready.io";
+
+      function currentDomain() {
+        return sessionStorage.getItem("domain") || "dev";
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function withDomain(href) {
+        const url = new URL(href, window.location.href);
+        url.searchParams.set("domain", currentDomain());
+        return url.href;
+      }
+
+      function agents() {
+        return window.DevReadyPageAgents?.allAgents?.() || [];
+      }
+
+      function agentByKey(key) {
+        return agents().find((agent) => agent.key === key) || agents()[0] || { key: "numa", name: "Numa", page: "General", color: "#2f7d4b" };
+      }
+
+      function assignmentKey() {
+        return `devreadyAgentHandoffAssignments:${currentDomain()}`;
+      }
+
+      function assignments() {
+        const defaults = Object.fromEntries(flowSteps.map((step) => [step.key, step.defaultAgent]));
+        try {
+          return { ...defaults, ...JSON.parse(localStorage.getItem(assignmentKey()) || "{}") };
+        } catch {
+          return defaults;
+        }
+      }
+
+      function saveAssignment(stepKey, agentKey) {
+        const current = assignments();
+        current[stepKey] = agentKey;
+        localStorage.setItem(assignmentKey(), JSON.stringify(current));
+        logEvent(stepKey, "assignment", `${agentByKey(agentKey).name} assigned to ${stepLabel(stepKey)}`);
+        renderDashboard();
+      }
+
+      function stepLabel(stepKey) {
+        return flowSteps.find((step) => step.key === stepKey)?.label || stepKey;
+      }
+
+      function contextSnapshot() {
+        const domain = currentDomain();
+        let latestSchedule = null;
+        try {
+          latestSchedule = JSON.parse(sessionStorage.getItem(`latestScheduleTracking:${domain}`) || sessionStorage.getItem("latestScheduleTracking") || "null");
+        } catch {}
+        return {
+          candidateId: sessionStorage.getItem("candidateId") || "",
+          candidateName: sessionStorage.getItem("candidateName") || "",
+          candidateEmail: sessionStorage.getItem("candidateEmail") || "",
+          jobId: sessionStorage.getItem("jobID") || "",
+          jobTitle: sessionStorage.getItem("jobTitle") || "",
+          jobCompany: sessionStorage.getItem("jobCompany") || "",
+          jobSkills: sessionStorage.getItem("jobSkills") || "",
+          schedule: latestSchedule || {},
+        };
+      }
+
+      function activeStepKey(snapshot = contextSnapshot()) {
+        const simulated = sessionStorage.getItem("devreadyAgentHandoffActiveStep");
+        if (simulated && flowSteps.some((step) => step.key === simulated)) return simulated;
+        const page = window.location.pathname.split("/").pop() || "";
+        if (page.includes("job-descriptions")) return "jobs";
+        if (page.includes("match-role")) return "find_in";
+        if (page.includes("mine-candidate")) return "find_out";
+        if (page.includes("profile")) return "profile";
+        if (page.includes("candidate-chat")) return "candidate_chat";
+        if (page.includes("client-comm")) return "shortlist";
+        if (page.includes("schedule-interview")) return snapshot.schedule?.interviewType === "client" ? "client_interview" : "candidate_review";
+        if (page.includes("meet")) return "meet";
+        if (page.includes("status")) return "status";
+        if (snapshot.schedule?.id) return "status";
+        if (snapshot.candidateId && snapshot.jobId) return "find_in";
+        if (snapshot.jobId) return "jobs";
+        if (snapshot.candidateId) return "talent";
+        return "talent";
+      }
+
+      function statusForStep(step, activeKey) {
+        const activeIndex = flowSteps.findIndex((row) => row.key === activeKey);
+        const stepIndex = flowSteps.findIndex((row) => row.key === step.key);
+        if (step.key === activeKey) return "active";
+        if (stepIndex < activeIndex) return "done";
+        return "waiting";
+      }
+
+      function renderFlow() {
+        const map = assignments();
+        const activeKey = activeStepKey();
+        document.getElementById("agentFlow").innerHTML = flowSteps
+          .map((step) => {
+            const owner = agentByKey(map[step.key]);
+            const status = statusForStep(step, activeKey);
+            return `
+              <article class="agent-step ${status}">
+                <div class="step-num">${escapeHtml(step.num)}</div>
+                <div class="step-main">
+                  <strong>${escapeHtml(step.label)}</strong>
+                  <span>${escapeHtml(step.event)}</span>
+                </div>
+                <div class="agent-owner">
+                  <i class="agent-dot" style="background:${escapeHtml(owner.color || "#2f7d4b")}">${escapeHtml((owner.name || "N").slice(0, 1))}</i>
+                  <div>
+                    <strong>${escapeHtml(owner.name || "Numa")}</strong>
+                    <span>${escapeHtml(owner.page || owner.key)}</span>
+                  </div>
+                </div>
+                <a class="btn secondary" href="${withDomain(step.href)}">${status === "active" ? "Open" : "View"}</a>
+              </article>
+            `;
+          })
+          .join("");
+      }
+
+      function renderAssignments() {
+        const map = assignments();
+        const options = agents()
+          .map((agent) => `<option value="${escapeHtml(agent.key)}">${escapeHtml(agent.name)} - ${escapeHtml(agent.page)}</option>`)
+          .join("");
+        document.getElementById("assignmentList").innerHTML = flowSteps
+          .map((step) => `
+            <div class="assignment-row">
+              <label>
+                ${escapeHtml(step.label)}
+                <select onchange="saveAssignment('${escapeHtml(step.key)}', this.value)">
+                  ${options.replace(`value="${escapeHtml(map[step.key])}"`, `value="${escapeHtml(map[step.key])}" selected`)}
+                </select>
+              </label>
+              <span>${escapeHtml(step.event)}</span>
+            </div>
+          `)
+          .join("");
+      }
+
+      function renderContext() {
+        const snapshot = contextSnapshot();
+        document.getElementById("contextCandidate").textContent = snapshot.candidateName || snapshot.candidateId || "No candidate";
+        document.getElementById("contextJob").textContent = [snapshot.jobCompany, snapshot.jobTitle || snapshot.jobId].filter(Boolean).join(" - ") || "No job";
+        document.getElementById("contextSchedule").textContent = snapshot.schedule?.status || snapshot.schedule?.interviewType || "No interview";
+        document.getElementById("activeStepMetric").textContent = stepLabel(activeStepKey(snapshot));
+        document.getElementById("agentCountMetric").textContent = new Set(Object.values(assignments())).size;
+        document.getElementById("eventCountMetric").textContent = terminalEvents.length;
+      }
+
+      function terminalTime() {
+        return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      }
+
+      function logEvent(stepKey, eventType, message) {
+        const owner = agentByKey(assignments()[stepKey]);
+        terminalEvents.push({
+          time: terminalTime(),
+          stepKey,
+          eventType,
+          agent: `${owner.name} / ${owner.page}`,
+          message,
+        });
+        terminalEvents = terminalEvents.slice(-120);
+        renderTerminal();
+      }
+
+      function renderTerminal() {
+        const log = document.getElementById("terminalLog");
+        log.innerHTML = terminalEvents
+          .map((row) => {
+            const tone = row.tone ? ` <span class="${escapeHtml(row.tone)}">${escapeHtml(row.tone.toUpperCase())}</span>` : "";
+            return `<div class="terminal-line"><span class="time">[${escapeHtml(row.time)}]</span> <span class="agent">${escapeHtml(row.agent)}</span> <span class="event">${escapeHtml(row.eventType)}</span>${tone} ${escapeHtml(row.message)}</div>`;
+          })
+          .join("");
+        log.scrollTop = log.scrollHeight;
+        document.getElementById("eventCountMetric").textContent = terminalEvents.length;
+      }
+
+      function resetAiProof() {
+        latestAiProof = [];
+        renderAiProofTrail();
+      }
+
+      function addAiProof(row) {
+        const proof = {
+          status: row.status || "ok",
+          label: row.label || "AI proof",
+          source: row.source || "",
+          detail: row.detail || "",
+          input: row.input || "",
+          output: row.output || "",
+          agentLens: row.agentLens || "",
+          sourceCode: row.sourceCode || "",
+          elapsedMs: row.elapsedMs || 0,
+        };
+        latestAiProof.push(proof);
+        renderAiProofTrail();
+        return proof;
+      }
+
+      function renderAiProofTrail() {
+        const el = document.getElementById("aiProofTrail");
+        if (!el) return;
+        if (!latestAiProof.length) {
+          el.innerHTML = `<div class="report-empty">No proof run yet. Click <strong>Run AI proof</strong> or <strong>Run E2E test</strong>.</div>`;
+          return;
+        }
+        el.innerHTML = latestAiProof.map((row, index) => `
+          <article class="proof-card ${escapeHtml(row.status)}">
+            <strong>${index + 1}. ${escapeHtml(row.label)} <span class="proof-pill">${escapeHtml(row.status.toUpperCase())}${row.elapsedMs ? ` / ${escapeHtml(row.elapsedMs)}ms` : ""}</span></strong>
+            <div class="proof-detail"><strong>Source:</strong> ${escapeHtml(row.source || "DevReady workflow")}</div>
+            <div class="proof-detail">${escapeHtml(row.detail)}</div>
+            ${row.agentLens ? `<div class="proof-output"><strong>AI in the moment:</strong><br>${escapeHtml(row.agentLens)}</div>` : ""}
+            ${row.input ? `<div class="proof-output"><strong>Evaluated input:</strong><br>${escapeHtml(row.input)}</div>` : ""}
+            ${row.output ? `<div class="proof-output"><strong>Returned output:</strong><br>${escapeHtml(row.output)}</div>` : ""}
+            ${row.sourceCode ? `<pre class="code-snippet">${escapeHtml(row.sourceCode)}</pre>` : ""}
+          </article>
+        `).join("");
+      }
+
+      function clearTerminal() {
+        terminalEvents = [];
+        renderTerminal();
+        logEvent(activeStepKey(), "idle", "Terminal cleared. Nothing runs until you click Simulation, E2E Test, or Refresh context.");
+      }
+
+      function refreshHandoffContext() {
+        const snapshot = contextSnapshot();
+        const signature = JSON.stringify(snapshot);
+        if (signature !== lastContextSignature) {
+          lastContextSignature = signature;
+          logEvent(activeStepKey(snapshot), "context", "Workflow context changed or refreshed.");
+        } else {
+          logEvent(activeStepKey(snapshot), "context", "Workflow context checked. No change detected.");
+        }
+        renderDashboard();
+      }
+
+      function renderDashboard() {
+        renderFlow();
+        renderAssignments();
+        renderContext();
+      }
+
+      function runHandoffSimulation() {
+        if (handoffTimer) window.clearInterval(handoffTimer);
+        document.getElementById("terminalMode").textContent = "Simulation running";
+        let index = 0;
+        logEvent("talent", "simulation", "Egeria begins a no-write visual simulation of the agent handoff.");
+        handoffTimer = window.setInterval(() => {
+          const step = flowSteps[index];
+          if (!step) {
+            window.clearInterval(handoffTimer);
+            handoffTimer = null;
+            sessionStorage.removeItem("devreadyAgentHandoffActiveStep");
+            document.getElementById("terminalMode").textContent = "Idle";
+            logEvent("status", "complete", "Simulation complete. No records were changed.");
+            renderDashboard();
+            return;
+          }
+          sessionStorage.setItem("devreadyAgentHandoffActiveStep", step.key);
+          logEvent(step.key, "handoff", `${step.event}. The assigned agent explains what it would inspect before handing off.`);
+          index += 1;
+          renderDashboard();
+        }, 1100);
+      }
+
+      async function fetchJson(path) {
+        const response = await fetch(path, { headers: { "Cache-Control": "no-cache" } });
+        const text = await response.text();
+        let data = {};
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          data = { raw: text };
+        }
+        if (!response.ok) {
+          throw new Error(data.detail || data.error || response.statusText);
+        }
+        return data;
+      }
+
+      function logCheck(stepKey, eventType, ok, message) {
+        const check = { stepKey, eventType, ok: Boolean(ok), message };
+        latestTestChecks.push(check);
+        const owner = agentByKey(assignments()[stepKey]);
+        terminalEvents.push({
+          time: terminalTime(),
+          stepKey,
+          eventType,
+          agent: `${owner.name} / ${owner.page}`,
+          message,
+          tone: ok ? "ok" : "warn",
+        });
+        terminalEvents = terminalEvents.slice(-120);
+        renderTerminal();
+        return check;
+      }
+
+      async function fetchJobContext(snapshot) {
+        const domain = currentDomain();
+        if (!snapshot.jobId) {
+          const fallbackJob = await fetchFallbackJobContext(domain);
+          if (fallbackJob) return fallbackJob;
+        }
+        if (!snapshot.jobId) {
+          return {
+            source: "session fallback",
+            jd_id: "",
+            company: snapshot.jobCompany || "Client to confirm",
+            title: snapshot.jobTitle || "Role to confirm",
+            description: snapshot.jobSkills || "No selected job description was found in the current browser session.",
+            skills: snapshot.jobSkills ? String(snapshot.jobSkills).split(",").map((skill) => skill.trim()).filter(Boolean) : [],
+          };
+        }
+        const attempts = [
+          `/api/azureJobs/getJob/${encodeURIComponent(snapshot.jobId)}?domain=${encodeURIComponent(domain)}`,
+          `/api/jd/${encodeURIComponent(snapshot.jobId)}?domain=${encodeURIComponent(domain)}`,
+        ];
+        let lastError = null;
+        for (const path of attempts) {
+          try {
+            const job = await fetchJson(path);
+            return {
+              source: path.includes("azureJobs") ? "azure job endpoint" : "jd endpoint",
+              jd_id: job.jd_id || job.id || snapshot.jobId,
+              company: job.company || snapshot.jobCompany || "Client to confirm",
+              title: job.title || job.jobtitle || snapshot.jobTitle || "Role to confirm",
+              description: job.description || job.jd_text || job.text || snapshot.jobSkills || "",
+              skills: Array.isArray(job.skills) ? job.skills : flattenSkillTerms(job.jd_skills || job.skills || snapshot.jobSkills),
+            };
+          } catch (error) {
+            lastError = error;
+          }
+        }
+        return {
+          source: `session fallback; job lookup failed: ${lastError?.message || "unknown error"}`,
+          jd_id: snapshot.jobId,
+          company: snapshot.jobCompany || "Client to confirm",
+          title: snapshot.jobTitle || snapshot.jobId || "Role to confirm",
+          description: snapshot.jobSkills || "Selected job id exists, but the dashboard could not load full JD text.",
+          skills: flattenSkillTerms(snapshot.jobSkills),
+        };
+      }
+
+      async function fetchFallbackJobContext(domain) {
+        const callAsk = await fetchLatestCallAsk(domain);
+        if (callAsk?.jd_id) {
+          try {
+            const job = await fetchJson(`/api/azureJobs/getJob/${encodeURIComponent(callAsk.jd_id)}?domain=${encodeURIComponent(domain)}`);
+            return {
+              source: `latest Call Ask JD ${callAsk.jd_id}`,
+              jd_id: job.jd_id || callAsk.jd_id,
+              company: job.company || callAsk.company || "Client to confirm",
+              title: job.title || callAsk.role || "Role to confirm",
+              description: job.description || callAsk.transcript || callAsk.summary || "",
+              skills: Array.isArray(job.skills) ? job.skills : flattenSkillTerms(job.jd_skills || job.skills || ""),
+            };
+          } catch {}
+        }
+        try {
+          const jobs = await fetchJson(`/api/azureJobs/list/${encodeURIComponent(domain)}/1`);
+          const first = Array.isArray(jobs) ? jobs[0] : null;
+          if (first?.jd_id) {
+            const job = await fetchJson(`/api/azureJobs/getJob/${encodeURIComponent(first.jd_id)}?domain=${encodeURIComponent(domain)}`);
+            return {
+              source: `latest saved JD ${first.jd_id}`,
+              jd_id: job.jd_id || first.jd_id,
+              company: job.company || first.company || "Client to confirm",
+              title: job.title || first.title || "Role to confirm",
+              description: job.description || job.jd_text || "",
+              skills: Array.isArray(job.skills) ? job.skills : flattenSkillTerms(job.jd_skills || job.skills || ""),
+            };
+          }
+        } catch {}
+        return null;
+      }
+
+      async function fetchProfileContext(snapshot) {
+        const domain = currentDomain();
+        if (!snapshot.candidateId) {
+          const fallbackProfile = await fetchFallbackProfileContext(domain);
+          if (fallbackProfile) return fallbackProfile;
+        }
+        if (!snapshot.candidateId) {
+          return {
+            source: "session fallback",
+            profile_id: "",
+            name: snapshot.candidateName || "Candidate to confirm",
+            email: snapshot.candidateEmail || handoffTestEmail,
+            title: "Profile role to confirm",
+            summary: "No selected candidate profile was found in the current browser session.",
+            skills: [],
+          };
+        }
+        try {
+          const data = await fetchJson(`/api/azure/getProfile/${encodeURIComponent(snapshot.candidateId)}?domain=${encodeURIComponent(domain)}`);
+          const profile = data.profile || data || {};
+          const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(" ") || profile.full_name || profile.name || snapshot.candidateName;
+          const skills = Array.isArray(data.skills)
+            ? data.skills.map((row) => row.skill || row.name || row).filter(Boolean)
+            : flattenSkillTerms(profile.skills || data.skills || "");
+          return {
+            source: "azure profile endpoint",
+            profile_id: snapshot.candidateId,
+            name: fullName || snapshot.candidateName || `Profile ${snapshot.candidateId}`,
+            email: profile.email || snapshot.candidateEmail || handoffTestEmail,
+            title: profile.title || profile.role || "Candidate profile",
+            summary: profile.description || profile.summary || profile.about || "Profile loaded, but no long summary was available.",
+            skills,
+            vetting: data.platformActivity?.step || profile.status || "",
+          };
+        } catch (error) {
+          return {
+            source: `session fallback; profile lookup failed: ${error.message}`,
+            profile_id: snapshot.candidateId,
+            name: snapshot.candidateName || `Profile ${snapshot.candidateId}`,
+            email: snapshot.candidateEmail || handoffTestEmail,
+            title: "Candidate profile",
+            summary: "Selected candidate id exists, but the dashboard could not load full profile text.",
+            skills: [],
+          };
+        }
+      }
+
+      async function fetchFallbackProfileContext(domain) {
+        const callAsk = await fetchLatestCallAsk(domain);
+        const archive = await fetchLatestInterviewArchive(domain);
+        const profileId = callAsk?.profile_id || archive?.candidateId || "";
+        if (!profileId) return null;
+        try {
+          const data = await fetchJson(`/api/azure/getProfile/${encodeURIComponent(profileId)}?domain=${encodeURIComponent(domain)}`);
+          const profile = data.profile || data || {};
+          const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(" ") || profile.full_name || profile.name || archive?.candidateName || `Profile ${profileId}`;
+          const skills = Array.isArray(data.skills)
+            ? data.skills.map((row) => row.skill || row.name || row).filter(Boolean)
+            : flattenSkillTerms(profile.skills || data.skills || "");
+          return {
+            source: callAsk?.profile_id ? `latest Call Ask profile ${profileId}` : `latest interview archive profile ${profileId}`,
+            profile_id: profileId,
+            name: fullName,
+            email: profile.email || archive?.candidateEmail || handoffTestEmail,
+            title: profile.title || archive?.role || "Candidate profile",
+            summary: profile.description || profile.summary || archive?.message || "Profile loaded, but no long summary was available.",
+            skills,
+            vetting: data.platformActivity?.step || profile.status || archive?.status || "",
+          };
+        } catch {
+          if (!archive) return null;
+          return {
+            source: `latest interview archive profile ${profileId}`,
+            profile_id: profileId,
+            name: archive.candidateName || `Profile ${profileId}`,
+            email: archive.candidateEmail || handoffTestEmail,
+            title: archive.role || "Candidate profile",
+            summary: archive.message || archive.nextAction || "Archive record loaded, but full profile lookup was not available.",
+            skills: [],
+            vetting: archive.status || "",
+          };
+        }
+      }
+
+      async function fetchLatestCallAsk(domain) {
+        try {
+          const data = await fetchJson(`/api/call-intake/asks?domain=${encodeURIComponent(domain)}&limit=1`);
+          return Array.isArray(data.asks) ? data.asks[0] : null;
+        } catch {
+          return null;
+        }
+      }
+
+      async function fetchLatestInterviewArchive(domain) {
+        try {
+          const data = await fetchJson(`/api/interviews/archive?domain=${encodeURIComponent(domain)}&limit=1`);
+          return Array.isArray(data.records) ? data.records[0] : null;
+        } catch {
+          return null;
+        }
+      }
+
+      function flattenSkillTerms(value) {
+        if (!value) return [];
+        if (Array.isArray(value)) return value.map((item) => String(item?.skill || item?.name || item)).filter(Boolean).slice(0, 16);
+        if (typeof value === "object") {
+          return Object.values(value)
+            .flatMap((item) => Array.isArray(item) ? item : [item])
+            .map((item) => String(item?.skill || item?.name || item))
+            .filter(Boolean)
+            .slice(0, 16);
+        }
+        return String(value).split(/[,;\n]/).map((item) => item.trim()).filter(Boolean).slice(0, 16);
+      }
+
+      function truncate(value, max = 900) {
+        const text = String(value || "").trim();
+        return text.length > max ? `${text.slice(0, max - 3)}...` : text;
+      }
+
+      function buildAiActions(snapshot, job, profile) {
+        return [
+          `Egeria intake agent captures the caller request and stores the working context for ${job.title || "the role"}.`,
+          `JD agent normalizes the transcript into a saved job description packet for ${job.company || "the client"}.`,
+          `Matching agent uses the selected/saved JD to rank DevReady internal profiles before any external fallback.`,
+          `Profile agent extracts candidate evidence from ${profile.name || "the selected profile"} and keeps resume/profile facts visible.`,
+          `Client comms agent prepares a safe confirmation package instead of sending to a real outside address during this test.`,
+          `Scheduling agent builds both Candidate Review and Client Interview envelopes with controlled test routing.`,
+          `Meeting agent is ready to capture transcript/readout if the flow moves into a client or candidate meeting.`,
+          `Status agent archives the run, records WARN/OK checks, and exposes setup gaps to the human operator.`,
+        ];
+      }
+
+      function buildEmailEnvelopes(job, profile) {
+        const role = job.title || "Role to confirm";
+        const company = job.company || "Client to confirm";
+        return [
+          {
+            label: "Candidate Review",
+            fromName: "Egeria Candidate Desk",
+            toName: profile.name || "Candidate Demo",
+            subject: `Candidate review for ${role}`,
+            body: `Hi ${profile.name || "Candidate"}, DevReady would like to confirm your interest and availability for ${role} with ${company}.`,
+          },
+          {
+            label: "Client Interview",
+            fromName: "Egeria Client Desk",
+            toName: "Client Interview Demo",
+            subject: `DevReady profile match for ${role}`,
+            body: `Hi Client Interview Demo, the DevReady search is complete. Please review ${profile.name || "the recommended candidate"} for ${role}.`,
+          },
+        ].map((row) => ({
+          ...row,
+          from: `${row.fromName} <${handoffTestEmail}>`,
+          to: `${row.toName} <${handoffTestEmail}>`,
+          replyTo: `DevReady Scheduling <${handoffTestEmail}>`,
+        }));
+      }
+
+      function buildCodeEvidence() {
+        return [
+          {
+            label: "Python: OpenAI interview draft",
+            code: `# backend/calendar_router.py -> invite_draft()
+prompt = f"""
+You are an interview scheduling assistant for DevReady.
+Return only strict JSON matching the schema.
+
+Candidate: {candidate_name} <{candidate_email}>
+Role: {role}
+Company: {payload.get("company") or ""}
+Job description: {payload.get("job_description") or ""}
+Context from candidate chat/profile: {payload.get("ai_context") or ""}
+"""
+resp = _openai_client().responses.create(
+    model=OPENAI_MODEL,
+    input=[{"role": "user", "content": prompt}],
+    text={"format": {"type": "json_schema", "name": DRAFT_SCHEMA["name"], "schema": DRAFT_SCHEMA["schema"], "strict": True}},
+)`,
+          },
+          {
+            label: "Python: phone transcript extraction",
+            code: `# backend/main.py -> _call_intake_ai_answers_from_text()
+response = client.chat.completions.create(
+    model=os.getenv("OPENAI_AGENT_MODEL", "gpt-4o-mini"),
+    messages=[
+        {"role": "system", "content": "Extract a DevReady Call Ask from a phone transcript or call summary..."},
+        {"role": "user", "content": clean_text},
+    ],
+    temperature=0,
+)`,
+          },
+          {
+            label: "Python: AI readiness without exposing secrets",
+            code: `# backend/main.py -> _call_intake_env_status()
+return {
+    "retell": {"configured": retell_ready, "api_key": retell_api_key, "agent_id": retell_agent_id},
+    "openai_realtime": {
+        "configured": bool(os.getenv("OPENAI_API_KEY")),
+        "model": os.getenv("CALL_INTAKE_REALTIME_MODEL", "gpt-realtime"),
+    },
+    "storage": {"jobs": True, "profiles": True, "matching": True},
+}`,
+          },
+          {
+            label: "Python: page-agent route",
+            code: `# backend/main.py -> ask_agent()
+@app.post("/api/agents/ask")
+def ask_agent(agent_key: str = Form(default="talent"), message: str = Form(default=""), context_json: str = Form(default="{}"), ...):
+    context = _agent_context_with_access(context_json, domain, admin_token, numa_change_mode)
+    return pageAgents.ask_page_agent(agent_key, message, context)`,
+          },
+          {
+            label: "Manual run only",
+            code: `document.getElementById("terminalMode").textContent = "Idle";\n// No setInterval refresh loop is started on page load.`,
+          },
+          {
+            label: "Live backend checks",
+            code: `await fetchJson("/api/calendar/health");\nawait fetchJson(\`/api/interviews/archive?domain=\${encodeURIComponent(currentDomain())}&limit=10\`);`,
+          },
+          {
+            label: "Actual selected data fetch",
+            code: `await fetchJson(\`/api/azure/getProfile/\${candidateId}?domain=\${domain}\`);\nawait fetchJson(\`/api/azureJobs/getJob/\${jobId}?domain=\${domain}\`);`,
+          },
+          {
+            label: "Safe test email routing",
+            code: `const handoffTestEmail = "darrin.joncas@devready.io";\nfrom: \`Egeria Client Desk <\${handoffTestEmail}>\`\nto: \`Client Interview Demo <\${handoffTestEmail}>\``,
+          },
+          {
+            label: "OpenAI proof call",
+            code: `await fetchJson("/api/calendar/invite/draft", {\n  candidate_email: handoffTestEmail,\n  role: packet.job.title,\n  job_description: packet.job.description,\n  ai_context: packet.profile.summary\n});\n// Server-side route uses OpenAI Responses API and returns a structured draft.`,
+          },
+        ];
+      }
+
+      async function postJson(path, payload) {
+        const response = await fetch(path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" },
+          body: JSON.stringify(payload || {}),
+        });
+        const text = await response.text();
+        let data = {};
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          data = { raw: text };
+        }
+        if (!response.ok) {
+          throw new Error(data.detail || data.error || response.statusText);
+        }
+        return data;
+      }
+
+      function draftOutputSummary(draft) {
+        const agenda = Array.isArray(draft.agenda) ? draft.agenda.slice(0, 4).join("; ") : "";
+        const body = truncate(draft.email_body || "", 360);
+        return [
+          `Title: ${draft.title || "No title"}`,
+          `Subject: ${draft.email_subject || "No subject"}`,
+          agenda ? `Agenda: ${agenda}` : "",
+          body ? `Body preview: ${body}` : "",
+        ].filter(Boolean).join("\n");
+      }
+
+      function proofInputSummary(packet) {
+        return [
+          `Role: ${packet.job.title || "Role to confirm"}`,
+          `Company: ${packet.job.company || "Client to confirm"}`,
+          `JD source: ${packet.job.source || "unknown"}`,
+          `Profile: ${packet.profile.name || "Candidate to confirm"} (${packet.profile.source || "unknown"})`,
+          `Skills: ${(packet.job.skills || []).slice(0, 8).join(", ") || "to confirm"}`,
+        ].join("\n");
+      }
+
+      async function runAiProofEvaluation(packet) {
+        resetAiProof();
+        const started = performance.now();
+        addAiProof({
+          status: "ok",
+          label: "Live data packet assembled",
+          source: "DevReady dashboard + backend context",
+          detail: "The proof run starts with real workflow data, not a static slide.",
+          agentLens: "Observe: collect the role, caller/JD source, profile evidence, and workflow state. Decide: this is enough context to ask the AI draft layer for a client-safe next-step package.",
+          input: proofInputSummary(packet),
+          output: `JD ${packet.job.jd_id || "pending"} / Profile ${packet.profile.profile_id || "pending"}`,
+          sourceCode: `agent-handoff.html -> buildHandoffPacket()
+const [job, profile] = await Promise.all([
+  fetchJobContext(snapshot),
+  fetchProfileContext(snapshot)
+]);`,
+        });
+
+        try {
+          const healthStart = performance.now();
+          const health = await fetchJson("/api/calendar/health");
+          addAiProof({
+            status: health.openai_key_found ? "ok" : "warn",
+            label: "OpenAI configuration checked",
+            source: "GET /api/calendar/health",
+            detail: health.openai_key_found
+              ? "OpenAI API key is configured server-side. The key is never exposed to the browser."
+              : "OpenAI API key was not reported as configured, so AI draft generation may fail.",
+            agentLens: "Verify: before claiming AI capability, the system checks the backend OpenAI configuration and model. It reports presence/configuration only, never the secret value.",
+            output: `Model: ${health.model || "not reported"}\nOpenAI key present: ${health.openai_key_found ? "yes" : "no"}\nOutlook configured: ${health.outlook?.client_configured ? "yes" : "no"}`,
+            sourceCode: `calendar_router.py -> calendar_health()
+return {
+  "openai_key_found": bool(os.getenv("OPENAI_API_KEY", "").strip()),
+  "model": OPENAI_MODEL,
+}`,
+            elapsedMs: Math.round(performance.now() - healthStart),
+          });
+        } catch (error) {
+          addAiProof({
+            status: "warn",
+            label: "OpenAI configuration check failed",
+            source: "GET /api/calendar/health",
+            detail: "The dashboard could not read calendar/OpenAI readiness.",
+            output: error.message,
+          });
+        }
+
+        try {
+          const intakeStart = performance.now();
+          const intake = await fetchJson("/api/call-intake/health");
+          addAiProof({
+            status: intake.openai_realtime?.configured ? "ok" : "warn",
+            label: "Voice AI readiness checked",
+            source: "GET /api/call-intake/health",
+            detail: "Shows whether the phone intake layer has provider, realtime AI, storage, and matching configured.",
+            agentLens: "Verify: the voice layer can receive a call, use the configured provider, hand transcript/summary into AI extraction, save a JD/profile request, and run internal matching.",
+            output: `Provider: ${intake.provider || "unknown"}\nPhone: ${intake.phone_number || "not set"}\nOpenAI realtime: ${intake.openai_realtime?.configured ? "configured" : "not configured"}\nRealtime model: ${intake.openai_realtime?.model || "not reported"}\nRetell: ${intake.retell?.configured ? "configured" : "not configured"}`,
+            sourceCode: `main.py -> _call_intake_env_status()
+"openai_realtime": {
+  "configured": bool(os.getenv("OPENAI_API_KEY")),
+  "model": os.getenv("CALL_INTAKE_REALTIME_MODEL", "gpt-realtime"),
+}`,
+            elapsedMs: Math.round(performance.now() - intakeStart),
+          });
+        } catch (error) {
+          addAiProof({
+            status: "warn",
+            label: "Voice AI readiness check failed",
+            source: "GET /api/call-intake/health",
+            detail: "Call intake health was not available during the proof run.",
+            output: error.message,
+          });
+        }
+
+        const draftPayload = {
+          candidate_email: handoffTestEmail,
+          candidate_name: packet.profile.name || "Candidate Review Demo",
+          interview_type: "client",
+          ready_purpose: "client",
+          role: packet.job.title || "Role to confirm",
+          company: packet.job.company || "Client to confirm",
+          job_description: truncate(packet.job.description || "", 2400),
+          ai_context: truncate(packet.profile.summary || "", 1200),
+          talking_points: [
+            `Evaluate fit for ${packet.job.title || "the role"}.`,
+            `Discuss evidence from ${packet.profile.name || "the selected profile"}.`,
+            "Confirm availability, communication style, and next-step readiness.",
+          ],
+          interviewers: [{ name: "Egeria DevReady", email: handoffTestEmail }],
+          attendees: [{ name: "Client Interview Demo", email: handoffTestEmail }],
+          duration_minutes: 45,
+          location: "Microsoft Teams",
+        };
+        try {
+          const draftStart = performance.now();
+          const draft = await postJson("/api/calendar/invite/draft", draftPayload);
+          packet.aiDraft = draft;
+          addAiProof({
+            status: "ok",
+            label: "OpenAI generated interview draft",
+            source: "POST /api/calendar/invite/draft -> OpenAI Responses API",
+            detail: "This is the actual OpenAI-backed work product. It drafts structured interview content from the JD/profile packet without sending email or creating a calendar event.",
+            agentLens: "Analyze: OpenAI receives the JD, company, candidate context, meeting rules, and attendees. It must return strict JSON, so the app can trust the shape enough to preview or later send through Outlook/Google.",
+            input: proofInputSummary(packet),
+            output: draftOutputSummary(draft),
+            sourceCode: `calendar_router.py -> invite_draft()
+resp = _openai_client().responses.create(
+  model=OPENAI_MODEL,
+  input=[{"role": "user", "content": prompt}],
+  text={"format": {"type": "json_schema", "strict": True}},
+)`,
+            elapsedMs: Math.round(performance.now() - draftStart),
+          });
+        } catch (error) {
+          addAiProof({
+            status: "warn",
+            label: "OpenAI draft call failed",
+            source: "POST /api/calendar/invite/draft",
+            detail: "The proof run attempted the server-side OpenAI draft call, but it did not return a draft.",
+            input: proofInputSummary(packet),
+            output: error.message,
+          });
+        }
+
+        addAiProof({
+          status: "ok",
+          label: "Buyer-visible proof complete",
+          source: "AI Agent Handoff dashboard",
+          detail: "The buyer can inspect the workflow data, endpoint evidence, AI output, and readiness warnings in one place.",
+          output: `Proof rows: ${latestAiProof.length}\nTotal elapsed: ${Math.round(performance.now() - started)}ms`,
+        });
+        return latestAiProof.slice();
+      }
+
+      async function runAiProofDemo() {
+        document.getElementById("terminalMode").textContent = "AI proof running";
+        logEvent("egeria", "ai-proof", "Building live data packet and calling AI proof endpoints.");
+        latestHandoffPacket = await buildHandoffPacket();
+        latestHandoffPacket.aiProof = await runAiProofEvaluation(latestHandoffPacket);
+        renderHandoffReport(latestHandoffPacket);
+        document.getElementById("terminalMode").textContent = "Idle";
+        logEvent("status", "ai-proof", "AI proof run complete. The proof trail now shows evidence and OpenAI-backed draft output.");
+      }
+
+      async function buildHandoffPacket() {
+        const snapshot = contextSnapshot();
+        const [job, profile] = await Promise.all([fetchJobContext(snapshot), fetchProfileContext(snapshot)]);
+        const activeAssignments = assignments();
+        return {
+          generatedAt: new Date().toISOString(),
+          domain: currentDomain(),
+          snapshot,
+          flow: flowSteps.map((step) => ({
+            ...step,
+            owner: agentByKey(activeAssignments[step.key]),
+            status: statusForStep(step, activeStepKey(snapshot)),
+          })),
+          job,
+          profile,
+          contact: {
+            clientName: "Client Interview Demo",
+            candidateName: profile.name || "Candidate Demo",
+            devreadyOwner: "Egeria DevReady",
+            email: handoffTestEmail,
+          },
+          aiActions: buildAiActions(snapshot, job, profile),
+          emailEnvelopes: buildEmailEnvelopes(job, profile),
+          codeEvidence: buildCodeEvidence(),
+          aiProof: latestAiProof.slice(),
+          aiDraft: null,
+          checks: latestTestChecks.slice(),
+        };
+      }
+
+      function renderHandoffReport(packet) {
+        latestHandoffPacket = packet;
+        const okCount = packet.checks.filter((row) => row.ok).length;
+        const warnCount = packet.checks.length - okCount;
+        document.getElementById("handoffReport").className = "report-grid";
+        document.getElementById("handoffReport").innerHTML = `
+          <div class="report-block full">
+            <h3>Run summary</h3>
+            <p><strong>Generated:</strong> ${escapeHtml(packet.generatedAt)}</p>
+            <p><strong>Domain:</strong> ${escapeHtml(packet.domain)} | <strong>Checks:</strong> ${okCount} OK / ${warnCount} WARN</p>
+            <p><strong>Safe email routing:</strong> every test envelope uses ${escapeHtml(handoffTestEmail)} for to, from, and reply-to while display names differ.</p>
+          </div>
+          <div class="report-block full">
+            <h3>Actual flow</h3>
+            <ol>${packet.flow.map((step) => `<li><strong>${escapeHtml(step.num)} - ${escapeHtml(step.label)}</strong>: ${escapeHtml(step.owner.name)} handles "${escapeHtml(step.event)}" (${escapeHtml(step.status)}).</li>`).join("")}</ol>
+          </div>
+          <div class="report-block">
+            <h3>Actual job description extract</h3>
+            <p><strong>Source:</strong> ${escapeHtml(packet.job.source)}</p>
+            <p><strong>JD:</strong> ${escapeHtml(packet.job.jd_id || "Not selected")} | <strong>Company:</strong> ${escapeHtml(packet.job.company)}</p>
+            <p><strong>Role:</strong> ${escapeHtml(packet.job.title)}</p>
+            <p>${escapeHtml(truncate(packet.job.description || "No JD text available."))}</p>
+            <p><strong>Skills:</strong> ${escapeHtml((packet.job.skills || []).slice(0, 12).join(", ") || "Skills to confirm")}</p>
+          </div>
+          <div class="report-block">
+            <h3>Actual resume/profile extract</h3>
+            <p><strong>Source:</strong> ${escapeHtml(packet.profile.source)}</p>
+            <p><strong>Profile:</strong> ${escapeHtml(packet.profile.profile_id || "Not selected")} | <strong>Name:</strong> ${escapeHtml(packet.profile.name)}</p>
+            <p><strong>Title:</strong> ${escapeHtml(packet.profile.title)} | <strong>Email:</strong> ${escapeHtml(packet.profile.email)}</p>
+            <p>${escapeHtml(truncate(packet.profile.summary || "No profile summary available."))}</p>
+            <p><strong>Skills:</strong> ${escapeHtml((packet.profile.skills || []).slice(0, 12).join(", ") || "Skills to confirm")}</p>
+          </div>
+          <div class="report-block">
+            <h3>Contact packet</h3>
+            <p><strong>DevReady owner:</strong> ${escapeHtml(packet.contact.devreadyOwner)} &lt;${escapeHtml(packet.contact.email)}&gt;</p>
+            <p><strong>Candidate display name:</strong> ${escapeHtml(packet.contact.candidateName)} &lt;${escapeHtml(packet.contact.email)}&gt;</p>
+            <p><strong>Client display name:</strong> ${escapeHtml(packet.contact.clientName)} &lt;${escapeHtml(packet.contact.email)}&gt;</p>
+          </div>
+          <div class="report-block">
+            <h3>Candidate and client interview envelopes</h3>
+            ${packet.emailEnvelopes.map((mail) => `
+              <div class="email-envelope">
+                <strong>${escapeHtml(mail.label)}</strong>
+                <span><strong>From:</strong> ${escapeHtml(mail.from)}</span>
+                <span><strong>To:</strong> ${escapeHtml(mail.to)}</span>
+                <span><strong>Reply-To:</strong> ${escapeHtml(mail.replyTo)}</span>
+                <span><strong>Subject:</strong> ${escapeHtml(mail.subject)}</span>
+                <span>${escapeHtml(mail.body)}</span>
+              </div>
+            `).join("")}
+          </div>
+          <div class="report-block full">
+            <h3>Highlighted AI actions</h3>
+            ${packet.aiActions.map((action) => `<div class="ai-action">${escapeHtml(action)}</div>`).join("")}
+          </div>
+          <div class="report-block full">
+            <h3>AI proof trail</h3>
+            ${(packet.aiProof || latestAiProof || []).length ? (packet.aiProof || latestAiProof).map((row, index) => `
+              <div class="ai-action">
+                <strong>${index + 1}. ${escapeHtml(row.label)} (${escapeHtml((row.status || "ok").toUpperCase())}${row.elapsedMs ? ` / ${escapeHtml(row.elapsedMs)}ms` : ""})</strong><br>
+                Source: ${escapeHtml(row.source || "DevReady workflow")}<br>
+                ${escapeHtml(row.detail || "")}
+                ${row.agentLens ? `<br><br><strong>AI in the moment:</strong><br>${escapeHtml(row.agentLens)}` : ""}
+                ${row.input ? `<br><br><strong>Evaluated input:</strong><br>${escapeHtml(row.input)}` : ""}
+                ${row.output ? `<br><br><strong>Returned output:</strong><br>${escapeHtml(row.output)}` : ""}
+                ${row.sourceCode ? `<pre class="code-snippet">${escapeHtml(row.sourceCode)}</pre>` : ""}
+              </div>
+            `).join("") : `<p>No AI proof run has been executed yet.</p>`}
+          </div>
+          <div class="report-block full">
+            <h3>Code and evidence</h3>
+            ${packet.codeEvidence.map((item) => `<strong>${escapeHtml(item.label)}</strong><pre class="code-snippet">${escapeHtml(item.code)}</pre>`).join("")}
+          </div>
+          <div class="report-block full">
+            <h3>E2E check output</h3>
+            <ol>${packet.checks.map((row) => `<li><strong>${row.ok ? "OK" : "WARN"} ${escapeHtml(stepLabel(row.stepKey))} / ${escapeHtml(row.eventType)}</strong>: ${escapeHtml(row.message)}</li>`).join("")}</ol>
+          </div>
+        `;
+      }
+
+      function reportAsHtmlDocument(packet) {
+        const body = document.getElementById("handoffReport")?.innerHTML || "";
+        return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>DevReady Agent Handoff Test Extract</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #111827; line-height: 1.45; margin: 32px; }
+    h1, h2, h3 { color: #134b2f; }
+    .report-grid { display: grid; gap: 14px; }
+    .report-block { border: 1px solid #d9e6d2; border-radius: 10px; padding: 14px; }
+    .ai-action { border-left: 4px solid #69a932; background: #f1f8ec; padding: 8px 10px; margin: 7px 0; }
+    .email-envelope { border: 1px dashed #9fca81; border-radius: 10px; padding: 10px; margin-top: 8px; display: grid; gap: 5px; }
+    .code-snippet { background: #0b1411; color: #d8ffe7; border-radius: 8px; padding: 10px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>DevReady Agent Handoff Test Extract</h1>
+  ${body}
+</body>
+</html>`;
+      }
+
+      async function copyHandoffReport() {
+        if (!latestHandoffPacket) {
+          latestHandoffPacket = await buildHandoffPacket();
+          renderHandoffReport(latestHandoffPacket);
+        }
+        const text = document.getElementById("handoffReport").innerText || "";
+        await navigator.clipboard.writeText(text);
+        logEvent("status", "report", "Copied the current handoff extract to clipboard.");
+      }
+
+      async function downloadHandoffDoc() {
+        if (!latestHandoffPacket) {
+          latestHandoffPacket = await buildHandoffPacket();
+          renderHandoffReport(latestHandoffPacket);
+        }
+        const html = reportAsHtmlDocument(latestHandoffPacket);
+        const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `devready-agent-handoff-test-${new Date().toISOString().slice(0, 10)}.html`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(link.href);
+        logEvent("status", "report", "Downloaded the handoff extract document.");
+      }
+
+      async function runEndToEndTest() {
+        if (handoffTimer) window.clearInterval(handoffTimer);
+        handoffTimer = null;
+        document.getElementById("terminalMode").textContent = "E2E test running";
+        terminalEvents = [];
+        latestTestChecks = [];
+        latestHandoffPacket = null;
+        renderTerminal();
+        logEvent("talent", "e2e", "Starting on-demand end-to-end handoff readiness test. No background polling is active.");
+
+        const snapshot = contextSnapshot();
+        logCheck("talent", "context", Boolean(snapshot.candidateId || snapshot.candidateName), `Talent agent checks selected candidate context: ${snapshot.candidateName || snapshot.candidateId || "none selected"}.`);
+        logCheck("jobs", "context", Boolean(snapshot.jobId || snapshot.jobTitle), `Job agent checks selected role context: ${[snapshot.jobCompany, snapshot.jobTitle || snapshot.jobId].filter(Boolean).join(" - ") || "none selected"}.`);
+
+        const agentList = agents();
+        logCheck("profile", "agents", agentList.length >= 6, `Agent registry loaded ${agentList.length} agents for assignment and handoff display.`);
+        logCheck("shortlist", "assignment", Object.keys(assignments()).length >= flowSteps.length, `${flowSteps.length} process steps have saved/default AI owners.`);
+
+        try {
+          const health = await fetchJson("/api/calendar/health");
+          logCheck("candidate_review", "calendar", Boolean(health.ok), "Calendar backend responded for candidate/client scheduling.");
+          logCheck("client_interview", "outlook", Boolean(health.outlook && health.outlook.client_configured), health.outlook?.connected ? "Outlook is connected for real invites." : "Outlook app is configured but user/mailbox connection is still needed.");
+          logCheck("client_interview", "google", Boolean(health.google_secret_found || health.google?.connected), health.google?.connected ? "Google Calendar is connected for real invites." : "Google Calendar is not connected/configured yet.");
+        } catch (error) {
+          logCheck("candidate_review", "calendar", false, `Calendar health check failed: ${error.message}`);
+        }
+
+        try {
+          const archive = await fetchJson(`/api/interviews/archive?domain=${encodeURIComponent(currentDomain())}&limit=10`);
+          logCheck("status", "archive", Array.isArray(archive.records), `Interview archive returned ${(archive.records || []).length} recent records for Status handoff.`);
+        } catch (error) {
+          logCheck("status", "archive", false, `Interview archive check failed: ${error.message}`);
+        }
+
+        const pageChecks = [
+          ["talent", "find-candidate.html"],
+          ["jobs", "job-descriptions.html"],
+          ["find_in", "match-role.html"],
+          ["profile", "profile-preview.html"],
+          ["shortlist", "client-comm.html"],
+          ["candidate_review", "schedule-interview.html?interview=ready"],
+          ["client_interview", "schedule-interview.html?interview=client"],
+          ["meet", "meet.html"],
+          ["status", "status-tracker.html"],
+        ];
+        for (const [stepKey, href] of pageChecks) {
+          const url = withDomain(href);
+          sessionStorage.setItem("devreadyAgentHandoffActiveStep", stepKey);
+          renderDashboard();
+          try {
+            const response = await fetch(url, { headers: { "Cache-Control": "no-cache" } });
+            logCheck(stepKey, "page", response.ok, `${stepLabel(stepKey)} target page ${response.ok ? "is reachable" : `returned ${response.status}`}.`);
+          } catch (error) {
+            logCheck(stepKey, "page", false, `${stepLabel(stepKey)} target page check failed: ${error.message}`);
+          }
+        }
+        sessionStorage.removeItem("devreadyAgentHandoffActiveStep");
+        renderDashboard();
+        latestHandoffPacket = await buildHandoffPacket();
+        latestHandoffPacket.aiProof = await runAiProofEvaluation(latestHandoffPacket);
+        renderHandoffReport(latestHandoffPacket);
+        document.getElementById("terminalMode").textContent = "Idle";
+        logEvent("status", "complete", "E2E readiness test complete. The extract now shows flow, JD, profile, contacts, AI actions, OpenAI proof, and code evidence.");
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        renderDashboard();
+        document.getElementById("terminalMode").textContent = "Idle";
+        logEvent(activeStepKey(), "idle", "Ready. Terminal is not polling; choose Simulation, E2E Test, or Refresh context.");
+        window.DevReadyPageAgents?.mountWidget?.();
+      });
+    </script>
+  </body>
+</html>

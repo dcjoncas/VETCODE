@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Channels</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="JS/pageAgents.js?v=20260620-channels"></script>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html?v=20260620-channels");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+    <style>
+      .channels-shell {
+        display: grid;
+        grid-template-columns: minmax(220px, 0.28fr) minmax(0, 1fr) minmax(260px, 0.32fr);
+        gap: 14px;
+        align-items: stretch;
+      }
+
+      .channel-rail,
+      .channel-main,
+      .channel-side {
+        min-height: 520px;
+      }
+
+      .channel-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .channel-tab {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: #fff;
+        color: var(--text);
+        cursor: pointer;
+        font-weight: 900;
+        text-align: left;
+      }
+
+      .channel-tab.active {
+        border-color: rgba(var(--primary-rgb), 0.55);
+        background: rgba(var(--primary-rgb), 0.1);
+        color: var(--primary-2);
+      }
+
+      .message-log {
+        display: grid;
+        align-content: start;
+        gap: 10px;
+        min-height: 390px;
+        max-height: 58vh;
+        overflow-y: auto;
+        padding: 4px;
+      }
+
+      .message-row {
+        display: grid;
+        gap: 5px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        background: #fff;
+      }
+
+      .message-row.mine {
+        border-color: rgba(var(--primary-rgb), 0.35);
+        background: rgba(var(--primary-rgb), 0.06);
+      }
+
+      .message-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .message-author {
+        color: var(--text);
+        font-weight: 950;
+      }
+
+      .message-text {
+        white-space: pre-wrap;
+        line-height: 1.42;
+      }
+
+      .composer {
+        display: grid;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .composer textarea {
+        width: 100%;
+        min-height: 92px;
+        resize: vertical;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        font: inherit;
+      }
+
+      .composer-actions,
+      .share-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .composer select {
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0 11px;
+        background: #fff;
+        font-weight: 850;
+      }
+
+      .audience-list {
+        display: grid;
+        gap: 8px;
+        max-height: 385px;
+        overflow-y: auto;
+        margin-top: 10px;
+      }
+
+      .audience-row {
+        display: grid;
+        gap: 2px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 9px;
+        background: #fff;
+      }
+
+      .audience-row strong {
+        font-size: 13px;
+      }
+
+      .audience-row span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .copy-status {
+        min-height: 18px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      @media (max-width: 1120px) {
+        .channels-shell {
+          grid-template-columns: 1fr;
+        }
+
+        .channel-rail,
+        .channel-main,
+        .channel-side {
+          min-height: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="siteSidebar"></div>
+    <main class="main">
+      <div id="searchBar"></div>
+      <section class="hero compact">
+        <div>
+          <h1>Channels</h1>
+          <p class="muted">Shared message rooms for DevReady users and candidates.</p>
+        </div>
+        <div class="share-actions">
+          <button class="btn secondary" type="button" onclick="copyChannelLink()">Copy link</button>
+          <button class="btn secondary" type="button" onclick="openChannelNewTab()">Open new tab</button>
+          <button class="btn secondary" type="button" onclick="copyAudienceEmails()">Copy audience emails</button>
+        </div>
+      </section>
+
+      <section class="channels-shell">
+        <aside class="card channel-rail">
+          <h2>Rooms</h2>
+          <div id="channelList" class="channel-list"></div>
+        </aside>
+
+        <section class="card channel-main">
+          <div class="ops-toolbar">
+            <div>
+              <h2 id="channelTitle"># general</h2>
+              <p id="channelShareText" class="muted"></p>
+            </div>
+            <button class="btn secondary" type="button" onclick="loadMessages()">Refresh</button>
+          </div>
+          <div id="messageLog" class="message-log">Loading messages...</div>
+          <form class="composer" onsubmit="sendMessage(event)">
+            <textarea id="messageInput" placeholder="Write a message for this channel..."></textarea>
+            <div class="composer-actions">
+              <select id="audienceSelect" aria-label="Audience">
+                <option value="all">All users and candidates</option>
+                <option value="internal">Internal users</option>
+                <option value="candidates">Candidates</option>
+              </select>
+              <button class="btn primary" type="submit">Send</button>
+              <span id="sendStatus" class="copy-status"></span>
+            </div>
+          </form>
+        </section>
+
+        <aside class="card channel-side">
+          <h2>Audience</h2>
+          <p id="audienceSummary" class="muted">Loading audience...</p>
+          <div id="audienceList" class="audience-list"></div>
+          <p id="copyStatus" class="copy-status"></p>
+        </aside>
+      </section>
+    </main>
+
+    <script>
+      const rooms = [
+        { key: "general", label: "general" },
+        { key: "candidates", label: "candidates" },
+        { key: "interviews", label: "interviews" },
+        { key: "jobs", label: "jobs" },
+      ];
+      let activeChannel = new URLSearchParams(window.location.search).get("channel") || "general";
+      let audience = [];
+
+      function currentDomain() {
+        return sessionStorage.getItem("domain") || document.documentElement.dataset.domain || "dev";
+      }
+
+      function currentUser() {
+        try {
+          return JSON.parse(sessionStorage.getItem("devreadyUser") || localStorage.getItem("devreadyUser") || "null") || {};
+        } catch {
+          return {};
+        }
+      }
+
+      function channelUrl(channel = activeChannel) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("domain", currentDomain());
+        url.searchParams.set("channel", channel);
+        return url.toString();
+      }
+
+      function apiUrl(path, params = {}) {
+        const url = new URL(path, window.location.origin);
+        Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
+        return url.toString();
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function renderRooms() {
+        document.getElementById("channelList").innerHTML = rooms
+          .map((room) => `
+            <button class="channel-tab${room.key === activeChannel ? " active" : ""}" type="button" onclick="setChannel('${room.key}')">
+              <span># ${room.label}</span>
+            </button>
+          `)
+          .join("");
+        document.getElementById("channelTitle").textContent = `# ${activeChannel}`;
+        document.getElementById("channelShareText").textContent = channelUrl();
+      }
+
+      function setChannel(channel) {
+        activeChannel = channel || "general";
+        const url = new URL(window.location.href);
+        url.searchParams.set("domain", currentDomain());
+        url.searchParams.set("channel", activeChannel);
+        history.replaceState({}, "", url.toString());
+        renderRooms();
+        loadMessages();
+      }
+
+      async function loadMessages() {
+        const log = document.getElementById("messageLog");
+        log.textContent = "Loading messages...";
+        try {
+          const response = await fetch(apiUrl("/api/channels/messages", { domain: currentDomain(), channel: activeChannel }), { cache: "no-store" });
+          const data = await response.json();
+          const me = (currentUser().email || "").toLowerCase();
+          const messages = data.messages || [];
+          if (!messages.length) {
+            log.innerHTML = `<div class="message-row"><strong>No messages yet.</strong><span class="muted">Start this channel with a short update.</span></div>`;
+            return;
+          }
+          log.innerHTML = messages
+            .map((message) => {
+              const mine = me && String(message.author_email || "").toLowerCase() === me;
+              return `
+                <article class="message-row${mine ? " mine" : ""}">
+                  <div class="message-meta">
+                    <span class="message-author">${escapeHtml(message.author_name || "DevReady User")}</span>
+                    <span>${escapeHtml(new Date(message.created_at || Date.now()).toLocaleString())}</span>
+                  </div>
+                  <div class="message-text">${escapeHtml(message.message || "")}</div>
+                </article>
+              `;
+            })
+            .join("");
+          log.scrollTop = log.scrollHeight;
+        } catch (error) {
+          log.textContent = "Messages are unavailable. Confirm the backend is running and refresh.";
+        }
+      }
+
+      async function sendMessage(event) {
+        event.preventDefault();
+        const input = document.getElementById("messageInput");
+        const status = document.getElementById("sendStatus");
+        const text = input.value.trim();
+        if (!text) return;
+        const user = currentUser();
+        const body = new URLSearchParams({
+          domain: currentDomain(),
+          channel: activeChannel,
+          message: text,
+          audience: document.getElementById("audienceSelect").value,
+          author_name: user.display_name || user.username || user.email || "",
+          author_email: user.email || "",
+        });
+        status.textContent = "Sending...";
+        try {
+          const response = await fetch("/api/channels/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: body.toString(),
+          });
+          const data = await response.json();
+          if (!response.ok || data.ok === false) throw new Error(data.detail || "Message failed.");
+          input.value = "";
+          status.textContent = "Sent.";
+          await loadMessages();
+        } catch (error) {
+          status.textContent = error.message || "Message failed.";
+        }
+      }
+
+      async function loadAudience() {
+        try {
+          const response = await fetch(apiUrl("/api/channels/audience", { domain: currentDomain() }), { cache: "no-store" });
+          const data = await response.json();
+          audience = data.people || [];
+          document.getElementById("audienceSummary").textContent = `${audience.length} people available for this domain.`;
+          document.getElementById("audienceList").innerHTML = audience.slice(0, 80).map((person) => `
+            <div class="audience-row">
+              <strong>${escapeHtml(person.name)}</strong>
+              <span>${escapeHtml(person.email || person.role || "No email listed")}</span>
+            </div>
+          `).join("") || `<div class="audience-row"><strong>No audience loaded.</strong><span>Refresh after the backend is available.</span></div>`;
+        } catch (error) {
+          document.getElementById("audienceSummary").textContent = "Audience unavailable.";
+        }
+      }
+
+      async function copyText(text, label) {
+        const status = document.getElementById("copyStatus");
+        try {
+          await navigator.clipboard.writeText(text);
+          status.textContent = `${label} copied.`;
+        } catch {
+          status.textContent = `Copy unavailable: ${text}`;
+        }
+      }
+
+      function copyChannelLink() {
+        copyText(channelUrl(), "Channel link");
+      }
+
+      function openChannelNewTab() {
+        window.open(channelUrl(), "_blank", "noopener");
+      }
+
+      function copyAudienceEmails() {
+        const emails = audience.map((person) => person.email).filter(Boolean).join("; ");
+        copyText(emails || channelUrl(), emails ? "Audience emails" : "Channel link");
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        if (!rooms.some((room) => room.key === activeChannel)) activeChannel = "general";
+        renderRooms();
+        loadMessages();
+        loadAudience();
+        setInterval(loadMessages, 30000);
+      });
+    </script>
+  </body>
+</html>

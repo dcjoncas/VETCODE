@@ -228,6 +228,7 @@ CALL_INTAKE_DELETED_PATH = os.path.join(DATA_DIR, "call_intake_deleted.json")
 CALL_INTAKE_QUESTIONS_PATH = os.path.join(DATA_DIR, "call_intake_questions.json")
 ACCESS_USERS_PATH = os.path.join(DATA_DIR, "access_users.json")
 ACCESS_CANDIDATES_PATH = os.path.join(DATA_DIR, "access_candidates.json")
+CHANNEL_MESSAGES_PATH = os.path.join(DATA_DIR, "channel_messages.json")
 ADMIN_SESSION_TOKENS = {}
 
 
@@ -241,6 +242,7 @@ MENU_ITEMS = [
     {"key": "profiles", "label": "Profiles", "href": "profile-preview.html"},
     {"key": "job_descriptions", "label": "Job Descriptions", "href": "job-descriptions.html"},
     {"key": "call", "label": "Call", "href": "call.html"},
+    {"key": "channels", "label": "Channels", "href": "channels.html"},
     {"key": "meet", "label": "Meet", "href": "meet.html"},
     {"key": "interviews", "label": "Interviews", "href": "schedule-interview.html?interview=ready"},
     {"key": "onboarding", "label": "Onboarding", "href": "onboarding-admin.html"},
@@ -266,6 +268,7 @@ DEFAULT_INTERNAL_MENU = [
     "profiles",
     "job_descriptions",
     "call",
+    "channels",
     "meet",
     "interviews",
     "onboarding",
@@ -284,7 +287,7 @@ DEFAULT_INTERNAL_MENU = [
     "admin",
     "agents",
 ]
-DEFAULT_CANDIDATE_MENU = ["profiles", "interviews", "time_link", "status"]
+DEFAULT_CANDIDATE_MENU = ["profiles", "channels", "interviews", "time_link", "status"]
 SUPER_MENU = [item["key"] for item in MENU_ITEMS]
 
 DOMAIN_ALIASES = {
@@ -1826,11 +1829,122 @@ def access_menu():
     }
 
 
+def _channel_key(value: str = "") -> str:
+    key = re.sub(r"[^a-z0-9_-]+", "-", str(value or "general").strip().lower()).strip("-")
+    return key[:48] or "general"
+
+
+def _channel_user_name(name: str = "", email: str = "") -> str:
+    clean_name = re.sub(r"\s+", " ", str(name or "").strip())
+    if clean_name:
+        return clean_name[:80]
+    clean_email = str(email or "").strip()
+    return clean_email[:80] if clean_email else "DevReady User"
+
+
+@app.get("/api/channels/messages")
+def channel_messages(channel: str = "general", domain: str = "dev"):
+    clean_channel = _channel_key(channel)
+    clean_domain = _domain_key(domain)
+    store = _read_json_store(CHANNEL_MESSAGES_PATH, {})
+    room_key = f"{clean_domain}:{clean_channel}"
+    messages = store.get(room_key, [])
+    return {
+        "ok": True,
+        "channel": clean_channel,
+        "domain": clean_domain,
+        "messages": messages[-200:] if isinstance(messages, list) else [],
+    }
+
+
+@app.post("/api/channels/messages")
+def post_channel_message(
+    channel: str = Form(default="general"),
+    domain: str = Form(default="dev"),
+    message: str = Form(default=""),
+    author_name: str = Form(default=""),
+    author_email: str = Form(default=""),
+    audience: str = Form(default="all"),
+):
+    clean_message = str(message or "").strip()
+    if not clean_message:
+        raise HTTPException(status_code=400, detail="Message is required.")
+    clean_channel = _channel_key(channel)
+    clean_domain = _domain_key(domain)
+    store = _read_json_store(CHANNEL_MESSAGES_PATH, {})
+    room_key = f"{clean_domain}:{clean_channel}"
+    messages = store.get(room_key, [])
+    if not isinstance(messages, list):
+        messages = []
+    now = _now_utc()
+    item = {
+        "id": _safe_token("MSG"),
+        "channel": clean_channel,
+        "domain": clean_domain,
+        "author_name": _channel_user_name(author_name, author_email),
+        "author_email": str(author_email or "").strip()[:160],
+        "audience": str(audience or "all").strip()[:32] or "all",
+        "message": clean_message[:2400],
+        "created_at": now,
+    }
+    messages.append(item)
+    store[room_key] = messages[-500:]
+    _write_json_store(CHANNEL_MESSAGES_PATH, store)
+    return {"ok": True, "message": item}
+
+
+@app.get("/api/channels/audience")
+def channel_audience(domain: str = "dev"):
+    clean_domain = _domain_key(domain)
+    users = _seed_access_users()
+    people = []
+    seen = set()
+
+    def add_person(name: str = "", email: str = "", role: str = "user", source: str = "user", profile_id: str = ""):
+        clean_email = str(email or "").strip()
+        key = clean_email.lower() or f"{source}:{profile_id or name}".lower()
+        if not key or key in seen:
+            return
+        seen.add(key)
+        people.append({
+            "name": _channel_user_name(name, clean_email),
+            "email": clean_email,
+            "role": role or "user",
+            "source": source,
+            "profile_id": str(profile_id or ""),
+        })
+
+    for user in users.values():
+        if user.get("status") == "blocked":
+            continue
+        add_person(user.get("display_name") or user.get("username"), user.get("email"), user.get("role") or "user", "access")
+
+    try:
+        discovery = candidates.profileDiscovery(clean_domain, 500)
+        for profile in discovery.get("profiles", []):
+            add_person(profile.get("name"), profile.get("email"), "candidate", "profile", profile.get("id"))
+    except Exception as exc:
+        print(f"Failed to load channel candidate audience: {exc}")
+
+    return {
+        "ok": True,
+        "domain": clean_domain,
+        "count": len(people),
+        "people": sorted(people, key=lambda row: (row.get("role") != "candidate", row.get("name", "").lower())),
+    }
+
+
 CALL_INTAKE_QUESTIONS = [
+    {
+        "key": "practice",
+        "label": "Practice area",
+        "prompt": "Is this for DevReady technology and AI, LegalReady legal, or BuildReady construction and engineering?",
+        "captures": ["practice", "domain", "brand"],
+    },
     {
         "key": "role",
         "label": "Role target",
-        "prompt": "Great to talk with you. What role can I help you fill today?",
+        "prompt": "Tell me about the role or business need in your own words. What outcome are you trying to create?",
         "captures": ["job_title", "business_outcome"],
     },
     {
@@ -1880,6 +1994,12 @@ CALL_INTAKE_QUESTIONS = [
         "label": "Caller phone",
         "prompt": "What phone number should I keep on the request?",
         "captures": ["caller_phone"],
+    },
+    {
+        "key": "callback_permission",
+        "label": "Follow-up preference",
+        "prompt": "Would you like a quick confirmation email with what I captured, and is a callback okay once the strongest match is confirmed?",
+        "captures": ["callback_permission", "confirmation_email", "delivery_preference"],
     },
 ]
 
@@ -2030,9 +2150,115 @@ def _call_intake_archive_rows() -> list[dict]:
     return rows if isinstance(rows, list) else []
 
 
+def _call_intake_page_hidden_table_ready(cur) -> None:
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS callask_page_hidden (
+            delete_key TEXT PRIMARY KEY,
+            domain TEXT NOT NULL,
+            call_sid TEXT,
+            jd_id TEXT,
+            role TEXT,
+            company TEXT,
+            delete_keys TEXT,
+            deleted_at TIMESTAMPTZ,
+            note TEXT
+        )
+        """
+    )
+
+
+def _call_intake_db_deleted_rows() -> list[dict]:
+    rows = []
+    try:
+        conn = azure_client.getConnection()
+        cur = conn.cursor()
+        try:
+            _call_intake_page_hidden_table_ready(cur)
+            cur.execute(
+                """
+                SELECT delete_key, domain, call_sid, jd_id, role, company, delete_keys, deleted_at, note
+                FROM callask_page_hidden
+                ORDER BY deleted_at DESC NULLS LAST
+                LIMIT 1000
+                """
+            )
+            for row in cur.fetchall():
+                try:
+                    aliases = json.loads(row[6] or "[]")
+                except Exception:
+                    aliases = []
+                rows.append(
+                    {
+                        "delete_key": row[0] or "",
+                        "delete_keys": aliases if isinstance(aliases, list) else [],
+                        "domain": row[1] or "",
+                        "call_sid": row[2] or "",
+                        "jd_id": row[3] or "",
+                        "role": row[4] or "",
+                        "company": row[5] or "",
+                        "deleted_at": row[7].isoformat() if row[7] else "",
+                        "note": row[8] or "",
+                    }
+                )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception:
+        return []
+    return rows
+
+
 def _call_intake_deleted_rows() -> list[dict]:
     rows = _read_json_store(CALL_INTAKE_DELETED_PATH, [])
-    return rows if isinstance(rows, list) else []
+    json_rows = rows if isinstance(rows, list) else []
+    return [*_call_intake_db_deleted_rows(), *json_rows]
+
+
+def _call_intake_save_deleted_row(row: dict) -> None:
+    if not isinstance(row, dict):
+        return
+    try:
+        conn = azure_client.getConnection()
+        cur = conn.cursor()
+        try:
+            _call_intake_page_hidden_table_ready(cur)
+            cur.execute(
+                """
+                INSERT INTO callask_page_hidden (
+                    delete_key, domain, call_sid, jd_id, role, company, delete_keys, deleted_at, note
+                )
+                VALUES (
+                    %(delete_key)s, %(domain)s, %(call_sid)s, %(jd_id)s, %(role)s, %(company)s,
+                    %(delete_keys)s, %(deleted_at)s, %(note)s
+                )
+                ON CONFLICT (delete_key) DO UPDATE SET
+                    domain = EXCLUDED.domain,
+                    call_sid = EXCLUDED.call_sid,
+                    jd_id = EXCLUDED.jd_id,
+                    role = EXCLUDED.role,
+                    company = EXCLUDED.company,
+                    delete_keys = EXCLUDED.delete_keys,
+                    deleted_at = EXCLUDED.deleted_at,
+                    note = EXCLUDED.note
+                """,
+                {
+                    "delete_key": _safe_action_text(row.get("delete_key"), 260),
+                    "domain": _domain_key(row.get("domain") or "dev"),
+                    "call_sid": _safe_action_text(row.get("call_sid"), 120),
+                    "jd_id": _safe_action_text(row.get("jd_id"), 80),
+                    "role": _safe_action_text(row.get("role"), 220),
+                    "company": _safe_action_text(row.get("company"), 220),
+                    "delete_keys": json.dumps(row.get("delete_keys") or []),
+                    "deleted_at": row.get("deleted_at") or _now_utc(),
+                    "note": _safe_action_text(row.get("note"), 500),
+                },
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception:
+        pass
 
 
 def _call_intake_archive_key(domain: str, call_sid: str = "", jd_id: str = "") -> str:
@@ -2298,6 +2524,7 @@ def _call_intake_existing_profile_by_email(email: str, domain: str) -> dict:
 
 def _call_intake_build_jd(session: dict) -> dict:
     answers = _call_intake_clean_answers(session.get("answers") if isinstance(session.get("answers"), dict) else {})
+    practice = _safe_action_text(answers.get("practice") or answers.get("business_unit") or answers.get("domain"), 220)
     role = _safe_action_text(answers.get("role"), 220) or "New role"
     client = _safe_action_text(answers.get("client"), 500) or "DevReady client"
     skills_text = _safe_action_text(answers.get("skills"), 900)
@@ -2308,7 +2535,28 @@ def _call_intake_build_jd(session: dict) -> dict:
     caller_email = _safe_action_text(answers.get("caller_email"), 240)
     caller_phone = _safe_action_text(answers.get("caller_phone"), 120)
     delivery_back = _safe_action_text(answers.get("delivery_back"), 700)
-    known_keys = {"role", "client", "skills", "seniority", "delivery", "constraints", "success", "caller_email", "caller_phone", "delivery_back"}
+    industry_experience = _safe_action_text(answers.get("industry_experience"), 700)
+    callback_permission = _safe_action_text(answers.get("callback_permission") or answers.get("callback") or answers.get("follow_up"), 700)
+    known_keys = {
+        "practice",
+        "business_unit",
+        "domain",
+        "role",
+        "client",
+        "skills",
+        "seniority",
+        "delivery",
+        "constraints",
+        "success",
+        "industry_experience",
+        "caller_email",
+        "caller_phone",
+        "delivery_back",
+        "callback_permission",
+        "confirmation_email",
+        "callback",
+        "follow_up",
+    }
     extra_answers = [
         f"{key.replace('_', ' ').title()}: {_safe_action_text(value, 900)}"
         for key, value in answers.items()
@@ -2317,10 +2565,12 @@ def _call_intake_build_jd(session: dict) -> dict:
     company = client.split(",")[0].strip()[:180] or "DevReady client"
     title = role[:220]
     call_sid = _safe_action_text(session.get("call_sid"), 120)
+    transcript_text = _call_intake_session_transcript_text(session)
     jd_text = "\n".join(
         [
             "Source tag: Call Ask",
             f"Call ID: {call_sid or 'Unknown'}",
+            f"Practice area: {practice or _domain_key(session.get('domain') or 'dev')}",
             f"Role target: {role}",
             f"Client context: {client}",
             f"Required skills: {skills_text or 'To be confirmed'}",
@@ -2328,10 +2578,16 @@ def _call_intake_build_jd(session: dict) -> dict:
             f"Delivery model: {delivery or 'To be confirmed'}",
             f"Constraints: {constraints or 'To be confirmed'}",
             f"Success profile: {success or 'To be confirmed'}",
+            f"Industry experience: {industry_experience or 'To be confirmed'}",
             f"Caller email: {caller_email or 'To be confirmed'}",
             f"Caller phone: {caller_phone or 'To be confirmed'}",
             f"Caller delivery preference: {delivery_back or 'Voice readback'}",
+            f"Callback permission: {callback_permission or 'Ask before calling back'}",
+            f"Confirmation email: {'Queued when caller email is available' if caller_email else 'Email needed before sending'}",
             *extra_answers,
+            "",
+            "Call transcript:",
+            transcript_text or "Transcript pending.",
         ]
     )
     return {
@@ -2343,19 +2599,31 @@ def _call_intake_build_jd(session: dict) -> dict:
         "call_sid": call_sid,
         "caller_email": caller_email,
         "caller_phone": caller_phone,
+        "transcript": transcript_text,
     }
 
 
 def _call_intake_finalize(session: dict) -> dict:
-    if session.get("status") == "completed" and session.get("summary"):
-        return session
-    domain = _domain_key(session.get("domain") or "dev")
+    current_answers = session.get("answers") if isinstance(session.get("answers"), dict) else {}
+    inferred_domain = _call_intake_domain_from_answers(
+        current_answers,
+        _call_intake_session_transcript_text(session),
+        session.get("domain") or "dev",
+    )
+    session["domain"] = inferred_domain
+    domain = inferred_domain
     jd = _call_intake_build_jd(session)
     created = {}
     match = {}
     try:
-        created = jobs.uploadJob(jd["company"], jd["title"], domain, jd["description"], jd["skills"]) or {}
-        jd_id = str(created.get("jd_id") or "")
+        existing_job = session.get("job") if isinstance(session.get("job"), dict) else {}
+        jd_id = _safe_action_text(existing_job.get("jd_id"), 80)
+        if jd_id:
+            updated = jobs.updateJob(jd_id, jd["company"], jd["title"], domain, jd["description"], jd["skills"]) or {}
+            created = {"jd_id": updated.get("jd_id") or jd_id}
+        else:
+            created = jobs.uploadJob(jd["company"], jd["title"], domain, jd["description"], jd["skills"]) or {}
+            jd_id = str(created.get("jd_id") or "")
         session["job"] = {**jd, "jd_id": jd_id, "source_tag": "Call Ask"}
         if jd_id:
             saved_job = jobs.getJob(jd_id, domain) or session["job"]
@@ -2363,38 +2631,19 @@ def _call_intake_finalize(session: dict) -> dict:
                 match = _egeria_best_internal_candidate_for_job(saved_job, domain)
             except Exception as match_error:
                 match = {"error": _safe_action_text(str(match_error), 500)}
-        existing_profile = _call_intake_existing_profile_by_email(jd.get("caller_email"), domain)
-        if existing_profile:
-            existing_profile["phone"] = jd.get("caller_phone") or ""
-            session["profile"] = existing_profile
-        else:
-            try:
-                profile_result = candidates.uploadProfile(
-                    skills=_call_intake_profile_skills(jd["skills"]),
-                    fullName=f"Call Ask - {jd['title']}"[:180],
-                    candidateDescription=(
-                        "Call Ask intake profile generated from a phone request. "
-                        "Use this as the caller/request profile until a human owner confirms details.\n\n"
-                        + jd["description"]
-                    )[:2400],
-                    domain=domain,
-                    email=jd.get("caller_email") or None,
-                    candidateTitle=f"Call Ask - {jd['title']}"[:200],
-                )
-                session["profile"] = {
-                    "source_tag": "Call Ask",
-                    "profile_id": str((profile_result or {}).get("personid") or ""),
-                    "name": (profile_result or {}).get("name") or f"Call Ask - {jd['title']}",
-                    "email": jd.get("caller_email") or "",
-                    "phone": jd.get("caller_phone") or "",
-                }
-            except Exception as profile_error:
-                session["profile"] = {
-                    "source_tag": "Call Ask",
-                    "error": _safe_action_text(str(profile_error), 500),
-                    "email": jd.get("caller_email") or "",
-                    "phone": jd.get("caller_phone") or "",
-                }
+        session["request_contact"] = {
+            "source_tag": "Call Ask",
+            "email": jd.get("caller_email") or "",
+            "phone": jd.get("caller_phone") or "",
+        }
+        candidate = match.get("candidate") if isinstance(match, dict) else {}
+        session["profile"] = {
+            "source_tag": "Internal talent match",
+            "profile_id": _safe_action_text(candidate.get("profile_id") if isinstance(candidate, dict) else "", 80),
+            "name": _safe_action_text(candidate.get("name") if isinstance(candidate, dict) else "", 180),
+            "email": _safe_action_text(candidate.get("email") if isinstance(candidate, dict) else "", 240),
+            "headline": _safe_action_text(candidate.get("headline") if isinstance(candidate, dict) else "", 220),
+        }
     except Exception as create_error:
         session["job"] = jd
         session["error"] = _safe_action_text(str(create_error), 500)
@@ -2406,7 +2655,7 @@ def _call_intake_finalize(session: dict) -> dict:
             f"All set. I created the job description for {jd['title']}. "
             f"The best current match I found is {candidate.get('name')}, "
             f"{candidate.get('headline') or 'a candidate in the system'}, with a match score of {match.get('score', 'available')}. "
-            "I saved the intake and the team can review the full match."
+            "I saved the intake, queued a confirmation email with the captured details, and the team can confirm readiness before following up."
         )
     elif session.get("error"):
         summary = (
@@ -2416,7 +2665,7 @@ def _call_intake_finalize(session: dict) -> dict:
     else:
         summary = (
             f"Perfect, I created the job description for {jd['title']}. "
-            "I saved it for matching review, and the DevReady team will follow up with the best fit."
+            "I saved it for matching review, queued a confirmation email with the captured details, and the team will follow up with the best confirmed fit."
         )
     session["summary"] = summary
     session["status"] = "completed"
@@ -2455,6 +2704,7 @@ def _call_intake_record_from_session(event: str, domain: str, session: dict) -> 
         "profile": session.get("profile", {}),
         "match": session.get("match", {}),
         "summary": session.get("summary", ""),
+        "transcript": _call_intake_session_transcript_text(session),
     }
 
 
@@ -2530,10 +2780,15 @@ def _call_intake_find_structured(payload: dict) -> dict:
         payload.get("call") if isinstance(payload.get("call"), dict) else {},
         payload.get("message") if isinstance(payload.get("message"), dict) else {},
         _call_intake_nested(payload, "data.call_analysis") or {},
+        _call_intake_nested(payload, "data.call_analysis.custom_analysis_data") or {},
         _call_intake_nested(payload, "data.call.call_analysis") or {},
+        _call_intake_nested(payload, "data.call.call_analysis.custom_analysis_data") or {},
         _call_intake_nested(payload, "call.call_analysis") or {},
+        _call_intake_nested(payload, "call.call_analysis.custom_analysis_data") or {},
         _call_intake_nested(payload, "call_analysis") or {},
+        _call_intake_nested(payload, "call_analysis.custom_analysis_data") or {},
         _call_intake_nested(payload, "message.call.analysis") or {},
+        _call_intake_nested(payload, "message.call.analysis.custom_analysis_data") or {},
         _call_intake_nested(payload, "message.call.artifact") or {},
     ]
     for candidate in candidates_to_check:
@@ -2559,6 +2814,64 @@ def _call_intake_text(value) -> str:
     return _safe_action_text(value, 900)
 
 
+def _call_intake_domain_from_text(value: str, default: str = "dev") -> str:
+    text = (value or "").strip().lower()
+    if not text:
+        return _domain_key(default)
+    if any(token in text for token in ["legalready", "legal ready", "law", "legal", "attorney", "paralegal", "compliance counsel"]):
+        return "law"
+    if any(token in text for token in ["buildready", "build ready", "construction", "engineering", "engineer", "project manager", "superintendent"]):
+        return "engineer"
+    if any(token in text for token in ["devready", "dev ready", "technology", "software", "developer", "ai", "data", "cloud", "cyber"]):
+        return "dev"
+    return _domain_key(default)
+
+
+def _call_intake_domain_from_answers(answers: dict, transcript: str = "", default: str = "dev") -> str:
+    if not isinstance(answers, dict):
+        answers = {}
+    direct = answers.get("domain") or answers.get("practice") or answers.get("business_unit") or answers.get("brand")
+    combined = "\n".join(
+        [
+            _safe_action_text(direct, 400),
+            _safe_action_text(answers.get("role"), 400),
+            _safe_action_text(answers.get("client"), 400),
+            _safe_action_text(answers.get("skills"), 800),
+            _safe_action_text(transcript, 3000),
+        ]
+    )
+    return _call_intake_domain_from_text(combined, default)
+
+
+def _call_intake_is_weak_answer(key: str, value: str) -> bool:
+    text = (value or "").strip().lower()
+    if not text:
+        return True
+    weak = {
+        "role": {"new role", "role", "to be confirmed", "your request", "call ask"},
+        "client": {"devready client", "client", "client to confirm", "to be confirmed"},
+        "skills": {"to be confirmed", "not specified", "unknown"},
+        "seniority": {"to be confirmed", "unknown"},
+        "delivery": {"to be confirmed", "unknown"},
+        "constraints": {"to be confirmed", "unknown"},
+        "success": {"to be confirmed", "unknown"},
+        "caller_email": {"to be confirmed", "unknown", "none"},
+        "caller_phone": {"to be confirmed", "unknown", "none"},
+    }
+    return text in weak.get(key, set())
+
+
+def _call_intake_merge_answers(primary: dict, secondary: dict) -> dict:
+    merged = dict(primary or {})
+    for key, value in (secondary or {}).items():
+        clean = _call_intake_text(value)
+        if not clean:
+            continue
+        if _call_intake_is_weak_answer(key, merged.get(key, "")) or len(clean) > len(str(merged.get(key) or "")) + 8:
+            merged[key] = clean
+    return _call_intake_clean_answers(merged)
+
+
 def _call_intake_transcript_line(item) -> str:
     if isinstance(item, str):
         return _safe_action_text(item, 1200)
@@ -2578,10 +2891,13 @@ def _call_intake_transcript_line(item) -> str:
         or item.get("text")
         or item.get("transcript")
         or item.get("message")
+        or item.get("answer")
         or item.get("words")
         or "",
         1200,
     )
+    if not role and item.get("question"):
+        role = _safe_action_text(item.get("question"), 80)
     if not content and isinstance(item.get("arguments"), dict):
         content = _call_intake_text(item.get("arguments"))
     if role and content:
@@ -2595,6 +2911,10 @@ def _call_intake_flatten_transcript(value) -> str:
     return _safe_action_text(value, 12000)
 
 
+def _call_intake_session_transcript_text(session: dict) -> str:
+    return _call_intake_flatten_transcript(session.get("transcript") or session.get("provider_transcript") or "")
+
+
 def _call_intake_answers_from_provider_payload(payload: dict) -> dict:
     structured = _call_intake_find_structured(payload)
     merged = {}
@@ -2602,6 +2922,7 @@ def _call_intake_answers_from_provider_payload(payload: dict) -> dict:
         if isinstance(source, dict):
             merged.update({k: v for k, v in source.items() if v not in (None, "", [], {})})
     answers = {
+        "practice": _call_intake_text(_call_intake_first(merged, ["practice", "business_unit", "brand", "domain", "division"])),
         "role": _call_intake_text(_call_intake_first(merged, ["role", "role_title", "job_title", "title", "position"])),
         "client": _call_intake_text(_call_intake_first(merged, ["client", "company", "client_company", "team", "account"])),
         "skills": _call_intake_text(_call_intake_first(merged, ["skills", "required_skills", "must_have_skills", "tech_stack", "requirements"])),
@@ -2609,8 +2930,10 @@ def _call_intake_answers_from_provider_payload(payload: dict) -> dict:
         "delivery": _call_intake_text(_call_intake_first(merged, ["delivery", "work_model", "location", "employment_type", "engagement_type"])),
         "constraints": _call_intake_text(_call_intake_first(merged, ["constraints", "timing", "budget", "compliance", "deal_breakers"])),
         "success": _call_intake_text(_call_intake_first(merged, ["success", "success_profile", "success_criteria", "first_90_days", "outcomes"])),
+        "industry_experience": _call_intake_text(_call_intake_first(merged, ["industry_experience", "industry", "vertical", "domain_experience"])),
         "caller_email": _call_intake_text(_call_intake_first(merged, ["caller_email", "email", "contact_email"])),
         "caller_phone": _call_intake_text(_call_intake_first(merged, ["caller_phone", "phone", "phone_number", "contact_phone", "from_number", "caller_number"])),
+        "callback_permission": _call_intake_text(_call_intake_first(merged, ["callback_permission", "callback", "follow_up", "call_back", "delivery_preference"])),
     }
     return _call_intake_clean_answers({key: value for key, value in answers.items() if value})
 
@@ -2672,8 +2995,9 @@ def _call_intake_ai_answers_from_text(text: str) -> dict:
                     "role": "system",
                     "content": (
                         "Extract a DevReady Call Ask from a phone transcript or call summary. "
-                        "Return only JSON with these string keys when present: role, client, skills, seniority, "
-                        "delivery, constraints, success, caller_email, caller_phone. Clean spoken emails and phone numbers. "
+                        "Return only JSON with these string keys when present: practice, role, client, skills, seniority, "
+                        "delivery, constraints, success, industry_experience, caller_email, caller_phone, callback_permission. Clean spoken emails and phone numbers. "
+                        "For practice, infer DevReady for technology/AI/software, LegalReady for legal/compliance/law, and BuildReady for construction/engineering/project delivery. "
                         "For emails, convert spoken letters, 'at', 'dot', 'underscore', and 'dash' into a valid address when possible. "
                         "For client, prefer the company/team being hired for, not the caller's personal name. "
                         "For role, create a concise job title. Do not invent missing details."
@@ -2693,14 +3017,17 @@ def _call_intake_ai_answers_from_text(text: str) -> dict:
                 key: _call_intake_text(parsed.get(key))
                 for key in [
                     "role",
+                    "practice",
                     "client",
                     "skills",
                     "seniority",
                     "delivery",
                     "constraints",
                     "success",
+                    "industry_experience",
                     "caller_email",
                     "caller_phone",
+                    "callback_permission",
                 ]
                 if parsed.get(key)
             }
@@ -2726,12 +3053,14 @@ def _call_intake_table_ready(cur) -> None:
             match_name TEXT,
             match_score DOUBLE PRECISION,
             summary TEXT,
+            transcript TEXT,
             created_at TIMESTAMPTZ,
             completed_at TIMESTAMPTZ,
             updated_at TIMESTAMPTZ
         )
         """
     )
+    cur.execute("ALTER TABLE callask_records ADD COLUMN IF NOT EXISTS transcript TEXT")
 
 
 def _call_intake_row_from_session(session: dict, domain: str) -> dict:
@@ -2740,6 +3069,7 @@ def _call_intake_row_from_session(session: dict, domain: str) -> dict:
     profile = session.get("profile") if isinstance(session.get("profile"), dict) else {}
     match = session.get("match") if isinstance(session.get("match"), dict) else {}
     candidate = match.get("candidate") if isinstance(match.get("candidate"), dict) else {}
+    matched_profile_id = _safe_action_text(candidate.get("profile_id"), 80)
     return {
         "call_sid": _safe_action_text(session.get("call_sid"), 120),
         "domain": _domain_key(session.get("domain") or domain),
@@ -2753,10 +3083,11 @@ def _call_intake_row_from_session(session: dict, domain: str) -> dict:
         "caller_email": _safe_action_text(answers.get("caller_email") or job.get("caller_email") or profile.get("email"), 240),
         "caller_phone": _safe_action_text(answers.get("caller_phone") or job.get("caller_phone") or profile.get("phone"), 120),
         "jd_id": _safe_action_text(job.get("jd_id"), 80),
-        "profile_id": _safe_action_text(profile.get("profile_id"), 80),
+        "profile_id": matched_profile_id or _safe_action_text(profile.get("profile_id"), 80),
         "match_name": _safe_action_text(candidate.get("name"), 180),
         "match_score": match.get("score") if isinstance(match.get("score"), (int, float)) else None,
         "summary": _safe_action_text(session.get("summary"), 900),
+        "transcript": _safe_action_text(_call_intake_session_transcript_text(session), 12000),
     }
 
 
@@ -2772,12 +3103,12 @@ def _persist_call_intake_ask(session: dict, domain: str) -> None:
             """
             INSERT INTO callask_records (
                 call_sid, domain, source_tag, status, role, company, caller_email, caller_phone,
-                jd_id, profile_id, match_name, match_score, summary, created_at, completed_at, updated_at
+                jd_id, profile_id, match_name, match_score, summary, transcript, created_at, completed_at, updated_at
             )
             VALUES (
                 %(call_sid)s, %(domain)s, %(source_tag)s, %(status)s, %(role)s, %(company)s,
                 %(caller_email)s, %(caller_phone)s, %(jd_id)s, %(profile_id)s, %(match_name)s,
-                %(match_score)s, %(summary)s, %(created_at)s, %(completed_at)s, %(updated_at)s
+                %(match_score)s, %(summary)s, %(transcript)s, %(created_at)s, %(completed_at)s, %(updated_at)s
             )
             ON CONFLICT (call_sid) DO UPDATE SET
                 domain = EXCLUDED.domain,
@@ -2792,6 +3123,7 @@ def _persist_call_intake_ask(session: dict, domain: str) -> None:
                 match_name = EXCLUDED.match_name,
                 match_score = EXCLUDED.match_score,
                 summary = EXCLUDED.summary,
+                transcript = EXCLUDED.transcript,
                 completed_at = EXCLUDED.completed_at,
                 updated_at = EXCLUDED.updated_at
             """,
@@ -2800,6 +3132,59 @@ def _persist_call_intake_ask(session: dict, domain: str) -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+def _call_intake_saved_transcript(domain: str, call_sid: str = "", jd_id: str = "") -> str:
+    clean_domain = _domain_key(domain)
+    call_sid = _safe_action_text(call_sid, 120)
+    jd_id = _safe_action_text(jd_id, 80)
+    if call_sid:
+        session = _call_intake_sessions().get(_call_intake_session_key(call_sid))
+        if isinstance(session, dict):
+            transcript = _call_intake_session_transcript_text(session)
+            if transcript:
+                return transcript
+    try:
+        conn = azure_client.getConnection()
+        cur = conn.cursor()
+        try:
+            _call_intake_table_ready(cur)
+            if call_sid:
+                cur.execute(
+                    "SELECT transcript FROM callask_records WHERE domain = %s AND call_sid = %s LIMIT 1",
+                    (clean_domain, call_sid),
+                )
+            elif jd_id:
+                cur.execute(
+                    "SELECT transcript FROM callask_records WHERE domain = %s AND jd_id = %s LIMIT 1",
+                    (clean_domain, jd_id),
+                )
+            else:
+                return ""
+            row = cur.fetchone()
+            return _safe_action_text(row[0] if row else "", 12000)
+        finally:
+            conn.close()
+    except Exception:
+        return ""
+
+
+def _call_intake_internal_match_for_jd_id(jd_id: str, domain: str) -> dict:
+    clean_domain = _domain_key(domain)
+    clean_jd_id = _safe_action_text(jd_id, 80)
+    if not clean_jd_id:
+        return {}
+    try:
+        job = jobs.getJob(clean_jd_id, clean_domain)
+    except Exception:
+        return {}
+    if not job:
+        return {}
+    try:
+        match = _egeria_best_internal_candidate_for_job(job, clean_domain)
+        return match if isinstance(match, dict) else {}
+    except Exception:
+        return {}
 
 
 @app.get("/api/call-intake/health")
@@ -2858,12 +3243,12 @@ def call_intake_blueprint(request: Request, domain: str = "dev"):
         "questions": questions,
         "default_questions": _default_call_intake_questions(),
         "flow": [
-            {"step": "answer", "label": "Caller reaches intake number"},
-            {"step": "realtime", "label": "Voice agent asks role questions"},
-            {"step": "jd", "label": "Transcript becomes a saved job description"},
-            {"step": "profile", "label": "Caller/contact profile is created or updated"},
-            {"step": "match", "label": "Internal candidates are ranked against the JD"},
-            {"step": "deliver", "label": "Best-match summary is returned to the caller"},
+            {"step": "open", "label": "Egeria opens warmly and asks how the caller is doing"},
+            {"step": "freeflow", "label": "Caller describes the need naturally while Egeria listens and takes notes"},
+            {"step": "checklist", "label": "Egeria optionally fills gaps with the saved question set"},
+            {"step": "jd", "label": "Full transcript is post-processed into a saved job description"},
+            {"step": "match", "label": "Existing DevReady, LegalReady, or BuildReady profiles are ranked against the JD"},
+            {"step": "confirm", "label": "Egeria queues a confirmation email and prepares a callback-ready match summary"},
         ],
         "handoff_contract": {
             "create_job_endpoint": "/api/azureJobs/createJob",
@@ -2900,6 +3285,7 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
     max_rows = max(1, min(int(limit or 25), 100))
     archived_keys = _call_intake_archive_keys(clean_domain)
     deleted_keys = _call_intake_deleted_keys(clean_domain)
+    internal_match_cache = {}
     rows = []
     try:
         conn = azure_client.getConnection()
@@ -2909,7 +3295,7 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
             cur.execute(
                 """
                 SELECT call_sid, source_tag, status, created_at, completed_at, updated_at, role, company,
-                       caller_email, caller_phone, jd_id, profile_id, match_name, match_score, summary
+                       caller_email, caller_phone, jd_id, profile_id, match_name, match_score, summary, transcript
                 FROM callask_records
                 WHERE domain = %s
                 ORDER BY COALESCE(updated_at, created_at) DESC
@@ -2918,10 +3304,22 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
                 (clean_domain, max_rows),
             )
             for row in cur.fetchall():
+                session_for_row = _call_intake_sessions().get(_call_intake_session_key(row[0] or ""))
+                session_match = session_for_row.get("match") if isinstance(session_for_row, dict) and isinstance(session_for_row.get("match"), dict) else {}
+                session_candidate = session_match.get("candidate") if isinstance(session_match.get("candidate"), dict) else {}
+                matched_profile_id = _safe_action_text(session_candidate.get("profile_id"), 80)
                 if _call_intake_is_deleted(clean_domain, row[0], row[10], deleted_keys):
                     continue
                 if _call_intake_is_archived(clean_domain, row[0], row[10], archived_keys):
                     continue
+                computed_match = {}
+                if row[10]:
+                    cache_key = str(row[10])
+                    if cache_key not in internal_match_cache:
+                        internal_match_cache[cache_key] = _call_intake_internal_match_for_jd_id(cache_key, clean_domain)
+                    computed_match = internal_match_cache.get(cache_key) or {}
+                computed_candidate = computed_match.get("candidate") if isinstance(computed_match.get("candidate"), dict) else {}
+                computed_profile_id = _safe_action_text(computed_candidate.get("profile_id"), 80)
                 rows.append(
                     {
                         "call_sid": row[0] or "",
@@ -2935,10 +3333,11 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
                         "caller_email": row[8] or "",
                         "caller_phone": row[9] or "",
                         "jd_id": row[10] or "",
-                        "profile_id": row[11] or "",
-                        "match_name": row[12] or "",
-                        "match_score": row[13],
+                        "profile_id": matched_profile_id or computed_profile_id or row[11] or "",
+                        "match_name": computed_candidate.get("name") or row[12] or "",
+                        "match_score": computed_match.get("score") if computed_match.get("score") is not None else row[13],
                         "summary": row[14] or "",
+                        "transcript": row[15] or "",
                         "archive_key": _call_intake_archive_key(clean_domain, row[0], row[10]),
                     }
                 )
@@ -2965,6 +3364,7 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
                     email_match = re.search(r"Caller email:\s*(.+)", text)
                     phone_match = re.search(r"Caller phone:\s*(.+)", text)
                     call_match = re.search(r"Call ID:\s*(.+)", text)
+                    transcript_match = re.search(r"Call transcript:\s*(.+)", text, re.DOTALL)
                     rows.append(
                         {
                             "call_sid": _safe_action_text(call_match.group(1) if call_match else "", 120),
@@ -2982,6 +3382,7 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
                             "match_name": "",
                             "match_score": None,
                             "summary": "Saved as a Call Ask job description.",
+                            "transcript": _safe_action_text(transcript_match.group(1).strip() if transcript_match else "", 12000),
                             "archive_key": _call_intake_archive_key(clean_domain, "", str(jd_id)),
                         }
                     )
@@ -3009,6 +3410,7 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
         profile = session.get("profile") if isinstance(session.get("profile"), dict) else {}
         match = session.get("match") if isinstance(session.get("match"), dict) else {}
         candidate = match.get("candidate") if isinstance(match.get("candidate"), dict) else {}
+        matched_profile_id = _safe_action_text(candidate.get("profile_id"), 80)
         rows.append(
             {
                 "call_sid": _safe_action_text(session.get("call_sid"), 120),
@@ -3022,10 +3424,11 @@ def call_intake_asks(domain: str = "dev", limit: int = 25):
                 "caller_email": _safe_action_text(answers.get("caller_email") or job.get("caller_email") or profile.get("email"), 240),
                 "caller_phone": _safe_action_text(answers.get("caller_phone") or job.get("caller_phone") or profile.get("phone"), 120),
                 "jd_id": _safe_action_text(job.get("jd_id"), 80),
-                "profile_id": _safe_action_text(profile.get("profile_id"), 80),
+                "profile_id": matched_profile_id or _safe_action_text(profile.get("profile_id"), 80),
                 "match_name": _safe_action_text(candidate.get("name"), 180),
                 "match_score": match.get("score") if isinstance(match, dict) else None,
                 "summary": _safe_action_text(session.get("summary"), 900),
+                "transcript": _safe_action_text(_call_intake_session_transcript_text(session), 12000),
                 "archive_key": _call_intake_archive_key(clean_domain, session.get("call_sid"), job.get("jd_id")),
             }
         )
@@ -3091,6 +3494,7 @@ async def call_intake_archive_ask(request: Request, domain: str = "dev"):
         "jd_id": jd_id,
         "role": role,
         "company": company,
+        "transcript": _call_intake_saved_transcript(clean_domain, call_sid, jd_id),
         "archived_at": _now_utc(),
     }
     kept.insert(0, archived)
@@ -3110,6 +3514,9 @@ def call_intake_list_archive(domain: str = "dev", limit: int = 50):
         and not _call_intake_is_deleted(clean_domain, row.get("call_sid"), row.get("jd_id"), deleted_keys)
     ]
     rows.sort(key=lambda item: item.get("archived_at") or "", reverse=True)
+    for row in rows:
+        if not row.get("transcript"):
+            row["transcript"] = _call_intake_saved_transcript(clean_domain, row.get("call_sid"), row.get("jd_id"))
     return {"ok": True, "domain": clean_domain, "asks": rows[:max_rows]}
 
 
@@ -3229,6 +3636,7 @@ async def call_intake_delete_ask(request: Request, domain: str = "dev"):
         "note": "Hidden from Call Ask page. Saved JD/profile records are retained.",
     }
     kept_deleted.insert(0, deleted)
+    _call_intake_save_deleted_row(deleted)
     _write_json_store(CALL_INTAKE_DELETED_PATH, kept_deleted[:500])
     return {
         "ok": True,
@@ -3283,9 +3691,13 @@ async def call_intake_provider_webhook(request: Request, domain: str = "dev", pr
         _call_intake_first(payload, ["domain", "dynamic_variables.domain", "metadata.domain", "call.metadata.domain"], domain)
         or domain
     )
+    transcript = _call_intake_transcript_from_provider(payload)
+    provider_text = _call_intake_provider_text(payload)
     answers = _call_intake_answers_from_provider_payload(payload)
-    if not answers:
-        answers = _call_intake_ai_answers_from_text(_call_intake_provider_text(payload))
+    ai_answers = _call_intake_ai_answers_from_text(provider_text)
+    answers = _call_intake_merge_answers(answers, ai_answers)
+    inferred_domain = _call_intake_domain_from_answers(answers, provider_text, clean_domain)
+    clean_domain = inferred_domain
     session = _get_call_intake_session(call_sid, clean_domain)
     session["provider"] = provider_name
     session["provider_event"] = event
@@ -3298,11 +3710,11 @@ async def call_intake_provider_webhook(request: Request, domain: str = "dev", pr
             1200,
         ),
     }
-    session.setdefault("answers", {}).update(answers)
-    transcript = _call_intake_transcript_from_provider(payload)
+    session["answers"] = _call_intake_merge_answers(session.get("answers") if isinstance(session.get("answers"), dict) else {}, answers)
+    session["domain"] = clean_domain
     if transcript:
         session["transcript"] = transcript
-    session["status"] = "completed" if is_final and answers else "in_progress"
+    session["status"] = "completed" if is_final and session.get("answers") else "in_progress"
     _save_call_intake_session(call_sid, session)
     try:
         _persist_call_intake_ask(session, clean_domain)
@@ -3315,13 +3727,13 @@ async def call_intake_provider_webhook(request: Request, domain: str = "dev", pr
             "domain": clean_domain,
             "call_sid": call_sid,
             "source_tag": "Call Ask",
-            "answers": answers,
+            "answers": session.get("answers"),
             "status": session.get("status"),
         }
     )
     if not is_final:
         return {"ok": True, "accepted": True, "finalized": False, "domain": clean_domain, "call_sid": call_sid}
-    if not answers:
+    if not session.get("answers"):
         return {"ok": True, "accepted": True, "finalized": False, "domain": clean_domain, "call_sid": call_sid, "message": "No structured answers found yet."}
     final_session = _call_intake_finalize(session)
     _save_call_intake_session(call_sid, final_session)
@@ -3825,13 +4237,26 @@ def _egeria_best_internal_candidate_for_job(job: dict, domain: str) -> dict:
     if not search_terms:
         raise HTTPException(status_code=400, detail="This job needs saved skills or a useful description before Egeria can match it.")
     try:
-        rows = candidates.searchCandidatesBySkills(",".join(search_terms[:16]), 50, domain=clean_domain)
+        match_limit = max(50, min(int(os.getenv("CALL_INTAKE_MATCH_LIMIT", "250")), 500))
+    except Exception:
+        match_limit = 250
+    try:
+        rows = candidates.searchCandidatesBySkills(",".join(search_terms[:16]), match_limit, domain=clean_domain)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Could not search internal candidates: {exc}")
     scored_rows = []
     for row in rows or []:
         candidate_id = str(row.get("id") or "")
         if not candidate_id:
+            continue
+        candidate_name = _safe_action_text(f"{row.get('firstName', '')} {row.get('lastName', '')}", 180).strip()
+        candidate_email = _safe_action_text(row.get("email"), 240)
+        if (
+            (row.get("firstName") or "").strip().lower() == "call"
+            or candidate_name.lower().startswith(("call ask", "call role"))
+            or candidate_email.lower().startswith("callask+")
+            or candidate_email.lower() == "candidate@email.com"
+        ):
             continue
         candidate_skills = row.get("skillMatches") or []
         weighted = _radar_weighted_skill_score(search_terms[:16], candidate_skills, base_rank=row.get("searchRank") or row.get("skillCount") or 0)
@@ -3848,8 +4273,8 @@ def _egeria_best_internal_candidate_for_job(job: dict, domain: str) -> dict:
             "score": score,
             "candidate": {
                 "profile_id": candidate_id,
-                "name": _safe_action_text(f"{row.get('firstName', '')} {row.get('lastName', '')}", 180).strip() or f"Profile {candidate_id}",
-                "email": _safe_action_text(row.get("email"), 240),
+                "name": candidate_name or f"Profile {candidate_id}",
+                "email": candidate_email,
                 "headline": _safe_action_text(row.get("primaryStack"), 220),
             },
             "matched": weighted.get("matched", [])[:8],

@@ -414,6 +414,34 @@
         font-size: 12px;
       }
 
+      .call-transcript {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        overflow: hidden;
+      }
+
+      .call-transcript summary {
+        cursor: pointer;
+        padding: 8px 10px;
+        font-weight: 900;
+        font-size: 12px;
+      }
+
+      .call-transcript pre {
+        max-height: 260px;
+        margin: 0;
+        border-top: 1px solid var(--line);
+        padding: 10px;
+        overflow: auto;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--text);
+      }
+
       @media (max-width: 1100px) {
         .call-grid,
         .call-intro,
@@ -499,15 +527,15 @@
             <div class="call-next">
               <div class="call-next-item">
                 <strong>1. Call Egeria</strong>
-                <span>Give the role, company, must-have skills, timing, contact email, and phone number.</span>
+                <span>Have a natural conversation about DevReady, LegalReady, BuildReady, or the role you need filled.</span>
               </div>
               <div class="call-next-item">
-                <strong>2. DevReady builds the ask</strong>
-                <span>The transcript becomes a saved Call Ask JD and request profile.</span>
+                <strong>2. Egeria builds the ask</strong>
+                <span>The transcript becomes a saved Call Ask JD, then Egeria uses the checklist only to fill missing details.</span>
               </div>
               <div class="call-next-item">
-                <strong>3. Review the result</strong>
-                <span>Open the saved JD/profile, review the best match, and archive old tests when done.</span>
+                <strong>3. Review the match</strong>
+                <span>Open the saved JD and matched internal profile, review the score, and prepare the confirmation email or callback.</span>
               </div>
             </div>
           </section>
@@ -521,8 +549,8 @@
           <section class="call-panel" aria-label="Editable question set">
             <div class="question-header">
               <div>
-                <h2>What Egeria asks</h2>
-                <p>Edit the labels and prompts below, then save. These are remembered for this domain and used by DevReady intake endpoints; copy the Retell prompt after changes to update the live Retell agent.</p>
+                <h2>Egeria's closing checklist</h2>
+                <p>Edit these optional follow-up prompts. Egeria should listen freely first, then use this list only to fill gaps before the call ends.</p>
               </div>
               <div class="question-actions">
                 <button class="btn" type="button" onclick="saveQuestionSet()">Save questions</button>
@@ -692,7 +720,7 @@
             const profileUrl = ask.profile_id ? `profile-preview.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(ask.profile_id)}` : "";
             const timeLabel = ask.completed_at || ask.updated_at || ask.created_at || "";
             const personLabel = ask.caller_email || ask.caller_phone || "Caller to confirm";
-            const profileLabel = ask.profile_id ? `Profile ${ask.profile_id}` : "Profile pending";
+            const profileLabel = ask.profile_id ? `Matched profile ${ask.profile_id}` : "Match profile pending";
             const jdLabel = ask.jd_id ? `JD ${ask.jd_id}` : "JD pending";
             const matchLabel = ask.match_name ? `${ask.match_name}${ask.match_score ? ` (${ask.match_score})` : ""}` : "Match pending";
             return `
@@ -714,7 +742,7 @@
                     <strong>${escapeHtml(personLabel)}</strong>
                   </div>
                   <div class="call-detail">
-                    <span>JD / profile</span>
+                    <span>JD / matched profile</span>
                     <strong>${escapeHtml(`${jdLabel} / ${profileLabel}`)}</strong>
                   </div>
                   <div class="call-detail">
@@ -729,9 +757,10 @@
                   ${ask.match_name ? `<span class="call-tag">Match: ${escapeHtml(ask.match_name)}${ask.match_score ? ` ${escapeHtml(ask.match_score)}` : ""}</span>` : ""}
                 </div>
                 <p>${escapeHtml(ask.summary || "Saved as a Call Ask intake.")}</p>
+                ${renderTranscriptBlock(ask.transcript)}
                 <div class="row-actions">
                   ${jdUrl ? `<a class="btn secondary" href="${jdUrl}">Open JD</a>` : ""}
-                  ${profileUrl ? `<a class="btn secondary" href="${profileUrl}">Open profile</a>` : ""}
+                  ${profileUrl ? `<a class="btn secondary" href="${profileUrl}">Open matched profile</a>` : ""}
                   <button
                     class="btn secondary"
                     type="button"
@@ -798,6 +827,7 @@
                     <strong>${escapeHtml(ask.archive_key || "")}</strong>
                   </div>
                 </div>
+                ${renderTranscriptBlock(ask.transcript)}
                 <div class="row-actions">
                   ${jdUrl ? `<a class="btn secondary" href="${jdUrl}">Open JD</a>` : ""}
                   <button
@@ -821,6 +851,17 @@
             `;
           })
           .join("");
+      }
+
+      function renderTranscriptBlock(transcript) {
+        const cleanTranscript = String(transcript || "").trim();
+        if (!cleanTranscript) return "";
+        return `
+          <details class="call-transcript">
+            <summary>Call transcript</summary>
+            <pre>${escapeHtml(cleanTranscript)}</pre>
+          </details>
+        `;
       }
 
       function renderQuestionEditor() {
@@ -909,11 +950,16 @@
       async function copyRetellQuestionPrompt() {
         const questions = collectQuestionSet();
         const prompt = [
-          "You are Egeria, DevReady's voice intake agent.",
-          "Be warm, concise, and natural. Ask one question at a time. Confirm email and phone carefully.",
-          "Use this question set in order:",
+          "You are Egeria, a very human, friendly AI assistant for DevReady, LegalReady, and BuildReady.",
+          "First sentence only: say exactly, \"Hello, this is Egeria. How can I help you today?\" Then stop talking and listen.",
+          "Do not sound like a form. Listen first. Use only tiny acknowledgements like got it, okay, that helps, or makes sense. Do not repeat back what the caller just said.",
+          "Ask follow-up questions only when you need missing information. Confirm normal details only at the end.",
+          "Only confirm details immediately when they are easy to get wrong, especially email, phone, budget, timing, compliance, clearance, and hard deal-breakers.",
+          "Position DevReady as highly differentiated: the team can search more than 2,000 senior vetted technology and AI profiles, plus the relevant LegalReady and BuildReady talent networks.",
+          "Explain that after the call, DevReady will save the transcript, create a job description, match against existing internal profiles, and queue a confirmation email with the details captured. The team can follow up with the strongest candidate once confirmed ready and interested.",
+          "Optional closing checklist:",
           ...questions.map((question, index) => `${index + 1}. ${question.label}: ${question.prompt}`),
-          "When the caller is done, summarize the role, confirm that DevReady will save the Call Ask, create the JD/profile, and run candidate matching.",
+          "End casually with a light recap. Say you will queue a confirmation email with the details, then ask whether a callback is okay once the strongest match is confirmed. Be friendly, confident, and concise.",
         ].join("\n");
         await navigator.clipboard.writeText(prompt);
         setQuestionState("Retell prompt copied. Paste it into the Retell agent prompt and publish the agent.");

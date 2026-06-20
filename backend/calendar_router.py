@@ -47,7 +47,7 @@ OUTLOOK_STATE_DIR = Path(os.getenv("OUTLOOK_STATE_DIR", str(BASE_DIR / "calendar
 CALENDAR_SESSION_COOKIE = os.getenv("CALENDAR_SESSION_COOKIE", "devready_calendar_session")
 OUTLOOK_TENANT_ID = os.getenv("OUTLOOK_TENANT_ID", "common").strip() or "common"
 OUTLOOK_AUTHORITY = f"https://login.microsoftonline.com/{OUTLOOK_TENANT_ID}/oauth2/v2.0"
-OUTLOOK_SCOPES = ["offline_access", "User.Read", "Calendars.ReadWrite"]
+OUTLOOK_SCOPES = ["offline_access", "User.Read", "Calendars.ReadWrite", "Mail.Send"]
 OUTLOOK_CLIENT_ID = os.getenv("OUTLOOK_CLIENT_ID", os.getenv("LOGIN_CLIENT_ID", "")).strip()
 OUTLOOK_CLIENT_SECRET = os.getenv("OUTLOOK_CLIENT_SECRET", os.getenv("LOGIN_CLIENT_SECRET", "")).strip()
 OUTLOOK_REDIRECT_PATH = os.getenv("OUTLOOK_REDIRECT_PATH", "/auth/outlook/callback").strip() or "/auth/outlook/callback"
@@ -300,11 +300,13 @@ def _outlook_status(refresh: bool = False, session_id: Optional[str] = None) -> 
     return {"connected": bool(token.get("access_token")) and not expired, "token_found": True, "expired": expired, "needs_auth": expired}
 
 
-def _outlook_access_token(request: Request) -> str:
-    session_id = _calendar_session_id(request)
+def _outlook_access_token(request: Optional[Request] = None, session_id: Optional[str] = None) -> str:
+    session_id = session_id or (os.getenv("OUTLOOK_SEND_SESSION_ID", "").strip() or None)
+    if request is not None and not session_id:
+        session_id = _calendar_session_id(request)
     status = _outlook_status(refresh=True, session_id=session_id)
     if not status.get("connected"):
-        raise HTTPException(status_code=401, detail=status.get("error") or "Outlook Calendar is not connected.")
+        raise HTTPException(status_code=401, detail=status.get("error") or "Outlook is not connected.")
     return _load_outlook_token(session_id)["access_token"]
 
 
@@ -381,6 +383,8 @@ def calendar_health(request: Request):
             "secret_value_needed": _looks_like_guid(OUTLOOK_CLIENT_SECRET) if OUTLOOK_CLIENT_SECRET else False,
             "redirect_uri": _configured_outlook_redirect_uri(),
             "tenant": OUTLOOK_TENANT_ID,
+            "required_scopes": OUTLOOK_SCOPES,
+            "mail_send_ready_after_reauth": "Mail.Send" in OUTLOOK_SCOPES,
             "session_scoped": True,
         },
         "openai_key_found": bool(os.getenv("OPENAI_API_KEY", "").strip()),
@@ -701,6 +705,90 @@ def _create_outlook(request: Request, draft: Dict[str, Any], start_dt: dt.dateti
         raise HTTPException(status_code=500, detail=_request_error_detail("Outlook create event error", exc))
     created_json = created.json()
     return {"ok": True, "provider": "outlook", "eventLink": created_json.get("webLink"), "meetingLink": (created_json.get("onlineMeeting") or {}).get("joinUrl"), "start": event["start"], "end": event["end"]}
+
+
+def _plain_text_to_graph_body(text: str) -> Dict[str, str]:
+    return {
+        "contentType": "Text",
+        "content": (text or "").strip()[:20000],
+    }
+
+
+def _recipient(address: str, name: str = "") -> Dict[str, Dict[str, str]]:
+    email = (address or "").strip()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="A valid recipient email is required.")
+    payload = {"address": email}
+    if (name or "").strip():
+        payload["name"] = name.strip()
+    return {"emailAddress": payload}
+
+
+def _send_outlook_mail(
+    request: Optional[Request],
+    *,
+    to: list[dict] | list[str],
+    subject: str,
+    body: str,
+    cc: list[dict] | list[str] | None = None,
+    reply_to: list[dict] | list[str] | None = None,
+    save_to_sent_items: bool = True,
+) -> Dict[str, Any]:
+    token = _outlook_access_token(request)
+    clean_subject = (subject or "").strip()[:255]
+    clean_body = (body or "").strip()
+    if not clean_subject:
+        raise HTTPException(status_code=400, detail="Email subject is required.")
+    if not clean_body:
+        raise HTTPException(status_code=400, detail="Email body is required.")
+
+    def normalize_people(values):
+        people = []
+        for item in values or []:
+            if isinstance(item, str):
+                people.append(_recipient(item))
+            elif isinstance(item, dict):
+                people.append(_recipient(item.get("email") or item.get("address") or "", item.get("name") or ""))
+        return people
+
+    message = {
+        "subject": clean_subject,
+        "body": _plain_text_to_graph_body(clean_body),
+        "toRecipients": normalize_people(to),
+    }
+    if not message["toRecipients"]:
+        raise HTTPException(status_code=400, detail="At least one recipient is required.")
+    cc_recipients = normalize_people(cc)
+    if cc_recipients:
+        message["ccRecipients"] = cc_recipients
+    reply_recipients = normalize_people(reply_to)
+    if reply_recipients:
+        message["replyTo"] = reply_recipients
+
+    try:
+        sent = requests.post(
+            "https://graph.microsoft.com/v1.0/me/sendMail",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json={"message": message, "saveToSentItems": save_to_sent_items},
+            timeout=20,
+        )
+        sent.raise_for_status()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=_request_error_detail("Outlook send mail error", exc))
+    return {"ok": True, "provider": "outlook", "status_code": sent.status_code, "accepted": sent.status_code in {200, 202}}
+
+
+@router.post("/api/outlook/mail/send")
+async def outlook_mail_send(request: Request, payload: Dict[str, Any]):
+    return _send_outlook_mail(
+        request,
+        to=payload.get("to") or [],
+        cc=payload.get("cc") or [],
+        reply_to=payload.get("reply_to") or payload.get("replyTo") or [],
+        subject=payload.get("subject") or "",
+        body=payload.get("body") or "",
+        save_to_sent_items=bool(payload.get("save_to_sent_items", True)),
+    )
 
 
 @router.post("/api/calendar/invite/create")
