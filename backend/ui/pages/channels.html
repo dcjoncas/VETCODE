@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DevReady - Channels</title>
+    <title>DevReady - Talent Pool</title>
     <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
     <script>
@@ -356,8 +356,8 @@
         <div id="searchBar"></div>
         <section class="channels-top">
           <div>
-            <h1>Channels</h1>
-            <p class="muted">Team conversations for DevReady users and candidates.</p>
+            <h1>Talent Pool</h1>
+            <p class="muted">Shared pool conversations for DevReady users and talent.</p>
           </div>
           <div class="thread-actions">
             <button class="btn primary" type="button" onclick="toggleNewConversation(true)">Create group conversation</button>
@@ -786,7 +786,7 @@
       }
 
       function copyConversationLink() {
-        copyText(talentChannelUrl(), "Talent channel link");
+        copyText(talentChannelUrl(), "Talent Pool link");
       }
 
       document.addEventListener("DOMContentLoaded", async () => {
@@ -797,7 +797,7 @@
           renderAddPeoplePicker();
           setInterval(loadMessages, 30000);
         } catch {
-          document.getElementById("conversationList").textContent = "Channels are unavailable. Refresh after the backend is available.";
+          document.getElementById("conversationList").textContent = "Talent Pool is unavailable. Refresh after the backend is available.";
         }
       });
     </script>

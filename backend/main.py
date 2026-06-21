@@ -243,7 +243,7 @@ MENU_ITEMS = [
     {"key": "profiles", "label": "Profiles", "href": "profile-preview.html"},
     {"key": "job_descriptions", "label": "Job Descriptions", "href": "job-descriptions.html"},
     {"key": "call", "label": "Call", "href": "call.html"},
-    {"key": "channels", "label": "Channels", "href": "channels.html"},
+    {"key": "channels", "label": "Talent Pool", "href": "channels.html"},
     {"key": "meet", "label": "Meet", "href": "meet.html"},
     {"key": "interviews", "label": "Interviews", "href": "schedule-interview.html?interview=ready"},
     {"key": "onboarding", "label": "Onboarding", "href": "onboarding-admin.html"},

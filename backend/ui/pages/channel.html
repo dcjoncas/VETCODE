@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DevReady Channel</title>
+    <title>DevReady Pool</title>
     <link rel="stylesheet" href="../styles/theme.css" />
     <style>
       :root {
@@ -296,14 +296,14 @@
       <header class="topbar">
         <div class="brand">
           <span class="brand-mark">DR</span>
-          <span>DevReady Channel</span>
+          <span>DevReady Pool</span>
         </div>
         <div id="accountLine" class="account-line"></div>
       </header>
 
       <section id="loginPanel" class="panel login-panel">
         <div>
-          <h1>Sign in to this channel</h1>
+          <h1>Sign in to this pool</h1>
           <p>Use the same email account your DevReady talent profile is under.</p>
         </div>
         <div class="tabs">
@@ -324,7 +324,7 @@
         <section class="panel thread-panel">
           <header class="thread-head">
             <div class="thread-title">
-              <h1 id="conversationTitle">Channel</h1>
+              <h1 id="conversationTitle">Pool</h1>
               <p id="conversationTopic"></p>
             </div>
             <button class="btn" type="button" onclick="logout()">Sign out</button>
@@ -458,7 +458,7 @@
             profile_id: userProfileId(user),
           }), { cache: "no-store" });
           const data = await response.json();
-          if (!response.ok || data.ok === false) throw new Error(data.detail || "This channel is unavailable.");
+          if (!response.ok || data.ok === false) throw new Error(data.detail || "This pool is unavailable.");
           activeConversation = data.conversation;
           document.getElementById("loginPanel").classList.add("hidden");
           document.getElementById("channelMain").classList.remove("hidden");
@@ -477,10 +477,10 @@
       }
 
       function renderConversation() {
-        document.getElementById("conversationTitle").textContent = activeConversation?.title || "Channel";
+        document.getElementById("conversationTitle").textContent = activeConversation?.title || "Pool";
         document.getElementById("conversationTopic").textContent = activeConversation?.topic || "";
         const participants = activeConversation?.participants || [];
-        document.getElementById("peopleSummary").textContent = `${participants.length} people in this channel`;
+        document.getElementById("peopleSummary").textContent = `${participants.length} people in this pool`;
         document.getElementById("participantList").innerHTML = participants
           .map((person) => `
             <div class="participant-chip${isEgeria(person) ? " egeria" : ""}">
