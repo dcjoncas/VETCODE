@@ -667,11 +667,8 @@
     const style = document.createElement("style");
     style.id = "pageAgentWidgetStyles";
     style.textContent = `
-      body .agent-orb-button{position:fixed;top:var(--agent-dock-top,12px);left:var(--agent-dock-left,auto);right:var(--agent-dock-right,18px);transform:var(--agent-dock-transform,none);z-index:9000;display:none;width:auto;min-width:0;min-height:38px;align-items:center;justify-content:flex-start;gap:7px;border:1px solid rgba(214,224,235,.5);border-radius:999px;padding:4px 10px 4px 4px;background:rgba(10,36,50,.24);color:#fff;box-shadow:0 12px 28px rgba(15,23,42,.16),inset 0 1px 0 rgba(255,255,255,.16);cursor:pointer;font:inherit;backdrop-filter:blur(8px)}
+      body .agent-orb-button{position:fixed;top:var(--agent-dock-top,12px);left:var(--agent-dock-left,50%);right:var(--agent-dock-right,auto);transform:var(--agent-dock-transform,translateX(-50%));z-index:9000;display:none;width:auto;min-width:0;min-height:38px;align-items:center;justify-content:flex-start;gap:7px;border:1px solid rgba(214,224,235,.5);border-radius:999px;padding:4px 10px 4px 4px;background:rgba(10,36,50,.24);color:#fff;box-shadow:0 12px 28px rgba(15,23,42,.16),inset 0 1px 0 rgba(255,255,255,.16);cursor:pointer;font:inherit;backdrop-filter:blur(8px)}
       body .agent-orb-button.visible{display:inline-flex}
-      body .connect-dock-button{position:fixed;top:var(--agent-dock-top,12px);right:118px;z-index:9000;display:inline-flex;min-height:38px;align-items:center;justify-content:center;gap:7px;border:1px solid rgba(214,224,235,.5);border-radius:999px;padding:4px 11px 4px 5px;background:rgba(10,36,50,.24);color:#fff;box-shadow:0 12px 28px rgba(15,23,42,.16),inset 0 1px 0 rgba(255,255,255,.16);font:inherit;font-size:11px;font-weight:900;text-decoration:none;backdrop-filter:blur(8px)}
-      body .connect-dock-button:hover{background:rgba(10,36,50,.34);color:#fff}
-      body .connect-dock-button svg{width:29px;height:29px;flex:0 0 29px;border-radius:999px;padding:7px;background:linear-gradient(135deg,#2f7d4b,#145c32);fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;box-shadow:0 8px 16px rgba(47,125,75,.24)}
       body .agent-orb{--agent-color:#cfd8e3;position:relative;display:grid;place-items:center;width:30px;height:30px;border-radius:999px;background:radial-gradient(circle at 29% 23%,rgba(255,255,255,.98) 0 8%,rgba(255,255,255,.38) 9% 21%,transparent 22%),radial-gradient(circle at 70% 75%,rgba(0,0,0,.24),transparent 38%),conic-gradient(from 142deg,#f8fafc,#cfd8e3,#7f8ea1,#e8edf3,#aab6c4,#f8fafc);box-shadow:inset -7px -8px 12px rgba(0,0,0,.22),inset 6px 6px 10px rgba(255,255,255,.34),0 8px 16px rgba(177,190,205,.36)}
       body .agent-orb.gold{--agent-color:#d6a93f;background:radial-gradient(circle at 29% 23%,rgba(255,255,255,.98) 0 8%,rgba(255,255,255,.38) 9% 21%,transparent 22%),radial-gradient(circle at 70% 75%,rgba(0,0,0,.24),transparent 38%),conic-gradient(from 142deg,#fff5c4,#e2bd5d,#9a6a1f,#f8dea0,#bd852b,#fff5c4);box-shadow:inset -7px -8px 12px rgba(0,0,0,.22),inset 6px 6px 10px rgba(255,255,255,.34),0 8px 16px rgba(214,169,63,.36)}
       body .agent-orb::before{content:"";position:absolute;inset:4px;border-radius:inherit;border:1px solid rgba(255,255,255,.42);box-shadow:0 0 0 1px color-mix(in srgb,var(--agent-color),white 16%)}
@@ -691,17 +688,25 @@
       .agent-action-card strong{display:block;margin-bottom:4px;font-size:13px}.agent-action-card span{display:block;color:var(--muted,#5b6b62);font-size:12px}
       .agent-action-card button{margin-top:9px;min-height:34px;border:1px solid color-mix(in srgb,var(--primary-2,#2f7d4b),transparent 62%);border-radius:999px;background:#fff;color:var(--primary-2,#2f7d4b);font-weight:900;cursor:pointer}
       .agent-action-card button:disabled{opacity:.62;cursor:not-allowed}
-      body .nav-ai-dock .agent-orb-button{position:static;top:auto;left:auto;right:auto;transform:none;z-index:auto;flex:1 1 0;min-width:0;min-height:42px;padding:5px 9px 5px 5px;border-color:transparent;background:transparent;box-shadow:none;backdrop-filter:none}
+      body .nav-ai-dock .agent-orb-button{position:static;top:auto;left:auto;right:auto;transform:none;z-index:auto;flex:1 1 0;min-width:0;min-height:42px;padding:5px 11px 5px 5px;border-color:rgba(214,224,235,.38);background:linear-gradient(135deg,rgba(47,125,75,.92),rgba(18,91,54,.84));box-shadow:0 10px 22px rgba(18,91,54,.22),inset 0 1px 0 rgba(255,255,255,.24);backdrop-filter:none}
       body .nav-ai-dock .agent-orb{width:30px;height:30px;flex-basis:30px}
       body .nav-ai-dock .agent-orb-button span{max-width:74px;color:#fffdf2}
       body.agent-docked-in-nav .agent-chat-panel{top:118px;left:214px;right:auto;transform:none}
-      @media(max-width:980px){body .agent-orb-button{right:12px;top:58px}body .connect-dock-button{right:112px;top:58px}body .agent-chat-panel{right:12px;top:104px}body.agent-docked-in-nav .agent-chat-panel{left:12px;right:12px;top:104px;width:auto}}
+      @media(max-width:980px){body .agent-orb-button{right:12px;left:auto;top:58px;transform:none}body .agent-chat-panel{right:12px;top:104px}body.agent-docked-in-nav .agent-chat-panel{left:12px;right:12px;top:104px;width:auto}}
     `;
     document.head.appendChild(style);
   }
 
   function dockWidgetButton() {
-    document.body.classList.remove("agent-docked-in-nav");
+    const dock = document.getElementById("navAiDock");
+    const button = document.getElementById("agentOrbButton");
+    if (!dock || !button) return;
+    if (button.parentElement === dock) {
+      document.body.classList.add("agent-docked-in-nav");
+      return;
+    }
+    dock.prepend(button);
+    document.body.classList.add("agent-docked-in-nav");
   }
 
   function appendWidgetMessage(text, role, pending = false) {
@@ -891,10 +896,6 @@
     ensureWidgetStyles();
     const shell = document.createElement("div");
     shell.innerHTML = `
-      <a id="connectDockButton" class="connect-dock-button" href="channels.html" target="_blank" rel="noopener" aria-label="Open Channels in a new tab" data-hint="Open Channels in a new tab so the link can be shared with users and candidates.">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H8l-4 4V5z"></path><path d="M8 9h8"></path><path d="M8 12h5"></path></svg>
-        <span>Channels</span>
-      </a>
       <button id="agentOrbButton" class="agent-orb-button" type="button" aria-label="Ask Numa">
         <i class="agent-orb" aria-hidden="true"></i>
         <span id="agentOrbLabel">Numa</span>
@@ -916,8 +917,6 @@
       </section>
     `;
     document.body.appendChild(shell);
-    const connectButton = document.getElementById("connectDockButton");
-    if (connectButton) connectButton.href = applyDomainToHref("channels.html");
     document.getElementById("agentOrbButton").addEventListener("click", () => {
       const panel = document.getElementById("agentChatPanel");
       panel.classList.toggle("open");
