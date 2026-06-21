@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady Channel</title>
+    <link rel="stylesheet" href="../styles/theme.css" />
+    <style>
+      :root {
+        --page-bg: #f4f7f5;
+        --panel: #ffffff;
+        --text: #142019;
+        --muted: #607064;
+        --line: #dce6de;
+        --primary: #2f6842;
+        --primary-soft: #e8f2ea;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        background: var(--page-bg);
+        color: var(--text);
+        font-family: Inter, Arial, sans-serif;
+      }
+
+      .shell {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        border-bottom: 1px solid var(--line);
+        padding: 14px 22px;
+        background: #fff;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 950;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 999px;
+        background: var(--primary-soft);
+        color: var(--primary);
+        font-weight: 950;
+      }
+
+      .account-line {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .main {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 290px;
+        gap: 14px;
+        width: min(1180px, calc(100vw - 28px));
+        min-height: 0;
+        margin: 14px auto;
+      }
+
+      .panel {
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--panel);
+        box-shadow: 0 18px 45px rgba(22, 42, 30, 0.08);
+      }
+
+      .login-panel {
+        display: grid;
+        gap: 14px;
+        width: min(520px, calc(100vw - 28px));
+        margin: 10vh auto;
+        padding: 20px;
+      }
+
+      .login-panel h1,
+      .thread-title h1,
+      .people-panel h2 {
+        margin: 0;
+      }
+
+      .login-panel p,
+      .thread-title p {
+        margin: 4px 0 0;
+        color: var(--muted);
+      }
+
+      .tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .tabs button,
+      .btn {
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 14px;
+        background: #fff;
+        color: var(--text);
+        font: inherit;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .tabs button.active,
+      .btn.primary {
+        border-color: var(--primary);
+        background: var(--primary);
+        color: #fff;
+      }
+
+      .form {
+        display: grid;
+        gap: 10px;
+      }
+
+      .form input,
+      .composer textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 11px;
+        background: #fff;
+        font: inherit;
+      }
+
+      .thread-panel {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        min-height: calc(100vh - 110px);
+      }
+
+      .thread-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid var(--line);
+        padding: 14px;
+      }
+
+      .message-log {
+        display: grid;
+        align-content: start;
+        gap: 10px;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 14px;
+        background: #f8faf8;
+      }
+
+      .message-row {
+        display: grid;
+        gap: 6px;
+        max-width: 760px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px 12px;
+        background: #fff;
+      }
+
+      .message-row.mine {
+        justify-self: end;
+        border-color: rgba(47, 104, 66, 0.35);
+        background: var(--primary-soft);
+      }
+
+      .message-row.egeria {
+        border-color: rgba(135, 163, 130, 0.55);
+        background: linear-gradient(135deg, #f8fbf5, #eef4ee);
+      }
+
+      .message-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .message-author {
+        color: var(--text);
+        font-weight: 950;
+      }
+
+      .message-author.egeria {
+        color: #37643d;
+      }
+
+      .message-text {
+        white-space: pre-wrap;
+        line-height: 1.42;
+      }
+
+      .composer {
+        display: grid;
+        gap: 8px;
+        border-top: 1px solid var(--line);
+        padding: 12px;
+      }
+
+      .composer textarea {
+        min-height: 90px;
+        resize: vertical;
+      }
+
+      .compose-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .people-panel {
+        display: grid;
+        align-content: start;
+        gap: 8px;
+        min-height: calc(100vh - 110px);
+        padding: 14px;
+      }
+
+      .participant-chip {
+        display: grid;
+        gap: 2px;
+        border: 1px solid rgba(47, 104, 66, 0.22);
+        border-radius: 10px;
+        padding: 8px 9px;
+        background: rgba(47, 104, 66, 0.06);
+      }
+
+      .participant-chip strong,
+      .participant-chip span {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .participant-chip span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .participant-chip.egeria {
+        border-color: rgba(135, 163, 130, 0.65);
+        background: linear-gradient(135deg, #f7faf4, #edf3ed);
+      }
+
+      .status-line {
+        min-height: 18px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      @media (max-width: 900px) {
+        .main {
+          grid-template-columns: 1fr;
+        }
+
+        .thread-panel,
+        .people-panel {
+          min-height: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">DR</span>
+          <span>DevReady Channel</span>
+        </div>
+        <div id="accountLine" class="account-line"></div>
+      </header>
+
+      <section id="loginPanel" class="panel login-panel">
+        <div>
+          <h1>Sign in to this channel</h1>
+          <p>Use the same email account your DevReady talent profile is under.</p>
+        </div>
+        <div class="tabs">
+          <button id="loginTab" class="active" type="button" onclick="setAuthMode('login')">Login</button>
+          <button id="registerTab" type="button" onclick="setAuthMode('register')">Create account</button>
+        </div>
+        <form id="authForm" class="form" onsubmit="submitAuth(event)">
+          <input id="displayNameInput" class="hidden" placeholder="Your name" autocomplete="name" />
+          <input id="emailInput" type="email" placeholder="Email on your profile" autocomplete="email" required />
+          <input id="passwordInput" type="password" placeholder="Password" autocomplete="current-password" required />
+          <input id="confirmPasswordInput" class="hidden" type="password" placeholder="Confirm password" autocomplete="new-password" />
+          <button id="authSubmit" class="btn primary" type="submit">Login</button>
+          <span id="authStatus" class="status-line"></span>
+        </form>
+      </section>
+
+      <main id="channelMain" class="main hidden">
+        <section class="panel thread-panel">
+          <header class="thread-head">
+            <div class="thread-title">
+              <h1 id="conversationTitle">Channel</h1>
+              <p id="conversationTopic"></p>
+            </div>
+            <button class="btn" type="button" onclick="logout()">Sign out</button>
+          </header>
+          <div id="messageLog" class="message-log">Loading messages...</div>
+          <form class="composer" onsubmit="sendMessage(event)">
+            <textarea id="messageInput" placeholder="Type a message..."></textarea>
+            <div class="compose-actions">
+              <button class="btn primary" type="submit">Send</button>
+              <span id="sendStatus" class="status-line"></span>
+            </div>
+          </form>
+        </section>
+
+        <aside class="panel people-panel">
+          <div>
+            <h2>People</h2>
+            <p id="peopleSummary" class="status-line"></p>
+          </div>
+          <div id="participantList"></div>
+        </aside>
+      </main>
+    </div>
+
+    <script>
+      let authMode = "login";
+      let activeConversation = null;
+      const params = new URLSearchParams(window.location.search);
+      const conversationId = params.get("conversation") || params.get("channel") || "general";
+
+      function currentDomain() {
+        return params.get("domain") || sessionStorage.getItem("domain") || "dev";
+      }
+
+      function storedUser() {
+        try {
+          return JSON.parse(sessionStorage.getItem("devreadyChannelUser") || localStorage.getItem("devreadyChannelUser") || "null") || null;
+        } catch {
+          return null;
+        }
+      }
+
+      function saveUser(user) {
+        sessionStorage.setItem("devreadyChannelUser", JSON.stringify(user));
+        localStorage.setItem("devreadyChannelUser", JSON.stringify(user));
+        sessionStorage.setItem("domain", currentDomain());
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function apiUrl(path, extra = {}) {
+        const url = new URL(path, window.location.origin);
+        Object.entries(extra).forEach(([key, value]) => url.searchParams.set(key, value));
+        return url.toString();
+      }
+
+      function userProfileId(user) {
+        return user?.candidate_profile_id || user?.profile_id || "";
+      }
+
+      function isEgeria(person) {
+        const email = String(person?.email || person?.author_email || "").toLowerCase();
+        const name = String(person?.name || person?.author_name || "").toLowerCase();
+        return email === "egeria@devready.ai" || name === "egeria";
+      }
+
+      function setAuthMode(mode) {
+        authMode = mode === "register" ? "register" : "login";
+        document.getElementById("loginTab").classList.toggle("active", authMode === "login");
+        document.getElementById("registerTab").classList.toggle("active", authMode === "register");
+        document.getElementById("displayNameInput").classList.toggle("hidden", authMode !== "register");
+        document.getElementById("confirmPasswordInput").classList.toggle("hidden", authMode !== "register");
+        document.getElementById("authSubmit").textContent = authMode === "register" ? "Create account" : "Login";
+        document.getElementById("passwordInput").setAttribute("autocomplete", authMode === "register" ? "new-password" : "current-password");
+        document.getElementById("authStatus").textContent = "";
+      }
+
+      async function submitAuth(event) {
+        event.preventDefault();
+        const status = document.getElementById("authStatus");
+        const email = document.getElementById("emailInput").value.trim();
+        const password = document.getElementById("passwordInput").value;
+        const body = new URLSearchParams({
+          domain: currentDomain(),
+          email,
+          username: email,
+          password,
+        });
+        let endpoint = "/api/access/login";
+        if (authMode === "register") {
+          endpoint = "/api/access/register";
+          body.set("display_name", document.getElementById("displayNameInput").value.trim() || email);
+          body.set("confirm_password", document.getElementById("confirmPasswordInput").value);
+          body.set("password_confirm", document.getElementById("confirmPasswordInput").value);
+          body.set("login_type", "candidate");
+        }
+        status.textContent = authMode === "register" ? "Creating account..." : "Signing in...";
+        try {
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: body.toString(),
+          });
+          const data = await response.json();
+          if (!response.ok || data.ok === false) throw new Error(data.detail || "Login failed.");
+          saveUser(data.user);
+          await loadConversation();
+        } catch (error) {
+          status.textContent = error.message || "Login failed.";
+        }
+      }
+
+      async function loadConversation() {
+        const user = storedUser();
+        if (!user) {
+          showLogin();
+          return;
+        }
+        document.getElementById("accountLine").textContent = user.display_name || user.email || "";
+        try {
+          const response = await fetch(apiUrl(`/api/channels/conversations/${encodeURIComponent(conversationId)}/talent`, {
+            domain: currentDomain(),
+            viewer_email: user.email || "",
+            profile_id: userProfileId(user),
+          }), { cache: "no-store" });
+          const data = await response.json();
+          if (!response.ok || data.ok === false) throw new Error(data.detail || "This channel is unavailable.");
+          activeConversation = data.conversation;
+          document.getElementById("loginPanel").classList.add("hidden");
+          document.getElementById("channelMain").classList.remove("hidden");
+          renderConversation();
+          await loadMessages();
+        } catch (error) {
+          showLogin(error.message || "This account is not invited to this conversation.");
+        }
+      }
+
+      function showLogin(message = "") {
+        activeConversation = null;
+        document.getElementById("loginPanel").classList.remove("hidden");
+        document.getElementById("channelMain").classList.add("hidden");
+        document.getElementById("authStatus").textContent = message;
+      }
+
+      function renderConversation() {
+        document.getElementById("conversationTitle").textContent = activeConversation?.title || "Channel";
+        document.getElementById("conversationTopic").textContent = activeConversation?.topic || "";
+        const participants = activeConversation?.participants || [];
+        document.getElementById("peopleSummary").textContent = `${participants.length} people in this channel`;
+        document.getElementById("participantList").innerHTML = participants
+          .map((person) => `
+            <div class="participant-chip${isEgeria(person) ? " egeria" : ""}">
+              <strong>${escapeHtml(person.name || person.email || "Participant")}</strong>
+              <span>${escapeHtml(isEgeria(person) ? "Conversation helper" : (person.email || person.role || ""))}</span>
+            </div>
+          `)
+          .join("");
+      }
+
+      async function loadMessages() {
+        const log = document.getElementById("messageLog");
+        if (!activeConversation) return;
+        try {
+          const response = await fetch(apiUrl("/api/channels/messages", {
+            domain: currentDomain(),
+            conversation_id: activeConversation.id,
+          }), { cache: "no-store" });
+          const data = await response.json();
+          const messages = data.messages || [];
+          const me = (storedUser()?.email || "").toLowerCase();
+          if (!messages.length) {
+            log.innerHTML = `<div class="message-row"><strong>No messages yet.</strong><span class="status-line">Start the conversation with a short update.</span></div>`;
+            return;
+          }
+          log.innerHTML = messages.map((message) => {
+            const mine = me && String(message.author_email || "").toLowerCase() === me;
+            const egeria = isEgeria(message);
+            return `
+              <article class="message-row${mine ? " mine" : ""}${egeria ? " egeria" : ""}">
+                <div class="message-meta">
+                  <span class="message-author${egeria ? " egeria" : ""}">${escapeHtml(message.author_name || "DevReady User")}</span>
+                  <span>${escapeHtml(new Date(message.created_at || Date.now()).toLocaleString())}</span>
+                </div>
+                <div class="message-text">${escapeHtml(message.message || "")}</div>
+              </article>
+            `;
+          }).join("");
+          log.scrollTop = log.scrollHeight;
+        } catch {
+          log.textContent = "Messages are unavailable. Refresh and try again.";
+        }
+      }
+
+      async function sendMessage(event) {
+        event.preventDefault();
+        const user = storedUser();
+        const input = document.getElementById("messageInput");
+        const status = document.getElementById("sendStatus");
+        const text = input.value.trim();
+        if (!text || !activeConversation || !user) return;
+        const body = new URLSearchParams({
+          domain: currentDomain(),
+          channel: activeConversation.id,
+          conversation_id: activeConversation.id,
+          message: text,
+          audience: "conversation",
+          author_name: user.display_name || user.username || user.email || "",
+          author_email: user.email || "",
+        });
+        status.textContent = "Sending...";
+        try {
+          const response = await fetch("/api/channels/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: body.toString(),
+          });
+          const data = await response.json();
+          if (!response.ok || data.ok === false) throw new Error(data.detail || "Message failed.");
+          input.value = "";
+          await loadMessages();
+          status.textContent = "Sent.";
+        } catch (error) {
+          status.textContent = error.message || "Message failed.";
+        }
+      }
+
+      function logout() {
+        sessionStorage.removeItem("devreadyChannelUser");
+        localStorage.removeItem("devreadyChannelUser");
+        document.getElementById("accountLine").textContent = "";
+        showLogin("");
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        loadConversation();
+        setInterval(() => {
+          if (activeConversation) loadMessages();
+        }, 30000);
+      });
+    </script>
+  </body>
+</html>

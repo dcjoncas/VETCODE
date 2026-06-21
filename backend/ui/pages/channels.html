@@ -481,6 +481,13 @@
         return url.toString();
       }
 
+      function talentChannelUrl() {
+        const url = new URL("channel.html", window.location.href);
+        url.searchParams.set("domain", currentDomain());
+        url.searchParams.set("conversation", activeConversationId || "general");
+        return url.toString();
+      }
+
       async function loadAudience() {
         const response = await fetch(apiUrl("/api/channels/audience", { domain: currentDomain() }), { cache: "no-store" });
         const data = await response.json();
@@ -779,7 +786,7 @@
       }
 
       function copyConversationLink() {
-        copyText(conversationUrl(), "Conversation link");
+        copyText(talentChannelUrl(), "Talent channel link");
       }
 
       document.addEventListener("DOMContentLoaded", async () => {

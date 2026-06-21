@@ -2060,6 +2060,41 @@ def add_channel_conversation_participants(
     return {"ok": True, "conversation": conversation}
 
 
+def _channel_viewer_allowed(conversation: dict, viewer_email: str = "", profile_id: str = "") -> bool:
+    email_key = _normalize_user_key(viewer_email)
+    profile_key = str(profile_id or "").strip()
+    participants = conversation.get("participants") if isinstance(conversation.get("participants"), list) else []
+    human_participants = [row for row in participants if isinstance(row, dict) and not row.get("system")]
+    if not human_participants:
+        return False
+    for participant in human_participants:
+        participant_email = _normalize_user_key(participant.get("email", ""))
+        participant_profile = str(participant.get("profile_id") or "").strip()
+        if email_key and participant_email and email_key == participant_email:
+            return True
+        if profile_key and participant_profile and profile_key == participant_profile:
+            return True
+    return False
+
+
+@app.get("/api/channels/conversations/{conversation_id}/talent")
+def channel_conversation_for_talent(
+    conversation_id: str,
+    domain: str = "dev",
+    viewer_email: str = "",
+    profile_id: str = "",
+):
+    clean_domain = _domain_key(domain)
+    clean_id = _channel_key(conversation_id)
+    _, conversations = _read_channel_conversations(clean_domain)
+    conversation = next((row for row in conversations if str(row.get("id") or "") == clean_id), None)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
+    if not _channel_viewer_allowed(conversation, viewer_email, profile_id):
+        raise HTTPException(status_code=403, detail="This account is not invited to this conversation.")
+    return {"ok": True, "domain": clean_domain, "conversation": conversation}
+
+
 @app.post("/api/channels/conversations/{conversation_id}/egeria")
 def ask_egeria_channel_helper(
     conversation_id: str,
