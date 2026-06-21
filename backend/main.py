@@ -229,6 +229,7 @@ CALL_INTAKE_QUESTIONS_PATH = os.path.join(DATA_DIR, "call_intake_questions.json"
 ACCESS_USERS_PATH = os.path.join(DATA_DIR, "access_users.json")
 ACCESS_CANDIDATES_PATH = os.path.join(DATA_DIR, "access_candidates.json")
 CHANNEL_MESSAGES_PATH = os.path.join(DATA_DIR, "channel_messages.json")
+CHANNEL_CONVERSATIONS_PATH = os.path.join(DATA_DIR, "channel_conversations.json")
 ADMIN_SESSION_TOKENS = {}
 
 
@@ -1842,60 +1843,7 @@ def _channel_user_name(name: str = "", email: str = "") -> str:
     return clean_email[:80] if clean_email else "DevReady User"
 
 
-@app.get("/api/channels/messages")
-def channel_messages(channel: str = "general", domain: str = "dev"):
-    clean_channel = _channel_key(channel)
-    clean_domain = _domain_key(domain)
-    store = _read_json_store(CHANNEL_MESSAGES_PATH, {})
-    room_key = f"{clean_domain}:{clean_channel}"
-    messages = store.get(room_key, [])
-    return {
-        "ok": True,
-        "channel": clean_channel,
-        "domain": clean_domain,
-        "messages": messages[-200:] if isinstance(messages, list) else [],
-    }
-
-
-@app.post("/api/channels/messages")
-def post_channel_message(
-    channel: str = Form(default="general"),
-    domain: str = Form(default="dev"),
-    message: str = Form(default=""),
-    author_name: str = Form(default=""),
-    author_email: str = Form(default=""),
-    audience: str = Form(default="all"),
-):
-    clean_message = str(message or "").strip()
-    if not clean_message:
-        raise HTTPException(status_code=400, detail="Message is required.")
-    clean_channel = _channel_key(channel)
-    clean_domain = _domain_key(domain)
-    store = _read_json_store(CHANNEL_MESSAGES_PATH, {})
-    room_key = f"{clean_domain}:{clean_channel}"
-    messages = store.get(room_key, [])
-    if not isinstance(messages, list):
-        messages = []
-    now = _now_utc()
-    item = {
-        "id": _safe_token("MSG"),
-        "channel": clean_channel,
-        "domain": clean_domain,
-        "author_name": _channel_user_name(author_name, author_email),
-        "author_email": str(author_email or "").strip()[:160],
-        "audience": str(audience or "all").strip()[:32] or "all",
-        "message": clean_message[:2400],
-        "created_at": now,
-    }
-    messages.append(item)
-    store[room_key] = messages[-500:]
-    _write_json_store(CHANNEL_MESSAGES_PATH, store)
-    return {"ok": True, "message": item}
-
-
-@app.get("/api/channels/audience")
-def channel_audience(domain: str = "dev"):
-    clean_domain = _domain_key(domain)
+def _channel_people(clean_domain: str) -> list[dict]:
     users = _seed_access_users()
     people = []
     seen = set()
@@ -1926,11 +1874,227 @@ def channel_audience(domain: str = "dev"):
     except Exception as exc:
         print(f"Failed to load channel candidate audience: {exc}")
 
+    return sorted(people, key=lambda row: (row.get("role") != "candidate", row.get("name", "").lower()))
+
+
+def _channel_participants_from_json(participants_json: str, clean_domain: str) -> list[dict]:
+    try:
+        raw = json.loads(participants_json or "[]")
+    except Exception:
+        raw = []
+    if not isinstance(raw, list):
+        raw = []
+    people_by_email = {str(row.get("email") or "").strip().lower(): row for row in _channel_people(clean_domain)}
+    participants = []
+    seen = set()
+    for item in raw[:200]:
+        if isinstance(item, dict):
+            email = str(item.get("email") or "").strip()
+            name = str(item.get("name") or "").strip()
+        else:
+            email = str(item or "").strip()
+            name = ""
+        key = email.lower() or name.lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        known = people_by_email.get(email.lower(), {})
+        participants.append({
+            "name": _channel_user_name(name or known.get("name"), email),
+            "email": email,
+            "role": known.get("role") or "member",
+            "source": known.get("source") or "manual",
+            "profile_id": known.get("profile_id") or "",
+        })
+    return participants
+
+
+def _default_channel_conversations(clean_domain: str) -> list[dict]:
+    now = _now_utc()
+    defaults = [
+        ("general", "General", "Company-wide team updates and quick coordination."),
+        ("candidates", "Candidates", "Candidate-facing and recruiter coordination."),
+        ("interviews", "Interviews", "Interview scheduling, prep, and follow-up."),
+        ("jobs", "Jobs", "Role, JD, and shortlist conversations."),
+    ]
+    return [
+        {
+            "id": key,
+            "domain": clean_domain,
+            "title": title,
+            "topic": topic,
+            "participants": [],
+            "created_by": "System",
+            "created_by_email": "",
+            "created_at": now,
+            "updated_at": now,
+            "kind": "channel",
+        }
+        for key, title, topic in defaults
+    ]
+
+
+def _read_channel_conversations(clean_domain: str) -> tuple[dict, list[dict]]:
+    store = _read_json_store(CHANNEL_CONVERSATIONS_PATH, {})
+    conversations = store.get(clean_domain)
+    if not isinstance(conversations, list):
+        conversations = _default_channel_conversations(clean_domain)
+        store[clean_domain] = conversations
+        _write_json_store(CHANNEL_CONVERSATIONS_PATH, store)
+    return store, conversations
+
+
+def _conversation_message_key(clean_domain: str, conversation_id: str = "", channel: str = "") -> str:
+    clean_conversation = _channel_key(conversation_id) if str(conversation_id or "").strip() else ""
+    if clean_conversation:
+        return f"{clean_domain}:conversation:{clean_conversation}"
+    return f"{clean_domain}:{_channel_key(channel)}"
+
+
+@app.get("/api/channels/conversations")
+def channel_conversations(domain: str = "dev"):
+    clean_domain = _domain_key(domain)
+    _, conversations = _read_channel_conversations(clean_domain)
+    return {"ok": True, "domain": clean_domain, "conversations": conversations}
+
+
+@app.post("/api/channels/conversations")
+def create_channel_conversation(
+    domain: str = Form(default="dev"),
+    title: str = Form(default=""),
+    topic: str = Form(default=""),
+    participants_json: str = Form(default="[]"),
+    created_by_name: str = Form(default=""),
+    created_by_email: str = Form(default=""),
+):
+    clean_domain = _domain_key(domain)
+    clean_title = _safe_action_text(title, 120) or "New conversation"
+    store, conversations = _read_channel_conversations(clean_domain)
+    base_id = _channel_key(clean_title)
+    existing_ids = {str(row.get("id") or "") for row in conversations}
+    conversation_id = base_id
+    if conversation_id in existing_ids:
+        conversation_id = _channel_key(f"{base_id}-{_safe_token('CVN').lower()}")
+    now = _now_utc()
+    conversation = {
+        "id": conversation_id,
+        "domain": clean_domain,
+        "title": clean_title,
+        "topic": _safe_action_text(topic, 300),
+        "participants": _channel_participants_from_json(participants_json, clean_domain),
+        "created_by": _channel_user_name(created_by_name, created_by_email),
+        "created_by_email": str(created_by_email or "").strip()[:160],
+        "created_at": now,
+        "updated_at": now,
+        "kind": "conversation",
+    }
+    conversations.insert(0, conversation)
+    store[clean_domain] = conversations[:250]
+    _write_json_store(CHANNEL_CONVERSATIONS_PATH, store)
+    return {"ok": True, "conversation": conversation}
+
+
+@app.post("/api/channels/conversations/{conversation_id}/participants")
+def add_channel_conversation_participants(
+    conversation_id: str,
+    domain: str = Form(default="dev"),
+    participants_json: str = Form(default="[]"),
+):
+    clean_domain = _domain_key(domain)
+    clean_id = _channel_key(conversation_id)
+    store, conversations = _read_channel_conversations(clean_domain)
+    conversation = next((row for row in conversations if str(row.get("id") or "") == clean_id), None)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
+    existing = conversation.get("participants") if isinstance(conversation.get("participants"), list) else []
+    additions = _channel_participants_from_json(participants_json, clean_domain)
+    by_key = {}
+    for participant in [*existing, *additions]:
+        key = str(participant.get("email") or participant.get("name") or "").strip().lower()
+        if key:
+            by_key[key] = participant
+    conversation["participants"] = list(by_key.values())[:200]
+    conversation["updated_at"] = _now_utc()
+    store[clean_domain] = conversations
+    _write_json_store(CHANNEL_CONVERSATIONS_PATH, store)
+    return {"ok": True, "conversation": conversation}
+
+
+@app.get("/api/channels/messages")
+def channel_messages(channel: str = "general", domain: str = "dev", conversation_id: str = ""):
+    clean_channel = _channel_key(channel)
+    clean_domain = _domain_key(domain)
+    store = _read_json_store(CHANNEL_MESSAGES_PATH, {})
+    room_key = _conversation_message_key(clean_domain, conversation_id, clean_channel)
+    messages = store.get(room_key, [])
+    return {
+        "ok": True,
+        "channel": clean_channel,
+        "conversation_id": _channel_key(conversation_id) if str(conversation_id or "").strip() else "",
+        "domain": clean_domain,
+        "messages": messages[-200:] if isinstance(messages, list) else [],
+    }
+
+
+@app.post("/api/channels/messages")
+def post_channel_message(
+    channel: str = Form(default="general"),
+    conversation_id: str = Form(default=""),
+    domain: str = Form(default="dev"),
+    message: str = Form(default=""),
+    author_name: str = Form(default=""),
+    author_email: str = Form(default=""),
+    audience: str = Form(default="all"),
+):
+    clean_message = str(message or "").strip()
+    if not clean_message:
+        raise HTTPException(status_code=400, detail="Message is required.")
+    clean_channel = _channel_key(channel)
+    clean_domain = _domain_key(domain)
+    clean_conversation_id = _channel_key(conversation_id) if str(conversation_id or "").strip() else ""
+    store = _read_json_store(CHANNEL_MESSAGES_PATH, {})
+    room_key = _conversation_message_key(clean_domain, clean_conversation_id, clean_channel)
+    messages = store.get(room_key, [])
+    if not isinstance(messages, list):
+        messages = []
+    now = _now_utc()
+    item = {
+        "id": _safe_token("MSG"),
+        "channel": clean_channel,
+        "conversation_id": clean_conversation_id,
+        "domain": clean_domain,
+        "author_name": _channel_user_name(author_name, author_email),
+        "author_email": str(author_email or "").strip()[:160],
+        "audience": str(audience or "all").strip()[:32] or "all",
+        "message": clean_message[:2400],
+        "created_at": now,
+    }
+    messages.append(item)
+    store[room_key] = messages[-500:]
+    _write_json_store(CHANNEL_MESSAGES_PATH, store)
+    if clean_conversation_id:
+        conv_store, conversations = _read_channel_conversations(clean_domain)
+        for conversation in conversations:
+            if str(conversation.get("id") or "") == clean_conversation_id:
+                conversation["updated_at"] = item["created_at"]
+                conversation["last_message"] = clean_message[:180]
+                conversation["last_author"] = item["author_name"]
+                break
+        conv_store[clean_domain] = conversations
+        _write_json_store(CHANNEL_CONVERSATIONS_PATH, conv_store)
+    return {"ok": True, "message": item}
+
+
+@app.get("/api/channels/audience")
+def channel_audience(domain: str = "dev"):
+    clean_domain = _domain_key(domain)
+    people = _channel_people(clean_domain)
+
     return {
         "ok": True,
         "domain": clean_domain,
         "count": len(people),
-        "people": sorted(people, key=lambda row: (row.get("role") != "candidate", row.get("name", "").lower())),
+        "people": people,
     }
 
 

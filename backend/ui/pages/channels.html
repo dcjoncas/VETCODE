@@ -26,69 +26,158 @@
       });
     </script>
     <style>
-      .channels-shell {
+      .channels-page {
         display: grid;
-        grid-template-columns: minmax(220px, 0.28fr) minmax(0, 1fr) minmax(260px, 0.32fr);
-        gap: 14px;
-        align-items: stretch;
+        gap: 12px;
       }
 
-      .channel-rail,
-      .channel-main,
-      .channel-side {
-        min-height: 520px;
+      .channels-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
       }
 
-      .channel-list {
+      .channels-top h1 {
+        margin: 0;
+      }
+
+      .teams-shell {
         display: grid;
-        gap: 8px;
+        grid-template-columns: 310px minmax(0, 1fr) 310px;
+        gap: 12px;
+        min-height: calc(100vh - 170px);
       }
 
-      .channel-tab {
+      .teams-panel {
+        min-height: 0;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+        overflow: hidden;
+      }
+
+      .teams-panel-head {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 8px;
+        min-height: 54px;
+        border-bottom: 1px solid var(--line);
+        padding: 10px 12px;
+        background: #fbfcfb;
+      }
+
+      .teams-panel-head h2,
+      .thread-title h2 {
+        margin: 0;
+        font-size: 16px;
+        line-height: 1.15;
+      }
+
+      .teams-panel-head .muted,
+      .thread-title .muted {
+        margin: 3px 0 0;
+      }
+
+      .conversation-list,
+      .people-list {
+        display: grid;
+        gap: 6px;
+        max-height: calc(100vh - 260px);
+        overflow-y: auto;
+        padding: 10px;
+      }
+
+      .conversation-item {
         width: 100%;
-        min-height: 42px;
-        border: 1px solid var(--line);
+        min-height: 64px;
+        border: 1px solid transparent;
         border-radius: 10px;
-        padding: 8px 10px;
+        padding: 9px 10px;
         background: #fff;
         color: var(--text);
         cursor: pointer;
-        font-weight: 900;
         text-align: left;
       }
 
-      .channel-tab.active {
-        border-color: rgba(var(--primary-rgb), 0.55);
-        background: rgba(var(--primary-rgb), 0.1);
-        color: var(--primary-2);
+      .conversation-item:hover,
+      .conversation-item.active {
+        border-color: rgba(var(--primary-rgb), 0.35);
+        background: rgba(var(--primary-rgb), 0.08);
+      }
+
+      .conversation-item strong,
+      .person-row strong,
+      .participant-chip strong {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .conversation-item span,
+      .person-row span,
+      .participant-chip span {
+        display: block;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .thread-panel {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        min-height: calc(100vh - 170px);
+      }
+
+      .thread-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        border-bottom: 1px solid var(--line);
+        padding: 12px;
+        background: #fff;
+      }
+
+      .thread-actions,
+      .compose-actions,
+      .new-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
       }
 
       .message-log {
         display: grid;
         align-content: start;
         gap: 10px;
-        min-height: 390px;
-        max-height: 58vh;
+        min-height: 0;
         overflow-y: auto;
-        padding: 4px;
+        padding: 14px;
+        background: #f6f8f7;
       }
 
       .message-row {
         display: grid;
-        gap: 5px;
+        gap: 6px;
+        max-width: 760px;
         border: 1px solid var(--line);
         border-radius: 12px;
-        padding: 10px;
+        padding: 10px 12px;
         background: #fff;
       }
 
       .message-row.mine {
+        justify-self: end;
         border-color: rgba(var(--primary-rgb), 0.35);
-        background: rgba(var(--primary-rgb), 0.06);
+        background: rgba(var(--primary-rgb), 0.08);
       }
 
       .message-meta {
@@ -112,45 +201,65 @@
       .composer {
         display: grid;
         gap: 8px;
-        margin-top: 12px;
+        border-top: 1px solid var(--line);
+        padding: 12px;
+        background: #fff;
       }
 
-      .composer textarea {
+      .composer textarea,
+      .new-conversation input,
+      .new-conversation textarea,
+      .people-filter {
         width: 100%;
-        min-height: 92px;
-        resize: vertical;
         border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 10px;
+        border-radius: 10px;
+        padding: 9px 10px;
+        background: #fff;
         font: inherit;
       }
 
-      .composer-actions,
-      .share-actions {
-        display: flex;
+      .composer textarea {
+        min-height: 82px;
+        resize: vertical;
+      }
+
+      .new-conversation {
+        display: none;
         gap: 8px;
-        flex-wrap: wrap;
-        align-items: center;
+        border-bottom: 1px solid var(--line);
+        padding: 10px;
+        background: #fbfcfb;
       }
 
-      .composer select {
-        min-height: 38px;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        padding: 0 11px;
-        background: #fff;
-        font-weight: 850;
-      }
-
-      .audience-list {
+      .new-conversation.open {
         display: grid;
-        gap: 8px;
-        max-height: 385px;
-        overflow-y: auto;
-        margin-top: 10px;
       }
 
-      .audience-row {
+      .picker-list {
+        display: grid;
+        gap: 6px;
+        max-height: 190px;
+        overflow-y: auto;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 6px;
+        background: #fff;
+      }
+
+      .picker-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+        border-radius: 8px;
+        padding: 6px;
+      }
+
+      .picker-row:hover {
+        background: rgba(var(--primary-rgb), 0.06);
+      }
+
+      .person-row {
         display: grid;
         gap: 2px;
         border: 1px solid var(--line);
@@ -159,31 +268,56 @@
         background: #fff;
       }
 
-      .audience-row strong {
-        font-size: 13px;
+      .participant-list {
+        display: grid;
+        gap: 7px;
+        max-height: 220px;
+        overflow-y: auto;
+        padding: 10px;
       }
 
-      .audience-row span {
-        color: var(--muted);
-        font-size: 12px;
+      .participant-chip {
+        display: grid;
+        gap: 2px;
+        border: 1px solid rgba(var(--primary-rgb), 0.22);
+        border-radius: 10px;
+        padding: 8px 9px;
+        background: rgba(var(--primary-rgb), 0.06);
       }
 
-      .copy-status {
+      .add-people-box {
+        display: grid;
+        gap: 8px;
+        border-top: 1px solid var(--line);
+        padding: 10px;
+        background: #fbfcfb;
+      }
+
+      .status-line {
         min-height: 18px;
         color: var(--muted);
         font-size: 12px;
         font-weight: 800;
       }
 
-      @media (max-width: 1120px) {
-        .channels-shell {
+      @media (max-width: 1180px) {
+        .teams-shell {
+          grid-template-columns: 280px minmax(0, 1fr);
+        }
+
+        .people-panel {
+          grid-column: 1 / -1;
+          min-height: auto;
+        }
+      }
+
+      @media (max-width: 860px) {
+        .teams-shell {
           grid-template-columns: 1fr;
         }
 
-        .channel-rail,
-        .channel-main,
-        .channel-side {
-          min-height: auto;
+        .thread-panel {
+          min-height: 620px;
         }
       }
     </style>
@@ -191,68 +325,86 @@
   <body>
     <div class="container">
       <div id="siteSidebar"></div>
-      <main class="main">
+      <main class="main channels-page">
         <div id="searchBar"></div>
-        <section class="hero compact">
+        <section class="channels-top">
           <div>
             <h1>Channels</h1>
-            <p class="muted">Shared message rooms for DevReady users and candidates.</p>
+            <p class="muted">Team conversations for DevReady users and candidates.</p>
           </div>
-          <div class="share-actions">
-            <button class="btn secondary" type="button" onclick="copyChannelLink()">Copy link</button>
-            <button class="btn secondary" type="button" onclick="openChannelNewTab()">Open new tab</button>
-            <button class="btn secondary" type="button" onclick="copyAudienceEmails()">Copy audience emails</button>
+          <div class="thread-actions">
+            <button class="btn primary" type="button" onclick="toggleNewConversation(true)">New conversation</button>
+            <button class="btn secondary" type="button" onclick="copyConversationLink()">Copy link</button>
           </div>
         </section>
 
-        <section class="channels-shell">
-          <aside class="card channel-rail">
-            <h2>Rooms</h2>
-            <div id="channelList" class="channel-list"></div>
+        <section class="teams-shell">
+          <aside class="teams-panel">
+            <div class="teams-panel-head">
+              <div>
+                <h2>Conversations</h2>
+                <p id="conversationCount" class="muted">Loading...</p>
+              </div>
+            </div>
+            <form id="newConversationForm" class="new-conversation" onsubmit="createConversation(event)">
+              <input id="newConversationTitle" placeholder="Conversation name" autocomplete="off" />
+              <textarea id="newConversationTopic" placeholder="What is this conversation for?"></textarea>
+              <input id="newPeopleFilter" class="people-filter" placeholder="Search people to add..." autocomplete="off" oninput="renderNewPeoplePicker()" />
+              <div id="newPeoplePicker" class="picker-list"></div>
+              <div class="new-actions">
+                <button class="btn primary" type="submit">Create</button>
+                <button class="btn secondary" type="button" onclick="toggleNewConversation(false)">Cancel</button>
+              </div>
+              <span id="newConversationStatus" class="status-line"></span>
+            </form>
+            <div id="conversationList" class="conversation-list">Loading conversations...</div>
           </aside>
 
-          <section class="card channel-main">
-            <div class="ops-toolbar">
-              <div>
-                <h2 id="channelTitle"># general</h2>
-                <p id="channelShareText" class="muted"></p>
+          <section class="teams-panel thread-panel">
+            <header class="thread-head">
+              <div class="thread-title">
+                <h2 id="conversationTitle">Conversation</h2>
+                <p id="conversationTopic" class="muted"></p>
               </div>
-              <button class="btn secondary" type="button" onclick="loadMessages()">Refresh</button>
-            </div>
+              <div class="thread-actions">
+                <button class="btn secondary" type="button" onclick="loadMessages()">Refresh</button>
+              </div>
+            </header>
             <div id="messageLog" class="message-log">Loading messages...</div>
             <form class="composer" onsubmit="sendMessage(event)">
-              <textarea id="messageInput" placeholder="Write a message for this channel..."></textarea>
-              <div class="composer-actions">
-                <select id="audienceSelect" aria-label="Audience">
-                  <option value="all">All users and candidates</option>
-                  <option value="internal">Internal users</option>
-                  <option value="candidates">Candidates</option>
-                </select>
+              <textarea id="messageInput" placeholder="Type a new message..."></textarea>
+              <div class="compose-actions">
                 <button class="btn primary" type="submit">Send</button>
-                <span id="sendStatus" class="copy-status"></span>
+                <span id="sendStatus" class="status-line"></span>
               </div>
             </form>
           </section>
 
-          <aside class="card channel-side">
-            <h2>Audience</h2>
-            <p id="audienceSummary" class="muted">Loading audience...</p>
-            <div id="audienceList" class="audience-list"></div>
-            <p id="copyStatus" class="copy-status"></p>
+          <aside class="teams-panel people-panel">
+            <div class="teams-panel-head">
+              <div>
+                <h2>People</h2>
+                <p id="peopleSummary" class="muted">Loading...</p>
+              </div>
+            </div>
+            <div id="participantList" class="participant-list"></div>
+            <div class="add-people-box">
+              <input id="addPeopleFilter" class="people-filter" placeholder="Search people to add..." autocomplete="off" oninput="renderAddPeoplePicker()" />
+              <div id="addPeoplePicker" class="picker-list"></div>
+              <button class="btn secondary" type="button" onclick="addPeopleToConversation()">Add selected people</button>
+              <span id="peopleStatus" class="status-line"></span>
+            </div>
           </aside>
         </section>
       </main>
     </div>
 
     <script>
-      const rooms = [
-        { key: "general", label: "general" },
-        { key: "candidates", label: "candidates" },
-        { key: "interviews", label: "interviews" },
-        { key: "jobs", label: "jobs" },
-      ];
-      let activeChannel = new URLSearchParams(window.location.search).get("channel") || "general";
+      let conversations = [];
+      let activeConversationId = new URLSearchParams(window.location.search).get("conversation") || new URLSearchParams(window.location.search).get("channel") || "general";
       let audience = [];
+      let newSelected = new Set();
+      let addSelected = new Set();
 
       function currentDomain() {
         return sessionStorage.getItem("domain") || document.documentElement.dataset.domain || "dev";
@@ -264,13 +416,6 @@
         } catch {
           return {};
         }
-      }
-
-      function channelUrl(channel = activeChannel) {
-        const url = new URL(window.location.href);
-        url.searchParams.set("domain", currentDomain());
-        url.searchParams.set("channel", channel);
-        return url.toString();
       }
 
       function apiUrl(path, params = {}) {
@@ -288,38 +433,85 @@
           .replace(/'/g, "&#039;");
       }
 
-      function renderRooms() {
-        document.getElementById("channelList").innerHTML = rooms
-          .map((room) => `
-            <button class="channel-tab${room.key === activeChannel ? " active" : ""}" type="button" onclick="setChannel('${room.key}')">
-              <span># ${room.label}</span>
-            </button>
-          `)
-          .join("");
-        document.getElementById("channelTitle").textContent = `# ${activeChannel}`;
-        document.getElementById("channelShareText").textContent = channelUrl();
+      function activeConversation() {
+        return conversations.find((conversation) => conversation.id === activeConversationId) || conversations[0] || null;
       }
 
-      function setChannel(channel) {
-        activeChannel = channel || "general";
+      function conversationUrl() {
         const url = new URL(window.location.href);
         url.searchParams.set("domain", currentDomain());
-        url.searchParams.set("channel", activeChannel);
+        url.searchParams.set("conversation", activeConversationId || "general");
+        url.searchParams.delete("channel");
+        return url.toString();
+      }
+
+      async function loadAudience() {
+        const response = await fetch(apiUrl("/api/channels/audience", { domain: currentDomain() }), { cache: "no-store" });
+        const data = await response.json();
+        audience = data.people || [];
+      }
+
+      async function loadConversations() {
+        const response = await fetch(apiUrl("/api/channels/conversations", { domain: currentDomain() }), { cache: "no-store" });
+        const data = await response.json();
+        conversations = data.conversations || [];
+        if (!conversations.some((conversation) => conversation.id === activeConversationId)) {
+          activeConversationId = conversations[0]?.id || "general";
+        }
+        renderConversations();
+        renderThread();
+        await loadMessages();
+      }
+
+      function renderConversations() {
+        document.getElementById("conversationCount").textContent = `${conversations.length} threads`;
+        document.getElementById("conversationList").innerHTML = conversations
+          .map((conversation) => `
+            <button class="conversation-item${conversation.id === activeConversationId ? " active" : ""}" type="button" onclick="setConversation('${escapeHtml(conversation.id)}')">
+              <strong>${escapeHtml(conversation.title || conversation.id)}</strong>
+              <span>${escapeHtml(conversation.last_message || conversation.topic || "No messages yet")}</span>
+            </button>
+          `)
+          .join("") || `<div class="message-row"><strong>No conversations.</strong><span class="muted">Create one to get started.</span></div>`;
+      }
+
+      function renderThread() {
+        const conversation = activeConversation();
+        document.getElementById("conversationTitle").textContent = conversation?.title || "Conversation";
+        document.getElementById("conversationTopic").textContent = conversation?.topic || conversationUrl();
+        renderParticipants();
+        const url = new URL(window.location.href);
+        url.searchParams.set("domain", currentDomain());
+        url.searchParams.set("conversation", activeConversationId || "general");
+        url.searchParams.delete("channel");
         history.replaceState({}, "", url.toString());
-        renderRooms();
-        loadMessages();
+      }
+
+      async function setConversation(conversationId) {
+        activeConversationId = conversationId || "general";
+        renderConversations();
+        renderThread();
+        await loadMessages();
       }
 
       async function loadMessages() {
         const log = document.getElementById("messageLog");
+        const conversation = activeConversation();
+        if (!conversation) {
+          log.textContent = "Create a conversation to begin.";
+          return;
+        }
         log.textContent = "Loading messages...";
         try {
-          const response = await fetch(apiUrl("/api/channels/messages", { domain: currentDomain(), channel: activeChannel }), { cache: "no-store" });
+          const response = await fetch(apiUrl("/api/channels/messages", {
+            domain: currentDomain(),
+            conversation_id: conversation.id,
+          }), { cache: "no-store" });
           const data = await response.json();
           const me = (currentUser().email || "").toLowerCase();
           const messages = data.messages || [];
           if (!messages.length) {
-            log.innerHTML = `<div class="message-row"><strong>No messages yet.</strong><span class="muted">Start this channel with a short update.</span></div>`;
+            log.innerHTML = `<div class="message-row"><strong>No messages yet.</strong><span class="muted">Start this conversation with a short update.</span></div>`;
             return;
           }
           log.innerHTML = messages
@@ -337,7 +529,7 @@
             })
             .join("");
           log.scrollTop = log.scrollHeight;
-        } catch (error) {
+        } catch {
           log.textContent = "Messages are unavailable. Confirm the backend is running and refresh.";
         }
       }
@@ -347,13 +539,15 @@
         const input = document.getElementById("messageInput");
         const status = document.getElementById("sendStatus");
         const text = input.value.trim();
-        if (!text) return;
+        const conversation = activeConversation();
+        if (!text || !conversation) return;
         const user = currentUser();
         const body = new URLSearchParams({
           domain: currentDomain(),
-          channel: activeChannel,
+          channel: conversation.id,
+          conversation_id: conversation.id,
           message: text,
-          audience: document.getElementById("audienceSelect").value,
+          audience: "conversation",
           author_name: user.display_name || user.username || user.email || "",
           author_email: user.email || "",
         });
@@ -368,31 +562,161 @@
           if (!response.ok || data.ok === false) throw new Error(data.detail || "Message failed.");
           input.value = "";
           status.textContent = "Sent.";
-          await loadMessages();
+          await loadConversations();
         } catch (error) {
           status.textContent = error.message || "Message failed.";
         }
       }
 
-      async function loadAudience() {
+      function personLabel(person) {
+        return `${person.name || person.email || "Unnamed"} ${person.email || ""}`.toLowerCase();
+      }
+
+      function filteredPeople(filterValue, selectedSet) {
+        const filter = String(filterValue || "").trim().toLowerCase();
+        const currentParticipants = new Set((activeConversation()?.participants || []).map((person) => String(person.email || person.name || "").toLowerCase()));
+        return audience
+          .filter((person) => !filter || personLabel(person).includes(filter))
+          .filter((person) => selectedSet.has(person.email) || !currentParticipants.has(String(person.email || person.name || "").toLowerCase()))
+          .slice(0, 80);
+      }
+
+      function renderPicker(targetId, filterId, selectedSet, onChangeName) {
+        const filterValue = document.getElementById(filterId)?.value || "";
+        const rows = filteredPeople(filterValue, selectedSet);
+        document.getElementById(targetId).innerHTML = rows
+          .map((person) => {
+            const key = person.email || person.name;
+            return `
+              <label class="picker-row">
+                <input type="checkbox" ${selectedSet.has(key) ? "checked" : ""} onchange="${onChangeName}('${escapeHtml(key)}', this.checked)" />
+                <span><strong>${escapeHtml(person.name)}</strong><span>${escapeHtml(person.email || person.role || "No email listed")}</span></span>
+              </label>
+            `;
+          })
+          .join("") || `<div class="person-row"><strong>No people found.</strong><span>Try a different search.</span></div>`;
+      }
+
+      function renderNewPeoplePicker() {
+        renderPicker("newPeoplePicker", "newPeopleFilter", newSelected, "toggleNewPerson");
+      }
+
+      function renderAddPeoplePicker() {
+        renderPicker("addPeoplePicker", "addPeopleFilter", addSelected, "toggleAddPerson");
+      }
+
+      function toggleNewPerson(key, checked) {
+        if (checked) newSelected.add(key);
+        else newSelected.delete(key);
+      }
+
+      function toggleAddPerson(key, checked) {
+        if (checked) addSelected.add(key);
+        else addSelected.delete(key);
+      }
+
+      function selectedParticipants(selectedSet) {
+        return Array.from(selectedSet)
+          .map((key) => audience.find((person) => (person.email || person.name) === key) || { email: key, name: key })
+          .filter(Boolean);
+      }
+
+      function toggleNewConversation(open) {
+        document.getElementById("newConversationForm").classList.toggle("open", Boolean(open));
+        if (open) {
+          newSelected = new Set();
+          document.getElementById("newConversationTitle").focus();
+          renderNewPeoplePicker();
+        }
+      }
+
+      async function createConversation(event) {
+        event.preventDefault();
+        const title = document.getElementById("newConversationTitle").value.trim();
+        const topic = document.getElementById("newConversationTopic").value.trim();
+        const status = document.getElementById("newConversationStatus");
+        const user = currentUser();
+        if (!title) {
+          status.textContent = "Name the conversation first.";
+          return;
+        }
+        status.textContent = "Creating...";
+        const body = new URLSearchParams({
+          domain: currentDomain(),
+          title,
+          topic,
+          participants_json: JSON.stringify(selectedParticipants(newSelected)),
+          created_by_name: user.display_name || user.username || user.email || "",
+          created_by_email: user.email || "",
+        });
         try {
-          const response = await fetch(apiUrl("/api/channels/audience", { domain: currentDomain() }), { cache: "no-store" });
+          const response = await fetch("/api/channels/conversations", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: body.toString(),
+          });
           const data = await response.json();
-          audience = data.people || [];
-          document.getElementById("audienceSummary").textContent = `${audience.length} people available for this domain.`;
-          document.getElementById("audienceList").innerHTML = audience.slice(0, 80).map((person) => `
-            <div class="audience-row">
+          if (!response.ok || data.ok === false) throw new Error(data.detail || "Conversation failed.");
+          activeConversationId = data.conversation.id;
+          document.getElementById("newConversationTitle").value = "";
+          document.getElementById("newConversationTopic").value = "";
+          document.getElementById("newPeopleFilter").value = "";
+          newSelected = new Set();
+          toggleNewConversation(false);
+          await loadConversations();
+        } catch (error) {
+          status.textContent = error.message || "Conversation failed.";
+        }
+      }
+
+      function renderParticipants() {
+        const participants = activeConversation()?.participants || [];
+        document.getElementById("peopleSummary").textContent = `${participants.length} people in this conversation`;
+        document.getElementById("participantList").innerHTML = participants
+          .map((person) => `
+            <div class="participant-chip">
               <strong>${escapeHtml(person.name)}</strong>
               <span>${escapeHtml(person.email || person.role || "No email listed")}</span>
             </div>
-          `).join("") || `<div class="audience-row"><strong>No audience loaded.</strong><span>Refresh after the backend is available.</span></div>`;
+          `)
+          .join("") || `<div class="participant-chip"><strong>No people yet.</strong><span>Add users or candidates below.</span></div>`;
+        renderAddPeoplePicker();
+      }
+
+      async function addPeopleToConversation() {
+        const conversation = activeConversation();
+        const status = document.getElementById("peopleStatus");
+        if (!conversation) return;
+        if (!addSelected.size) {
+          status.textContent = "Select people to add.";
+          return;
+        }
+        status.textContent = "Adding...";
+        const body = new URLSearchParams({
+          domain: currentDomain(),
+          participants_json: JSON.stringify(selectedParticipants(addSelected)),
+        });
+        try {
+          const response = await fetch(`/api/channels/conversations/${encodeURIComponent(conversation.id)}/participants`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: body.toString(),
+          });
+          const data = await response.json();
+          if (!response.ok || data.ok === false) throw new Error(data.detail || "Could not add people.");
+          const index = conversations.findIndex((item) => item.id === data.conversation.id);
+          if (index >= 0) conversations[index] = data.conversation;
+          addSelected = new Set();
+          document.getElementById("addPeopleFilter").value = "";
+          status.textContent = "People added.";
+          renderThread();
         } catch (error) {
-          document.getElementById("audienceSummary").textContent = "Audience unavailable.";
+          status.textContent = error.message || "Could not add people.";
         }
       }
 
       async function copyText(text, label) {
-        const status = document.getElementById("copyStatus");
+        const status = document.getElementById("peopleStatus");
         try {
           await navigator.clipboard.writeText(text);
           status.textContent = `${label} copied.`;
@@ -401,25 +725,20 @@
         }
       }
 
-      function copyChannelLink() {
-        copyText(channelUrl(), "Channel link");
+      function copyConversationLink() {
+        copyText(conversationUrl(), "Conversation link");
       }
 
-      function openChannelNewTab() {
-        window.open(channelUrl(), "_blank", "noopener");
-      }
-
-      function copyAudienceEmails() {
-        const emails = audience.map((person) => person.email).filter(Boolean).join("; ");
-        copyText(emails || channelUrl(), emails ? "Audience emails" : "Channel link");
-      }
-
-      document.addEventListener("DOMContentLoaded", () => {
-        if (!rooms.some((room) => room.key === activeChannel)) activeChannel = "general";
-        renderRooms();
-        loadMessages();
-        loadAudience();
-        setInterval(loadMessages, 30000);
+      document.addEventListener("DOMContentLoaded", async () => {
+        try {
+          await loadAudience();
+          await loadConversations();
+          renderNewPeoplePicker();
+          renderAddPeoplePicker();
+          setInterval(loadMessages, 30000);
+        } catch {
+          document.getElementById("conversationList").textContent = "Channels are unavailable. Refresh after the backend is available.";
+        }
       });
     </script>
   </body>
