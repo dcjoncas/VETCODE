@@ -83,7 +83,7 @@
     {
       key: "channels",
       name: "Numa",
-      page: "Talent Pool",
+      page: "Poolside",
       href: "channels.html",
       color: "#2f7d4b",
       specialty: "Internal candidate and user message rooms, share links, and audience coordination.",
