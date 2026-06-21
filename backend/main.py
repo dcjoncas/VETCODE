@@ -1868,7 +1868,7 @@ def _channel_people(clean_domain: str) -> list[dict]:
         add_person(user.get("display_name") or user.get("username"), user.get("email"), user.get("role") or "user", "access")
 
     try:
-        discovery = candidates.profileDiscovery(clean_domain, 500)
+        discovery = candidates.profileDiscovery(clean_domain, 5000)
         for profile in discovery.get("profiles", []):
             add_person(profile.get("name"), profile.get("email"), "candidate", "profile", profile.get("id"))
     except Exception as exc:
@@ -1887,7 +1887,7 @@ def _channel_participants_from_json(participants_json: str, clean_domain: str) -
     people_by_email = {str(row.get("email") or "").strip().lower(): row for row in _channel_people(clean_domain)}
     participants = []
     seen = set()
-    for item in raw[:200]:
+    for item in raw[:5000]:
         if isinstance(item, dict):
             email = str(item.get("email") or "").strip()
             name = str(item.get("name") or "").strip()
@@ -1932,7 +1932,7 @@ def _ensure_egeria_participant(participants: list[dict] | None) -> list[dict]:
             continue
         seen.add(key)
         normalized.append(participant)
-    return [egeria, *normalized][:200]
+    return [egeria, *normalized][:5000]
 
 
 def _default_channel_conversations(clean_domain: str) -> list[dict]:

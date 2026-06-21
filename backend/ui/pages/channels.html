@@ -207,25 +207,6 @@
         line-height: 1.42;
       }
 
-      .egeria-helper {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 8px;
-        align-items: center;
-        border-bottom: 1px solid var(--line);
-        padding: 10px 12px;
-        background: #fbfcfb;
-      }
-
-      .egeria-helper input {
-        width: 100%;
-        border: 1px solid rgba(135, 163, 130, 0.5);
-        border-radius: 999px;
-        padding: 9px 12px;
-        background: #fff;
-        font: inherit;
-      }
-
       .composer {
         display: grid;
         gap: 8px;
@@ -266,12 +247,18 @@
       .picker-list {
         display: grid;
         gap: 6px;
-        max-height: 190px;
+        max-height: min(46vh, 520px);
         overflow-y: auto;
         border: 1px solid var(--line);
         border-radius: 10px;
         padding: 6px;
         background: #fff;
+      }
+
+      .picker-meta {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 850;
       }
 
       .picker-row {
@@ -373,7 +360,7 @@
             <p class="muted">Team conversations for DevReady users and candidates.</p>
           </div>
           <div class="thread-actions">
-            <button class="btn primary" type="button" onclick="toggleNewConversation(true)">New conversation</button>
+            <button class="btn primary" type="button" onclick="toggleNewConversation(true)">Create group conversation</button>
             <button class="btn secondary" type="button" onclick="copyConversationLink()">Copy link</button>
           </div>
         </section>
@@ -387,12 +374,13 @@
               </div>
             </div>
             <form id="newConversationForm" class="new-conversation" onsubmit="createConversation(event)">
-              <input id="newConversationTitle" placeholder="Conversation name" autocomplete="off" />
-              <textarea id="newConversationTopic" placeholder="What is this conversation for?"></textarea>
-              <input id="newPeopleFilter" class="people-filter" placeholder="Search people to add..." autocomplete="off" oninput="renderNewPeoplePicker()" />
+              <input id="newConversationTitle" placeholder="Group conversation name" autocomplete="off" />
+              <textarea id="newConversationTopic" placeholder="What should this group coordinate?"></textarea>
+              <input id="newPeopleFilter" class="people-filter" placeholder="Search all talent and users..." autocomplete="off" oninput="renderNewPeoplePicker()" />
+              <div id="newPeopleMeta" class="picker-meta"></div>
               <div id="newPeoplePicker" class="picker-list"></div>
               <div class="new-actions">
-                <button class="btn primary" type="submit">Create</button>
+                <button class="btn primary" type="submit">Create group</button>
                 <button class="btn secondary" type="button" onclick="toggleNewConversation(false)">Cancel</button>
               </div>
               <span id="newConversationStatus" class="status-line"></span>
@@ -407,14 +395,10 @@
                 <p id="conversationTopic" class="muted"></p>
               </div>
               <div class="thread-actions">
-                <button class="btn secondary" type="button" onclick="askEgeria()">Ask Egeria</button>
+                <button class="btn secondary" type="button" onclick="focusInvite()">Invite</button>
                 <button class="btn secondary" type="button" onclick="loadMessages()">Refresh</button>
               </div>
             </header>
-            <div class="egeria-helper">
-              <input id="egeriaPrompt" placeholder="Ask Egeria to summarize, clarify, or suggest the next step..." autocomplete="off" />
-              <span id="egeriaStatus" class="status-line"></span>
-            </div>
             <div id="messageLog" class="message-log">Loading messages...</div>
             <form class="composer" onsubmit="sendMessage(event)">
               <textarea id="messageInput" placeholder="Type a new message..."></textarea>
@@ -434,9 +418,10 @@
             </div>
             <div id="participantList" class="participant-list"></div>
             <div class="add-people-box">
-              <input id="addPeopleFilter" class="people-filter" placeholder="Search people to add..." autocomplete="off" oninput="renderAddPeoplePicker()" />
+              <input id="addPeopleFilter" class="people-filter" placeholder="Search all talent and users to invite..." autocomplete="off" oninput="renderAddPeoplePicker()" />
+              <div id="addPeopleMeta" class="picker-meta"></div>
               <div id="addPeoplePicker" class="picker-list"></div>
-              <button class="btn secondary" type="button" onclick="addPeopleToConversation()">Add selected people</button>
+              <button class="btn secondary" type="button" onclick="addPeopleToConversation()">Invite selected people</button>
               <span id="peopleStatus" class="status-line"></span>
             </div>
           </aside>
@@ -620,37 +605,12 @@
         }
       }
 
-      async function askEgeria() {
-        const conversation = activeConversation();
-        const status = document.getElementById("egeriaStatus");
-        const input = document.getElementById("egeriaPrompt");
-        if (!conversation) return;
-        const user = currentUser();
-        const body = new URLSearchParams({
-          domain: currentDomain(),
-          prompt: input.value.trim(),
-          requested_by_name: user.display_name || user.username || user.email || "",
-          requested_by_email: user.email || "",
-        });
-        status.textContent = "Asking...";
-        try {
-          const response = await fetch(`/api/channels/conversations/${encodeURIComponent(conversation.id)}/egeria`, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: body.toString(),
-          });
-          const data = await response.json();
-          if (!response.ok || data.ok === false) throw new Error(data.detail || "Egeria could not respond.");
-          input.value = "";
-          status.textContent = "Egeria replied.";
-          await loadConversations();
-        } catch (error) {
-          status.textContent = error.message || "Egeria could not respond.";
-        }
-      }
-
       function personLabel(person) {
         return `${person.name || person.email || "Unnamed"} ${person.email || ""}`.toLowerCase();
+      }
+
+      function personKey(person) {
+        return String(person?.email || person?.name || "").trim();
       }
 
       function filteredPeople(filterValue, selectedSet) {
@@ -658,19 +618,22 @@
         const currentParticipants = new Set((activeConversation()?.participants || []).map((person) => String(person.email || person.name || "").toLowerCase()));
         return audience
           .filter((person) => !filter || personLabel(person).includes(filter))
-          .filter((person) => selectedSet.has(person.email) || !currentParticipants.has(String(person.email || person.name || "").toLowerCase()))
-          .slice(0, 80);
+          .filter((person) => selectedSet.has(personKey(person)) || !currentParticipants.has(personKey(person).toLowerCase()));
       }
 
-      function renderPicker(targetId, filterId, selectedSet, onChangeName) {
+      function renderPicker(targetId, filterId, metaId, selectedSet, onChangeName) {
         const filterValue = document.getElementById(filterId)?.value || "";
         const rows = filteredPeople(filterValue, selectedSet);
+        const meta = document.getElementById(metaId);
+        if (meta) {
+          meta.textContent = `${rows.length.toLocaleString()} available of ${audience.length.toLocaleString()} total talent and users`;
+        }
         document.getElementById(targetId).innerHTML = rows
           .map((person) => {
-            const key = person.email || person.name;
+            const key = personKey(person);
             return `
               <label class="picker-row">
-                <input type="checkbox" ${selectedSet.has(key) ? "checked" : ""} onchange="${onChangeName}('${escapeHtml(key)}', this.checked)" />
+                <input type="checkbox" ${selectedSet.has(key) ? "checked" : ""} onchange="${onChangeName}('${encodeURIComponent(key)}', this.checked)" />
                 <span><strong>${escapeHtml(person.name)}</strong><span>${escapeHtml(person.email || person.role || "No email listed")}</span></span>
               </label>
             `;
@@ -679,27 +642,36 @@
       }
 
       function renderNewPeoplePicker() {
-        renderPicker("newPeoplePicker", "newPeopleFilter", newSelected, "toggleNewPerson");
+        renderPicker("newPeoplePicker", "newPeopleFilter", "newPeopleMeta", newSelected, "toggleNewPerson");
       }
 
       function renderAddPeoplePicker() {
-        renderPicker("addPeoplePicker", "addPeopleFilter", addSelected, "toggleAddPerson");
+        renderPicker("addPeoplePicker", "addPeopleFilter", "addPeopleMeta", addSelected, "toggleAddPerson");
       }
 
       function toggleNewPerson(key, checked) {
+        key = decodeURIComponent(key);
         if (checked) newSelected.add(key);
         else newSelected.delete(key);
       }
 
       function toggleAddPerson(key, checked) {
+        key = decodeURIComponent(key);
         if (checked) addSelected.add(key);
         else addSelected.delete(key);
       }
 
       function selectedParticipants(selectedSet) {
         return Array.from(selectedSet)
-          .map((key) => audience.find((person) => (person.email || person.name) === key) || { email: key, name: key })
+          .map((key) => audience.find((person) => personKey(person) === key) || { email: key, name: key })
           .filter(Boolean);
+      }
+
+      function focusInvite() {
+        document.querySelector(".people-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        const input = document.getElementById("addPeopleFilter");
+        input?.focus();
+        document.getElementById("peopleStatus").textContent = "Search all talent, select people, then invite them to this group.";
       }
 
       function toggleNewConversation(open) {
@@ -718,7 +690,7 @@
         const status = document.getElementById("newConversationStatus");
         const user = currentUser();
         if (!title) {
-          status.textContent = "Name the conversation first.";
+          status.textContent = "Name the group conversation first.";
           return;
         }
         status.textContent = "Creating...";
@@ -789,7 +761,7 @@
           if (index >= 0) conversations[index] = data.conversation;
           addSelected = new Set();
           document.getElementById("addPeopleFilter").value = "";
-          status.textContent = "People added.";
+          status.textContent = "Invites added to this group.";
           renderThread();
         } catch (error) {
           status.textContent = error.message || "Could not add people.";
