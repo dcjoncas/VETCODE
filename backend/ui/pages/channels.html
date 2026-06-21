@@ -360,7 +360,7 @@
             <p class="muted">Shared pool conversations for DevReady users and talent.</p>
           </div>
           <div class="thread-actions">
-            <button class="btn primary" type="button" onclick="toggleNewConversation(true)">Create group conversation</button>
+            <button class="btn primary" type="button" onclick="toggleNewConversation(true)">New message</button>
             <button class="btn secondary" type="button" onclick="copyConversationLink()">Copy link</button>
           </div>
         </section>
@@ -374,13 +374,13 @@
               </div>
             </div>
             <form id="newConversationForm" class="new-conversation" onsubmit="createConversation(event)">
-              <input id="newConversationTitle" placeholder="Group conversation name" autocomplete="off" />
-              <textarea id="newConversationTopic" placeholder="What should this group coordinate?"></textarea>
-              <input id="newPeopleFilter" class="people-filter" placeholder="Search all talent and users..." autocomplete="off" oninput="renderNewPeoplePicker()" />
+              <input id="newConversationTitle" placeholder="Subject or pool name" autocomplete="off" />
+              <textarea id="newConversationMessage" placeholder="Write the first message..."></textarea>
+              <input id="newPeopleFilter" class="people-filter" placeholder="Add people to this message..." autocomplete="off" oninput="renderNewPeoplePicker()" />
               <div id="newPeopleMeta" class="picker-meta"></div>
               <div id="newPeoplePicker" class="picker-list"></div>
               <div class="new-actions">
-                <button class="btn primary" type="submit">Create group</button>
+                <button class="btn primary" type="submit">Send new message</button>
                 <button class="btn secondary" type="button" onclick="toggleNewConversation(false)">Cancel</button>
               </div>
               <span id="newConversationStatus" class="status-line"></span>
@@ -692,20 +692,30 @@
 
       async function createConversation(event) {
         event.preventDefault();
-        const title = document.getElementById("newConversationTitle").value.trim();
-        const topic = document.getElementById("newConversationTopic").value.trim();
+        const rawTitle = document.getElementById("newConversationTitle").value.trim();
+        const firstMessage = document.getElementById("newConversationMessage").value.trim();
         const status = document.getElementById("newConversationStatus");
         const user = currentUser();
-        if (!title) {
-          status.textContent = "Name the group conversation first.";
+        const participants = selectedParticipants(newSelected);
+        if (!participants.length) {
+          status.textContent = "Add at least one person to this message.";
           return;
         }
-        status.textContent = "Creating...";
+        if (!firstMessage) {
+          status.textContent = "Write the first message.";
+          return;
+        }
+        const participantNames = participants
+          .map((person) => person.name || person.email || "")
+          .filter(Boolean);
+        const title = rawTitle || `Message with ${participantNames.slice(0, 3).join(", ")}${participantNames.length > 3 ? ` +${participantNames.length - 3}` : ""}`;
+        const topic = `Message thread with ${participantNames.slice(0, 6).join(", ")}${participantNames.length > 6 ? ` +${participantNames.length - 6} more` : ""}`;
+        status.textContent = "Sending...";
         const body = new URLSearchParams({
           domain: currentDomain(),
           title,
           topic,
-          participants_json: JSON.stringify(selectedParticipants(newSelected)),
+          participants_json: JSON.stringify(participants),
           created_by_name: user.display_name || user.username || user.email || "",
           created_by_email: user.email || "",
         });
@@ -718,14 +728,30 @@
           const data = await response.json();
           if (!response.ok || data.ok === false) throw new Error(data.detail || "Conversation failed.");
           activeConversationId = data.conversation.id;
+          const messageBody = new URLSearchParams({
+            domain: currentDomain(),
+            channel: activeConversationId,
+            conversation_id: activeConversationId,
+            message: firstMessage,
+            audience: "conversation",
+            author_name: user.display_name || user.username || user.email || "",
+            author_email: user.email || "",
+          });
+          const messageResponse = await fetch("/api/channels/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: messageBody.toString(),
+          });
+          const messageData = await messageResponse.json();
+          if (!messageResponse.ok || messageData.ok === false) throw new Error(messageData.detail || "Message failed.");
           document.getElementById("newConversationTitle").value = "";
-          document.getElementById("newConversationTopic").value = "";
+          document.getElementById("newConversationMessage").value = "";
           document.getElementById("newPeopleFilter").value = "";
           newSelected = new Set();
           toggleNewConversation(false);
           await loadConversations();
         } catch (error) {
-          status.textContent = error.message || "Conversation failed.";
+          status.textContent = error.message || "Message failed.";
         }
       }
 
