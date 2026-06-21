@@ -131,7 +131,7 @@
 
       .thread-panel {
         display: grid;
-        grid-template-rows: auto minmax(0, 1fr) auto;
+        grid-template-rows: auto auto minmax(0, 1fr) auto;
         min-height: calc(100vh - 170px);
       }
 
@@ -180,6 +180,11 @@
         background: rgba(var(--primary-rgb), 0.08);
       }
 
+      .message-row.egeria {
+        border-color: rgba(135, 163, 130, 0.55);
+        background: linear-gradient(135deg, #f8fbf5, #eef4ee);
+      }
+
       .message-meta {
         display: flex;
         justify-content: space-between;
@@ -193,9 +198,32 @@
         font-weight: 950;
       }
 
+      .message-author.egeria {
+        color: #37643d;
+      }
+
       .message-text {
         white-space: pre-wrap;
         line-height: 1.42;
+      }
+
+      .egeria-helper {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        padding: 10px 12px;
+        background: #fbfcfb;
+      }
+
+      .egeria-helper input {
+        width: 100%;
+        border: 1px solid rgba(135, 163, 130, 0.5);
+        border-radius: 999px;
+        padding: 9px 12px;
+        background: #fff;
+        font: inherit;
       }
 
       .composer {
@@ -285,6 +313,18 @@
         background: rgba(var(--primary-rgb), 0.06);
       }
 
+      .participant-chip.egeria {
+        border-color: rgba(135, 163, 130, 0.65);
+        background: linear-gradient(135deg, #f7faf4, #edf3ed);
+      }
+
+      .participant-chip.egeria strong::before {
+        content: "AI ";
+        color: #6d786f;
+        font-size: 11px;
+        letter-spacing: 0.04em;
+      }
+
       .add-people-box {
         display: grid;
         gap: 8px;
@@ -367,9 +407,14 @@
                 <p id="conversationTopic" class="muted"></p>
               </div>
               <div class="thread-actions">
+                <button class="btn secondary" type="button" onclick="askEgeria()">Ask Egeria</button>
                 <button class="btn secondary" type="button" onclick="loadMessages()">Refresh</button>
               </div>
             </header>
+            <div class="egeria-helper">
+              <input id="egeriaPrompt" placeholder="Ask Egeria to summarize, clarify, or suggest the next step..." autocomplete="off" />
+              <span id="egeriaStatus" class="status-line"></span>
+            </div>
             <div id="messageLog" class="message-log">Loading messages...</div>
             <form class="composer" onsubmit="sendMessage(event)">
               <textarea id="messageInput" placeholder="Type a new message..."></textarea>
@@ -431,6 +476,12 @@
           .replace(/>/g, "&gt;")
           .replace(/"/g, "&quot;")
           .replace(/'/g, "&#039;");
+      }
+
+      function isEgeria(person) {
+        const email = String(person?.email || person?.author_email || "").toLowerCase();
+        const name = String(person?.name || person?.author_name || "").toLowerCase();
+        return email === "egeria@devready.ai" || name === "egeria";
       }
 
       function activeConversation() {
@@ -517,10 +568,11 @@
           log.innerHTML = messages
             .map((message) => {
               const mine = me && String(message.author_email || "").toLowerCase() === me;
+              const egeria = isEgeria(message);
               return `
-                <article class="message-row${mine ? " mine" : ""}">
+                <article class="message-row${mine ? " mine" : ""}${egeria ? " egeria" : ""}">
                   <div class="message-meta">
-                    <span class="message-author">${escapeHtml(message.author_name || "DevReady User")}</span>
+                    <span class="message-author${egeria ? " egeria" : ""}">${escapeHtml(message.author_name || "DevReady User")}</span>
                     <span>${escapeHtml(new Date(message.created_at || Date.now()).toLocaleString())}</span>
                   </div>
                   <div class="message-text">${escapeHtml(message.message || "")}</div>
@@ -565,6 +617,35 @@
           await loadConversations();
         } catch (error) {
           status.textContent = error.message || "Message failed.";
+        }
+      }
+
+      async function askEgeria() {
+        const conversation = activeConversation();
+        const status = document.getElementById("egeriaStatus");
+        const input = document.getElementById("egeriaPrompt");
+        if (!conversation) return;
+        const user = currentUser();
+        const body = new URLSearchParams({
+          domain: currentDomain(),
+          prompt: input.value.trim(),
+          requested_by_name: user.display_name || user.username || user.email || "",
+          requested_by_email: user.email || "",
+        });
+        status.textContent = "Asking...";
+        try {
+          const response = await fetch(`/api/channels/conversations/${encodeURIComponent(conversation.id)}/egeria`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: body.toString(),
+          });
+          const data = await response.json();
+          if (!response.ok || data.ok === false) throw new Error(data.detail || "Egeria could not respond.");
+          input.value = "";
+          status.textContent = "Egeria replied.";
+          await loadConversations();
+        } catch (error) {
+          status.textContent = error.message || "Egeria could not respond.";
         }
       }
 
@@ -674,9 +755,9 @@
         document.getElementById("peopleSummary").textContent = `${participants.length} people in this conversation`;
         document.getElementById("participantList").innerHTML = participants
           .map((person) => `
-            <div class="participant-chip">
+            <div class="participant-chip${isEgeria(person) ? " egeria" : ""}">
               <strong>${escapeHtml(person.name)}</strong>
-              <span>${escapeHtml(person.email || person.role || "No email listed")}</span>
+              <span>${escapeHtml(isEgeria(person) ? "Conversation helper for everyone" : (person.email || person.role || "No email listed"))}</span>
             </div>
           `)
           .join("") || `<div class="participant-chip"><strong>No people yet.</strong><span>Add users or candidates below.</span></div>`;

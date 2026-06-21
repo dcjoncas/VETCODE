@@ -1909,6 +1909,32 @@ def _channel_participants_from_json(participants_json: str, clean_domain: str) -
     return participants
 
 
+def _egeria_participant() -> dict:
+    return {
+        "name": "Egeria",
+        "email": "egeria@devready.ai",
+        "role": "conversation helper",
+        "source": "system",
+        "profile_id": "",
+        "system": True,
+    }
+
+
+def _ensure_egeria_participant(participants: list[dict] | None) -> list[dict]:
+    egeria = _egeria_participant()
+    normalized = []
+    seen = {egeria["email"].lower()}
+    for participant in participants or []:
+        if not isinstance(participant, dict):
+            continue
+        key = str(participant.get("email") or participant.get("name") or "").strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        normalized.append(participant)
+    return [egeria, *normalized][:200]
+
+
 def _default_channel_conversations(clean_domain: str) -> list[dict]:
     now = _now_utc()
     defaults = [
@@ -1923,7 +1949,7 @@ def _default_channel_conversations(clean_domain: str) -> list[dict]:
             "domain": clean_domain,
             "title": title,
             "topic": topic,
-            "participants": [],
+            "participants": [_egeria_participant()],
             "created_by": "System",
             "created_by_email": "",
             "created_at": now,
@@ -1937,9 +1963,23 @@ def _default_channel_conversations(clean_domain: str) -> list[dict]:
 def _read_channel_conversations(clean_domain: str) -> tuple[dict, list[dict]]:
     store = _read_json_store(CHANNEL_CONVERSATIONS_PATH, {})
     conversations = store.get(clean_domain)
+    changed = False
     if not isinstance(conversations, list):
         conversations = _default_channel_conversations(clean_domain)
         store[clean_domain] = conversations
+        changed = True
+    else:
+        for conversation in conversations:
+            if not isinstance(conversation, dict):
+                continue
+            before = json.dumps(conversation.get("participants") or [], sort_keys=True)
+            conversation["participants"] = _ensure_egeria_participant(
+                conversation.get("participants") if isinstance(conversation.get("participants"), list) else []
+            )
+            after = json.dumps(conversation.get("participants") or [], sort_keys=True)
+            if before != after:
+                changed = True
+    if changed:
         _write_json_store(CHANNEL_CONVERSATIONS_PATH, store)
     return store, conversations
 
@@ -1981,7 +2021,7 @@ def create_channel_conversation(
         "domain": clean_domain,
         "title": clean_title,
         "topic": _safe_action_text(topic, 300),
-        "participants": _channel_participants_from_json(participants_json, clean_domain),
+        "participants": _ensure_egeria_participant(_channel_participants_from_json(participants_json, clean_domain)),
         "created_by": _channel_user_name(created_by_name, created_by_email),
         "created_by_email": str(created_by_email or "").strip()[:160],
         "created_at": now,
@@ -2013,11 +2053,83 @@ def add_channel_conversation_participants(
         key = str(participant.get("email") or participant.get("name") or "").strip().lower()
         if key:
             by_key[key] = participant
-    conversation["participants"] = list(by_key.values())[:200]
+    conversation["participants"] = _ensure_egeria_participant(list(by_key.values()))
     conversation["updated_at"] = _now_utc()
     store[clean_domain] = conversations
     _write_json_store(CHANNEL_CONVERSATIONS_PATH, store)
     return {"ok": True, "conversation": conversation}
+
+
+@app.post("/api/channels/conversations/{conversation_id}/egeria")
+def ask_egeria_channel_helper(
+    conversation_id: str,
+    domain: str = Form(default="dev"),
+    prompt: str = Form(default=""),
+    requested_by_name: str = Form(default=""),
+    requested_by_email: str = Form(default=""),
+):
+    clean_domain = _domain_key(domain)
+    clean_id = _channel_key(conversation_id)
+    conv_store, conversations = _read_channel_conversations(clean_domain)
+    conversation = next((row for row in conversations if str(row.get("id") or "") == clean_id), None)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
+
+    message_store = _read_json_store(CHANNEL_MESSAGES_PATH, {})
+    room_key = _conversation_message_key(clean_domain, clean_id, clean_id)
+    messages = message_store.get(room_key, [])
+    if not isinstance(messages, list):
+        messages = []
+    recent = [str(row.get("message") or "").strip() for row in messages[-3:] if isinstance(row, dict)]
+    participants = [
+        str(row.get("name") or row.get("email") or "").strip()
+        for row in conversation.get("participants", [])
+        if isinstance(row, dict) and not row.get("system")
+    ]
+    clean_prompt = _safe_action_text(prompt, 600)
+    requester = _channel_user_name(requested_by_name, requested_by_email)
+    title = str(conversation.get("title") or clean_id).strip()
+    topic = str(conversation.get("topic") or "").strip()
+    helper_lines = [
+        f"Egeria is here to help keep {title} moving.",
+        f"Context: {topic or 'No topic has been set yet.'}",
+    ]
+    if participants:
+        helper_lines.append(f"People included: {', '.join(participants[:8])}.")
+    if recent:
+        helper_lines.append(f"Recent thread signal: {recent[-1][:220]}")
+    if clean_prompt:
+        helper_lines.append(f"{requester} asked: {clean_prompt}")
+        helper_lines.append("Suggested next step: confirm the owner, the expected outcome, and the next decision needed from this group.")
+    else:
+        helper_lines.append("Suggested next step: add the people who need to decide, then post the specific outcome this conversation should produce.")
+
+    now = _now_utc()
+    item = {
+        "id": _safe_token("EGR"),
+        "channel": clean_id,
+        "conversation_id": clean_id,
+        "domain": clean_domain,
+        "author_name": "Egeria",
+        "author_email": "egeria@devready.ai",
+        "audience": "conversation",
+        "message": "\n".join(helper_lines)[:2400],
+        "created_at": now,
+        "helper": True,
+    }
+    messages.append(item)
+    message_store[room_key] = messages[-500:]
+    _write_json_store(CHANNEL_MESSAGES_PATH, message_store)
+
+    conversation["participants"] = _ensure_egeria_participant(
+        conversation.get("participants") if isinstance(conversation.get("participants"), list) else []
+    )
+    conversation["updated_at"] = now
+    conversation["last_message"] = item["message"][:180]
+    conversation["last_author"] = "Egeria"
+    conv_store[clean_domain] = conversations
+    _write_json_store(CHANNEL_CONVERSATIONS_PATH, conv_store)
+    return {"ok": True, "message": item, "conversation": conversation}
 
 
 @app.get("/api/channels/messages")
