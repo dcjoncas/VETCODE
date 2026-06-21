@@ -189,58 +189,60 @@
     </style>
   </head>
   <body>
-    <div id="siteSidebar"></div>
-    <main class="main">
-      <div id="searchBar"></div>
-      <section class="hero compact">
-        <div>
-          <h1>Channels</h1>
-          <p class="muted">Shared message rooms for DevReady users and candidates.</p>
-        </div>
-        <div class="share-actions">
-          <button class="btn secondary" type="button" onclick="copyChannelLink()">Copy link</button>
-          <button class="btn secondary" type="button" onclick="openChannelNewTab()">Open new tab</button>
-          <button class="btn secondary" type="button" onclick="copyAudienceEmails()">Copy audience emails</button>
-        </div>
-      </section>
-
-      <section class="channels-shell">
-        <aside class="card channel-rail">
-          <h2>Rooms</h2>
-          <div id="channelList" class="channel-list"></div>
-        </aside>
-
-        <section class="card channel-main">
-          <div class="ops-toolbar">
-            <div>
-              <h2 id="channelTitle"># general</h2>
-              <p id="channelShareText" class="muted"></p>
-            </div>
-            <button class="btn secondary" type="button" onclick="loadMessages()">Refresh</button>
+    <div class="container">
+      <div id="siteSidebar"></div>
+      <main class="main">
+        <div id="searchBar"></div>
+        <section class="hero compact">
+          <div>
+            <h1>Channels</h1>
+            <p class="muted">Shared message rooms for DevReady users and candidates.</p>
           </div>
-          <div id="messageLog" class="message-log">Loading messages...</div>
-          <form class="composer" onsubmit="sendMessage(event)">
-            <textarea id="messageInput" placeholder="Write a message for this channel..."></textarea>
-            <div class="composer-actions">
-              <select id="audienceSelect" aria-label="Audience">
-                <option value="all">All users and candidates</option>
-                <option value="internal">Internal users</option>
-                <option value="candidates">Candidates</option>
-              </select>
-              <button class="btn primary" type="submit">Send</button>
-              <span id="sendStatus" class="copy-status"></span>
-            </div>
-          </form>
+          <div class="share-actions">
+            <button class="btn secondary" type="button" onclick="copyChannelLink()">Copy link</button>
+            <button class="btn secondary" type="button" onclick="openChannelNewTab()">Open new tab</button>
+            <button class="btn secondary" type="button" onclick="copyAudienceEmails()">Copy audience emails</button>
+          </div>
         </section>
 
-        <aside class="card channel-side">
-          <h2>Audience</h2>
-          <p id="audienceSummary" class="muted">Loading audience...</p>
-          <div id="audienceList" class="audience-list"></div>
-          <p id="copyStatus" class="copy-status"></p>
-        </aside>
-      </section>
-    </main>
+        <section class="channels-shell">
+          <aside class="card channel-rail">
+            <h2>Rooms</h2>
+            <div id="channelList" class="channel-list"></div>
+          </aside>
+
+          <section class="card channel-main">
+            <div class="ops-toolbar">
+              <div>
+                <h2 id="channelTitle"># general</h2>
+                <p id="channelShareText" class="muted"></p>
+              </div>
+              <button class="btn secondary" type="button" onclick="loadMessages()">Refresh</button>
+            </div>
+            <div id="messageLog" class="message-log">Loading messages...</div>
+            <form class="composer" onsubmit="sendMessage(event)">
+              <textarea id="messageInput" placeholder="Write a message for this channel..."></textarea>
+              <div class="composer-actions">
+                <select id="audienceSelect" aria-label="Audience">
+                  <option value="all">All users and candidates</option>
+                  <option value="internal">Internal users</option>
+                  <option value="candidates">Candidates</option>
+                </select>
+                <button class="btn primary" type="submit">Send</button>
+                <span id="sendStatus" class="copy-status"></span>
+              </div>
+            </form>
+          </section>
+
+          <aside class="card channel-side">
+            <h2>Audience</h2>
+            <p id="audienceSummary" class="muted">Loading audience...</p>
+            <div id="audienceList" class="audience-list"></div>
+            <p id="copyStatus" class="copy-status"></p>
+          </aside>
+        </section>
+      </main>
+    </div>
 
     <script>
       const rooms = [
