@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from datetime import datetime, timezone
 import traceback
 import os
 import re
 import json
 import requests
+from urllib.parse import quote_plus
 from openai import OpenAI
 from azureUtils.storage import jobs, candidates
 from jd_match import normalize_jd, azureJobMatch, normalize_all_skills
@@ -336,16 +338,231 @@ def _rank_external_skill_match(raw_skills: list[str], job_skills: list[str], sco
     }
     return score, unique_matches, details
 
-def _people_data_row(row: dict, job_skills: list[str], scoring_skills: list[str]):
+LAWYER_TITLE_DEFAULTS = ["associate attorney", "attorney", "lawyer", "counsel"]
+LAWYER_PRACTICE_TERMS = [
+    "professional liability",
+    "civil litigation",
+    "litigation defense",
+    "insurance defense",
+    "professional negligence",
+    "architects and engineers",
+    "real estate malpractice",
+    "broker malpractice",
+    "insurance agent malpractice",
+    "accounting malpractice",
+    "malpractice",
+    "depositions",
+    "trial preparation",
+]
+LAWYER_SUPPORTING_TERMS = {
+    "civil litigation",
+    "litigation defense",
+    "malpractice",
+    "depositions",
+    "trial preparation",
+}
+
+
+def _split_external_terms(value, limit: int = 20):
+    if isinstance(value, (list, tuple)):
+        raw = value
+    else:
+        raw = re.split(r"[,;\n]+", str(value or ""))
+    cleaned = []
+    for item in raw:
+        term = str(item or "").strip()
+        if term and term.lower() not in {existing.lower() for existing in cleaned}:
+            cleaned.append(term)
+        if len(cleaned) >= limit:
+            break
+    return cleaned
+
+
+def _lawyer_search_criteria(
+    jd: dict,
+    titles=None,
+    practice_areas=None,
+    locations=None,
+    region: str = "",
+    min_years: int = 0,
+    strict_locations: bool | None = None,
+):
+    title = str(jd.get("title") or "")
+    description = str(jd.get("description") or jd.get("jd_text") or "")
+    combined = f"{title}\n{description}"
+    lower = combined.lower()
+
+    resolved_titles = _split_external_terms(titles, 8) or list(LAWYER_TITLE_DEFAULTS)
+    resolved_practice = _split_external_terms(practice_areas, 12)
+    if not resolved_practice:
+        resolved_practice = [term for term in LAWYER_PRACTICE_TERMS if term in lower]
+    if not resolved_practice:
+        resolved_practice = ["civil litigation", "litigation"]
+    required_practice = [
+        term
+        for term in resolved_practice
+        if term.strip().lower() not in LAWYER_SUPPORTING_TERMS
+    ] or list(resolved_practice)
+
+    resolved_locations = _split_external_terms(locations, 12)
+    if not resolved_locations:
+        title_location = re.search(r"\bin\s+(.+)$", title, flags=re.IGNORECASE)
+        if title_location:
+            resolved_locations.extend(_split_external_terms(title_location.group(1), 12))
+        for city in re.findall(r"(?m)^\s*([A-Za-z][A-Za-z .'-]+),\s*CA\b", description):
+            if city.lower() not in {value.lower() for value in resolved_locations}:
+                resolved_locations.append(city.strip())
+
+    resolved_region = str(region or "").strip()
+    if not resolved_region and ("california" in lower or ", ca" in lower):
+        resolved_region = "California"
+    if not resolved_region:
+        resolved_region = "California"
+
+    try:
+        resolved_years = max(0, min(int(min_years or 0), 60))
+    except (TypeError, ValueError):
+        resolved_years = 0
+    if not resolved_years:
+        years_match = re.search(r"\b(\d{1,2})\s*\+?\s*years?\b", combined, flags=re.IGNORECASE)
+        if years_match:
+            resolved_years = max(0, min(int(years_match.group(1)), 60))
+
+    if strict_locations is None:
+        resolved_strict_locations = bool(resolved_locations)
+    else:
+        resolved_strict_locations = bool(strict_locations)
+
+    return {
+        "titles": resolved_titles,
+        "practiceAreas": resolved_practice,
+        "requiredPracticeAreas": required_practice,
+        "locations": resolved_locations,
+        "region": resolved_region,
+        "minYears": resolved_years,
+        "strictLocations": resolved_strict_locations,
+    }
+
+
+def _lawyer_match_score(row: dict, criteria: dict):
+    title = str(row.get("job_title") or row.get("headline") or "")
+    region = str(row.get("location_region") or "")
+    locality = str(row.get("location_locality") or "")
+    try:
+        years = int(row.get("inferred_years_experience") or 0)
+    except (TypeError, ValueError):
+        years = 0
+
+    evidence = " ".join(
+        [
+            title,
+            str(row.get("headline") or ""),
+            str(row.get("summary") or ""),
+            str(row.get("job_summary") or ""),
+            " ".join(_safe_list(row.get("skills"))),
+            " ".join(
+                str(item.get("summary") or "")
+                for item in row.get("experience", [])
+                if isinstance(item, dict)
+            ),
+        ]
+    ).lower()
+
+    title_matches = [term for term in criteria.get("titles", []) if term.lower() in title.lower()]
+    scoring_practice = criteria.get("requiredPracticeAreas") or criteria.get("practiceAreas", [])
+    practice_matches = [term for term in scoring_practice if term.lower() in evidence]
+    region_match = not criteria.get("region") or criteria["region"].lower() == region.lower()
+    target_locations = criteria.get("locations", [])
+    location_match = not target_locations or locality.lower() in {item.lower() for item in target_locations}
+    years_match = not criteria.get("minYears") or years >= int(criteria.get("minYears") or 0)
+
+    title_points = 30 if title_matches else 0
+    practice_target = max(1, min(3, len(scoring_practice)))
+    practice_points = round(35 * min(len(practice_matches) / practice_target, 1), 1)
+    region_points = 15 if region_match else 0
+    location_points = 10 if location_match else 0
+    years_points = 10 if years_match else 0
+    score = round(title_points + practice_points + region_points + location_points + years_points)
+
+    matched = []
+    if title_matches:
+        matched.append("Attorney title")
+    matched.extend(practice_matches[:5])
+    if region_match and criteria.get("region"):
+        matched.append(criteria["region"])
+    if location_match and target_locations:
+        matched.append(locality)
+    if years_match and criteria.get("minYears"):
+        matched.append(f"{years}+ years experience")
+
+    missing = []
+    if not title_matches:
+        missing.append("Current attorney/lawyer title")
+    if not practice_matches:
+        missing.append("Professional liability or litigation evidence")
+    if not region_match:
+        missing.append(criteria.get("region") or "Required region")
+    if target_locations and not location_match:
+        missing.append("Target office city")
+    if criteria.get("minYears") and not years_match:
+        missing.append(f"{criteria['minYears']}+ years experience")
+
+    return score, list(dict.fromkeys(matched)), {
+        "formula": "30 title + 35 practice evidence + 15 state + 10 target city + 10 experience",
+        "matched_count": len(list(dict.fromkeys(matched))),
+        "required_count": 5,
+        "matched_weight": score,
+        "required_weight": 100,
+        "band": _score_band(score),
+        "scoring_skills": scoring_practice,
+        "missing": missing,
+        "components": {
+            "attorneyTitle": title_points,
+            "practiceEvidence": practice_points,
+            "state": region_points,
+            "targetCity": location_points,
+            "experience": years_points,
+        },
+    }
+
+
+def _pdl_source_audit(response: dict, criteria: dict | None = None, query_mode: str = "skills"):
+    rows = response.get("data", []) if isinstance(response, dict) else []
+    return {
+        "provider": "People Data Labs",
+        "queryExecuted": True,
+        "queryMode": query_mode,
+        "apiStatus": int(response.get("status") or 200) if isinstance(response, dict) else 200,
+        "totalMatches": int(response.get("total") or 0) if isinstance(response, dict) else 0,
+        "recordsReturned": len(rows) if isinstance(rows, list) else 0,
+        "recordsReviewed": len(rows) if isinstance(rows, list) else 0,
+        "estimatedCreditsUsed": len(rows) if isinstance(rows, list) else 0,
+        "executedAt": datetime.now(timezone.utc).isoformat(),
+        "criteria": criteria or {},
+        "contactData": "No personal email, phone, or street address requested in discovery search.",
+        "legalReadiness": "California Bar status must be verified before permanent use or outreach.",
+        "linkedInMode": "Profile link only; no LinkedIn scraping was performed.",
+    }
+
+
+def _people_data_row(
+    row: dict,
+    job_skills: list[str],
+    scoring_skills: list[str],
+    lawyer_criteria: dict | None = None,
+):
     skills = _safe_list(row.get("skills"))
-    score, top_matches, score_details = _rank_external_skill_match(skills, job_skills, scoring_skills)
+    if lawyer_criteria:
+        score, top_matches, score_details = _lawyer_match_score(row, lawyer_criteria)
+    else:
+        score, top_matches, score_details = _rank_external_skill_match(skills, job_skills, scoring_skills)
     first = row.get("first_name") or ""
     last = row.get("last_name") or ""
     name = (first + " " + last).strip() or row.get("full_name") or "Unknown candidate"
     linkedin_url = row.get("linkedin_url") or ""
     if linkedin_url and not linkedin_url.startswith("http"):
         linkedin_url = "https://www." + linkedin_url.lstrip("/")
-    email = row.get("recommended_personal_email") or row.get("work_email") or ""
+    email = row.get("work_email") or ""
     if not isinstance(email, str):
         email = ""
     location = row.get("location_name") or ", ".join([v for v in [row.get("location_locality"), row.get("location_region"), row.get("location_country")] if isinstance(v, str) and v])
@@ -365,10 +582,23 @@ def _people_data_row(row: dict, job_skills: list[str], scoring_skills: list[str]
         "avatar_url": "",
         "summary": row.get("summary") or row.get("headline") or "",
         "skills": skills,
+        "years_experience": row.get("inferred_years_experience") or 0,
+        "job_last_verified": row.get("job_last_verified") or "",
         "score": score,
         "match_band": score_details["band"],
         "score_details": score_details,
         "top_matches": top_matches,
+        "verification": {
+            "california_bar_status": "not_verified" if lawyer_criteria else "not_applicable",
+            "california_bar_search_url": (
+                "https://apps.calbar.ca.gov/attorney/LicenseeSearch/QuickSearch?FreeText="
+                + quote_plus(name)
+                if lawyer_criteria
+                else ""
+            ),
+            "pdl_job_last_verified": row.get("job_last_verified") or "",
+            "linkedin_scan": "not_performed",
+        },
         "profile_data": {
             "experience": row.get("experience", [])[:5] if isinstance(row.get("experience"), list) else [],
             "education": row.get("education", [])[:3] if isinstance(row.get("education"), list) else [],
@@ -948,7 +1178,7 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
             "profile_id": row["id"],
             "first_name": row["first_name"],
             "last_name": row["last_name"],
-            "recommended_personal_email": row["recommended_personal_email"],
+            "recommended_personal_email": row.get("work_email") or "",
             "linkedin_url": row["linkedin_url"],
             "inferred_salary": inferredSalary,
             "score": score,
@@ -964,12 +1194,37 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
     rankedExternal.sort(key=lambda x: x["score"], reverse=True)
     return {"jd": {"jd_id": jd["jd_id"], "company": jd.get("company",""), "title": jd.get("title",""), "created_at": jd.get("created_at","")}, "results": ranked[:top_k], "externalMatches": rankedExternal, "skillList": peopleDataSkills, "scoringSkills": scoringSkills}
 
+@router.get("/external/criteria/{jd_id}")
+def external_candidate_criteria(jd_id: str, domain: str = "dev"):
+    clean_domain = _domain_key(domain)
+    jd, _job_skills = _get_job_skills(jd_id, clean_domain)
+    return {
+        "domain": clean_domain,
+        "jd": {
+            "jd_id": jd.get("jd_id"),
+            "company": jd.get("company", ""),
+            "title": jd.get("title", ""),
+        },
+        "criteria": _lawyer_search_criteria(jd) if clean_domain == "law" else {},
+        "verificationSources": {
+            "californiaBar": "https://apps.calbar.ca.gov/attorney/LicenseeSearch/QuickSearch",
+            "linkedIn": "profile_link_only",
+        },
+    }
+
+
 @router.post("/external/search")
 def external_candidate_search(
     domain: str = Form(default="dev"),
     jd_id: str = Form(...),
     source: str = Form(default="pdl"),
     top_k: int = Form(default=10),
+    titles: str = Form(default=""),
+    practice_areas: str = Form(default=""),
+    locations: str = Form(default=""),
+    region: str = Form(default=""),
+    min_years: int = Form(default=0),
+    strict_locations: bool | None = Form(default=None),
 ):
     domain = _domain_key(domain)
     top_k = _external_result_limit(top_k)
@@ -977,13 +1232,50 @@ def external_candidate_search(
     search_skills = _searchable_job_skills(job_skills, 12)
     selected_source = (source or "pdl").strip().lower()
     results = []
+    criteria = None
+    source_audit = {}
 
     try:
         if selected_source == "pdl":
-            pdl_response = peopleDataLabs.searchSkills(search_skills, top_k)
-            results = [_people_data_row(row, job_skills, search_skills) for row in pdl_response.get("data", [])]
+            if domain == "law":
+                criteria = _lawyer_search_criteria(
+                    jd,
+                    titles=titles,
+                    practice_areas=practice_areas,
+                    locations=locations,
+                    region=region,
+                    min_years=min_years,
+                    strict_locations=strict_locations,
+                )
+                pdl_response = peopleDataLabs.searchLawyers(
+                    titles=criteria["titles"],
+                    practice_areas=criteria["requiredPracticeAreas"],
+                    locations=criteria["locations"],
+                    region=criteria["region"],
+                    min_years=criteria["minYears"],
+                    strict_locations=criteria["strictLocations"],
+                    size=top_k,
+                )
+                results = [
+                    _people_data_row(row, job_skills, search_skills, criteria)
+                    for row in pdl_response.get("data", [])
+                ]
+                source_audit = _pdl_source_audit(pdl_response, criteria, "lawyer")
+            else:
+                pdl_response = peopleDataLabs.searchSkills(search_skills, top_k)
+                results = [_people_data_row(row, job_skills, search_skills) for row in pdl_response.get("data", [])]
+                source_audit = _pdl_source_audit(pdl_response, {"skills": search_skills}, "skills")
         elif selected_source == "github":
             results = _github_search(job_skills, search_skills, top_k)
+            source_audit = {
+                "provider": "GitHub Public API",
+                "queryExecuted": True,
+                "queryMode": "public_code_evidence",
+                "totalMatches": len(results),
+                "recordsReturned": len(results),
+                "recordsReviewed": len(results),
+                "executedAt": datetime.now(timezone.utc).isoformat(),
+            }
         else:
             raise HTTPException(status_code=400, detail="Select People Data Labs or GitHub.")
     except HTTPException:
@@ -994,6 +1286,14 @@ def external_candidate_search(
             content={
                 "detail": f"{'GitHub' if selected_source == 'github' else 'People Data Labs'} search failed: {str(e)}",
                 "jobSkills": job_skills,
+                "sourceAudit": {
+                    "provider": "GitHub Public API" if selected_source == "github" else "People Data Labs",
+                    "queryExecuted": True,
+                    "recordsReturned": 0,
+                    "recordsReviewed": 0,
+                    "criteria": criteria or {},
+                    "error": str(e),
+                },
             },
         )
 
@@ -1009,6 +1309,8 @@ def external_candidate_search(
         "searchSkills": search_skills,
         "results": results[:top_k],
         "searchUsesJobDescription": True,
+        "criteria": criteria or {},
+        "sourceAudit": source_audit,
     }
 
 @router.post("/external/search-direct")
@@ -1033,12 +1335,23 @@ def external_candidate_search_direct(
         search_terms = [clean_query]
 
     selected_source = (source or "pdl").strip().lower()
+    source_audit = {}
     try:
         if selected_source == "pdl":
             pdl_response = peopleDataLabs.searchDirect(clean_query, top_k)
             results = [_people_data_row(row, search_terms, search_terms) for row in pdl_response.get("data", [])]
+            source_audit = _pdl_source_audit(pdl_response, {"terms": search_terms}, "direct")
         elif selected_source == "github":
             results = _github_direct_search(clean_query, search_terms, top_k)
+            source_audit = {
+                "provider": "GitHub Public API",
+                "queryExecuted": True,
+                "queryMode": "direct",
+                "totalMatches": len(results),
+                "recordsReturned": len(results),
+                "recordsReviewed": len(results),
+                "executedAt": datetime.now(timezone.utc).isoformat(),
+            }
         else:
             raise HTTPException(status_code=400, detail="Select People Data Labs or GitHub.")
     except HTTPException:
@@ -1049,6 +1362,13 @@ def external_candidate_search_direct(
             content={
                 "detail": f"{'GitHub' if selected_source == 'github' else 'People Data Labs'} direct search failed: {str(e)}",
                 "searchTerms": search_terms,
+                "sourceAudit": {
+                    "provider": "GitHub Public API" if selected_source == "github" else "People Data Labs",
+                    "queryExecuted": True,
+                    "recordsReturned": 0,
+                    "recordsReviewed": 0,
+                    "error": str(e),
+                },
             },
         )
 
@@ -1062,6 +1382,7 @@ def external_candidate_search_direct(
         "searchSkills": search_terms,
         "results": results[:top_k],
         "searchUsesJobDescription": False,
+        "sourceAudit": source_audit,
     }
 
 @router.post("/external/import")

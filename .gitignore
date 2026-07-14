@@ -14,3 +14,5 @@ backend/*token.json
 backend/calendar_tokens/
 backend/google_client_secret.json
 google_client_secret.json
+backend/Output.txt
+backend/People Data Labs Output.json

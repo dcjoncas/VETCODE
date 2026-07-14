@@ -7328,7 +7328,7 @@ def run_match(domain: str = Form("technology"), jd_id: str = Form(None), top_k: 
             "profile_id": row["id"],
             "first_name": row["first_name"],
             "last_name": row["last_name"],
-            "recommended_personal_email": row["recommended_personal_email"],
+            "recommended_personal_email": row.get("work_email") or "",
             "linkedin_url": row["linkedin_url"],
             "inferred_salary": inferredSalary,
             "score": score,
