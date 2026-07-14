@@ -7,9 +7,10 @@ The VETCODE Golden Copy is the complete, restored, live-verified development bas
 | Item | Value |
 | --- | --- |
 | Repository | `https://github.com/dcjoncas/VETCODE.git` |
-| Immutable tag | `golden-vetcode-2026-07-14` |
-| Backup branch | `backup/golden-vetcode-2026-07-14` |
-| Commit | `90f5c3f3e68c3e7eb8c4be09ea2225840772fddd` |
+| Immutable tag | `golden-vetcode-2026-07-14-lawyer-mining` |
+| Backup branch | `backup/golden-vetcode-2026-07-14-lawyer-mining` |
+| Commit | `6ac0b3aa11e60842d67223ccaf81b9c19e7cebbc` |
+| Prior restore tag | `golden-vetcode-2026-07-14` |
 | Railway project | `VETCODE` |
 | Railway environment | `dev` |
 | Railway service | `VETCODE` |
@@ -19,7 +20,7 @@ The tag is the authoritative backup because it cannot drift with normal developm
 
 ## What the Golden Copy protects
 
-The restore point contains the complete VETCODE application at that commit, including the FastAPI backend, UI pages, shared navigation, candidate workflows, job descriptions, external candidate search, and environment API.
+The restore point contains the complete VETCODE application at that commit, including the FastAPI backend, UI pages, shared navigation, candidate workflows, job descriptions, production PDL lawyer search, source auditing, California Bar verification links, external candidate search, and environment API.
 
 It does not contain Railway secrets or database contents. Those remain managed by Railway and the connected data services.
 
@@ -31,7 +32,7 @@ From a VETCODE checkout:
 git fetch origin --tags
 git status --short --branch
 git branch --show-current
-git merge-base --is-ancestor golden-vetcode-2026-07-14 HEAD
+git merge-base --is-ancestor golden-vetcode-2026-07-14-lawyer-mining HEAD
 ```
 
 The final command must exit successfully. Continue development from the latest intended `Development` commit, not by resetting active work back to the tag.
@@ -43,7 +44,7 @@ Use a clean clone or clean worktree. Do not use a working directory containing u
 ```powershell
 git clone https://github.com/dcjoncas/VETCODE.git VETCODE-golden-restore
 Set-Location VETCODE-golden-restore
-git checkout --detach golden-vetcode-2026-07-14
+git checkout --detach golden-vetcode-2026-07-14-lawyer-mining
 git rev-parse HEAD
 python -m py_compile backend/main.py
 railway link -p VETCODE -e dev -s VETCODE
@@ -54,7 +55,7 @@ railway up --detach
 The reported commit must be:
 
 ```text
-90f5c3f3e68c3e7eb8c4be09ea2225840772fddd
+6ac0b3aa11e60842d67223ccaf81b9c19e7cebbc
 ```
 
 Wait for Railway to report `SUCCESS`, then verify:
@@ -64,9 +65,10 @@ curl.exe --max-time 20 -s -o NUL -w "root=%{http_code}`n" "https://vetcode-dev.u
 curl.exe --max-time 20 -s -o NUL -w "environment=%{http_code}`n" "https://vetcode-dev.up.railway.app/api/environment"
 curl.exe --max-time 20 -s -o NUL -w "jobs=%{http_code}`n" "https://vetcode-dev.up.railway.app/ui/pages/job-descriptions.html?domain=law"
 curl.exe --max-time 20 -s -o NUL -w "external=%{http_code}`n" "https://vetcode-dev.up.railway.app/ui/pages/mine-candidate-external.html?domain=law"
+curl.exe --max-time 20 -s -o NUL -w "criteria=%{http_code}`n" "https://vetcode-dev.up.railway.app/api/azureJobs/external/criteria/85?domain=law"
 ```
 
-All four results must be `200`. Review Railway logs for startup errors and missing assets before declaring recovery complete.
+All five results must be `200`. Review Railway logs for startup errors and missing assets before declaring recovery complete.
 
 ## Ongoing backup discipline
 
