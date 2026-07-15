@@ -529,6 +529,9 @@ def _lawyer_match_score(row: dict, criteria: dict):
 
 def _pdl_source_audit(response: dict, criteria: dict | None = None, query_mode: str = "skills"):
     rows = response.get("data", []) if isinstance(response, dict) else []
+    requested_size = int(response.get("requested_size") or len(rows)) if isinstance(response, dict) else len(rows)
+    effective_size = int(response.get("effective_size") or requested_size) if isinstance(response, dict) else requested_size
+    credit_limited = bool(response.get("credit_limited")) if isinstance(response, dict) else False
     return {
         "provider": "People Data Labs",
         "queryExecuted": True,
@@ -539,23 +542,38 @@ def _pdl_source_audit(response: dict, criteria: dict | None = None, query_mode: 
         "recordsReviewed": len(rows) if isinstance(rows, list) else 0,
         "estimatedCreditsUsed": len(rows) if isinstance(rows, list) else 0,
         "costLabel": "record credits",
+        "creditLimited": credit_limited,
+        "requestedPageSize": requested_size,
+        "effectivePageSize": effective_size,
         "hasMore": bool(response.get("scroll_token")) if isinstance(response, dict) else False,
         "executedAt": datetime.now(timezone.utc).isoformat(),
         "criteria": criteria or {},
         "contactData": "No personal email, phone, or street address requested in discovery search.",
         "legalReadiness": "California Bar status must be verified before permanent use or outreach.",
         "linkedInMode": "Profile link only; no LinkedIn scraping was performed.",
+        "statusMessage": (
+            f"PDL rejected the requested {requested_size}-record page, so VETCODE retried with "
+            f"{effective_size} record to preserve a real result without exceeding available credits."
+            if credit_limited
+            else ""
+        ),
     }
 
 
 def _pdl_pagination(response: dict, page_size: int):
     token = str(response.get("scroll_token") or "").strip() if isinstance(response, dict) else ""
-    return {
-        "pageSize": page_size,
+    effective_size = int(response.get("effective_size") or page_size) if isinstance(response, dict) else page_size
+    requested_size = int(response.get("requested_size") or page_size) if isinstance(response, dict) else page_size
+    pagination = {
+        "pageSize": effective_size,
         "hasNext": bool(token),
         "nextScrollToken": token,
-        "costLabel": f"up to {page_size} record credits",
+        "costLabel": f"up to {effective_size} record credits",
     }
+    if effective_size < requested_size:
+        pagination["requestedPageSize"] = requested_size
+        pagination["creditLimited"] = True
+    return pagination
 
 
 def _provider_label(source: str) -> str:
@@ -587,9 +605,9 @@ def _provider_search_error_response(
         status_code = 402
         error_code = "provider_credits_required"
         detail = (
-            "People Data Labs has no Person Search credits available. Add or renew credits in the "
-            "PDL API Dashboard, then retry. No candidate records were returned or reviewed, and no "
-            "TEMP profiles were created."
+            "People Data Labs does not have enough Person Search credits to return the requested page. "
+            "Add or renew credits in the PDL API Dashboard, then retry. No candidate records were returned "
+            "or reviewed, and no TEMP profiles were created."
         )
         action_label = "Open PDL usage and billing"
         action_url = "https://dashboard.peopledatalabs.com/"

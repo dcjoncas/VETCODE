@@ -127,6 +127,29 @@ class PeopleSearchTests(unittest.TestCase):
             peopleSearch.searchSkills(["civil litigation"], 5)
 
         self.assertEqual(error.exception.status_code, 402)
+        self.assertEqual(post.call_count, 2)
+
+    @patch.dict(os.environ, {"PDL_API_KEY": "test-key"}, clear=False)
+    @patch("peopleDataLabs.peopleSearch.requests.post")
+    def test_credit_limited_search_retries_with_one_record_page(self, post):
+        credit_error = Mock(status_code=402)
+        success = Mock(status_code=200)
+        success.json.return_value = {
+            "status": 200,
+            "total": 277,
+            "data": [{"id": "candidate-1"}],
+            "scroll_token": "next-page-token",
+        }
+        post.side_effect = [credit_error, success]
+
+        result = peopleSearch.searchSkills(["civil litigation"], 10)
+
+        self.assertEqual(post.call_count, 2)
+        self.assertEqual(post.call_args_list[0].kwargs["json"]["size"], 10)
+        self.assertEqual(post.call_args_list[1].kwargs["json"]["size"], 1)
+        self.assertTrue(result["credit_limited"])
+        self.assertEqual(result["requested_size"], 10)
+        self.assertEqual(result["effective_size"], 1)
 
     @patch.dict(os.environ, {"PDL_API_KEY": "test-key"}, clear=False)
     @patch("peopleDataLabs.peopleSearch.requests.get")

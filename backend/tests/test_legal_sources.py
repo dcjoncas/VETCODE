@@ -202,6 +202,7 @@ class LegalSourceRouteTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 402)
         self.assertEqual(payload["code"], "provider_credits_required")
+        self.assertIn("enough Person Search credits", payload["detail"])
         self.assertEqual(payload["results"], [])
         self.assertTrue(payload["sourceAudit"]["queryExecuted"])
         self.assertFalse(payload["sourceAudit"]["queryCompleted"])

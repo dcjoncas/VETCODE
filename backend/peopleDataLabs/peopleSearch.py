@@ -114,17 +114,28 @@ def _post_search(payload: dict[str, Any]) -> dict[str, Any]:
         "X-Api-Key": _api_key(),
     }
 
-    try:
-        response = requests.post(
-            PDL_SEARCH_URL,
-            headers=headers,
-            json=request_payload,
-            timeout=PDL_TIMEOUT,
-        )
-    except requests.Timeout as exc:
-        raise PeopleDataLabsError("People Data Labs timed out before returning results.") from exc
-    except requests.RequestException as exc:
-        raise PeopleDataLabsError("People Data Labs could not be reached.") from exc
+    requested_size = _result_size(request_payload.get("size"))
+    attempt_sizes = [requested_size]
+    if requested_size > 1:
+        attempt_sizes.append(1)
+    response = None
+    effective_size = requested_size
+    for attempt_size in attempt_sizes:
+        request_payload["size"] = attempt_size
+        effective_size = attempt_size
+        try:
+            response = requests.post(
+                PDL_SEARCH_URL,
+                headers=headers,
+                json={**request_payload},
+                timeout=PDL_TIMEOUT,
+            )
+        except requests.Timeout as exc:
+            raise PeopleDataLabsError("People Data Labs timed out before returning results.") from exc
+        except requests.RequestException as exc:
+            raise PeopleDataLabsError("People Data Labs could not be reached.") from exc
+        if response.status_code != 402 or attempt_size == 1:
+            break
 
     if response.status_code == 404 and request_payload.get("scroll_token"):
         return {"status": 404, "total": 0, "data": [], "scroll_token": None}
@@ -144,6 +155,9 @@ def _post_search(payload: dict[str, Any]) -> dict[str, Any]:
         result["total"] = max(0, int(result.get("total") or 0))
     except (TypeError, ValueError):
         result["total"] = 0
+    result["requested_size"] = requested_size
+    result["effective_size"] = effective_size
+    result["credit_limited"] = effective_size < requested_size
     return result
 
 

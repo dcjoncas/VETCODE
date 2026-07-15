@@ -816,7 +816,7 @@
           const pdlButton = document.querySelector('.source-toggle [data-source="pdl"]');
           if (pdlButton) {
             pdlButton.textContent = "People Data Labs - credits needed";
-            pdlButton.title = "The API key is configured, but Person Search credits must be added.";
+            pdlButton.title = "The API key is configured, but more Person Search credits are required for this page.";
           }
         }
       }
@@ -854,6 +854,8 @@
         const costLabel = activeExternalSearch?.costLabel || "provider request";
         const hasNext = Boolean(nextExternalScrollToken);
         const shouldShow = latestExternalResults.length > 0 && (hasNext || total > retrieved);
+        const candidateLabel = latestExternalResults.length === 1 ? "candidate" : "candidates";
+        const recordLabel = retrieved === 1 ? "record" : "records";
         const buttonLabel = paginationLoading
           ? "Loading next page..."
           : hasNext
@@ -864,8 +866,8 @@
           pager.hidden = !shouldShow;
           pager.innerHTML = shouldShow
             ? `<div class="result-page-status">
-                <strong>${latestExternalResults.length.toLocaleString()} candidates displayed</strong>
-                <span>${retrieved.toLocaleString()} records retrieved from ${total.toLocaleString()} provider matches.</span>
+                <strong>${latestExternalResults.length.toLocaleString()} ${candidateLabel} displayed</strong>
+                <span>${retrieved.toLocaleString()} ${recordLabel} retrieved from ${total.toLocaleString()} provider matches.</span>
               </div>
               <button class="btn secondary" type="button" data-load-more ${paginationLoading || !hasNext ? "disabled" : ""}>
                 ${buttonLabel}
@@ -1195,9 +1197,23 @@
               ? `Direct search used: ${(response.searchSkills || response.jobSkills || []).join(", ")}`
               : `Search skills used: ${(response.searchSkills || response.jobSkills || []).join(", ")}`;
           const totalMatches = Number(response.sourceAudit?.totalMatches || 0);
-          document.getElementById("mineStatus").textContent = totalMatches
-            ? `${response.sourceAudit?.provider || providerName} matched ${totalMatches.toLocaleString()} records and returned ${latestExternalResults.length} for review.`
-            : `Returned ${latestExternalResults.length} ${response.sourceAudit?.provider || providerName} results${directSearch ? " from direct search" : " from the selected JD"}.`;
+          if (response.pagination?.creditLimited) {
+            const requestedSize = Number(response.pagination.requestedPageSize || document.getElementById("topK").value || 0);
+            const effectiveSize = Number(response.pagination.pageSize || latestExternalResults.length || 1);
+            document.getElementById("mineStatus").innerHTML = `
+              <div class="provider-error">
+                <div class="provider-error-copy">
+                  <strong>${escapeHtml(response.sourceAudit?.provider || providerName)} is working, but the requested page exceeded available credits.</strong>
+                  <span>Matched ${totalMatches.toLocaleString()} provider records and returned ${latestExternalResults.length} for review. VETCODE reduced the page from ${requestedSize} to ${effectiveSize} record.</span>
+                  <span class="muted">Use the next-page control to continue one record at a time, or add PDL credits for larger pages.</span>
+                </div>
+                <a class="btn secondary" href="https://dashboard.peopledatalabs.com/" target="_blank" rel="noopener">Open PDL usage and billing</a>
+              </div>`;
+          } else {
+            document.getElementById("mineStatus").textContent = totalMatches
+              ? `${response.sourceAudit?.provider || providerName} matched ${totalMatches.toLocaleString()} records and returned ${latestExternalResults.length} for review.`
+              : `Returned ${latestExternalResults.length} ${response.sourceAudit?.provider || providerName} results${directSearch ? " from direct search" : " from the selected JD"}.`;
+          }
           renderResults(latestExternalResults);
           renderResultPager();
         } catch (e) {
