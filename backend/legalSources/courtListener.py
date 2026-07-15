@@ -90,6 +90,12 @@ def _normalize(row: dict[str, Any], evidence_type: str) -> dict[str, Any]:
         court = court.get("full_name") or court.get("short_name") or court.get("id") or ""
     if isinstance(court, list):
         court = ", ".join(str(item) for item in court[:3])
+    opinions = row.get("opinions") if isinstance(row.get("opinions"), list) else []
+    nested_snippet = ""
+    for opinion in opinions:
+        if isinstance(opinion, dict) and opinion.get("snippet"):
+            nested_snippet = opinion.get("snippet")
+            break
     return {
         "evidenceType": evidence_type,
         "title": _plain_text(
@@ -104,7 +110,8 @@ def _normalize(row: dict[str, Any], evidence_type: str) -> dict[str, Any]:
         "docketNumber": _plain_text(row.get("docketNumber") or row.get("docket_number"), 120),
         "court": _plain_text(court, 180),
         "dateFiled": _plain_text(row.get("dateFiled") or row.get("date_filed"), 40),
-        "snippet": _plain_text(row.get("snippet"), 500),
+        "snippet": _plain_text(row.get("snippet") or nested_snippet, 500),
+        "attorney": _plain_text(row.get("attorney"), 240),
         "url": _result_url(row),
     }
 

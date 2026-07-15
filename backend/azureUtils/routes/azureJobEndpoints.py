@@ -582,6 +582,7 @@ def _provider_label(source: str) -> str:
         "github": "GitHub Public API",
         "coresignal": "Coresignal",
         "brave": "Brave Search",
+        "courtlistener": "CourtListener / RECAP",
     }.get(source, "External provider")
 
 
@@ -858,6 +859,51 @@ def _brave_row(
             "linkedin_scan": "not_performed",
         },
         "profile_data": {"web_description": description, "web_domain": domain},
+    }
+
+
+def _courtlistener_row(row: dict, searched_name: str):
+    evidence_type = str(row.get("evidenceType") or "court_record")
+    evidence_label = "RECAP docket" if evidence_type == "recap_docket" else "Published opinion"
+    title = str(row.get("title") or "Court record").strip()
+    court = str(row.get("court") or "").strip()
+    docket_number = str(row.get("docketNumber") or "").strip()
+    date_filed = str(row.get("dateFiled") or "").strip()
+    return {
+        "source": "courtlistener",
+        "source_label": "CourtListener / RECAP",
+        "source_id": str(row.get("url") or docket_number or title),
+        "result_type": "court_record_evidence",
+        "name": title,
+        "email": "",
+        "title": evidence_label,
+        "company": court,
+        "location": date_filed,
+        "profile_url": str(row.get("url") or ""),
+        "avatar_url": "",
+        "summary": str(row.get("snippet") or "").strip(),
+        "skills": [],
+        "score": 0,
+        "match_band": "Research evidence",
+        "score_details": {
+            "formula": "Court records are not used for candidate-fit scoring.",
+            "band": "Research evidence",
+            "missing": [],
+        },
+        "top_matches": [],
+        "verification": {
+            "identity_status": "not_verified",
+            "role_in_matter": "not_verified",
+            "california_bar_status": "not_verified",
+            "linkedin_scan": "not_performed",
+        },
+        "profile_data": {
+            "searched_name": searched_name,
+            "evidence_type": evidence_type,
+            "docket_number": docket_number,
+            "date_filed": date_filed,
+            "attorney_field": str(row.get("attorney") or ""),
+        },
     }
 
 
@@ -1548,7 +1594,7 @@ def external_provider_status():
             "courtlistener": {
                 "label": "CourtListener / RECAP",
                 "ready": courtListener.configured(),
-                "role": "manual_court_evidence",
+                "role": "court_record_research",
                 "environmentVariable": "COURTLISTENER_API_TOKEN",
                 "signupUrl": "https://www.courtlistener.com/sign-in/",
                 "tokenUrl": "https://www.courtlistener.com/profile/api-token/",
@@ -1709,6 +1755,11 @@ def external_candidate_search(
             )
             source_audit["totalIsEstimate"] = True
             pagination = _provider_pagination(brave_response, top_k, "1 API request")
+        elif selected_source == "courtlistener":
+            raise HTTPException(
+                status_code=400,
+                detail="CourtListener research requires a lawyer's full name in the direct-search field.",
+            )
         elif selected_source == "github":
             results = _github_search(job_skills, search_skills, top_k)
             source_audit = {
@@ -1723,7 +1774,7 @@ def external_candidate_search(
         else:
             raise HTTPException(
                 status_code=400,
-                detail="Select People Data Labs, Coresignal, Brave Search, or GitHub.",
+                detail="Select People Data Labs, Coresignal, Brave Search, CourtListener, or GitHub.",
             )
     except HTTPException:
         raise
@@ -1828,6 +1879,43 @@ def external_candidate_search_direct(
             )
             source_audit["totalIsEstimate"] = True
             pagination = _provider_pagination(brave_response, top_k, "1 API request")
+        elif selected_source == "courtlistener":
+            if domain != "law":
+                raise HTTPException(status_code=400, detail="CourtListener lawyer research is available in LegalReady.")
+            court_response = courtListener.search_evidence(clean_query, size=min(top_k, 5))
+            results = [
+                _courtlistener_row(row, clean_query)
+                for row in court_response.get("results", [])
+                if isinstance(row, dict)
+            ][:top_k]
+            total_matches = sum(
+                max(0, int(value or 0))
+                for value in (court_response.get("counts") or {}).values()
+            )
+            requests_used = max(1, int(court_response.get("requestsUsed") or 1))
+            source_audit = {
+                "provider": "CourtListener / RECAP",
+                "queryExecuted": bool(court_response.get("queryExecuted", True)),
+                "queryCompleted": True,
+                "queryMode": "lawyer_name_court_record_research",
+                "totalMatches": total_matches,
+                "recordsReturned": len(results),
+                "recordsReviewed": len(results),
+                "estimatedCreditsUsed": requests_used,
+                "costLabel": "API requests (rate limited)",
+                "executedAt": datetime.now(timezone.utc).isoformat(),
+                "criteria": {"lawyerName": clean_query},
+                "identityVerified": False,
+                "legalReadiness": court_response.get("notice") or "Confirm identity and role in every matter.",
+                "linkedInMode": "No LinkedIn data was requested or scanned.",
+                "statusMessage": "Court records are research leads only and are not candidate profiles.",
+            }
+            pagination = {
+                "pageSize": len(results),
+                "hasNext": False,
+                "nextScrollToken": "",
+                "costLabel": f"{requests_used} API requests",
+            }
         elif selected_source == "github":
             results = _github_direct_search(clean_query, search_terms, top_k)
             source_audit = {
@@ -1842,7 +1930,7 @@ def external_candidate_search_direct(
         else:
             raise HTTPException(
                 status_code=400,
-                detail="Select People Data Labs, Coresignal, Brave Search, or GitHub.",
+                detail="Select People Data Labs, Coresignal, Brave Search, CourtListener, or GitHub.",
             )
     except HTTPException:
         raise
@@ -2000,10 +2088,13 @@ def external_candidate_import(payload: dict = Body(...)):
     if not isinstance(candidate, dict):
         raise HTTPException(status_code=400, detail="Candidate data is required.")
     source = candidate.get("source") or payload.get("source") or "external"
-    if source == "brave" or candidate.get("result_type") == "public_web_evidence":
+    if source in {"brave", "courtlistener"} or candidate.get("result_type") in {
+        "public_web_evidence",
+        "court_record_evidence",
+    }:
         raise HTTPException(
             status_code=400,
-            detail="Brave Search results are research-only and are not stored as candidate profiles.",
+            detail="These research-only evidence results are not stored as candidate profiles.",
         )
 
     source_id = _external_text(candidate.get("source_id"), 180)

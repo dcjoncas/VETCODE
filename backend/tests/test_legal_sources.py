@@ -228,6 +228,46 @@ class LegalSourceRouteTests(unittest.TestCase):
         self.assertFalse(result["usedForScoring"])
         self.assertFalse(result["identityVerified"])
 
+    @patch("azureUtils.routes.azureJobEndpoints.courtListener.search_evidence")
+    def test_courtlistener_direct_search_returns_research_only_records(self, search):
+        search.return_value = {
+            "provider": "CourtListener / RECAP",
+            "queryExecuted": True,
+            "counts": {"recap_docket": 8, "published_opinion": 4},
+            "results": [
+                {
+                    "evidenceType": "recap_docket",
+                    "title": "Example v. Example",
+                    "docketNumber": "2:26-cv-001",
+                    "court": "California Central District Court",
+                    "dateFiled": "2026-01-10",
+                    "snippet": "Sample Attorney appeared as counsel.",
+                    "url": "https://www.courtlistener.com/docket/1/example/",
+                }
+            ],
+            "requestsUsed": 2,
+            "identityVerified": False,
+            "notice": "Confirm identity and role in every matter.",
+        }
+
+        result = azureJobEndpoints.external_candidate_search_direct(
+            domain="law",
+            query="Sample Attorney",
+            source="courtlistener",
+            top_k=3,
+            scroll_token="",
+        )
+
+        search.assert_called_once_with("Sample Attorney", size=3)
+        self.assertEqual(result["source"], "courtlistener")
+        self.assertEqual(result["results"][0]["result_type"], "court_record_evidence")
+        self.assertEqual(result["results"][0]["score"], 0)
+        self.assertEqual(result["sourceAudit"]["totalMatches"], 12)
+        self.assertEqual(result["sourceAudit"]["recordsReturned"], 1)
+        self.assertEqual(result["sourceAudit"]["estimatedCreditsUsed"], 2)
+        self.assertFalse(result["sourceAudit"]["identityVerified"])
+        self.assertEqual(result["pagination"]["costLabel"], "2 API requests")
+
     def test_brave_query_excludes_linkedin_and_import_is_blocked(self):
         query = azureJobEndpoints._brave_law_query(
             {
@@ -255,6 +295,16 @@ class LegalSourceRouteTests(unittest.TestCase):
                     "candidate": {
                         "source": "pdl",
                         "result_type": "public_web_evidence",
+                    },
+                }
+            )
+        with self.assertRaisesRegex(Exception, "research-only"):
+            azureJobEndpoints.external_candidate_import(
+                {
+                    "domain": "law",
+                    "candidate": {
+                        "source": "courtlistener",
+                        "result_type": "court_record_evidence",
                     },
                 }
             )

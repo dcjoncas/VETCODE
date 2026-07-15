@@ -463,7 +463,7 @@
               id="externalSearchInput"
               placeholder="Name, email, profile URL, or comma separated skills (e.g. Python, C#, React)"
             />
-            <div class="source-guide">
+            <div class="source-guide" id="directSearchHelp">
               Use this when you do not have a job description yet. Results still create TEMP profiles only.
             </div>
           </div>
@@ -547,6 +547,9 @@
               <button class="btn" type="button" data-source="brave" data-provider-label="Brave Search" aria-pressed="false">
                 Brave Search
               </button>
+              <button class="btn" id="courtListenerSourceButton" type="button" data-source="courtlistener" data-provider-label="CourtListener / RECAP" aria-pressed="false" hidden>
+                CourtListener / RECAP
+              </button>
               <button class="btn" id="githubSourceButton" type="button" data-source="github" aria-pressed="false">
                 GitHub
               </button>
@@ -589,7 +592,7 @@
           <div id="results"></div>
           <nav id="resultPagerBottom" class="result-pager" data-result-pager aria-label="Candidate result pages" hidden></nav>
 
-          <section class="card" style="box-shadow: none; margin-top: 14px">
+          <section class="card" id="shortlistSection" style="box-shadow: none; margin-top: 14px">
             <div id="shortlistTray"></div>
           </section>
 
@@ -643,6 +646,7 @@
         document.getElementById("externalSearchInput").placeholder =
           "Exact name, work email, or public profile URL";
         document.getElementById("githubSourceButton").hidden = true;
+        document.getElementById("courtListenerSourceButton").hidden = false;
         document.getElementById("sourceGuide").textContent =
           "Choose a configured discovery source, then select up to five candidates for profile enrichment and rematching. California Bar verification remains required before permanent use or outreach.";
         document.getElementById("resultsLimitHelp").textContent =
@@ -728,6 +732,7 @@
           pdl: "People Data Labs",
           coresignal: "Coresignal",
           brave: "Brave Search",
+          courtlistener: "CourtListener / RECAP",
           github: "GitHub",
         }[source] || "External provider";
       }
@@ -853,8 +858,12 @@
         const pageSize = Number(activeExternalSearch?.pageSize || 0);
         const costLabel = activeExternalSearch?.costLabel || "provider request";
         const hasNext = Boolean(nextExternalScrollToken);
+        const courtRecordResults = latestExternalResults.length > 0
+          && latestExternalResults.every((result) => result.result_type === "court_record_evidence");
         const shouldShow = latestExternalResults.length > 0 && (hasNext || total > retrieved);
-        const candidateLabel = latestExternalResults.length === 1 ? "candidate" : "candidates";
+        const candidateLabel = courtRecordResults
+          ? latestExternalResults.length === 1 ? "court record" : "court records"
+          : latestExternalResults.length === 1 ? "candidate" : "candidates";
         const recordLabel = retrieved === 1 ? "record" : "records";
         const buttonLabel = paginationLoading
           ? "Loading next page..."
@@ -869,9 +878,9 @@
                 <strong>${latestExternalResults.length.toLocaleString()} ${candidateLabel} displayed</strong>
                 <span>${retrieved.toLocaleString()} ${recordLabel} retrieved from ${total.toLocaleString()} provider matches.</span>
               </div>
-              <button class="btn secondary" type="button" data-load-more ${paginationLoading || !hasNext ? "disabled" : ""}>
+              ${courtRecordResults ? "" : `<button class="btn secondary" type="button" data-load-more ${paginationLoading || !hasNext ? "disabled" : ""}>
                 ${buttonLabel}
-              </button>`
+              </button>`}`
             : "";
         });
       }
@@ -934,15 +943,31 @@
           button.classList.toggle("active", isActive);
           button.setAttribute("aria-pressed", isActive ? "true" : "false");
         });
+        const researchOnly = ["brave", "courtlistener"].includes(source);
         const batchImport = document.getElementById("btnImportSelected");
-        batchImport.disabled = source === "brave";
-        batchImport.title = source === "brave"
-          ? "Brave Search results remain research-only"
+        batchImport.disabled = researchOnly;
+        batchImport.title = researchOnly
+          ? `${sourceDisplayName(source)} results remain research-only`
           : "Create temporary profiles from checked results";
+        const directInput = document.getElementById("externalSearchInput");
+        directInput.placeholder = source === "courtlistener"
+          ? "Enter a lawyer's full name for court-record research"
+          : isLawDomain()
+            ? "Exact name, work email, or public profile URL"
+            : "Exact name, work email, public profile URL, or skills";
+        document.getElementById("directSearchHelp").textContent = source === "courtlistener"
+          ? "CourtListener searches return research-only court records. They cannot create TEMP profiles."
+          : "Use this when you do not have a job description yet. Results still create TEMP profiles only.";
+        document.getElementById("btnMine").textContent = source === "courtlistener"
+          ? "Search Court Records"
+          : "Find Candidates (Out)";
+        document.getElementById("selectedEnrichmentCount").hidden = researchOnly;
+        document.getElementById("shortlistSection").hidden = researchOnly;
         const guides = {
           pdl: "Professional discovery using PDL record credits. Returned profiles still require identity and California Bar verification.",
           coresignal: "Professional-profile comparison using one Coresignal search credit per preview page. No LinkedIn scraping is performed by VETCODE.",
           brave: "Public-web discovery for law-firm bios, practice pages, and publications. Results are research leads, not verified candidate profiles.",
+          courtlistener: "Court-record research by lawyer name across RECAP dockets and published opinions. Results are identity-unverified evidence and cannot become TEMP profiles.",
           github: "Public code-footprint discovery for technical candidates.",
         };
         document.getElementById("sourceGuide").textContent = guides[source] || "Select an external source.";
@@ -1040,8 +1065,9 @@
         const html = results
           .map((candidate, index) => {
             const globalIndex = startIndex + index;
+            const isCourtRecord = candidate.result_type === "court_record_evidence";
             const profileLink = candidate.profile_url
-              ? `<a class="btn secondary" href="${escapeHtml(candidate.profile_url)}" target="_blank" rel="noopener">Open profile link</a>`
+              ? `<a class="btn secondary" href="${escapeHtml(candidate.profile_url)}" target="_blank" rel="noopener">${isCourtRecord ? "Open CourtListener record" : "Open profile link"}</a>`
               : "";
             const verification = candidate.verification || {};
             const barLink = verification.california_bar_search_url
@@ -1049,14 +1075,14 @@
               : "";
             const courtListenerReady = externalProviderStatus.courtlistener?.ready === true;
             const canCheckCourtEvidence = isLawDomain()
-              && candidate.result_type !== "public_web_evidence"
+              && !["public_web_evidence", "court_record_evidence"].includes(candidate.result_type)
               && Boolean(candidate.name);
             const courtEvidenceButton = canCheckCourtEvidence
               ? `<button class="btn secondary" type="button" data-evidence-index="${globalIndex}" onclick="checkLegalEvidence(${globalIndex})" ${courtListenerReady ? "" : "disabled"}>
                   ${courtListenerReady ? "Check court evidence" : "CourtListener key needed"}
                 </button>`
               : "";
-            const isResearchOnly = candidate.result_type === "public_web_evidence";
+            const isResearchOnly = ["public_web_evidence", "court_record_evidence"].includes(candidate.result_type);
             const selectControl = isResearchOnly
               ? '<span class="pill">Research only</span>'
               : `<input class="external-candidate-check" type="checkbox" data-index="${globalIndex}" onchange="updateSelectedEnrichmentCount(this)" style="margin-top:4px">`;
@@ -1088,13 +1114,22 @@
             const scoreBand = candidate.match_band || candidate.score_details?.band || "Below threshold";
             const isDirectResult = candidate.search_mode === "direct";
             const scoreLabel =
-              isDirectResult && !(candidate.top_matches || []).length
+              isCourtRecord
+                ? "Court record - identity unverified"
+                : isDirectResult && !(candidate.top_matches || []).length
                 ? "Direct result"
                 : `${Math.round(candidate.score || 0)}% - ${escapeHtml(scoreBand)}`;
             const sourceEvidence = candidate.source === "pdl"
               ? `<div class="meta">${candidate.years_experience ? `${escapeHtml(candidate.years_experience)} years inferred experience` : "Experience not reported"}${candidate.job_last_verified ? ` | PDL job verified ${escapeHtml(candidate.job_last_verified)}` : ""}</div>`
+              : isCourtRecord
+                ? `<div class="meta">${candidate.profile_data?.docket_number ? `Docket ${escapeHtml(candidate.profile_data.docket_number)}` : "Court record"}${candidate.profile_data?.date_filed ? ` | Filed ${escapeHtml(candidate.profile_data.date_filed)}` : ""}</div>`
+                : "";
+            const researchSummary = isResearchOnly && candidate.summary
+              ? `<div class="meta" style="margin-top:8px">${escapeHtml(candidate.summary)}</div>`
               : "";
-            const barStatus = verification.california_bar_status === "not_verified"
+            const barStatus = isCourtRecord
+              ? '<span class="pill">Identity unverified</span>'
+              : verification.california_bar_status === "not_verified"
               ? '<span class="pill">Bar not verified</span>'
               : "";
             const missingSkills = candidate.score_details?.missing?.length
@@ -1115,6 +1150,7 @@
                   ${repoLine}
                   ${repoEvidence}
                   ${missingSkills}
+                  ${researchSummary}
                   </span>
                 </label>
                 <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
@@ -1144,6 +1180,12 @@
       async function mineCandidates() {
         const jdId = document.getElementById("jdSelect").value;
         const directSearch = document.getElementById("externalSearchInput").value.trim();
+        if (selectedSource === "courtlistener" && !directSearch) {
+          document.getElementById("externalSearchInput").focus();
+          document.getElementById("mineStatus").textContent =
+            "Enter a lawyer's full name to research CourtListener and RECAP records.";
+          return;
+        }
         if (!jdId && !directSearch) {
           return alert("Enter a direct search or select a job description first.");
         }
