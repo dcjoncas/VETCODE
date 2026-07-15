@@ -2,6 +2,8 @@ import os
 import unittest
 from unittest.mock import Mock, patch
 
+from fastapi import HTTPException
+
 from azureUtils.routes import azureJobEndpoints
 from legalSources import braveSearch, coreSignal, courtListener
 
@@ -217,6 +219,151 @@ class LegalSourceRouteTests(unittest.TestCase):
                     },
                 }
             )
+
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.uploadProfile")
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.findTemporaryExternalProfile")
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
+    @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
+    def test_selected_pdl_profile_is_enriched_rematched_and_imported_with_history(
+        self,
+        get_job,
+        enrich,
+        find_temp,
+        upload,
+    ):
+        get_job.return_value = (self.jd, ["Professional Liability", "Civil Litigation", "Depositions"])
+        find_temp.return_value = None
+        enrich.return_value = {
+            "status": 200,
+            "likelihood": 9,
+            "data": {
+                "id": "pdl-123",
+                "first_name": "Sample",
+                "last_name": "Attorney",
+                "linkedin_url": "linkedin.com/in/sample-attorney",
+                "job_title": "Associate Attorney",
+                "job_company_name": "Example LLP",
+                "job_last_verified": "2026-06-01",
+                "location_name": "Los Angeles, California, United States",
+                "location_locality": "Los Angeles",
+                "location_region": "California",
+                "location_country": "United States",
+                "inferred_years_experience": 8,
+                "summary": "Professional liability and civil litigation attorney.",
+                "skills": ["Professional Liability", "Civil Litigation", "Depositions"],
+                "experience": [
+                    {
+                        "title": "Associate Attorney",
+                        "company": {"name": "Example LLP"},
+                        "start_date": "2021-01",
+                        "end_date": None,
+                        "is_primary": True,
+                        "summary": "Managed professional liability matters and depositions.",
+                    }
+                ],
+                "education": [
+                    {"school": {"name": "Example Law School"}, "degrees": ["JD"]}
+                ],
+                "certifications": ["California Bar"],
+            },
+        }
+        upload.return_value = {"status": "success", "personid": 501, "name": "Sample Attorney"}
+
+        result = azureJobEndpoints.external_candidate_import(
+            {
+                "domain": "law",
+                "source": "pdl",
+                "jd_id": "85",
+                "criteria": {
+                    "titles": ["Associate Attorney", "Attorney"],
+                    "practiceAreas": ["Professional Liability", "Civil Litigation"],
+                    "locations": ["Los Angeles"],
+                    "region": "California",
+                    "minYears": 3,
+                    "strictLocations": True,
+                },
+                "candidate": {
+                    "source": "pdl",
+                    "source_label": "People Data Labs",
+                    "source_id": "pdl-123",
+                    "name": "Sample Attorney",
+                    "profile_url": "https://www.linkedin.com/in/sample-attorney",
+                    "skills": ["Civil Litigation"],
+                    "top_matches": ["Civil Litigation"],
+                },
+            }
+        )
+
+        enrich.assert_called_once_with(
+            profile="https://www.linkedin.com/in/sample-attorney",
+            pdl_id="pdl-123",
+        )
+        upload_args = upload.call_args.kwargs
+        self.assertEqual(upload_args["candidateCity"], "Los Angeles")
+        self.assertEqual(upload_args["candidateState"], "California")
+        self.assertEqual(len(upload_args["portfolioExperiences"]), 1)
+        clean_description, metadata = azureJobEndpoints.candidates.splitExternalProfileDescription(
+            upload_args["candidateDescription"]
+        )
+        self.assertIn("Temporary external profile", clean_description)
+        self.assertEqual(metadata["enrichment"]["status"], "completed")
+        self.assertEqual(metadata["enrichment"]["likelihood"], 9)
+        self.assertGreater(metadata["match"]["score"], 0)
+        self.assertEqual(metadata["education"][0]["school"], "Example Law School")
+        self.assertEqual(result["personid"], 501)
+        self.assertEqual(result["enrichment"]["creditsUsed"], 1)
+
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.uploadProfile")
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.findTemporaryExternalProfile")
+    def test_duplicate_temp_profile_skips_paid_enrichment(self, find_temp, enrich, upload):
+        find_temp.return_value = {
+            "personid": 501,
+            "name": "Sample Attorney",
+            "temporaryProfile": True,
+            "duplicate": True,
+        }
+
+        result = azureJobEndpoints.external_candidate_import(
+            {
+                "domain": "law",
+                "source": "pdl",
+                "candidate": {
+                    "source": "pdl",
+                    "source_id": "pdl-123",
+                    "profile_url": "https://www.linkedin.com/in/sample-attorney",
+                },
+            }
+        )
+
+        self.assertTrue(result["duplicate"])
+        self.assertTrue(result["enrichmentSkipped"])
+        enrich.assert_not_called()
+        upload.assert_not_called()
+
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.uploadProfile")
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.findTemporaryExternalProfile")
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
+    def test_pdl_no_match_does_not_create_thin_temp_profile(self, enrich, find_temp, upload):
+        find_temp.return_value = None
+        enrich.return_value = {"status": 404, "likelihood": 0, "data": None, "matched": {}}
+
+        with self.assertRaises(HTTPException) as error:
+            azureJobEndpoints.external_candidate_import(
+                {
+                    "domain": "law",
+                    "source": "pdl",
+                    "criteria": {"minYears": "not-a-number"},
+                    "candidate": {
+                        "source": "pdl",
+                        "source_id": "pdl-missing",
+                        "profile_url": "https://www.linkedin.com/in/missing-attorney",
+                    },
+                }
+            )
+
+        self.assertEqual(error.exception.status_code, 404)
+        upload.assert_not_called()
 
 
 if __name__ == "__main__":

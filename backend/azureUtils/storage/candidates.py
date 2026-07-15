@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from fastapi import HTTPException
+import json
 import time
 import azureUtils.storage.client as client
 import azureUtils.storage.processingFunctions as processing
@@ -9,6 +10,28 @@ from openAI import engineeringSurvey
 
 _COUNT_CACHE_TTL_SECONDS = 30
 _count_candidates_all_cache = {}
+_EXTERNAL_PROFILE_META_MARKER = "\nVETCODE_EXTERNAL_PROFILE_META:"
+
+
+def attachExternalProfileMetadata(description: str, metadata: dict | None = None) -> str:
+    clean_description = str(description or "").split(_EXTERNAL_PROFILE_META_MARKER, 1)[0].strip()
+    clean_metadata = metadata if isinstance(metadata, dict) else {}
+    if not clean_metadata:
+        return clean_description
+    encoded = json.dumps(clean_metadata, ensure_ascii=True, separators=(",", ":"))
+    return f"{clean_description}{_EXTERNAL_PROFILE_META_MARKER}{encoded}"
+
+
+def splitExternalProfileDescription(description: str) -> tuple[str, dict]:
+    raw = str(description or "")
+    if _EXTERNAL_PROFILE_META_MARKER not in raw:
+        return raw, {}
+    clean_description, raw_metadata = raw.split(_EXTERNAL_PROFILE_META_MARKER, 1)
+    try:
+        metadata = json.loads(raw_metadata.strip())
+    except (TypeError, ValueError, json.JSONDecodeError):
+        metadata = {}
+    return clean_description.strip(), metadata if isinstance(metadata, dict) else {}
 
 def _sync_identity_sequence(cur, table: str, column: str = "id"):
     allowed_tables = {
@@ -1211,6 +1234,7 @@ def getProfile(profileId: str):
     results = cur.fetchone()
 
     leadSourceProcessed = processing.leadSourceProcessing(results[7])
+    profileDescription, externalProfile = splitExternalProfileDescription(results[10])
 
     # Get Platform Activity
     query = f"SELECT ARRAY_AGG(DISTINCT platact.step), ARRAY_AGG(DISTINCT platact.notes) FROM person JOIN professional prof ON person.id = prof.personid LEFT JOIN address ON person.id = address.personid LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid LEFT JOIN platformactivity platact ON platact.profileid = profper.id WHERE person.id = {profileId} GROUP BY person.id"
@@ -1338,7 +1362,7 @@ def getProfile(profileId: str):
             'leadsource':leadSourceProcessed,
             'status':processing.statusProcessing(results[8]),
             'title': results[9],
-            'description': results[10],
+            'description': profileDescription,
             'publicUrl': results[11],
             'linkedinUrl': results[12],
             'email': results[13],
@@ -1359,6 +1383,7 @@ def getProfile(profileId: str):
         'portfolioExperience': portfolioSkillArray,
         'features': featureArray,
         'culturalExperience': culturalExperienceArray,
+        'externalProfile': externalProfile,
         'compensation': {
             'roleType': compensationResult[0] if compensationResult else None,
             'role': compensationResult[1] if compensationResult else "",
@@ -1671,6 +1696,46 @@ def deleteTemporaryExternalProfile(personId: str):
     finally:
         conn.close()
 
+
+def findTemporaryExternalProfile(domain: str = "dev", source_id: str = "", profile_url: str = ""):
+    clean_source_id = str(source_id or "").strip().lower()
+    clean_profile_url = str(profile_url or "").strip().rstrip("/").lower()
+    if not clean_source_id and not clean_profile_url:
+        return None
+
+    conn = client.getConnection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            SELECT person.id, person.firstname, person.lastname, prof.maindescription
+            FROM person
+            JOIN professional prof ON person.id = prof.personid
+            WHERE person.domain = %s
+              AND prof.maindescription ILIKE '%%Temporary external profile%%'
+            ORDER BY prof.modifieddate DESC NULLS LAST, person.id DESC
+            LIMIT 200
+            """,
+            (domain,),
+        )
+        for person_id, first_name, last_name, description in cur.fetchall():
+            _clean_description, metadata = splitExternalProfileDescription(description)
+            stored_source_id = str(metadata.get("sourceId") or "").strip().lower()
+            stored_profile_url = str(metadata.get("profileUrl") or "").strip().rstrip("/").lower()
+            if (clean_source_id and clean_source_id == stored_source_id) or (
+                clean_profile_url and clean_profile_url == stored_profile_url
+            ):
+                return {
+                    "personid": person_id,
+                    "name": f"{first_name or ''} {last_name or ''}".strip() or "Temporary Profile",
+                    "temporaryProfile": True,
+                    "duplicate": True,
+                    "externalProfile": metadata,
+                }
+        return None
+    finally:
+        conn.close()
+
 def listTemporaryExternalProfiles(domain: str = "dev", limit: int = 50):
     try:
         safe_limit = max(1, min(int(limit), 200))
@@ -1712,9 +1777,12 @@ def listTemporaryExternalProfiles(domain: str = "dev", limit: int = 50):
         profiles = []
         for row in rows:
             description = row[5] or ""
+            _clean_description, external_profile = splitExternalProfileDescription(description)
             source = "External"
             marker = "Imported from "
-            if marker in description:
+            if external_profile.get("source"):
+                source = str(external_profile.get("source"))
+            elif marker in description:
                 source = description.split(marker, 1)[1].split(".", 1)[0].strip() or source
             location = ", ".join([part for part in [row[6], row[7], row[8]] if part])
             profiles.append({
@@ -1725,6 +1793,8 @@ def listTemporaryExternalProfiles(domain: str = "dev", limit: int = 50):
                 "source": source,
                 "location": location,
                 "updated": row[9].isoformat() if row[9] else "",
+                "enrichmentStatus": (external_profile.get("enrichment") or {}).get("status", ""),
+                "matchScore": (external_profile.get("match") or {}).get("score"),
             })
         return {"status": "success", "profiles": profiles}
     finally:

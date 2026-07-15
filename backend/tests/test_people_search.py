@@ -118,6 +118,44 @@ class PeopleSearchTests(unittest.TestCase):
             peopleSearch.searchSkills(["civil litigation"], 5)
         self.assertNotIn("provider-internal-response", str(error.exception))
 
+    @patch.dict(os.environ, {"PDL_API_KEY": "test-key"}, clear=False)
+    @patch("peopleDataLabs.peopleSearch.requests.get")
+    def test_selected_person_enrichment_uses_exact_pdl_id_and_minimized_fields(self, get):
+        response = Mock(status_code=200)
+        response.json.return_value = {
+            "status": 200,
+            "likelihood": 10,
+            "data": {"id": "pdl-123", "full_name": "Sample Attorney"},
+        }
+        get.return_value = response
+
+        result = peopleSearch.enrichPerson(
+            pdl_id="pdl-123",
+            profile="https://www.linkedin.com/in/sample-attorney",
+        )
+
+        self.assertEqual(result["likelihood"], 10)
+        request = get.call_args
+        self.assertEqual(request.args[0], peopleSearch.PDL_ENRICH_URL)
+        self.assertEqual(request.kwargs["params"]["pdl_id"], "pdl-123")
+        self.assertNotIn("profile", request.kwargs["params"])
+        self.assertEqual(request.kwargs["headers"]["X-Api-Key"], "test-key")
+        included = set(request.kwargs["params"]["data_include"].split(","))
+        self.assertIn("experience.summary", included)
+        self.assertIn("education.school.name", included)
+        self.assertNotIn("phone_numbers", included)
+        self.assertNotIn("street_addresses", included)
+
+    @patch.dict(os.environ, {"PDL_API_KEY": "test-key"}, clear=False)
+    @patch("peopleDataLabs.peopleSearch.requests.get")
+    def test_selected_person_enrichment_404_is_a_clean_no_match(self, get):
+        get.return_value = Mock(status_code=404)
+
+        result = peopleSearch.enrichPerson(profile="linkedin.com/in/missing-profile")
+
+        self.assertEqual(result["status"], 404)
+        self.assertIsNone(result["data"])
+
 
 if __name__ == "__main__":
     unittest.main()

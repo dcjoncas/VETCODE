@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 PDL_SEARCH_URL = "https://api.peopledatalabs.com/v5/person/search"
+PDL_ENRICH_URL = "https://api.peopledatalabs.com/v5/person/enrich"
 PDL_TIMEOUT = (5, 30)
 PDL_SEARCH_FIELDS = ",".join(
     [
@@ -18,6 +19,7 @@ PDL_SEARCH_FIELDS = ",".join(
         "last_name",
         "linkedin_url",
         "headline",
+        "industry",
         "job_title",
         "job_company_name",
         "job_last_verified",
@@ -142,6 +144,51 @@ def _post_search(payload: dict[str, Any]) -> dict[str, Any]:
         result["total"] = max(0, int(result.get("total") or 0))
     except (TypeError, ValueError):
         result["total"] = 0
+    return result
+
+
+def enrichPerson(profile: str = "", pdl_id: str = "") -> dict[str, Any]:
+    clean_profile = str(profile or "").strip()
+    clean_id = str(pdl_id or "").strip()
+    if not clean_profile and not clean_id:
+        raise PeopleDataLabsError("A People Data Labs ID or professional profile URL is required.")
+
+    params: dict[str, Any] = {
+        "titlecase": True,
+        "include_if_matched": True,
+        "data_include": PDL_SEARCH_FIELDS,
+    }
+    if clean_id:
+        params["pdl_id"] = clean_id
+    else:
+        params["profile"] = clean_profile
+    headers = {
+        "Accept": "application/json",
+        "X-Api-Key": _api_key(),
+    }
+
+    try:
+        response = requests.get(
+            PDL_ENRICH_URL,
+            headers=headers,
+            params=params,
+            timeout=PDL_TIMEOUT,
+        )
+    except requests.Timeout as exc:
+        raise PeopleDataLabsError("People Data Labs enrichment timed out.") from exc
+    except requests.RequestException as exc:
+        raise PeopleDataLabsError("People Data Labs enrichment could not be reached.") from exc
+
+    if response.status_code == 404:
+        return {"status": 404, "likelihood": 0, "data": None, "matched": {}}
+    if response.status_code != 200:
+        raise PeopleDataLabsError(_error_message(response), response.status_code)
+    try:
+        result = response.json()
+    except ValueError as exc:
+        raise PeopleDataLabsError("People Data Labs enrichment returned an invalid response.") from exc
+    if not isinstance(result, dict) or not isinstance(result.get("data"), dict):
+        raise PeopleDataLabsError("People Data Labs enrichment returned an unexpected response.")
     return result
 
 

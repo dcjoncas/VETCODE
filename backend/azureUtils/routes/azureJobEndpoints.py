@@ -816,6 +816,15 @@ def _people_data_row(
             "education": row.get("education", [])[:3] if isinstance(row.get("education"), list) else [],
             "certifications": row.get("certifications", [])[:5] if isinstance(row.get("certifications"), list) else [],
             "github_url": row.get("github_url") or "",
+            "headline": row.get("headline") or "",
+            "job_summary": row.get("job_summary") or "",
+            "industry": row.get("industry") or "",
+            "location": {
+                "name": row.get("location_name") or "",
+                "locality": row.get("location_locality") or "",
+                "region": row.get("location_region") or "",
+                "country": row.get("location_country") or "",
+            },
         },
     }
 
@@ -1784,10 +1793,136 @@ def external_candidate_search_direct(
         "pagination": pagination,
     }
 
+def _external_text(value, limit: int = 1200) -> str:
+    return re.sub(r"\s+", " ", str(value or "")).strip()[:limit]
+
+
+def _external_year(value):
+    match = re.search(r"\b(19\d{2}|20\d{2})\b", str(value or ""))
+    return int(match.group(1)) if match else None
+
+
+def _external_candidate_skills(candidate: dict, limit: int = 30) -> list[str]:
+    ordered = _safe_list(candidate.get("top_matches")) + _safe_list(candidate.get("skills"))
+    clean = []
+    seen = set()
+    for value in ordered:
+        skill = _external_text(value, 100)
+        key = skill.lower()
+        if len(skill) < 2 or key in seen:
+            continue
+        seen.add(key)
+        clean.append(skill)
+        if len(clean) >= limit:
+            break
+    return clean
+
+
+def _external_portfolio(candidate: dict) -> list[dict]:
+    profile_data = candidate.get("profile_data") if isinstance(candidate.get("profile_data"), dict) else {}
+    experiences = profile_data.get("experience") if isinstance(profile_data.get("experience"), list) else []
+    candidate_skills = _external_candidate_skills(candidate)
+    portfolio = []
+    seen = set()
+    for experience in experiences[:8]:
+        if not isinstance(experience, dict):
+            continue
+        company = experience.get("company") if isinstance(experience.get("company"), dict) else {}
+        company_name = _external_text(company.get("name") or experience.get("company_name"), 180)
+        role = _external_text(experience.get("title") or experience.get("job_title"), 180)
+        summary = _external_text(experience.get("summary"), 1600)
+        start_year = _external_year(experience.get("start_date"))
+        finish_year = _external_year(experience.get("end_date"))
+        dedupe_key = (company_name.lower(), role.lower(), start_year, finish_year)
+        if dedupe_key in seen or not any([company_name, role, summary]):
+            continue
+        seen.add(dedupe_key)
+        evidence_text = f"{role} {summary}".lower()
+        role_skills = [skill for skill in candidate_skills if skill.lower() in evidence_text][:6]
+        locations = experience.get("location_names") if isinstance(experience.get("location_names"), list) else []
+        portfolio.append(
+            {
+                "companyName": company_name or "Organization not reported",
+                "mainRole": role or "Role not reported",
+                "description": summary or "No role summary was provided by the source.",
+                "startDate": start_year,
+                "finishDate": finish_year,
+                "isPresent": bool(experience.get("is_primary")) or not bool(finish_year),
+                "skills": role_skills,
+                "features": [_external_text(location, 100) for location in locations[:2] if _external_text(location, 100)],
+            }
+        )
+    return portfolio
+
+
+def _external_education(candidate: dict) -> list[dict]:
+    profile_data = candidate.get("profile_data") if isinstance(candidate.get("profile_data"), dict) else {}
+    education = profile_data.get("education") if isinstance(profile_data.get("education"), list) else []
+    rows = []
+    for item in education[:5]:
+        if not isinstance(item, dict):
+            continue
+        school = item.get("school") if isinstance(item.get("school"), dict) else {}
+        degrees = item.get("degrees") if isinstance(item.get("degrees"), list) else [item.get("degrees")]
+        majors = item.get("majors") if isinstance(item.get("majors"), list) else [item.get("majors")]
+        row = {
+            "school": _external_text(school.get("name") or item.get("school_name"), 180),
+            "degrees": [_external_text(value, 120) for value in degrees if _external_text(value, 120)],
+            "majors": [_external_text(value, 120) for value in majors if _external_text(value, 120)],
+            "startYear": _external_year(item.get("start_date")),
+            "endYear": _external_year(item.get("end_date")),
+        }
+        if row["school"] or row["degrees"] or row["majors"]:
+            rows.append(row)
+    return rows
+
+
+def _external_certifications(candidate: dict) -> list[str]:
+    profile_data = candidate.get("profile_data") if isinstance(candidate.get("profile_data"), dict) else {}
+    certifications = profile_data.get("certifications") if isinstance(profile_data.get("certifications"), list) else []
+    clean = []
+    for item in certifications[:10]:
+        value = (item.get("name") or item.get("title")) if isinstance(item, dict) else item
+        title = _external_text(value, 180)
+        if title and title.lower() not in {row.lower() for row in clean}:
+            clean.append(title)
+    return clean
+
+
+def _external_profile_metadata(candidate: dict, source: str, enrichment: dict) -> dict:
+    score_details = candidate.get("score_details") if isinstance(candidate.get("score_details"), dict) else {}
+    try:
+        match_score = round(float(candidate.get("score") or 0), 1)
+    except (TypeError, ValueError):
+        match_score = 0
+    return {
+        "version": 1,
+        "source": _external_text(candidate.get("source_label") or source, 120),
+        "sourceId": _external_text(candidate.get("source_id"), 180),
+        "profileUrl": _external_text(candidate.get("profile_url"), 500),
+        "enrichment": enrichment,
+        "match": {
+            "score": match_score,
+            "band": _external_text(candidate.get("match_band") or score_details.get("band"), 80),
+            "formula": _external_text(score_details.get("formula"), 300),
+            "matched": _safe_list(candidate.get("top_matches"))[:12],
+            "missing": _safe_list(score_details.get("missing"))[:10],
+            "components": score_details.get("components") if isinstance(score_details.get("components"), dict) else {},
+        },
+        "education": _external_education(candidate),
+        "certifications": _external_certifications(candidate),
+        "providerSkills": _external_candidate_skills(candidate),
+        "yearsExperience": candidate.get("years_experience") or 0,
+        "lastVerified": _external_text(candidate.get("job_last_verified"), 80),
+    }
+
+
 @router.post("/external/import")
 def external_candidate_import(payload: dict = Body(...)):
     domain = _domain_key(payload.get("domain") or "dev")
     candidate = payload.get("candidate") or {}
+    if not isinstance(candidate, dict):
+        raise HTTPException(status_code=400, detail="Candidate data is required.")
     source = candidate.get("source") or payload.get("source") or "external"
     if source == "brave" or candidate.get("result_type") == "public_web_evidence":
         raise HTTPException(
@@ -1795,17 +1930,87 @@ def external_candidate_import(payload: dict = Body(...)):
             detail="Brave Search results are research-only and are not stored as candidate profiles.",
         )
 
-    skills = [
-        {"title": skill, "years": 0}
-        for skill in _safe_list(candidate.get("skills"))
-    ]
+    source_id = _external_text(candidate.get("source_id"), 180)
+    profile_url = _external_text(candidate.get("profile_url"), 500)
+    duplicate = candidates.findTemporaryExternalProfile(domain, source_id, profile_url)
+    if duplicate:
+        duplicate.update({"source": source, "enrichmentSkipped": True})
+        return duplicate
+
+    jd_id = _external_text(payload.get("jd_id"), 80)
+    job_skills = _safe_list(candidate.get("top_matches") or candidate.get("skills"))
+    search_skills = list(job_skills)
+    criteria = None
+    if jd_id:
+        jd, job_skills = _get_job_skills(jd_id, domain)
+        search_skills = _searchable_job_skills(job_skills, 12)
+        supplied_criteria = payload.get("criteria") if isinstance(payload.get("criteria"), dict) else {}
+        if domain == "law":
+            criteria = _lawyer_search_criteria(
+                jd,
+                titles=",".join(_safe_list(supplied_criteria.get("titles"))),
+                practice_areas=",".join(_safe_list(supplied_criteria.get("practiceAreas"))),
+                locations=",".join(_safe_list(supplied_criteria.get("locations"))),
+                region=_external_text(supplied_criteria.get("region"), 100),
+                min_years=supplied_criteria.get("minYears") or 0,
+                strict_locations=supplied_criteria.get("strictLocations"),
+            )
+
+    enrichment = {
+        "status": "not_requested",
+        "provider": "",
+        "likelihood": 0,
+        "creditsUsed": 0,
+        "enrichedAt": "",
+        "dataOrigin": "Provider-supplied professional data; no LinkedIn scraping.",
+    }
+    if source == "pdl":
+        try:
+            response = peopleDataLabs.enrichPerson(profile=profile_url, pdl_id=source_id)
+        except peopleDataLabs.PeopleDataLabsError as exc:
+            raise HTTPException(status_code=502, detail=f"Selected profile enrichment failed: {str(exc)}") from exc
+        enrichment.update(
+            {
+                "provider": "People Data Labs Person Enrichment",
+                "enrichedAt": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        if response.get("status") == 200 and isinstance(response.get("data"), dict):
+            mapped = _people_data_row(response["data"], job_skills, search_skills, criteria)
+            merged_profile_data = {
+                **(candidate.get("profile_data") if isinstance(candidate.get("profile_data"), dict) else {}),
+                **(mapped.get("profile_data") if isinstance(mapped.get("profile_data"), dict) else {}),
+            }
+            candidate = {**candidate, **mapped, "profile_data": merged_profile_data}
+            candidate["source"] = "pdl"
+            candidate["source_label"] = "People Data Labs"
+            enrichment.update(
+                {
+                    "status": "completed",
+                    "likelihood": int(response.get("likelihood") or 0),
+                    "creditsUsed": 1,
+                    "matchedInput": "pdl_id" if source_id else "profile_url",
+                }
+            )
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail="People Data Labs could not enrich the selected person. No TEMP profile was created.",
+            )
+
+    skills = [{"title": skill, "years": 1} for skill in _external_candidate_skills(candidate)]
     full_name = candidate.get("name") or "External Candidate"
-    profile_url = candidate.get("profile_url") or ""
+    profile_url = candidate.get("profile_url") or profile_url
+    metadata = _external_profile_metadata(candidate, source, enrichment)
+    summary = _external_text(
+        candidate.get("summary")
+        or ((candidate.get("profile_data") or {}).get("job_summary") if isinstance(candidate.get("profile_data"), dict) else ""),
+        2400,
+    )
     summary_parts = [
-        candidate.get("summary") or "",
         "Temporary external profile. Confirm details before publishing.",
         f"Imported from {candidate.get('source_label') or source}.",
-        f"Relevant matches: {', '.join(_safe_list(candidate.get('top_matches')))}",
+        summary,
     ]
     if source == "github":
         repos = ((candidate.get("profile_data") or {}).get("repos") or [])[:5]
@@ -1815,7 +2020,12 @@ def external_candidate_import(payload: dict = Body(...)):
         ]
         if repo_lines:
             summary_parts.append("GitHub evidence:\n" + "\n".join(repo_lines))
-    description = "\n".join([part for part in summary_parts if part])
+    description = candidates.attachExternalProfileMetadata(
+        "\n\n".join([part for part in summary_parts if part]),
+        metadata,
+    )
+    profile_data = candidate.get("profile_data") if isinstance(candidate.get("profile_data"), dict) else {}
+    location_data = profile_data.get("location") if isinstance(profile_data.get("location"), dict) else {}
 
     try:
         created = candidates.uploadProfile(
@@ -1825,15 +2035,21 @@ def external_candidate_import(payload: dict = Body(...)):
             domain=domain,
             email=candidate.get("email") or None,
             linkedInUrl=profile_url,
-            candidateCity=None,
-            candidateState=None,
-            candidateCountry=candidate.get("location") or None,
+            candidateCity=location_data.get("locality") or None,
+            candidateState=location_data.get("region") or None,
+            candidateCountry=location_data.get("country") or candidate.get("location") or None,
             candidateTitle=candidate.get("title") or "",
+            portfolioExperiences=_external_portfolio(candidate),
         )
         created["source"] = source
         created["temporaryProfile"] = True
         created["importedSkills"] = [skill["title"] for skill in skills]
+        created["enrichment"] = enrichment
+        created["match"] = metadata["match"]
+        created["enriched_candidate"] = candidate
         return created
+    except HTTPException:
+        raise
     except Exception as e:
         return JSONResponse(
             status_code=500,

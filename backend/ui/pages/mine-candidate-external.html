@@ -514,7 +514,7 @@
             <label>Pick place to mine</label>
             <div class="source-guide" id="sourceGuide">
               Select People Data Labs or GitHub, then search outside sources. After results return,
-              choose one candidate to build a TEMP profile for the normal shortlist flow.
+              choose up to five candidates to enrich, rematch, and build as TEMP profiles for the normal shortlist flow.
             </div>
             <div class="source-toggle">
               <button class="btn active" type="button" data-source="pdl" aria-pressed="true">
@@ -538,8 +538,9 @@
               Find Candidates (Out)
             </button>
             <button class="btn" type="button" id="btnImportSelected">
-              Create TEMP profiles from checked
+              Enrich selected and create TEMP profiles
             </button>
+            <span id="selectedEnrichmentCount" class="pill">0 / 5 selected</span>
             <button class="btn secondary" type="button" id="btnViewTempProfiles">
               View TEMP Profiles
             </button>
@@ -620,7 +621,7 @@
           "Exact name, work email, or public profile URL";
         document.getElementById("githubSourceButton").hidden = true;
         document.getElementById("sourceGuide").textContent =
-          "Choose a configured discovery source. California Bar verification remains required before a candidate becomes permanent or is contacted.";
+          "Choose a configured discovery source, then select up to five candidates for profile enrichment and rematching. California Bar verification remains required before permanent use or outreach.";
         document.getElementById("resultsLimitHelp").textContent =
           "Provider usage is shown before each additional page is requested.";
         setLawCriteria({
@@ -664,6 +665,39 @@
           "strict_locations",
           document.getElementById("lawStrictLocations").checked ? "true" : "false",
         );
+      }
+
+      function currentLawCriteria() {
+        if (!isLawDomain()) return {};
+        const splitValues = (value) => String(value || "")
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
+        return {
+          titles: splitValues(document.getElementById("lawTitles").value),
+          practiceAreas: splitValues(document.getElementById("lawPracticeAreas").value),
+          locations: splitValues(document.getElementById("lawLocations").value),
+          region: document.getElementById("lawRegion").value.trim() || "California",
+          minYears: Number(document.getElementById("lawMinYears").value || 0),
+          strictLocations: document.getElementById("lawStrictLocations").checked,
+        };
+      }
+
+      function selectedCandidateIndexes() {
+        return [...document.querySelectorAll(".external-candidate-check:checked")]
+          .map((input) => Number(input.dataset.index))
+          .filter((index) => latestExternalResults[index]);
+      }
+
+      function updateSelectedEnrichmentCount(changedInput) {
+        let selected = selectedCandidateIndexes();
+        if (selected.length > 5 && changedInput) {
+          changedInput.checked = false;
+          alert("Select no more than five candidates for profile enrichment.");
+          selected = selectedCandidateIndexes();
+        }
+        const counter = document.getElementById("selectedEnrichmentCount");
+        if (counter) counter.textContent = `${selected.length} / 5 selected`;
       }
 
       function sourceDisplayName(source = selectedSource) {
@@ -957,11 +991,11 @@
             const isResearchOnly = candidate.result_type === "public_web_evidence";
             const selectControl = isResearchOnly
               ? '<span class="pill">Research only</span>'
-              : `<input class="external-candidate-check" type="checkbox" data-index="${globalIndex}" style="margin-top:4px">`;
+              : `<input class="external-candidate-check" type="checkbox" data-index="${globalIndex}" onchange="updateSelectedEnrichmentCount(this)" style="margin-top:4px">`;
             const importButton = isResearchOnly
               ? ""
               : `<button class="btn primary" type="button" onclick="importExternalCandidate(${globalIndex})">
-                  Create TEMP profile from this candidate
+                  ${candidate.source === "pdl" ? "Enrich, rematch, and create TEMP profile" : "Create TEMP profile from this candidate"}
                 </button>`;
             const profileStatusBadge = isResearchOnly
               ? ""
@@ -1036,6 +1070,7 @@
         } else {
           target.innerHTML = html;
         }
+        updateSelectedEnrichmentCount();
       }
 
       async function mineCandidates() {
@@ -1106,12 +1141,20 @@
         }
       }
 
-      async function importExternalCandidate(index) {
-        const candidate = latestExternalResults[index];
+      async function importExternalCandidate(index, options = {}) {
+        let candidate = latestExternalResults[index];
         if (!candidate) return;
+        if (candidate.source === "pdl" && options.skipConfirmation !== true) {
+          const approved = confirm(
+            "Enrich this selected People Data Labs profile, rerun the match, and create a TEMP profile? A successful enrichment may use 1 PDL Person Enrichment credit.",
+          );
+          if (!approved) return null;
+        }
 
         document.getElementById("mineStatus").textContent =
-          `Creating TEMP profile for ${candidate.name || "selected candidate"}...`;
+          candidate.source === "pdl"
+            ? `Enriching and rematching ${candidate.name || "selected candidate"}...`
+            : `Creating TEMP profile for ${candidate.name || "selected candidate"}...`;
 
         let response;
         try {
@@ -1122,6 +1165,8 @@
               domain: currentDomain(),
               source: candidate.source,
               candidate,
+              jd_id: document.getElementById("jdSelect").value || "",
+              criteria: currentLawCriteria(),
             }),
           });
         } catch (e) {
@@ -1136,6 +1181,11 @@
           document.getElementById("mineStatus").textContent =
             "TEMP profile was not created: the server did not return a profile id.";
           return null;
+        }
+
+        if (response.enriched_candidate) {
+          candidate = response.enriched_candidate;
+          latestExternalResults[index] = candidate;
         }
 
         sessionStorage.setItem("candidateId", response.personid);
@@ -1173,29 +1223,47 @@
           name: response.name,
           title: candidate.title || "",
           source: candidate.source_label || candidate.source,
+          enrichment: response.enrichment || {},
+          match: response.match || {},
+          duplicate: response.duplicate === true,
         });
-        document.getElementById("mineStatus").textContent =
-          "TEMP profile created. Use the link below to open it, make it permanent, or delete it.";
+        const score = Number(response.match?.score);
+        document.getElementById("mineStatus").textContent = response.duplicate
+          ? "This selected candidate already has a TEMP profile, so no additional enrichment credit was used."
+          : Number.isFinite(score)
+            ? `TEMP profile enriched and rematched at ${Math.round(score)}%. Open it below to review the evidence.`
+            : "TEMP profile created. Use the link below to review it, make it permanent, or delete it.";
         await loadTempProfiles({ scroll: true });
         return response;
       }
 
       async function importSelectedExternalCandidates() {
-        const selected = [...document.querySelectorAll(".external-candidate-check:checked")]
-          .map((input) => Number(input.dataset.index))
-          .filter((index) => latestExternalResults[index]);
+        const selected = selectedCandidateIndexes();
         if (!selected.length) return alert("Check at least one external candidate first.");
+        if (selected.length > 5) return alert("Select no more than five candidates for enrichment.");
+        const pdlCount = selected.filter((index) => latestExternalResults[index]?.source === "pdl").length;
+        if (pdlCount) {
+          const approved = confirm(
+            `Enrich ${pdlCount} selected People Data Labs profile${pdlCount === 1 ? "" : "s"}, rerun the match, and create TEMP profiles? This may use up to ${pdlCount} PDL Person Enrichment credit${pdlCount === 1 ? "" : "s"}. Existing TEMP profiles are reused without another enrichment call.`,
+          );
+          if (!approved) return;
+        }
         document.getElementById("btnImportSelected").disabled = true;
         let count = 0;
+        let reused = 0;
         try {
           for (const index of selected) {
-            const created = await importExternalCandidate(index);
-            if (created) count++;
+            const created = await importExternalCandidate(index, { skipConfirmation: true });
+            if (created?.duplicate) reused++;
+            else if (created) count++;
           }
+          renderResults(latestExternalResults);
           document.getElementById("mineStatus").textContent =
             count
-              ? `Created ${count} TEMP profile${count === 1 ? "" : "s"} and added them to the shortlist.`
-              : "No TEMP profiles were created. Check the error message above.";
+              ? `Enriched, rematched, and created ${count} TEMP profile${count === 1 ? "" : "s"}.${reused ? ` Reused ${reused} existing TEMP profile${reused === 1 ? "" : "s"} without another enrichment call.` : ""}`
+              : reused
+                ? `Reused ${reused} existing TEMP profile${reused === 1 ? "" : "s"}; no new enrichment calls were made for them.`
+                : "No TEMP profiles were created. Check the error message above.";
         } finally {
           document.getElementById("btnImportSelected").disabled = false;
         }
@@ -1218,8 +1286,10 @@
         }
         panel.style.display = "block";
         panel.innerHTML = `
-          <strong>TEMP profile created:</strong> ${escapeHtml(profile.name || "Temporary Profile")}
+          <strong>${profile.duplicate ? "Existing TEMP profile:" : "TEMP profile ready:"}</strong> ${escapeHtml(profile.name || "Temporary Profile")}
           ${profile.title ? `<span class="muted"> - ${escapeHtml(profile.title)}</span>` : ""}
+          ${Number.isFinite(Number(profile.match?.score)) ? `<div class="muted">Rematched ${Math.round(Number(profile.match.score))}% - ${escapeHtml(profile.match.band || "Review evidence")}</div>` : ""}
+          ${profile.enrichment?.status === "completed" ? `<div class="muted">PDL selected-profile enrichment completed${profile.enrichment.likelihood ? ` at ${escapeHtml(profile.enrichment.likelihood)}/10 identity likelihood` : ""}. No LinkedIn scraping.</div>` : ""}
           <div class="temp-profile-actions" style="margin-top: 8px">
             ${tempProfileActionHtml(profile.personid)}
           </div>
@@ -1242,12 +1312,16 @@
             const safeTitle = escapeHtml(profile.title || "External candidate");
             const safeSource = escapeHtml(profile.source || "External");
             const safeLocation = escapeHtml(profile.location || "");
+            const matchScore = Number(profile.matchScore);
+            const sourceDetail = profile.enrichmentStatus === "completed"
+              ? `${safeSource} - enriched${Number.isFinite(matchScore) ? ` - ${Math.round(matchScore)}% rematch` : ""}`
+              : safeSource;
             return `<div class="temp-profile-row">
               <div>
                 <strong>${safeName}</strong>
                 <div class="muted">${safeTitle}${safeLocation ? " - " + safeLocation : ""}</div>
               </div>
-              <div class="muted">${safeSource}</div>
+              <div class="muted">${sourceDetail}</div>
               <div class="temp-profile-actions">${tempProfileActionHtml(profile.personid)}</div>
             </div>`;
           })
