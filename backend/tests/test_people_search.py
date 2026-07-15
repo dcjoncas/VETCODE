@@ -119,6 +119,16 @@ class PeopleSearchTests(unittest.TestCase):
         self.assertNotIn("provider-internal-response", str(error.exception))
 
     @patch.dict(os.environ, {"PDL_API_KEY": "test-key"}, clear=False)
+    @patch("peopleDataLabs.peopleSearch.requests.post")
+    def test_credit_error_preserves_provider_status(self, post):
+        post.return_value = Mock(status_code=402)
+
+        with self.assertRaisesRegex(peopleSearch.PeopleDataLabsError, "credits") as error:
+            peopleSearch.searchSkills(["civil litigation"], 5)
+
+        self.assertEqual(error.exception.status_code, 402)
+
+    @patch.dict(os.environ, {"PDL_API_KEY": "test-key"}, clear=False)
     @patch("peopleDataLabs.peopleSearch.requests.get")
     def test_selected_person_enrichment_uses_exact_pdl_id_and_minimized_fields(self, get):
         response = Mock(status_code=200)

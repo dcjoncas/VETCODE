@@ -567,6 +567,92 @@ def _provider_label(source: str) -> str:
     }.get(source, "External provider")
 
 
+def _provider_search_error_response(
+    source: str,
+    error: Exception,
+    page_size: int,
+    criteria: dict | None = None,
+    extra: dict | None = None,
+):
+    provider = _provider_label(source)
+    upstream_status = getattr(error, "status_code", None)
+    status_code = 503 if upstream_status == 503 else 502
+    error_code = "provider_search_failed"
+    detail = f"{provider} search could not be completed. No candidate records were returned or reviewed."
+    action_label = "Review provider account"
+    action_url = ""
+    retryable = status_code == 503
+
+    if source == "pdl" and upstream_status == 402:
+        status_code = 402
+        error_code = "provider_credits_required"
+        detail = (
+            "People Data Labs has no Person Search credits available. Add or renew credits in the "
+            "PDL API Dashboard, then retry. No candidate records were returned or reviewed, and no "
+            "TEMP profiles were created."
+        )
+        action_label = "Open PDL usage and billing"
+        action_url = "https://dashboard.peopledatalabs.com/"
+        retryable = False
+    elif upstream_status == 429:
+        status_code = 429
+        error_code = "provider_rate_limited"
+        detail = f"{provider} has reached its request limit. No candidate records were returned or reviewed."
+        action_label = "Try again later"
+        retryable = True
+
+    query_executed = upstream_status is not None or "not configured" not in str(error).lower()
+    content = {
+        "detail": detail,
+        "code": error_code,
+        "source": source,
+        "results": [],
+        "sourceAudit": {
+            "provider": provider,
+            "queryExecuted": query_executed,
+            "queryCompleted": False,
+            "apiStatus": upstream_status,
+            "totalMatches": None,
+            "recordsReturned": 0,
+            "recordsReviewed": 0,
+            "estimatedCreditsUsed": 0,
+            "costLabel": "no credits used",
+            "criteria": criteria or {},
+            "statusMessage": detail,
+            "error": str(error),
+        },
+        "providerStatus": {
+            "code": error_code,
+            "upstreamStatus": upstream_status,
+            "retryable": retryable,
+            "actionLabel": action_label,
+            "actionUrl": action_url,
+            "alternatives": [
+                {
+                    "source": "coresignal",
+                    "label": "Coresignal",
+                    "configured": coreSignal.configured(),
+                    "role": "professional candidate discovery",
+                },
+                {
+                    "source": "brave",
+                    "label": "Brave Search",
+                    "configured": braveSearch.configured(),
+                    "role": "public web research only",
+                },
+            ],
+        },
+        "pagination": {
+            "pageSize": page_size,
+            "hasNext": False,
+            "nextScrollToken": "",
+            "costLabel": "request failed before records were returned",
+        },
+    }
+    content.update(extra or {})
+    return JSONResponse(status_code=status_code, content=content)
+
+
 def _provider_page(value: str, default: int, maximum: int) -> int:
     clean = str(value or "").strip()
     if not clean:
@@ -1423,6 +1509,9 @@ def external_provider_status():
                 "label": "People Data Labs",
                 "ready": bool(os.getenv("PDL_API_KEY", "").strip()),
                 "role": "professional_discovery",
+                "environmentVariable": "PDL_API_KEY",
+                "signupUrl": "https://dashboard.peopledatalabs.com/",
+                "usageUrl": "https://dashboard.peopledatalabs.com/",
             },
             "coresignal": {
                 "label": "Coresignal",
@@ -1621,28 +1710,12 @@ def external_candidate_search(
     except HTTPException:
         raise
     except Exception as e:
-        provider = _provider_label(selected_source)
-        status_code = 503 if getattr(e, "status_code", 0) == 503 else 502
-        return JSONResponse(
-            status_code=status_code,
-            content={
-                "detail": f"{provider} search failed: {str(e)}",
-                "jobSkills": job_skills,
-                "sourceAudit": {
-                    "provider": provider,
-                    "queryExecuted": True,
-                    "recordsReturned": 0,
-                    "recordsReviewed": 0,
-                    "criteria": criteria or {},
-                    "error": str(e),
-                },
-                "pagination": {
-                    "pageSize": top_k,
-                    "hasNext": False,
-                    "nextScrollToken": "",
-                    "costLabel": "request failed",
-                },
-            },
+        return _provider_search_error_response(
+            selected_source,
+            e,
+            top_k,
+            criteria=criteria,
+            extra={"jobSkills": job_skills},
         )
 
     results.sort(key=lambda row: row.get("score", 0), reverse=True)
@@ -1756,27 +1829,12 @@ def external_candidate_search_direct(
     except HTTPException:
         raise
     except Exception as e:
-        provider = _provider_label(selected_source)
-        status_code = 503 if getattr(e, "status_code", 0) == 503 else 502
-        return JSONResponse(
-            status_code=status_code,
-            content={
-                "detail": f"{provider} direct search failed: {str(e)}",
-                "searchTerms": search_terms,
-                "sourceAudit": {
-                    "provider": provider,
-                    "queryExecuted": True,
-                    "recordsReturned": 0,
-                    "recordsReviewed": 0,
-                    "error": str(e),
-                },
-                "pagination": {
-                    "pageSize": top_k,
-                    "hasNext": False,
-                    "nextScrollToken": "",
-                    "costLabel": "request failed",
-                },
-            },
+        return _provider_search_error_response(
+            selected_source,
+            e,
+            top_k,
+            criteria={"terms": search_terms},
+            extra={"searchTerms": search_terms},
         )
 
     for row in results:

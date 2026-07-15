@@ -1,3 +1,4 @@
+import json
 import os
 import unittest
 from unittest.mock import Mock, patch
@@ -173,6 +174,43 @@ class LegalSourceRouteTests(unittest.TestCase):
         self.assertEqual(result["sourceAudit"]["estimatedCreditsUsed"], 1)
         self.assertEqual(result["pagination"]["nextScrollToken"], "2")
         self.assertEqual(result["pagination"]["costLabel"], "1 search credit")
+
+    @patch.dict(os.environ, {"PDL_API_KEY": "pdl-key"}, clear=True)
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.searchLawyers")
+    @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
+    def test_pdl_credit_failure_returns_actionable_zero_record_audit(self, get_job, search):
+        get_job.return_value = (self.jd, ["Professional Liability", "Civil Litigation"])
+        search.side_effect = azureJobEndpoints.peopleDataLabs.PeopleDataLabsError(
+            "People Data Labs credits are unavailable for this request.",
+            402,
+        )
+
+        response = azureJobEndpoints.external_candidate_search(
+            domain="law",
+            jd_id="85",
+            source="pdl",
+            top_k=5,
+            titles="",
+            practice_areas="",
+            locations="",
+            region="",
+            min_years=0,
+            strict_locations=None,
+            scroll_token="",
+        )
+        payload = json.loads(response.body)
+
+        self.assertEqual(response.status_code, 402)
+        self.assertEqual(payload["code"], "provider_credits_required")
+        self.assertEqual(payload["results"], [])
+        self.assertTrue(payload["sourceAudit"]["queryExecuted"])
+        self.assertFalse(payload["sourceAudit"]["queryCompleted"])
+        self.assertIsNone(payload["sourceAudit"]["totalMatches"])
+        self.assertEqual(payload["sourceAudit"]["recordsReturned"], 0)
+        self.assertEqual(payload["sourceAudit"]["recordsReviewed"], 0)
+        self.assertEqual(payload["sourceAudit"]["estimatedCreditsUsed"], 0)
+        self.assertIn("dashboard.peopledatalabs.com", payload["providerStatus"]["actionUrl"])
+        self.assertNotIn("pdl-key", str(payload))
 
     @patch("azureUtils.routes.azureJobEndpoints.courtListener.search_evidence")
     def test_court_evidence_is_never_used_for_scoring(self, search):

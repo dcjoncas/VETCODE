@@ -9,8 +9,18 @@ async function api(path, opts = {}) {
       console.log(`FETCH ${opts.method || "GET"} ${url}`);
       const r = await fetch(url, opts);
       const txt = await r.text();
-      if (!r.ok) throw new Error(`HTTP ${r.status}: ${txt}`);
-      try { return JSON.parse(txt); } catch { return txt; }
+      let payload = txt;
+      try { payload = JSON.parse(txt); } catch {}
+      if (!r.ok) {
+        const detail = payload && typeof payload === "object" && typeof payload.detail === "string"
+          ? payload.detail
+          : `Request failed with HTTP ${r.status}.`;
+        const error = new Error(detail);
+        error.status = r.status;
+        error.payload = payload && typeof payload === "object" ? payload : null;
+        throw error;
+      }
+      return payload;
     }
 
     // Backwards-compatible helper

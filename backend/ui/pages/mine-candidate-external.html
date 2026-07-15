@@ -177,7 +177,7 @@
 
       .source-audit {
         display: grid;
-        grid-template-columns: repeat(4, minmax(130px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
         gap: 1px;
         margin-top: 12px;
         border: 1px solid var(--border);
@@ -211,6 +211,27 @@
         background: var(--surface, #f7f8fa);
         color: var(--text);
         font-size: 13px;
+      }
+
+      .provider-error {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .provider-error-copy {
+        max-width: 820px;
+      }
+
+      .provider-error-copy strong,
+      .provider-error-copy span {
+        display: block;
+      }
+
+      .provider-error-copy span {
+        margin-top: 4px;
       }
 
       .result-pager {
@@ -556,8 +577,10 @@
             <div class="source-audit-item"><span>Provider</span><strong id="auditProvider">Not run</strong></div>
             <div class="source-audit-item"><span>Total matches</span><strong id="auditTotal">0</strong></div>
             <div class="source-audit-item"><span>Records retrieved</span><strong id="auditReturned">0</strong></div>
+            <div class="source-audit-item"><span>Records reviewed</span><strong id="auditReviewed">0</strong></div>
             <div class="source-audit-item"><span>Provider usage</span><strong id="auditCost">Not run</strong></div>
-            <div class="source-audit-item"><span>Query executed</span><strong id="auditExecuted">No</strong></div>
+            <div class="source-audit-item"><span>Provider contacted</span><strong id="auditExecuted">No</strong></div>
+            <div class="source-audit-item"><span>Request completed</span><strong id="auditCompleted">No</strong></div>
           </div>
           <div id="sourceAuditNote" class="verification-note" hidden></div>
 
@@ -744,15 +767,58 @@
         }
         panel.hidden = false;
         document.getElementById("auditProvider").textContent = audit.provider;
-        document.getElementById("auditTotal").textContent = Number(audit.totalMatches || 0).toLocaleString();
+        document.getElementById("auditTotal").textContent = audit.totalMatches == null
+          ? "Not returned"
+          : Number(audit.totalMatches || 0).toLocaleString();
         document.getElementById("auditReturned").textContent = Number(audit.recordsReturned || 0).toLocaleString();
+        document.getElementById("auditReviewed").textContent = Number(audit.recordsReviewed || 0).toLocaleString();
         document.getElementById("auditCost").textContent = audit.costLabel
           ? `${Number(audit.estimatedCreditsUsed || 0).toLocaleString()} - ${audit.costLabel}`
           : Number(audit.estimatedCreditsUsed || 0).toLocaleString();
         document.getElementById("auditExecuted").textContent = audit.queryExecuted ? "Yes" : "No";
-        const notes = [audit.legalReadiness, audit.linkedInMode].filter(Boolean);
+        document.getElementById("auditCompleted").textContent =
+          (audit.queryCompleted ?? audit.queryExecuted) ? "Yes" : "No";
+        const notes = [audit.statusMessage, audit.legalReadiness, audit.linkedInMode].filter(Boolean);
         note.textContent = notes.join(" ");
         note.hidden = !notes.length;
+      }
+
+      function renderMiningError(error) {
+        const payload = error?.payload || {};
+        const audit = payload.sourceAudit || null;
+        const providerStatus = payload.providerStatus || {};
+        const message = payload.detail || error?.message || "The provider search could not be completed.";
+        const configuredAlternative = (providerStatus.alternatives || []).find((item) => item.configured);
+        const alternativeMessage = configuredAlternative
+          ? `${configuredAlternative.label} is configured as ${configuredAlternative.role}.`
+          : "No alternate candidate-discovery provider is configured yet.";
+        const action = providerStatus.actionUrl
+          ? `<a class="btn secondary" href="${escapeHtml(providerStatus.actionUrl)}" target="_blank" rel="noopener">${escapeHtml(providerStatus.actionLabel || "Review provider account")}</a>`
+          : "";
+
+        document.getElementById("mineStatus").innerHTML = `
+          <div class="provider-error">
+            <div class="provider-error-copy">
+              <strong>Search stopped before candidate data was returned.</strong>
+              <span>${escapeHtml(message)}</span>
+              <span class="muted">${escapeHtml(alternativeMessage)}</span>
+            </div>
+            ${action}
+          </div>`;
+
+        if (audit?.provider) {
+          cumulativeSourceAudit = { ...audit };
+          renderSourceAudit(cumulativeSourceAudit);
+        }
+        document.getElementById("jobSkillPanel").textContent =
+          "Audit result: 0 candidate records returned, 0 reviewed, and no TEMP profiles created.";
+        if (payload.code === "provider_credits_required") {
+          const pdlButton = document.querySelector('.source-toggle [data-source="pdl"]');
+          if (pdlButton) {
+            pdlButton.textContent = "People Data Labs - credits needed";
+            pdlButton.title = "The API key is configured, but Person Search credits must be added.";
+          }
+        }
       }
 
       function resetExternalPagination() {
@@ -1135,7 +1201,7 @@
           renderResults(latestExternalResults);
           renderResultPager();
         } catch (e) {
-          document.getElementById("mineStatus").textContent = e.message;
+          renderMiningError(e);
         } finally {
           document.getElementById("btnMine").disabled = false;
         }
