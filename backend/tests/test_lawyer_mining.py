@@ -70,11 +70,17 @@ class LawyerMiningTests(unittest.TestCase):
                 "pageSize": 5,
                 "hasNext": True,
                 "nextScrollToken": "next-page-token",
+                "costLabel": "up to 5 record credits",
             },
         )
         self.assertEqual(
             _pdl_pagination({}, 5),
-            {"pageSize": 5, "hasNext": False, "nextScrollToken": ""},
+            {
+                "pageSize": 5,
+                "hasNext": False,
+                "nextScrollToken": "",
+                "costLabel": "up to 5 record credits",
+            },
         )
 
 

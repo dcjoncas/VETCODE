@@ -6,12 +6,13 @@ import os
 import re
 import json
 import requests
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
 from openai import OpenAI
 from azureUtils.storage import jobs, candidates
 from jd_match import normalize_jd, azureJobMatch, normalize_all_skills
 from openAI import externalPeopleSearch
 import peopleDataLabs.peopleSearch as peopleDataLabs
+from legalSources import braveSearch, coreSignal, courtListener
 from resumeProcessing.processing import ingest
 
 def top_matches_from_parts(parts: dict, limit: int = 8):
@@ -537,6 +538,7 @@ def _pdl_source_audit(response: dict, criteria: dict | None = None, query_mode: 
         "recordsReturned": len(rows) if isinstance(rows, list) else 0,
         "recordsReviewed": len(rows) if isinstance(rows, list) else 0,
         "estimatedCreditsUsed": len(rows) if isinstance(rows, list) else 0,
+        "costLabel": "record credits",
         "hasMore": bool(response.get("scroll_token")) if isinstance(response, dict) else False,
         "executedAt": datetime.now(timezone.utc).isoformat(),
         "criteria": criteria or {},
@@ -552,6 +554,206 @@ def _pdl_pagination(response: dict, page_size: int):
         "pageSize": page_size,
         "hasNext": bool(token),
         "nextScrollToken": token,
+        "costLabel": f"up to {page_size} record credits",
+    }
+
+
+def _provider_label(source: str) -> str:
+    return {
+        "pdl": "People Data Labs",
+        "github": "GitHub Public API",
+        "coresignal": "Coresignal",
+        "brave": "Brave Search",
+    }.get(source, "External provider")
+
+
+def _provider_page(value: str, default: int, maximum: int) -> int:
+    clean = str(value or "").strip()
+    if not clean:
+        return default
+    if len(clean) > 4 or not clean.isdigit():
+        raise HTTPException(status_code=400, detail="The provider page token is invalid.")
+    return max(default, min(int(clean), maximum))
+
+
+def _provider_pagination(response: dict, page_size: int, cost_label: str):
+    next_page = response.get("next_page") if isinstance(response, dict) else None
+    return {
+        "pageSize": page_size,
+        "hasNext": next_page is not None,
+        "nextScrollToken": str(next_page) if next_page is not None else "",
+        "costLabel": cost_label,
+    }
+
+
+def _provider_source_audit(
+    provider: str,
+    response: dict,
+    criteria: dict | None,
+    query_mode: str,
+    cost_label: str,
+):
+    rows = response.get("data", []) if isinstance(response, dict) else []
+    returned = len(rows) if isinstance(rows, list) else 0
+    credits = int(response.get("credits_used") or response.get("requests_used") or 1)
+    return {
+        "provider": provider,
+        "queryExecuted": True,
+        "queryMode": query_mode,
+        "apiStatus": int(response.get("status") or 200),
+        "totalMatches": int(response.get("total") or returned),
+        "recordsReturned": returned,
+        "recordsReviewed": returned,
+        "estimatedCreditsUsed": credits,
+        "costLabel": cost_label,
+        "hasMore": bool(response.get("has_more")),
+        "executedAt": datetime.now(timezone.utc).isoformat(),
+        "criteria": criteria or {},
+        "contactData": "No personal email, phone, or street address requested in discovery search.",
+        "legalReadiness": "California Bar status and candidate identity require manual verification.",
+        "linkedInMode": "Professional profile links may be returned; no LinkedIn scraping was performed.",
+    }
+
+
+def _location_fields(location: str, criteria: dict | None):
+    clean = str(location or "")
+    region = "California" if re.search(r"\bCalifornia\b|,\s*CA(?:\s|,|$)", clean, re.IGNORECASE) else ""
+    locality = ""
+    for city in (criteria or {}).get("locations", []):
+        if str(city).lower() in clean.lower():
+            locality = str(city)
+            break
+    return locality, region
+
+
+def _coresignal_row(
+    row: dict,
+    job_skills: list[str],
+    scoring_skills: list[str],
+    lawyer_criteria: dict | None = None,
+):
+    location = str(row.get("location") or row.get("experience_location") or "")
+    locality, region = _location_fields(location, lawyer_criteria)
+    headline = str(row.get("headline") or row.get("title") or "")
+    mapped = {
+        "id": row.get("id"),
+        "full_name": row.get("full_name"),
+        "job_title": row.get("title") or headline,
+        "job_company_name": row.get("company_name") or "",
+        "location_name": location,
+        "location_locality": locality,
+        "location_region": region,
+        "location_country": row.get("country") or "",
+        "summary": " ".join(
+            value
+            for value in [headline, str(row.get("company_industry") or "")]
+            if value
+        ),
+        "skills": [
+            value
+            for value in [headline, row.get("title"), row.get("company_industry")]
+            if value
+        ],
+        "linkedin_url": row.get("profile_url") or "",
+    }
+    result = _people_data_row(mapped, job_skills, scoring_skills, lawyer_criteria)
+    result.update(
+        {
+            "source": "coresignal",
+            "source_label": "Coresignal profile preview",
+            "result_type": "professional_profile_preview",
+            "summary": headline,
+            "profile_data": {
+                "connections_count": row.get("connections_count") or 0,
+                "follower_count": row.get("follower_count") or 0,
+                "experience_count": row.get("experience_count") or 0,
+                "company_website": row.get("company_website") or "",
+            },
+        }
+    )
+    result["verification"].pop("pdl_job_last_verified", None)
+    result["verification"]["coresignal_preview"] = "unverified_public_profile_data"
+    return result
+
+
+def _brave_law_query(criteria: dict) -> str:
+    def phrase(value) -> str:
+        return str(value or "").replace('"', " ").strip()[:45]
+
+    titles = " OR ".join(f'"{phrase(term)}"' for term in criteria.get("titles", [])[:3])
+    practices = " OR ".join(
+        f'"{phrase(term)}"' for term in criteria.get("requiredPracticeAreas", [])[:3]
+    )
+    locations = " OR ".join(f'"{phrase(term)}"' for term in criteria.get("locations", [])[:3])
+    parts = [f"({titles})" if titles else '"attorney"']
+    if practices:
+        parts.append(f"({practices})")
+    if locations:
+        parts.append(f"({locations})")
+    if criteria.get("region"):
+        parts.append(f'"{phrase(criteria["region"])}"')
+    parts.extend(['("attorney bio" OR "lawyer profile")', "-jobs", "-careers", "-site:linkedin.com"])
+    return " ".join(parts)
+
+
+def _brave_direct_query(query: str) -> str:
+    without_linkedin_scope = re.sub(
+        r"(?i)(?:^|\s)[+-]?site:(?:www\.)?linkedin\.com\b",
+        " ",
+        str(query or ""),
+    )
+    return " ".join(without_linkedin_scope.split()) + " -site:linkedin.com"
+
+
+def _brave_row(
+    row: dict,
+    job_skills: list[str],
+    scoring_skills: list[str],
+    lawyer_criteria: dict | None = None,
+):
+    name = str(row.get("title") or "Public legal profile").strip()
+    description = str(row.get("description") or "").strip()
+    profile_url = str(row.get("url") or "").strip()
+    if lawyer_criteria:
+        score, matched, details = _lawyer_match_score(
+            {"job_title": name, "summary": description, "skills": []},
+            lawyer_criteria,
+        )
+    else:
+        score, matched, details = _rank_external_skill_match(
+            [name, description], job_skills, scoring_skills
+        )
+    domain = urlparse(profile_url).netloc.lower().removeprefix("www.") if profile_url else ""
+    return {
+        "source": "brave",
+        "source_label": "Brave public web result",
+        "source_id": profile_url,
+        "result_type": "public_web_evidence",
+        "name": name,
+        "email": "",
+        "title": "Public legal profile or evidence page",
+        "company": domain,
+        "location": "",
+        "profile_url": profile_url,
+        "avatar_url": "",
+        "summary": description,
+        "skills": matched,
+        "score": score,
+        "match_band": details["band"],
+        "score_details": details,
+        "top_matches": matched,
+        "verification": {
+            "california_bar_status": "not_verified" if lawyer_criteria else "not_applicable",
+            "california_bar_search_url": (
+                "https://apps.calbar.ca.gov/attorney/LicenseeSearch/QuickSearch?FreeText="
+                + quote_plus(name)
+                if lawyer_criteria
+                else ""
+            ),
+            "public_page_identity": "not_verified",
+            "linkedin_scan": "not_performed",
+        },
+        "profile_data": {"web_description": description, "web_domain": domain},
     }
 
 
@@ -1204,6 +1406,47 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
     rankedExternal.sort(key=lambda x: x["score"], reverse=True)
     return {"jd": {"jd_id": jd["jd_id"], "company": jd.get("company",""), "title": jd.get("title",""), "created_at": jd.get("created_at","")}, "results": ranked[:top_k], "externalMatches": rankedExternal, "skillList": peopleDataSkills, "scoringSkills": scoringSkills}
 
+@router.get("/external/providers")
+def external_provider_status():
+    return {
+        "providers": {
+            "pdl": {
+                "label": "People Data Labs",
+                "ready": bool(os.getenv("PDL_API_KEY", "").strip()),
+                "role": "professional_discovery",
+            },
+            "coresignal": {
+                "label": "Coresignal",
+                "ready": coreSignal.configured(),
+                "role": "professional_discovery_comparison",
+                "environmentVariable": "CORESIGNAL_API_KEY",
+                "signupUrl": "https://dashboard.coresignal.com/sign-up",
+            },
+            "brave": {
+                "label": "Brave Search",
+                "ready": braveSearch.configured(),
+                "role": "public_web_evidence",
+                "environmentVariable": "BRAVE_SEARCH_API_KEY",
+                "signupUrl": "https://api-dashboard.search.brave.com/app/keys",
+            },
+            "courtlistener": {
+                "label": "CourtListener / RECAP",
+                "ready": courtListener.configured(),
+                "role": "manual_court_evidence",
+                "environmentVariable": "COURTLISTENER_API_TOKEN",
+                "signupUrl": "https://www.courtlistener.com/sign-in/",
+                "tokenUrl": "https://www.courtlistener.com/profile/api-token/",
+            },
+            "github": {
+                "label": "GitHub Public API",
+                "ready": True,
+                "role": "public_code_evidence",
+            },
+        },
+        "secretsExposed": False,
+    }
+
+
 @router.get("/external/criteria/{jd_id}")
 def external_candidate_criteria(jd_id: str, domain: str = "dev"):
     clean_domain = _domain_key(domain)
@@ -1221,6 +1464,25 @@ def external_candidate_criteria(jd_id: str, domain: str = "dev"):
             "linkedIn": "profile_link_only",
         },
     }
+
+
+@router.post("/external/legal-evidence")
+def external_candidate_legal_evidence(payload: dict = Body(...)):
+    if _domain_key(payload.get("domain") or "law") != "law":
+        raise HTTPException(status_code=400, detail="Court evidence review is available in LegalReady.")
+    name = str(payload.get("name") or "").strip()
+    try:
+        size = max(1, min(int(payload.get("size") or 3), 5))
+    except (TypeError, ValueError):
+        size = 3
+    try:
+        evidence = courtListener.search_evidence(name, size=size)
+    except courtListener.CourtListenerError as exc:
+        status_code = 503 if exc.status_code == 503 else 502
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+    evidence["searchedAt"] = datetime.now(timezone.utc).isoformat()
+    evidence["usedForScoring"] = False
+    return evidence
 
 
 @router.post("/external/search")
@@ -1243,22 +1505,30 @@ def external_candidate_search(
     search_skills = _searchable_job_skills(job_skills, 12)
     selected_source = (source or "pdl").strip().lower()
     results = []
-    criteria = None
+    criteria = (
+        _lawyer_search_criteria(
+            jd,
+            titles=titles,
+            practice_areas=practice_areas,
+            locations=locations,
+            region=region,
+            min_years=min_years,
+            strict_locations=strict_locations,
+        )
+        if domain == "law"
+        else None
+    )
     source_audit = {}
-    pagination = {"pageSize": top_k, "hasNext": False, "nextScrollToken": ""}
+    pagination = {
+        "pageSize": top_k,
+        "hasNext": False,
+        "nextScrollToken": "",
+        "costLabel": "no provider charge",
+    }
 
     try:
         if selected_source == "pdl":
             if domain == "law":
-                criteria = _lawyer_search_criteria(
-                    jd,
-                    titles=titles,
-                    practice_areas=practice_areas,
-                    locations=locations,
-                    region=region,
-                    min_years=min_years,
-                    strict_locations=strict_locations,
-                )
                 pdl_response = peopleDataLabs.searchLawyers(
                     titles=criteria["titles"],
                     practice_areas=criteria["requiredPracticeAreas"],
@@ -1280,6 +1550,49 @@ def external_candidate_search(
                 results = [_people_data_row(row, job_skills, search_skills) for row in pdl_response.get("data", [])]
                 source_audit = _pdl_source_audit(pdl_response, {"skills": search_skills}, "skills")
                 pagination = _pdl_pagination(pdl_response, top_k)
+        elif selected_source == "coresignal":
+            page = _provider_page(scroll_token, 1, 100)
+            core_response = coreSignal.search_people(
+                titles=criteria["titles"] if criteria else search_skills,
+                practice_areas=criteria["requiredPracticeAreas"] if criteria else search_skills,
+                locations=criteria["locations"] if criteria else [],
+                region=criteria["region"] if criteria else "",
+                size=top_k,
+                page=page,
+            )
+            results = [
+                _coresignal_row(row, job_skills, search_skills, criteria)
+                for row in core_response.get("data", [])
+            ]
+            source_audit = _provider_source_audit(
+                "Coresignal",
+                core_response,
+                criteria or {"skills": search_skills},
+                "employee_profile_preview",
+                "search credits",
+            )
+            pagination = _provider_pagination(core_response, top_k, "1 search credit")
+        elif selected_source == "brave":
+            page = _provider_page(scroll_token, 0, 9)
+            search_query = (
+                _brave_law_query(criteria)
+                if criteria
+                else " ".join(search_skills[:8]) + " professional profile -site:linkedin.com"
+            )
+            brave_response = braveSearch.search_web(search_query, size=top_k, page=page)
+            results = [
+                _brave_row(row, job_skills, search_skills, criteria)
+                for row in brave_response.get("data", [])
+            ]
+            source_audit = _provider_source_audit(
+                "Brave Search",
+                brave_response,
+                criteria or {"skills": search_skills},
+                "public_web_legal_evidence",
+                "API requests",
+            )
+            source_audit["totalIsEstimate"] = True
+            pagination = _provider_pagination(brave_response, top_k, "1 API request")
         elif selected_source == "github":
             results = _github_search(job_skills, search_skills, top_k)
             source_audit = {
@@ -1292,24 +1605,34 @@ def external_candidate_search(
                 "executedAt": datetime.now(timezone.utc).isoformat(),
             }
         else:
-            raise HTTPException(status_code=400, detail="Select People Data Labs or GitHub.")
+            raise HTTPException(
+                status_code=400,
+                detail="Select People Data Labs, Coresignal, Brave Search, or GitHub.",
+            )
     except HTTPException:
         raise
     except Exception as e:
+        provider = _provider_label(selected_source)
+        status_code = 503 if getattr(e, "status_code", 0) == 503 else 502
         return JSONResponse(
-            status_code=502,
+            status_code=status_code,
             content={
-                "detail": f"{'GitHub' if selected_source == 'github' else 'People Data Labs'} search failed: {str(e)}",
+                "detail": f"{provider} search failed: {str(e)}",
                 "jobSkills": job_skills,
                 "sourceAudit": {
-                    "provider": "GitHub Public API" if selected_source == "github" else "People Data Labs",
+                    "provider": provider,
                     "queryExecuted": True,
                     "recordsReturned": 0,
                     "recordsReviewed": 0,
                     "criteria": criteria or {},
                     "error": str(e),
                 },
-                "pagination": {"pageSize": top_k, "hasNext": False, "nextScrollToken": ""},
+                "pagination": {
+                    "pageSize": top_k,
+                    "hasNext": False,
+                    "nextScrollToken": "",
+                    "costLabel": "request failed",
+                },
             },
         )
 
@@ -1354,13 +1677,57 @@ def external_candidate_search_direct(
 
     selected_source = (source or "pdl").strip().lower()
     source_audit = {}
-    pagination = {"pageSize": top_k, "hasNext": False, "nextScrollToken": ""}
+    pagination = {
+        "pageSize": top_k,
+        "hasNext": False,
+        "nextScrollToken": "",
+        "costLabel": "no provider charge",
+    }
     try:
         if selected_source == "pdl":
             pdl_response = peopleDataLabs.searchDirect(clean_query, top_k, scroll_token=scroll_token)
             results = [_people_data_row(row, search_terms, search_terms) for row in pdl_response.get("data", [])]
             source_audit = _pdl_source_audit(pdl_response, {"terms": search_terms}, "direct")
             pagination = _pdl_pagination(pdl_response, top_k)
+        elif selected_source == "coresignal":
+            page = _provider_page(scroll_token, 1, 100)
+            core_response = coreSignal.search_people(
+                titles=[],
+                practice_areas=[],
+                locations=[],
+                size=top_k,
+                page=page,
+                direct_query=clean_query,
+            )
+            results = [
+                _coresignal_row(row, search_terms, search_terms)
+                for row in core_response.get("data", [])
+            ]
+            source_audit = _provider_source_audit(
+                "Coresignal",
+                core_response,
+                {"terms": search_terms},
+                "direct_profile_preview",
+                "search credits",
+            )
+            pagination = _provider_pagination(core_response, top_k, "1 search credit")
+        elif selected_source == "brave":
+            page = _provider_page(scroll_token, 0, 9)
+            brave_query = _brave_direct_query(clean_query)
+            brave_response = braveSearch.search_web(brave_query, size=top_k, page=page)
+            results = [
+                _brave_row(row, search_terms, search_terms)
+                for row in brave_response.get("data", [])
+            ]
+            source_audit = _provider_source_audit(
+                "Brave Search",
+                brave_response,
+                {"terms": search_terms},
+                "direct_public_web",
+                "API requests",
+            )
+            source_audit["totalIsEstimate"] = True
+            pagination = _provider_pagination(brave_response, top_k, "1 API request")
         elif selected_source == "github":
             results = _github_direct_search(clean_query, search_terms, top_k)
             source_audit = {
@@ -1373,23 +1740,33 @@ def external_candidate_search_direct(
                 "executedAt": datetime.now(timezone.utc).isoformat(),
             }
         else:
-            raise HTTPException(status_code=400, detail="Select People Data Labs or GitHub.")
+            raise HTTPException(
+                status_code=400,
+                detail="Select People Data Labs, Coresignal, Brave Search, or GitHub.",
+            )
     except HTTPException:
         raise
     except Exception as e:
+        provider = _provider_label(selected_source)
+        status_code = 503 if getattr(e, "status_code", 0) == 503 else 502
         return JSONResponse(
-            status_code=502,
+            status_code=status_code,
             content={
-                "detail": f"{'GitHub' if selected_source == 'github' else 'People Data Labs'} direct search failed: {str(e)}",
+                "detail": f"{provider} direct search failed: {str(e)}",
                 "searchTerms": search_terms,
                 "sourceAudit": {
-                    "provider": "GitHub Public API" if selected_source == "github" else "People Data Labs",
+                    "provider": provider,
                     "queryExecuted": True,
                     "recordsReturned": 0,
                     "recordsReviewed": 0,
                     "error": str(e),
                 },
-                "pagination": {"pageSize": top_k, "hasNext": False, "nextScrollToken": ""},
+                "pagination": {
+                    "pageSize": top_k,
+                    "hasNext": False,
+                    "nextScrollToken": "",
+                    "costLabel": "request failed",
+                },
             },
         )
 
@@ -1412,6 +1789,11 @@ def external_candidate_import(payload: dict = Body(...)):
     domain = _domain_key(payload.get("domain") or "dev")
     candidate = payload.get("candidate") or {}
     source = candidate.get("source") or payload.get("source") or "external"
+    if source == "brave" or candidate.get("result_type") == "public_web_evidence":
+        raise HTTPException(
+            status_code=400,
+            detail="Brave Search results are research-only and are not stored as candidate profiles.",
+        )
 
     skills = [
         {"title": skill, "years": 0}

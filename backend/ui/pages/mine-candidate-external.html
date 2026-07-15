@@ -34,7 +34,7 @@
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
-        max-width: 420px;
+        max-width: 760px;
         padding: 4px;
         border: 1px solid var(--border);
         border-radius: 8px;
@@ -71,6 +71,25 @@
         display: inline;
         margin-right: 0;
         font-weight: 900;
+      }
+
+      .source-toggle button:disabled {
+        cursor: not-allowed;
+        opacity: 0.58;
+      }
+
+      .provider-readiness {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .provider-readiness a {
+        color: var(--primary-2);
+        font-weight: 700;
       }
 
       .source-guide {
@@ -226,6 +245,25 @@
         padding: 14px;
         margin-top: 12px;
         background: var(--card);
+      }
+
+      .legal-evidence-panel {
+        display: grid;
+        gap: 8px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+      }
+
+      .legal-evidence-result {
+        display: grid;
+        gap: 3px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .legal-evidence-result:last-child {
+        border-bottom: 0;
       }
 
       .candidate-card .meta {
@@ -482,10 +520,17 @@
               <button class="btn active" type="button" data-source="pdl" aria-pressed="true">
                 People Data Labs
               </button>
+              <button class="btn" type="button" data-source="coresignal" data-provider-label="Coresignal" aria-pressed="false">
+                Coresignal
+              </button>
+              <button class="btn" type="button" data-source="brave" data-provider-label="Brave Search" aria-pressed="false">
+                Brave Search
+              </button>
               <button class="btn" id="githubSourceButton" type="button" data-source="github" aria-pressed="false">
                 GitHub
               </button>
             </div>
+            <div id="providerReadiness" class="provider-readiness" aria-live="polite"></div>
           </div>
 
           <div class="row-actions">
@@ -510,6 +555,7 @@
             <div class="source-audit-item"><span>Provider</span><strong id="auditProvider">Not run</strong></div>
             <div class="source-audit-item"><span>Total matches</span><strong id="auditTotal">0</strong></div>
             <div class="source-audit-item"><span>Records retrieved</span><strong id="auditReturned">0</strong></div>
+            <div class="source-audit-item"><span>Provider usage</span><strong id="auditCost">Not run</strong></div>
             <div class="source-audit-item"><span>Query executed</span><strong id="auditExecuted">No</strong></div>
           </div>
           <div id="sourceAuditNote" class="verification-note" hidden></div>
@@ -553,6 +599,7 @@
       let nextExternalScrollToken = "";
       let cumulativeSourceAudit = null;
       let paginationLoading = false;
+      let externalProviderStatus = {};
 
       function currentDomain() {
         return sessionStorage.getItem("domain") || "dev";
@@ -568,14 +615,14 @@
         document.getElementById("pageBreadcrumb").textContent = "LegalReady - External lawyer sourcing";
         document.getElementById("pageHeading").textContent = "Find qualified legal candidates";
         document.getElementById("pageIntro").textContent =
-          "Search People Data Labs from a saved legal JD, then verify every selected attorney against the official California Bar record.";
+          "Search professional and public sources from a saved legal JD, then verify every selected attorney against the official California Bar record.";
         document.getElementById("externalSearchInput").placeholder =
           "Exact name, work email, or public profile URL";
         document.getElementById("githubSourceButton").hidden = true;
         document.getElementById("sourceGuide").textContent =
-          "People Data Labs is used for professional discovery. California Bar verification remains required before a candidate becomes permanent or is contacted.";
+          "Choose a configured discovery source. California Bar verification remains required before a candidate becomes permanent or is contacted.";
         document.getElementById("resultsLimitHelp").textContent =
-          "Each page can retrieve and charge for up to this many PDL records.";
+          "Provider usage is shown before each additional page is requested.";
         setLawCriteria({
           titles: ["Associate Attorney", "Attorney", "Lawyer", "Counsel"],
           practiceAreas: ["Professional Liability", "Professional Negligence", "Insurance Defense"],
@@ -607,7 +654,7 @@
       }
 
       function appendLawCriteria(formData) {
-        if (!isLawDomain() || selectedSource !== "pdl") return;
+        if (!isLawDomain() || !["pdl", "coresignal", "brave"].includes(selectedSource)) return;
         formData.append("titles", document.getElementById("lawTitles").value.trim());
         formData.append("practice_areas", document.getElementById("lawPracticeAreas").value.trim());
         formData.append("locations", document.getElementById("lawLocations").value.trim());
@@ -617,6 +664,40 @@
           "strict_locations",
           document.getElementById("lawStrictLocations").checked ? "true" : "false",
         );
+      }
+
+      function sourceDisplayName(source = selectedSource) {
+        return externalProviderStatus[source]?.label || {
+          pdl: "People Data Labs",
+          coresignal: "Coresignal",
+          brave: "Brave Search",
+          github: "GitHub",
+        }[source] || "External provider";
+      }
+
+      async function loadProviderStatus() {
+        const response = await api("/api/azureJobs/external/providers");
+        externalProviderStatus = response.providers || {};
+        document.querySelectorAll(".source-toggle [data-source]").forEach((button) => {
+          const provider = externalProviderStatus[button.dataset.source];
+          if (!provider) return;
+          const baseLabel = provider.label || button.dataset.providerLabel || button.textContent.trim();
+          button.dataset.providerLabel = baseLabel;
+          button.disabled = provider.ready === false;
+          button.textContent = provider.ready === false ? `${baseLabel} - key needed` : baseLabel;
+          button.title = provider.ready === false
+            ? `${provider.environmentVariable || "API key"} is not configured`
+            : `${baseLabel} is configured`;
+        });
+        const readiness = document.getElementById("providerReadiness");
+        const missing = ["coresignal", "brave", "courtlistener"]
+          .map((key) => externalProviderStatus[key])
+          .filter((provider) => provider && !provider.ready);
+        readiness.innerHTML = missing.length
+          ? missing.map((provider) =>
+              `<span>${escapeHtml(provider.label)}: <a href="${escapeHtml(provider.signupUrl)}" target="_blank" rel="noopener">get account key</a></span>`,
+            ).join("")
+          : "<span>Professional discovery and court-evidence providers are configured.</span>";
       }
 
       function renderSourceAudit(audit = {}) {
@@ -631,6 +712,9 @@
         document.getElementById("auditProvider").textContent = audit.provider;
         document.getElementById("auditTotal").textContent = Number(audit.totalMatches || 0).toLocaleString();
         document.getElementById("auditReturned").textContent = Number(audit.recordsReturned || 0).toLocaleString();
+        document.getElementById("auditCost").textContent = audit.costLabel
+          ? `${Number(audit.estimatedCreditsUsed || 0).toLocaleString()} - ${audit.costLabel}`
+          : Number(audit.estimatedCreditsUsed || 0).toLocaleString();
         document.getElementById("auditExecuted").textContent = audit.queryExecuted ? "Yes" : "No";
         const notes = [audit.legalReadiness, audit.linkedInMode].filter(Boolean);
         note.textContent = notes.join(" ");
@@ -667,12 +751,13 @@
         const total = Number(cumulativeSourceAudit?.totalMatches || 0);
         const retrieved = Number(cumulativeSourceAudit?.recordsReturned || latestExternalResults.length);
         const pageSize = Number(activeExternalSearch?.pageSize || 0);
+        const costLabel = activeExternalSearch?.costLabel || "provider request";
         const hasNext = Boolean(nextExternalScrollToken);
         const shouldShow = latestExternalResults.length > 0 && (hasNext || total > retrieved);
         const buttonLabel = paginationLoading
           ? "Loading next page..."
           : hasNext
-            ? `Load next ${pageSize} (paid) &rarr;`
+            ? `Load next ${pageSize} (${escapeHtml(costLabel)}) &rarr;`
             : "No more pages available";
 
         document.querySelectorAll("[data-result-pager]").forEach((pager) => {
@@ -702,8 +787,10 @@
         renderResultPager();
         const pageSize = Number(activeExternalSearch.pageSize || 0);
         const usedToken = nextExternalScrollToken;
+        const providerName = activeExternalSearch.providerName || "provider";
+        const costLabel = activeExternalSearch.costLabel || "provider request";
         document.getElementById("mineStatus").textContent =
-          `Loading up to ${pageSize} more PDL records. This is a paid provider request...`;
+          `Loading up to ${pageSize} more ${providerName} results (${costLabel})...`;
 
         try {
           const response = await api(activeExternalSearch.endpoint, {
@@ -719,8 +806,8 @@
           renderSourceAudit(cumulativeSourceAudit);
           renderResults(pageResults, { append: true, startIndex });
           document.getElementById("mineStatus").textContent = pageResults.length
-            ? `Showing ${latestExternalResults.length.toLocaleString()} candidates. ${Number(cumulativeSourceAudit.recordsReturned || 0).toLocaleString()} PDL records retrieved so far.`
-            : "PDL returned no additional candidates for this search.";
+            ? `Showing ${latestExternalResults.length.toLocaleString()} results. ${Number(cumulativeSourceAudit.recordsReturned || 0).toLocaleString()} ${providerName} records retrieved so far.`
+            : `${providerName} returned no additional results for this search.`;
           if (pageResults.length) {
             document.getElementById(`candidate-card-${startIndex}`)?.scrollIntoView({
               behavior: "smooth",
@@ -737,12 +824,26 @@
       }
 
       function setSource(source) {
+        const selectedButton = document.querySelector(`.source-toggle [data-source="${source}"]`);
+        if (selectedButton?.disabled) return;
         selectedSource = source;
         document.querySelectorAll(".source-toggle button").forEach((button) => {
           const isActive = button.dataset.source === source;
           button.classList.toggle("active", isActive);
           button.setAttribute("aria-pressed", isActive ? "true" : "false");
         });
+        const batchImport = document.getElementById("btnImportSelected");
+        batchImport.disabled = source === "brave";
+        batchImport.title = source === "brave"
+          ? "Brave Search results remain research-only"
+          : "Create temporary profiles from checked results";
+        const guides = {
+          pdl: "Professional discovery using PDL record credits. Returned profiles still require identity and California Bar verification.",
+          coresignal: "Professional-profile comparison using one Coresignal search credit per preview page. No LinkedIn scraping is performed by VETCODE.",
+          brave: "Public-web discovery for law-firm bios, practice pages, and publications. Results are research leads, not verified candidate profiles.",
+          github: "Public code-footprint discovery for technical candidates.",
+        };
+        document.getElementById("sourceGuide").textContent = guides[source] || "Select an external source.";
       }
 
       function rememberJob(jdId, jd) {
@@ -784,9 +885,45 @@
           rememberJob(savedJdId, jd);
           await loadLawCriteria(savedJdId);
           document.getElementById("mineStatus").textContent =
-            `JD loaded: ${label}. Choose People Data Labs or GitHub, then Find Candidates (Out).`;
+            `JD loaded: ${label}. Choose a configured source, then Find Candidates (Out).`;
         } catch (error) {
           console.log("Could not auto-load selected JD: " + (error.message || error));
+        }
+      }
+
+      async function checkLegalEvidence(index) {
+        const candidate = latestExternalResults[index];
+        const panel = document.getElementById(`legal-evidence-${index}`);
+        const button = document.querySelector(`[data-evidence-index="${index}"]`);
+        if (!candidate || !panel || !button) return;
+        button.disabled = true;
+        panel.hidden = false;
+        panel.innerHTML = '<div class="muted">Checking CourtListener and RECAP...</div>';
+        try {
+          const response = await api("/api/azureJobs/external/legal-evidence", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ domain: currentDomain(), name: candidate.name, size: 3 }),
+          });
+          const results = response.results || [];
+          const items = results.map((item) => `
+            <div class="legal-evidence-result">
+              <strong>${escapeHtml(item.title || "Court record")}</strong>
+              <div class="meta">${escapeHtml(item.evidenceType === "recap_docket" ? "RECAP docket" : "Published opinion")}${item.court ? ` | ${escapeHtml(item.court)}` : ""}${item.dateFiled ? ` | ${escapeHtml(item.dateFiled)}` : ""}</div>
+              ${item.docketNumber ? `<div class="meta">Docket ${escapeHtml(item.docketNumber)}</div>` : ""}
+              ${item.snippet ? `<div class="meta">${escapeHtml(item.snippet)}</div>` : ""}
+              ${item.url ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">Open CourtListener record</a>` : ""}
+            </div>`,
+          ).join("");
+          panel.innerHTML = `
+            <strong>Court evidence review</strong>
+            <div class="verification-note">${escapeHtml(response.notice || "Identity and role require manual verification.")}</div>
+            ${items || '<div class="muted">No matching CourtListener or RECAP records were returned.</div>'}
+          `;
+        } catch (error) {
+          panel.innerHTML = `<div class="verification-note">Court evidence check failed: ${escapeHtml(error.message || error)}</div>`;
+        } finally {
+          button.disabled = externalProviderStatus.courtlistener?.ready === false;
         }
       }
 
@@ -808,6 +945,27 @@
             const barLink = verification.california_bar_search_url
               ? `<a class="btn secondary" href="${escapeHtml(verification.california_bar_search_url)}" target="_blank" rel="noopener">Verify California Bar</a>`
               : "";
+            const courtListenerReady = externalProviderStatus.courtlistener?.ready === true;
+            const canCheckCourtEvidence = isLawDomain()
+              && candidate.result_type !== "public_web_evidence"
+              && Boolean(candidate.name);
+            const courtEvidenceButton = canCheckCourtEvidence
+              ? `<button class="btn secondary" type="button" data-evidence-index="${globalIndex}" onclick="checkLegalEvidence(${globalIndex})" ${courtListenerReady ? "" : "disabled"}>
+                  ${courtListenerReady ? "Check court evidence" : "CourtListener key needed"}
+                </button>`
+              : "";
+            const isResearchOnly = candidate.result_type === "public_web_evidence";
+            const selectControl = isResearchOnly
+              ? '<span class="pill">Research only</span>'
+              : `<input class="external-candidate-check" type="checkbox" data-index="${globalIndex}" style="margin-top:4px">`;
+            const importButton = isResearchOnly
+              ? ""
+              : `<button class="btn primary" type="button" onclick="importExternalCandidate(${globalIndex})">
+                  Create TEMP profile from this candidate
+                </button>`;
+            const profileStatusBadge = isResearchOnly
+              ? ""
+              : '<span class="pill" style="margin-left: 8px">TEMP if imported</span>';
             const skills = (candidate.top_matches || candidate.skills || [])
               .slice(0, 10)
               .map((skill) => `<span class="skill-pill">${escapeHtml(skill)}</span>`)
@@ -845,10 +1003,10 @@
             return `<div class="candidate-card" id="candidate-card-${globalIndex}">
               <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
                 <label style="display:flex;gap:10px;align-items:flex-start">
-                  <input class="external-candidate-check" type="checkbox" data-index="${globalIndex}" style="margin-top:4px">
+                  ${selectControl}
                   <span>
                   <strong>${globalIndex + 1}. ${escapeHtml(candidate.name)}</strong>
-                  <span class="pill" style="margin-left: 8px">TEMP if imported</span>
+                  ${profileStatusBadge}
                   <div class="meta">${escapeHtml(candidate.title || "")}${candidate.company ? " at " + escapeHtml(candidate.company) : ""}</div>
                   <div class="meta">${escapeHtml(candidate.location || "")}</div>
                   ${sourceEvidence}
@@ -864,12 +1022,12 @@
               </div>
               <div class="skills">${skills}</div>
               <div class="row-actions">
-                <button class="btn primary" type="button" onclick="importExternalCandidate(${globalIndex})">
-                  Create TEMP profile from this candidate
-                </button>
+                ${importButton}
                 ${barLink}
                 ${profileLink}
+                ${courtEvidenceButton}
               </div>
+              <div id="legal-evidence-${globalIndex}" class="legal-evidence-panel" hidden></div>
             </div>`;
           })
           .join("");
@@ -888,10 +1046,11 @@
         }
 
         document.getElementById("btnMine").disabled = true;
+        const providerName = sourceDisplayName();
         document.getElementById("mineStatus").textContent =
           directSearch
-            ? `Searching ${selectedSource === "github" ? "GitHub" : "People Data Labs"} for "${directSearch}"...`
-            : `Searching ${selectedSource === "github" ? "GitHub" : "People Data Labs"} from the selected JD skills...`;
+            ? `Searching ${providerName} for "${directSearch}"...`
+            : `Searching ${providerName} from the selected JD criteria...`;
         document.getElementById("results").innerHTML = "";
         resetExternalPagination();
         renderSourceAudit({});
@@ -919,6 +1078,8 @@
             endpoint,
             fields: [...fd.entries()],
             pageSize: Number(response.pagination?.pageSize || document.getElementById("topK").value || 0),
+            costLabel: response.pagination?.costLabel || response.sourceAudit?.costLabel || "provider request",
+            providerName: response.sourceAudit?.provider || sourceDisplayName(response.source),
           };
           nextExternalScrollToken = response.pagination?.nextScrollToken || "";
           cumulativeSourceAudit = { ...(response.sourceAudit || {}) };
@@ -934,8 +1095,8 @@
               : `Search skills used: ${(response.searchSkills || response.jobSkills || []).join(", ")}`;
           const totalMatches = Number(response.sourceAudit?.totalMatches || 0);
           document.getElementById("mineStatus").textContent = totalMatches
-            ? `PDL matched ${totalMatches.toLocaleString()} profiles and returned ${latestExternalResults.length} for review. Scroll through these results or load the next paid page.`
-            : `Returned ${latestExternalResults.length} ${response.source === "github" ? "GitHub" : "People Data Labs"} candidates${directSearch ? " from direct search" : " from the selected JD"}.`;
+            ? `${response.sourceAudit?.provider || providerName} matched ${totalMatches.toLocaleString()} records and returned ${latestExternalResults.length} for review.`
+            : `Returned ${latestExternalResults.length} ${response.sourceAudit?.provider || providerName} results${directSearch ? " from direct search" : " from the selected JD"}.`;
           renderResults(latestExternalResults);
           renderResultPager();
         } catch (e) {
@@ -1147,6 +1308,10 @@
       document.addEventListener("DOMContentLoaded", () => {
         const domain = currentDomain();
         configureDomainPage();
+        loadProviderStatus().catch((error) => {
+          document.getElementById("providerReadiness").textContent =
+            `Provider status unavailable: ${error.message || error}`;
+        });
 
         $("#jdSelect").select2({
           minimumResultsForSearch: 0,
