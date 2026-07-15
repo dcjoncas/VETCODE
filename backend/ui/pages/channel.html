@@ -319,7 +319,7 @@
       <section id="loginPanel" class="panel login-panel">
         <div>
           <h1>Sign in to Poolside</h1>
-          <p>Use the same email account your DevReady talent profile is under.</p>
+          <p>Use the email address invited to this conversation.</p>
         </div>
         <div class="tabs">
           <button id="loginTab" class="active" type="button" onclick="setAuthMode('login')">Login</button>
@@ -327,7 +327,7 @@
         </div>
         <form id="authForm" class="form" onsubmit="submitAuth(event)">
           <input id="displayNameInput" class="hidden" placeholder="Your name" autocomplete="name" />
-          <input id="emailInput" type="email" placeholder="Email on your profile" autocomplete="email" required />
+          <input id="emailInput" type="email" placeholder="Invited email address" autocomplete="email" required />
           <input id="passwordInput" type="password" placeholder="Password" autocomplete="current-password" required />
           <input id="confirmPasswordInput" class="hidden" type="password" placeholder="Confirm password" autocomplete="new-password" />
           <button id="authSubmit" class="btn primary" type="submit">Login</button>
@@ -441,7 +441,8 @@
           body.set("display_name", document.getElementById("displayNameInput").value.trim() || email);
           body.set("confirm_password", document.getElementById("confirmPasswordInput").value);
           body.set("password_confirm", document.getElementById("confirmPasswordInput").value);
-          body.set("login_type", "candidate");
+          body.set("login_type", "channel");
+          body.set("conversation_id", conversationId);
         }
         status.textContent = authMode === "register" ? "Creating account..." : "Signing in...";
         try {
@@ -467,7 +468,7 @@
         }
         document.getElementById("accountLine").textContent = user.display_name || user.email || "";
         try {
-          const response = await fetch(apiUrl(`/api/channels/conversations/${encodeURIComponent(conversationId)}/talent`, {
+          const response = await fetch(apiUrl(`/api/channels/conversations/${encodeURIComponent(conversationId)}/access`, {
             domain: currentDomain(),
             viewer_email: user.email || "",
             profile_id: userProfileId(user),

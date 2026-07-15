@@ -1140,6 +1140,8 @@ def _verify_password(password: str, stored_hash: str = "") -> bool:
 
 
 def _default_menu_for_user(role: str, email: str = "") -> list[str]:
+    if role == "channel_guest":
+        return ["channels"]
     if role == "candidate":
         return DEFAULT_CANDIDATE_MENU
     if role == "sales":
@@ -1843,6 +1845,21 @@ def _channel_user_name(name: str = "", email: str = "") -> str:
     return clean_email[:80] if clean_email else "DevReady User"
 
 
+def _channel_invite_email(value: str = "", required: bool = True) -> str:
+    email = str(value or "").strip().lower()
+    if not email and not required:
+        return ""
+    if len(email) > 254 or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        raise HTTPException(status_code=400, detail="Enter a valid email address.")
+    return email
+
+
+def _channel_email_name(email: str) -> str:
+    local_part = str(email or "").split("@", 1)[0]
+    words = re.sub(r"[._+-]+", " ", local_part).strip()
+    return words.title()[:80] or email[:80]
+
+
 def _channel_people(clean_domain: str) -> list[dict]:
     users = _seed_access_users()
     people = []
@@ -1880,27 +1897,27 @@ def _channel_people(clean_domain: str) -> list[dict]:
 def _channel_participants_from_json(participants_json: str, clean_domain: str) -> list[dict]:
     try:
         raw = json.loads(participants_json or "[]")
-    except Exception:
-        raw = []
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Participant emails are invalid.") from exc
     if not isinstance(raw, list):
-        raw = []
+        raise HTTPException(status_code=400, detail="Participant emails must be a list.")
     people_by_email = {str(row.get("email") or "").strip().lower(): row for row in _channel_people(clean_domain)}
     participants = []
     seen = set()
     for item in raw[:5000]:
         if isinstance(item, dict):
-            email = str(item.get("email") or "").strip()
+            email = _channel_invite_email(item.get("email") or "")
             name = str(item.get("name") or "").strip()
         else:
-            email = str(item or "").strip()
+            email = _channel_invite_email(item)
             name = ""
-        key = email.lower() or name.lower()
+        key = email.lower()
         if not key or key in seen:
             continue
         seen.add(key)
         known = people_by_email.get(email.lower(), {})
         participants.append({
-            "name": _channel_user_name(name or known.get("name"), email),
+            "name": _channel_user_name(name or known.get("name") or _channel_email_name(email), email),
             "email": email,
             "role": known.get("role") or "member",
             "source": known.get("source") or "manual",
@@ -2009,6 +2026,18 @@ def create_channel_conversation(
 ):
     clean_domain = _domain_key(domain)
     clean_title = _safe_action_text(title, 120) or "New conversation"
+    invited_participants = _channel_participants_from_json(participants_json, clean_domain)
+    if not invited_participants:
+        raise HTTPException(status_code=400, detail="Add at least one recipient email.")
+    creator_email = _channel_invite_email(created_by_email, required=False)
+    if creator_email:
+        invited_participants.append({
+            "name": _channel_user_name(created_by_name or _channel_email_name(creator_email), creator_email),
+            "email": creator_email,
+            "role": "owner",
+            "source": "access",
+            "profile_id": "",
+        })
     store, conversations = _read_channel_conversations(clean_domain)
     base_id = _channel_key(clean_title)
     existing_ids = {str(row.get("id") or "") for row in conversations}
@@ -2021,7 +2050,7 @@ def create_channel_conversation(
         "domain": clean_domain,
         "title": clean_title,
         "topic": _safe_action_text(topic, 300),
-        "participants": _ensure_egeria_participant(_channel_participants_from_json(participants_json, clean_domain)),
+        "participants": _ensure_egeria_participant(invited_participants),
         "created_by": _channel_user_name(created_by_name, created_by_email),
         "created_by_email": str(created_by_email or "").strip()[:160],
         "created_at": now,
@@ -2060,6 +2089,37 @@ def add_channel_conversation_participants(
     return {"ok": True, "conversation": conversation}
 
 
+@app.delete("/api/channels/conversations/{conversation_id}/participants")
+def remove_channel_conversation_participant(
+    conversation_id: str,
+    domain: str = Form(default="dev"),
+    email: str = Form(default=""),
+):
+    clean_domain = _domain_key(domain)
+    clean_id = _channel_key(conversation_id)
+    clean_email = _channel_invite_email(email)
+    if clean_email == _egeria_participant()["email"]:
+        raise HTTPException(status_code=400, detail="Egeria cannot be removed from a conversation.")
+    store, conversations = _read_channel_conversations(clean_domain)
+    conversation = next((row for row in conversations if str(row.get("id") or "") == clean_id), None)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
+    existing = conversation.get("participants") if isinstance(conversation.get("participants"), list) else []
+    remaining = [
+        participant
+        for participant in existing
+        if participant.get("system")
+        or _normalize_user_key(participant.get("email", "")) != clean_email
+    ]
+    if len(remaining) == len(existing):
+        raise HTTPException(status_code=404, detail="That email is not in this conversation.")
+    conversation["participants"] = _ensure_egeria_participant(remaining)
+    conversation["updated_at"] = _now_utc()
+    store[clean_domain] = conversations
+    _write_json_store(CHANNEL_CONVERSATIONS_PATH, store)
+    return {"ok": True, "conversation": conversation, "removed_email": clean_email}
+
+
 def _channel_viewer_allowed(conversation: dict, viewer_email: str = "", profile_id: str = "") -> bool:
     email_key = _normalize_user_key(viewer_email)
     profile_key = str(profile_id or "").strip()
@@ -2078,7 +2138,8 @@ def _channel_viewer_allowed(conversation: dict, viewer_email: str = "", profile_
 
 
 @app.get("/api/channels/conversations/{conversation_id}/talent")
-def channel_conversation_for_talent(
+@app.get("/api/channels/conversations/{conversation_id}/access")
+def channel_conversation_access(
     conversation_id: str,
     domain: str = "dev",
     viewer_email: str = "",
@@ -6505,6 +6566,7 @@ def access_register(
     password_confirm: str = Form(default=""),
     login_type: str = Form(default="internal"),
     domain: str = Form(default="dev"),
+    conversation_id: str = Form(default=""),
 ):
     users = _seed_access_users()
     username = (username or "").strip()
@@ -6521,8 +6583,22 @@ def access_register(
         raise HTTPException(status_code=409, detail="Account already exists. Use login or ask an admin to reset access.")
 
     now = _now_utc()
-    role = "candidate" if login_type == "candidate" else "internal"
     clean_domain = _domain_key(domain)
+    clean_login_type = str(login_type or "internal").strip().lower()
+    if clean_login_type == "channel":
+        clean_conversation_id = _channel_key(conversation_id) if str(conversation_id or "").strip() else ""
+        if not clean_conversation_id:
+            raise HTTPException(status_code=400, detail="A conversation invitation is required.")
+        _, conversations = _read_channel_conversations(clean_domain)
+        conversation = next(
+            (row for row in conversations if str(row.get("id") or "") == clean_conversation_id),
+            None,
+        )
+        if not conversation or not _channel_viewer_allowed(conversation, email):
+            raise HTTPException(status_code=403, detail="Use an email address invited to this conversation.")
+        role = "channel_guest"
+    else:
+        role = "candidate" if clean_login_type == "candidate" else "internal"
     linked_profile = _candidate_profile_for_login(email, username, clean_domain) if role == "candidate" else {}
     user_id = _safe_token("USR")
     users[user_id] = {

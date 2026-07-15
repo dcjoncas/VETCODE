@@ -216,9 +216,9 @@
       }
 
       .composer textarea,
-      .new-conversation input,
-      .new-conversation textarea,
-      .people-filter {
+      .message-dialog-card input,
+      .message-dialog-card textarea,
+      .email-input {
         width: 100%;
         border: 1px solid var(--line);
         border-radius: 10px;
@@ -230,48 +230,6 @@
       .composer textarea {
         min-height: 82px;
         resize: vertical;
-      }
-
-      .new-conversation {
-        display: none;
-        gap: 8px;
-        border-bottom: 1px solid var(--line);
-        padding: 10px;
-        background: #fbfcfb;
-      }
-
-      .new-conversation.open {
-        display: grid;
-      }
-
-      .picker-list {
-        display: grid;
-        gap: 6px;
-        max-height: min(46vh, 520px);
-        overflow-y: auto;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 6px;
-        background: #fff;
-      }
-
-      .picker-meta {
-        color: var(--muted);
-        font-size: 12px;
-        font-weight: 850;
-      }
-
-      .picker-row {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: 8px;
-        align-items: center;
-        border-radius: 8px;
-        padding: 6px;
-      }
-
-      .picker-row:hover {
-        background: rgba(var(--primary-rgb), 0.06);
       }
 
       .person-row {
@@ -293,7 +251,9 @@
 
       .participant-chip {
         display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
         gap: 2px;
+        align-items: center;
         border: 1px solid rgba(var(--primary-rgb), 0.22);
         border-radius: 10px;
         padding: 8px 9px;
@@ -312,6 +272,26 @@
         letter-spacing: 0.04em;
       }
 
+      .participant-copy {
+        min-width: 0;
+      }
+
+      .remove-person {
+        min-height: 30px;
+        border: 0;
+        padding: 4px 6px;
+        background: transparent;
+        color: #8c2f39;
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .remove-person:hover {
+        text-decoration: underline;
+      }
+
       .add-people-box {
         display: grid;
         gap: 8px;
@@ -327,6 +307,60 @@
         font-weight: 800;
       }
 
+      .message-dialog {
+        position: fixed;
+        z-index: 10000;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+        background: rgba(22, 27, 24, 0.48);
+      }
+
+      .message-dialog[hidden] {
+        display: none;
+      }
+
+      .message-dialog-card {
+        display: grid;
+        gap: 14px;
+        width: min(620px, 100%);
+        min-width: 0;
+        max-height: calc(100vh - 40px);
+        box-sizing: border-box;
+        overflow-y: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 18px;
+        background: #fff;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+      }
+
+      .message-dialog-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .message-dialog-head h2 {
+        margin: 0;
+        font-size: 20px;
+      }
+
+      .message-field {
+        display: grid;
+        gap: 6px;
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .message-dialog-card textarea {
+        min-height: 150px;
+        resize: vertical;
+      }
+
       @media (max-width: 1180px) {
         .teams-shell {
           grid-template-columns: 280px minmax(0, 1fr);
@@ -339,12 +373,35 @@
       }
 
       @media (max-width: 860px) {
+        .container {
+          grid-template-columns: minmax(0, 1fr);
+          width: 100%;
+          max-width: 100%;
+          overflow-x: hidden;
+        }
+
+        #siteSidebar {
+          display: none;
+        }
+
+        .main.channels-page {
+          width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+          padding: 14px;
+        }
+
         .teams-shell {
           grid-template-columns: 1fr;
         }
 
         .thread-panel {
           min-height: 620px;
+        }
+
+        .message-dialog {
+          place-items: end stretch;
+          padding: 10px;
         }
       }
     </style>
@@ -357,10 +414,10 @@
         <section class="channels-top">
           <div>
             <h1>Poolside</h1>
-            <p class="muted">Focused conversations for DevReady users, developers, and talent.</p>
+            <p class="muted">Focused conversations with clients, partners, and team members.</p>
           </div>
           <div class="thread-actions">
-            <button class="btn primary" type="button" onclick="toggleNewConversation(true)">New message</button>
+            <button class="btn primary" type="button" onclick="openNewConversation()">New message</button>
             <button class="btn secondary" type="button" onclick="copyConversationLink()">Copy link</button>
           </div>
         </section>
@@ -373,18 +430,6 @@
                 <p id="conversationCount" class="muted">Loading...</p>
               </div>
             </div>
-            <form id="newConversationForm" class="new-conversation" onsubmit="createConversation(event)">
-              <input id="newConversationTitle" placeholder="Subject or pool name" autocomplete="off" />
-              <textarea id="newConversationMessage" placeholder="Write the first message..."></textarea>
-              <input id="newPeopleFilter" class="people-filter" placeholder="Add people to this message..." autocomplete="off" oninput="renderNewPeoplePicker()" />
-              <div id="newPeopleMeta" class="picker-meta"></div>
-              <div id="newPeoplePicker" class="picker-list"></div>
-              <div class="new-actions">
-                <button class="btn primary" type="submit">Send new message</button>
-                <button class="btn secondary" type="button" onclick="toggleNewConversation(false)">Cancel</button>
-              </div>
-              <span id="newConversationStatus" class="status-line"></span>
-            </form>
             <div id="conversationList" class="conversation-list">Loading conversations...</div>
           </aside>
 
@@ -395,7 +440,7 @@
                 <p id="conversationTopic" class="muted"></p>
               </div>
               <div class="thread-actions">
-                <button class="btn secondary" type="button" onclick="focusInvite()">Invite</button>
+                <button class="btn secondary" type="button" onclick="focusInvite()">Add person</button>
                 <button class="btn secondary" type="button" onclick="loadMessages()">Refresh</button>
               </div>
             </header>
@@ -412,29 +457,50 @@
           <aside class="teams-panel people-panel">
             <div class="teams-panel-head">
               <div>
-                <h2>People</h2>
+                <h2>Participants</h2>
                 <p id="peopleSummary" class="muted">Loading...</p>
               </div>
             </div>
             <div id="participantList" class="participant-list"></div>
-            <div class="add-people-box">
-              <input id="addPeopleFilter" class="people-filter" placeholder="Search all talent and users to invite..." autocomplete="off" oninput="renderAddPeoplePicker()" />
-              <div id="addPeopleMeta" class="picker-meta"></div>
-              <div id="addPeoplePicker" class="picker-list"></div>
-              <button class="btn secondary" type="button" onclick="addPeopleToConversation()">Invite selected people</button>
+            <form class="add-people-box" onsubmit="addPersonToConversation(event)">
+              <input id="addPersonEmail" class="email-input" type="email" placeholder="Email address" autocomplete="email" required />
+              <button class="btn secondary" type="submit">Add to conversation</button>
               <span id="peopleStatus" class="status-line"></span>
-            </div>
+            </form>
           </aside>
         </section>
+
+        <div id="newConversationDialog" class="message-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="newConversationHeading">
+          <form class="message-dialog-card" onsubmit="createConversation(event)">
+            <header class="message-dialog-head">
+              <h2 id="newConversationHeading">New message</h2>
+              <button class="btn secondary" type="button" onclick="closeNewConversation()">Close</button>
+            </header>
+            <label class="message-field">
+              To
+              <input id="newRecipientEmail" type="email" placeholder="Email address" autocomplete="email" required />
+            </label>
+            <label class="message-field">
+              Subject
+              <input id="newConversationTitle" placeholder="Subject" autocomplete="off" />
+            </label>
+            <label class="message-field">
+              Message
+              <textarea id="newConversationMessage" placeholder="Write a message..." required></textarea>
+            </label>
+            <div class="new-actions">
+              <button class="btn primary" type="submit">Send message</button>
+              <button class="btn secondary" type="button" onclick="closeNewConversation()">Cancel</button>
+              <span id="newConversationStatus" class="status-line"></span>
+            </div>
+          </form>
+        </div>
       </main>
     </div>
 
     <script>
       let conversations = [];
       let activeConversationId = new URLSearchParams(window.location.search).get("conversation") || new URLSearchParams(window.location.search).get("channel") || "general";
-      let audience = [];
-      let newSelected = new Set();
-      let addSelected = new Set();
 
       function currentDomain() {
         return sessionStorage.getItem("domain") || document.documentElement.dataset.domain || "dev";
@@ -481,17 +547,11 @@
         return url.toString();
       }
 
-      function talentChannelUrl() {
+      function sharedConversationUrl() {
         const url = new URL("channel.html", window.location.href);
         url.searchParams.set("domain", currentDomain());
         url.searchParams.set("conversation", activeConversationId || "general");
         return url.toString();
-      }
-
-      async function loadAudience() {
-        const response = await fetch(apiUrl("/api/channels/audience", { domain: currentDomain() }), { cache: "no-store" });
-        const data = await response.json();
-        audience = data.people || [];
       }
 
       async function loadConversations() {
@@ -612,104 +672,58 @@
         }
       }
 
-      function personLabel(person) {
-        return `${person.name || person.email || "Unnamed"} ${person.email || ""}`.toLowerCase();
+      function normalizeEmail(value) {
+        return String(value || "").trim().toLowerCase();
       }
 
-      function personKey(person) {
-        return String(person?.email || person?.name || "").trim();
+      function emailDisplayName(email) {
+        const local = normalizeEmail(email).split("@")[0] || "Participant";
+        return local
+          .replace(/[._+-]+/g, " ")
+          .replace(/\b\w/g, (letter) => letter.toUpperCase());
       }
 
-      function filteredPeople(filterValue, selectedSet) {
-        const filter = String(filterValue || "").trim().toLowerCase();
-        const currentParticipants = new Set((activeConversation()?.participants || []).map((person) => String(person.email || person.name || "").toLowerCase()));
-        return audience
-          .filter((person) => !filter || personLabel(person).includes(filter))
-          .filter((person) => selectedSet.has(personKey(person)) || !currentParticipants.has(personKey(person).toLowerCase()));
-      }
-
-      function renderPicker(targetId, filterId, metaId, selectedSet, onChangeName) {
-        const filterValue = document.getElementById(filterId)?.value || "";
-        const rows = filteredPeople(filterValue, selectedSet);
-        const meta = document.getElementById(metaId);
-        if (meta) {
-          meta.textContent = `${rows.length.toLocaleString()} available of ${audience.length.toLocaleString()} total talent and users`;
-        }
-        document.getElementById(targetId).innerHTML = rows
-          .map((person) => {
-            const key = personKey(person);
-            return `
-              <label class="picker-row">
-                <input type="checkbox" ${selectedSet.has(key) ? "checked" : ""} onchange="${onChangeName}('${encodeURIComponent(key)}', this.checked)" />
-                <span><strong>${escapeHtml(person.name)}</strong><span>${escapeHtml(person.email || person.role || "No email listed")}</span></span>
-              </label>
-            `;
-          })
-          .join("") || `<div class="person-row"><strong>No people found.</strong><span>Try a different search.</span></div>`;
-      }
-
-      function renderNewPeoplePicker() {
-        renderPicker("newPeoplePicker", "newPeopleFilter", "newPeopleMeta", newSelected, "toggleNewPerson");
-      }
-
-      function renderAddPeoplePicker() {
-        renderPicker("addPeoplePicker", "addPeopleFilter", "addPeopleMeta", addSelected, "toggleAddPerson");
-      }
-
-      function toggleNewPerson(key, checked) {
-        key = decodeURIComponent(key);
-        if (checked) newSelected.add(key);
-        else newSelected.delete(key);
-      }
-
-      function toggleAddPerson(key, checked) {
-        key = decodeURIComponent(key);
-        if (checked) addSelected.add(key);
-        else addSelected.delete(key);
-      }
-
-      function selectedParticipants(selectedSet) {
-        return Array.from(selectedSet)
-          .map((key) => audience.find((person) => personKey(person) === key) || { email: key, name: key })
-          .filter(Boolean);
+      function participantFromEmail(email) {
+        const normalized = normalizeEmail(email);
+        return { email: normalized, name: emailDisplayName(normalized) };
       }
 
       function focusInvite() {
         document.querySelector(".people-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
-        const input = document.getElementById("addPeopleFilter");
+        const input = document.getElementById("addPersonEmail");
         input?.focus();
-        document.getElementById("peopleStatus").textContent = "Search all talent, select people, then invite them to this group.";
+        document.getElementById("peopleStatus").textContent = "";
       }
 
-      function toggleNewConversation(open) {
-        document.getElementById("newConversationForm").classList.toggle("open", Boolean(open));
-        if (open) {
-          newSelected = new Set();
-          document.getElementById("newConversationTitle").focus();
-          renderNewPeoplePicker();
-        }
+      function openNewConversation() {
+        const dialog = document.getElementById("newConversationDialog");
+        dialog.hidden = false;
+        document.getElementById("newConversationStatus").textContent = "";
+        document.getElementById("newRecipientEmail").focus();
+      }
+
+      function closeNewConversation() {
+        document.getElementById("newConversationDialog").hidden = true;
       }
 
       async function createConversation(event) {
         event.preventDefault();
+        const recipientEmail = normalizeEmail(document.getElementById("newRecipientEmail").value);
         const rawTitle = document.getElementById("newConversationTitle").value.trim();
         const firstMessage = document.getElementById("newConversationMessage").value.trim();
         const status = document.getElementById("newConversationStatus");
         const user = currentUser();
-        const participants = selectedParticipants(newSelected);
-        if (!participants.length) {
-          status.textContent = "Add at least one person to this message.";
+        if (!recipientEmail) {
+          status.textContent = "Enter a recipient email address.";
           return;
         }
         if (!firstMessage) {
           status.textContent = "Write the first message.";
           return;
         }
-        const participantNames = participants
-          .map((person) => person.name || person.email || "")
-          .filter(Boolean);
-        const title = rawTitle || `Message with ${participantNames.slice(0, 3).join(", ")}${participantNames.length > 3 ? ` +${participantNames.length - 3}` : ""}`;
-        const topic = `Message thread with ${participantNames.slice(0, 6).join(", ")}${participantNames.length > 6 ? ` +${participantNames.length - 6} more` : ""}`;
+        const participants = [participantFromEmail(recipientEmail)];
+        const title = rawTitle || `Message with ${recipientEmail}`;
+        const topic = `Conversation with ${recipientEmail}`;
         status.textContent = "Sending...";
         const body = new URLSearchParams({
           domain: currentDomain(),
@@ -744,11 +758,10 @@
           });
           const messageData = await messageResponse.json();
           if (!messageResponse.ok || messageData.ok === false) throw new Error(messageData.detail || "Message failed.");
+          document.getElementById("newRecipientEmail").value = "";
           document.getElementById("newConversationTitle").value = "";
           document.getElementById("newConversationMessage").value = "";
-          document.getElementById("newPeopleFilter").value = "";
-          newSelected = new Set();
-          toggleNewConversation(false);
+          closeNewConversation();
           await loadConversations();
         } catch (error) {
           status.textContent = error.message || "Message failed.";
@@ -757,30 +770,39 @@
 
       function renderParticipants() {
         const participants = activeConversation()?.participants || [];
-        document.getElementById("peopleSummary").textContent = `${participants.length} people in this conversation`;
+        const humanCount = participants.filter((person) => !isEgeria(person)).length;
+        document.getElementById("peopleSummary").textContent = `${humanCount} ${humanCount === 1 ? "person" : "people"}`;
         document.getElementById("participantList").innerHTML = participants
-          .map((person) => `
-            <div class="participant-chip${isEgeria(person) ? " egeria" : ""}">
-              <strong>${escapeHtml(person.name)}</strong>
-              <span>${escapeHtml(isEgeria(person) ? "Conversation helper for everyone" : (person.email || person.role || "No email listed"))}</span>
-            </div>
-          `)
-          .join("") || `<div class="participant-chip"><strong>No people yet.</strong><span>Add users or candidates below.</span></div>`;
-        renderAddPeoplePicker();
+          .map((person) => {
+            const egeria = isEgeria(person);
+            return `
+              <div class="participant-chip${egeria ? " egeria" : ""}">
+                <div class="participant-copy">
+                  <strong>${escapeHtml(person.name || person.email || "Participant")}</strong>
+                  <span>${escapeHtml(egeria ? "Conversation helper" : (person.email || ""))}</span>
+                </div>
+                ${egeria ? "" : `<button class="remove-person" type="button" onclick="removePersonFromConversation('${encodeURIComponent(person.email || "")}')">Remove</button>`}
+              </div>
+            `;
+          })
+          .join("") || `<div class="participant-chip"><div class="participant-copy"><strong>No participants yet.</strong></div></div>`;
       }
 
-      async function addPeopleToConversation() {
+      async function addPersonToConversation(event) {
+        event.preventDefault();
         const conversation = activeConversation();
         const status = document.getElementById("peopleStatus");
         if (!conversation) return;
-        if (!addSelected.size) {
-          status.textContent = "Select people to add.";
+        const input = document.getElementById("addPersonEmail");
+        const email = normalizeEmail(input.value);
+        if (!email) {
+          status.textContent = "Enter an email address.";
           return;
         }
         status.textContent = "Adding...";
         const body = new URLSearchParams({
           domain: currentDomain(),
-          participants_json: JSON.stringify(selectedParticipants(addSelected)),
+          participants_json: JSON.stringify([participantFromEmail(email)]),
         });
         try {
           const response = await fetch(`/api/channels/conversations/${encodeURIComponent(conversation.id)}/participants`, {
@@ -789,15 +811,39 @@
             body: body.toString(),
           });
           const data = await response.json();
-          if (!response.ok || data.ok === false) throw new Error(data.detail || "Could not add people.");
+          if (!response.ok || data.ok === false) throw new Error(data.detail || "Could not add that email.");
           const index = conversations.findIndex((item) => item.id === data.conversation.id);
           if (index >= 0) conversations[index] = data.conversation;
-          addSelected = new Set();
-          document.getElementById("addPeopleFilter").value = "";
-          status.textContent = "Invites added to this group.";
+          input.value = "";
+          status.textContent = `${email} added.`;
           renderThread();
         } catch (error) {
-          status.textContent = error.message || "Could not add people.";
+          status.textContent = error.message || "Could not add that email.";
+        }
+      }
+
+      async function removePersonFromConversation(encodedEmail) {
+        const conversation = activeConversation();
+        const status = document.getElementById("peopleStatus");
+        const email = decodeURIComponent(encodedEmail || "");
+        if (!conversation || !email) return;
+        if (!confirm(`Remove ${email} from this conversation?`)) return;
+        status.textContent = "Removing...";
+        const body = new URLSearchParams({ domain: currentDomain(), email });
+        try {
+          const response = await fetch(`/api/channels/conversations/${encodeURIComponent(conversation.id)}/participants`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: body.toString(),
+          });
+          const data = await response.json();
+          if (!response.ok || data.ok === false) throw new Error(data.detail || "Could not remove that person.");
+          const index = conversations.findIndex((item) => item.id === data.conversation.id);
+          if (index >= 0) conversations[index] = data.conversation;
+          status.textContent = `${email} removed.`;
+          renderThread();
+        } catch (error) {
+          status.textContent = error.message || "Could not remove that person.";
         }
       }
 
@@ -812,15 +858,12 @@
       }
 
       function copyConversationLink() {
-        copyText(talentChannelUrl(), "Standalone Poolside app link");
+        copyText(sharedConversationUrl(), "Standalone Poolside app link");
       }
 
       document.addEventListener("DOMContentLoaded", async () => {
         try {
-          await loadAudience();
           await loadConversations();
-          renderNewPeoplePicker();
-          renderAddPeoplePicker();
           setInterval(loadMessages, 30000);
         } catch {
           document.getElementById("conversationList").textContent = "Poolside is unavailable. Refresh after the backend is available.";
