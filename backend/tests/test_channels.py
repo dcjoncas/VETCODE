@@ -131,5 +131,90 @@ class ChannelGuestAccessTests(unittest.TestCase):
         self.assertEqual(denied.exception.status_code, 403)
 
 
+class ChannelArchiveTests(unittest.TestCase):
+    @patch("main._write_json_store")
+    @patch("main._read_channel_conversations")
+    def test_archive_and_restore_preserve_conversation_record(self, read, write):
+        conversation = {
+            "id": "outside-counsel",
+            "title": "Outside counsel",
+            "last_message": "Prior message remains available.",
+            "participants": [main._egeria_participant()],
+        }
+        read.return_value = ({"law": [conversation]}, [conversation])
+
+        archived = main.archive_channel_conversation(
+            "outside-counsel",
+            domain="law",
+            archived=True,
+            archived_by_name="Darrin",
+            archived_by_email="owner@example.com",
+        )
+
+        self.assertTrue(archived["archived"])
+        self.assertTrue(archived["messages_preserved"])
+        self.assertEqual(archived["conversation"]["last_message"], "Prior message remains available.")
+        self.assertEqual(archived["conversation"]["archive_history"][0]["action"], "archived")
+
+        restored = main.archive_channel_conversation(
+            "outside-counsel",
+            domain="law",
+            archived=False,
+            archived_by_name="Darrin",
+            archived_by_email="owner@example.com",
+        )
+
+        self.assertFalse(restored["archived"])
+        self.assertNotIn("archived_at", restored["conversation"])
+        self.assertEqual(
+            [row["action"] for row in restored["conversation"]["archive_history"]],
+            ["archived", "restored"],
+        )
+        self.assertEqual(write.call_count, 2)
+
+    @patch("main._write_json_store")
+    @patch("main._read_json_store")
+    @patch("main._read_channel_conversations")
+    def test_archived_conversation_rejects_new_messages(self, read_conversations, read_store, write):
+        conversation = {
+            "id": "outside-counsel",
+            "archived_at": "2026-07-15T18:00:00Z",
+            "participants": [main._egeria_participant()],
+        }
+        read_conversations.return_value = ({"law": [conversation]}, [conversation])
+
+        with self.assertRaises(HTTPException) as blocked:
+            main.post_channel_message(
+                channel="outside-counsel",
+                conversation_id="outside-counsel",
+                domain="law",
+                message="This must not be added.",
+                author_name="Darrin",
+                author_email="owner@example.com",
+                audience="conversation",
+            )
+
+        self.assertEqual(blocked.exception.status_code, 409)
+        read_store.assert_not_called()
+        write.assert_not_called()
+
+    @patch("main._read_channel_conversations")
+    def test_archived_conversation_rejects_participant_changes(self, read):
+        conversation = {
+            "id": "outside-counsel",
+            "archived_at": "2026-07-15T18:00:00Z",
+            "participants": [main._egeria_participant()],
+        }
+        read.return_value = ({"law": [conversation]}, [conversation])
+
+        with self.assertRaises(HTTPException) as blocked:
+            main.add_channel_conversation_participants(
+                "outside-counsel",
+                domain="law",
+                participants_json=json.dumps([{"email": "new@example.com"}]),
+            )
+        self.assertEqual(blocked.exception.status_code, 409)
+
+
 if __name__ == "__main__":
     unittest.main()

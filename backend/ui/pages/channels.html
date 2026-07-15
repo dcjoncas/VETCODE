@@ -91,6 +91,33 @@
         padding: 10px;
       }
 
+      .conversation-filters {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px;
+        border-bottom: 1px solid var(--line);
+        padding: 8px 10px;
+        background: #fbfcfb;
+      }
+
+      .conversation-filter {
+        min-height: 34px;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .conversation-filter.active {
+        border-color: var(--line);
+        background: #fff;
+        color: var(--text);
+      }
+
       .conversation-item {
         width: 100%;
         min-height: 64px;
@@ -107,6 +134,10 @@
       .conversation-item.active {
         border-color: rgba(var(--primary-rgb), 0.35);
         background: rgba(var(--primary-rgb), 0.08);
+      }
+
+      .conversation-item.archived {
+        background: #f7f7f7;
       }
 
       .conversation-item strong,
@@ -143,6 +174,23 @@
         border-bottom: 1px solid var(--line);
         padding: 12px;
         background: #fff;
+      }
+
+      .archive-state {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        margin-top: 5px;
+        border: 1px solid #b5b9b6;
+        border-radius: 999px;
+        padding: 2px 8px;
+        color: #565c58;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .archive-state[hidden] {
+        display: none;
       }
 
       .thread-actions,
@@ -430,6 +478,10 @@
                 <p id="conversationCount" class="muted">Loading...</p>
               </div>
             </div>
+            <div class="conversation-filters" role="tablist" aria-label="Conversation status">
+              <button id="activeConversationFilter" class="conversation-filter active" type="button" role="tab" aria-selected="true" onclick="setConversationView('active')">Active</button>
+              <button id="archivedConversationFilter" class="conversation-filter" type="button" role="tab" aria-selected="false" onclick="setConversationView('archived')">Archived</button>
+            </div>
             <div id="conversationList" class="conversation-list">Loading conversations...</div>
           </aside>
 
@@ -438,17 +490,19 @@
               <div class="thread-title">
                 <h2 id="conversationTitle">Conversation</h2>
                 <p id="conversationTopic" class="muted"></p>
+                <span id="archiveState" class="archive-state" hidden>Archived</span>
               </div>
               <div class="thread-actions">
-                <button class="btn secondary" type="button" onclick="focusInvite()">Add person</button>
+                <button id="btnAddPerson" class="btn secondary" type="button" onclick="focusInvite()">Add person</button>
                 <button class="btn secondary" type="button" onclick="loadMessages()">Refresh</button>
+                <button id="btnArchiveConversation" class="btn secondary" type="button" onclick="toggleConversationArchive()">Archive</button>
               </div>
             </header>
             <div id="messageLog" class="message-log">Loading messages...</div>
-            <form class="composer" onsubmit="sendMessage(event)">
+            <form id="messageComposer" class="composer" onsubmit="sendMessage(event)">
               <textarea id="messageInput" placeholder="Type a new message..."></textarea>
               <div class="compose-actions">
-                <button class="btn primary" type="submit">Send</button>
+                <button id="btnSendMessage" class="btn primary" type="submit">Send</button>
                 <span id="sendStatus" class="status-line"></span>
               </div>
             </form>
@@ -462,9 +516,9 @@
               </div>
             </div>
             <div id="participantList" class="participant-list"></div>
-            <form class="add-people-box" onsubmit="addPersonToConversation(event)">
+            <form id="addPersonForm" class="add-people-box" onsubmit="addPersonToConversation(event)">
               <input id="addPersonEmail" class="email-input" type="email" placeholder="Email address" autocomplete="email" required />
-              <button class="btn secondary" type="submit">Add to conversation</button>
+              <button id="btnSubmitPerson" class="btn secondary" type="submit">Add to conversation</button>
               <span id="peopleStatus" class="status-line"></span>
             </form>
           </aside>
@@ -501,6 +555,8 @@
     <script>
       let conversations = [];
       let activeConversationId = new URLSearchParams(window.location.search).get("conversation") || new URLSearchParams(window.location.search).get("channel") || "general";
+      let conversationView = new URLSearchParams(window.location.search).get("view") === "archived" ? "archived" : "active";
+      let conversationViewInitialized = false;
 
       function currentDomain() {
         return sessionStorage.getItem("domain") || document.documentElement.dataset.domain || "dev";
@@ -535,8 +591,17 @@
         return email === "egeria@devready.ai" || name === "egeria";
       }
 
+      function isConversationArchived(conversation) {
+        return Boolean(conversation?.archived_at);
+      }
+
+      function visibleConversations() {
+        const showArchived = conversationView === "archived";
+        return conversations.filter((conversation) => isConversationArchived(conversation) === showArchived);
+      }
+
       function activeConversation() {
-        return conversations.find((conversation) => conversation.id === activeConversationId) || conversations[0] || null;
+        return conversations.find((conversation) => conversation.id === activeConversationId) || visibleConversations()[0] || null;
       }
 
       function conversationUrl() {
@@ -558,8 +623,13 @@
         const response = await fetch(apiUrl("/api/channels/conversations", { domain: currentDomain() }), { cache: "no-store" });
         const data = await response.json();
         conversations = data.conversations || [];
-        if (!conversations.some((conversation) => conversation.id === activeConversationId)) {
-          activeConversationId = conversations[0]?.id || "general";
+        const selected = conversations.find((conversation) => conversation.id === activeConversationId);
+        if (!conversationViewInitialized && selected) {
+          conversationView = isConversationArchived(selected) ? "archived" : "active";
+        }
+        conversationViewInitialized = true;
+        if (!visibleConversations().some((conversation) => conversation.id === activeConversationId)) {
+          activeConversationId = visibleConversations()[0]?.id || "";
         }
         renderConversations();
         renderThread();
@@ -567,27 +637,63 @@
       }
 
       function renderConversations() {
-        document.getElementById("conversationCount").textContent = `${conversations.length} threads`;
-        document.getElementById("conversationList").innerHTML = conversations
+        const activeCount = conversations.filter((conversation) => !isConversationArchived(conversation)).length;
+        const archivedCount = conversations.length - activeCount;
+        const rows = visibleConversations();
+        document.getElementById("conversationCount").textContent = `${activeCount} active, ${archivedCount} archived`;
+        document.getElementById("activeConversationFilter").textContent = `Active (${activeCount})`;
+        document.getElementById("archivedConversationFilter").textContent = `Archived (${archivedCount})`;
+        ["active", "archived"].forEach((view) => {
+          const button = document.getElementById(`${view}ConversationFilter`);
+          const selected = conversationView === view;
+          button.classList.toggle("active", selected);
+          button.setAttribute("aria-selected", selected ? "true" : "false");
+        });
+        document.getElementById("conversationList").innerHTML = rows
           .map((conversation) => `
-            <button class="conversation-item${conversation.id === activeConversationId ? " active" : ""}" type="button" onclick="setConversation('${escapeHtml(conversation.id)}')">
+            <button class="conversation-item${conversation.id === activeConversationId ? " active" : ""}${isConversationArchived(conversation) ? " archived" : ""}" type="button" onclick="setConversation('${escapeHtml(conversation.id)}')">
               <strong>${escapeHtml(conversation.title || conversation.id)}</strong>
               <span>${escapeHtml(conversation.last_message || conversation.topic || "No messages yet")}</span>
             </button>
           `)
-          .join("") || `<div class="message-row"><strong>No conversations.</strong><span class="muted">Create one to get started.</span></div>`;
+          .join("") || `<div class="message-row"><strong>No ${conversationView} conversations.</strong></div>`;
       }
 
       function renderThread() {
         const conversation = activeConversation();
         document.getElementById("conversationTitle").textContent = conversation?.title || "Conversation";
-        document.getElementById("conversationTopic").textContent = conversation?.topic || conversationUrl();
+        document.getElementById("conversationTopic").textContent = conversation?.topic || (conversation ? conversationUrl() : "Select a conversation.");
+        const archived = isConversationArchived(conversation);
+        const archiveState = document.getElementById("archiveState");
+        archiveState.hidden = !archived;
+        archiveState.textContent = archived
+          ? `Archived ${new Date(conversation.archived_at).toLocaleDateString()}`
+          : "Archived";
+        document.getElementById("btnArchiveConversation").textContent = archived ? "Restore" : "Archive";
+        document.getElementById("btnArchiveConversation").disabled = !conversation;
+        document.getElementById("btnAddPerson").disabled = !conversation || archived;
+        document.getElementById("messageInput").disabled = !conversation || archived;
+        document.getElementById("btnSendMessage").disabled = !conversation || archived;
+        document.getElementById("addPersonEmail").disabled = !conversation || archived;
+        document.getElementById("btnSubmitPerson").disabled = !conversation || archived;
+        document.getElementById("sendStatus").textContent = archived ? "Archived conversations are read-only." : "";
+        document.getElementById("peopleStatus").textContent = archived ? "Restore the conversation to change participants." : "";
         renderParticipants();
         const url = new URL(window.location.href);
         url.searchParams.set("domain", currentDomain());
-        url.searchParams.set("conversation", activeConversationId || "general");
+        if (activeConversationId) url.searchParams.set("conversation", activeConversationId);
+        else url.searchParams.delete("conversation");
+        url.searchParams.set("view", conversationView);
         url.searchParams.delete("channel");
         history.replaceState({}, "", url.toString());
+      }
+
+      async function setConversationView(view) {
+        conversationView = view === "archived" ? "archived" : "active";
+        activeConversationId = visibleConversations()[0]?.id || "";
+        renderConversations();
+        renderThread();
+        await loadMessages();
       }
 
       async function setConversation(conversationId) {
@@ -595,6 +701,42 @@
         renderConversations();
         renderThread();
         await loadMessages();
+      }
+
+      async function toggleConversationArchive() {
+        const conversation = activeConversation();
+        if (!conversation) return;
+        const archive = !isConversationArchived(conversation);
+        const action = archive ? "Archive" : "Restore";
+        if (archive && !confirm("Archive this conversation? Its message history will remain available.")) return;
+        const user = currentUser();
+        const body = new URLSearchParams({
+          domain: currentDomain(),
+          archived: archive ? "true" : "false",
+          archived_by_name: user.display_name || user.username || user.email || "",
+          archived_by_email: user.email || "",
+        });
+        const button = document.getElementById("btnArchiveConversation");
+        button.disabled = true;
+        try {
+          const response = await fetch(`/api/channels/conversations/${encodeURIComponent(conversation.id)}/archive`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: body.toString(),
+          });
+          const data = await response.json();
+          if (!response.ok || data.ok === false) throw new Error(data.detail || `${action} failed.`);
+          const index = conversations.findIndex((item) => item.id === data.conversation.id);
+          if (index >= 0) conversations[index] = data.conversation;
+          conversationView = data.archived ? "archived" : "active";
+          activeConversationId = data.conversation.id;
+          renderConversations();
+          renderThread();
+          await loadMessages();
+        } catch (error) {
+          document.getElementById("sendStatus").textContent = error.message || `${action} failed.`;
+          button.disabled = false;
+        }
       }
 
       async function loadMessages() {
@@ -645,6 +787,10 @@
         const text = input.value.trim();
         const conversation = activeConversation();
         if (!text || !conversation) return;
+        if (isConversationArchived(conversation)) {
+          status.textContent = "Restore this conversation before sending a message.";
+          return;
+        }
         const user = currentUser();
         const body = new URLSearchParams({
           domain: currentDomain(),
@@ -689,6 +835,7 @@
       }
 
       function focusInvite() {
+        if (isConversationArchived(activeConversation())) return;
         document.querySelector(".people-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
         const input = document.getElementById("addPersonEmail");
         input?.focus();
@@ -741,6 +888,7 @@
           });
           const data = await response.json();
           if (!response.ok || data.ok === false) throw new Error(data.detail || "Conversation failed.");
+          conversationView = "active";
           activeConversationId = data.conversation.id;
           const messageBody = new URLSearchParams({
             domain: currentDomain(),
@@ -769,7 +917,9 @@
       }
 
       function renderParticipants() {
-        const participants = activeConversation()?.participants || [];
+        const conversation = activeConversation();
+        const participants = conversation?.participants || [];
+        const archived = isConversationArchived(conversation);
         const humanCount = participants.filter((person) => !isEgeria(person)).length;
         document.getElementById("peopleSummary").textContent = `${humanCount} ${humanCount === 1 ? "person" : "people"}`;
         document.getElementById("participantList").innerHTML = participants
@@ -781,7 +931,7 @@
                   <strong>${escapeHtml(person.name || person.email || "Participant")}</strong>
                   <span>${escapeHtml(egeria ? "Conversation helper" : (person.email || ""))}</span>
                 </div>
-                ${egeria ? "" : `<button class="remove-person" type="button" onclick="removePersonFromConversation('${encodeURIComponent(person.email || "")}')">Remove</button>`}
+                ${egeria || archived ? "" : `<button class="remove-person" type="button" onclick="removePersonFromConversation('${encodeURIComponent(person.email || "")}')">Remove</button>`}
               </div>
             `;
           })
@@ -793,6 +943,10 @@
         const conversation = activeConversation();
         const status = document.getElementById("peopleStatus");
         if (!conversation) return;
+        if (isConversationArchived(conversation)) {
+          status.textContent = "Restore this conversation before adding participants.";
+          return;
+        }
         const input = document.getElementById("addPersonEmail");
         const email = normalizeEmail(input.value);
         if (!email) {
@@ -827,6 +981,10 @@
         const status = document.getElementById("peopleStatus");
         const email = decodeURIComponent(encodedEmail || "");
         if (!conversation || !email) return;
+        if (isConversationArchived(conversation)) {
+          status.textContent = "Restore this conversation before removing participants.";
+          return;
+        }
         if (!confirm(`Remove ${email} from this conversation?`)) return;
         status.textContent = "Removing...";
         const body = new URLSearchParams({ domain: currentDomain(), email });

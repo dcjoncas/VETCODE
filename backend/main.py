@@ -2001,6 +2001,17 @@ def _read_channel_conversations(clean_domain: str) -> tuple[dict, list[dict]]:
     return store, conversations
 
 
+def _channel_conversation_is_archived(conversation: dict | None) -> bool:
+    return bool((conversation or {}).get("archived_at"))
+
+
+def _require_active_channel_conversation(conversation: dict | None):
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
+    if _channel_conversation_is_archived(conversation):
+        raise HTTPException(status_code=409, detail="Restore this conversation before making changes.")
+
+
 def _conversation_message_key(clean_domain: str, conversation_id: str = "", channel: str = "") -> str:
     clean_conversation = _channel_key(conversation_id) if str(conversation_id or "").strip() else ""
     if clean_conversation:
@@ -2073,8 +2084,7 @@ def add_channel_conversation_participants(
     clean_id = _channel_key(conversation_id)
     store, conversations = _read_channel_conversations(clean_domain)
     conversation = next((row for row in conversations if str(row.get("id") or "") == clean_id), None)
-    if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found.")
+    _require_active_channel_conversation(conversation)
     existing = conversation.get("participants") if isinstance(conversation.get("participants"), list) else []
     additions = _channel_participants_from_json(participants_json, clean_domain)
     by_key = {}
@@ -2102,8 +2112,7 @@ def remove_channel_conversation_participant(
         raise HTTPException(status_code=400, detail="Egeria cannot be removed from a conversation.")
     store, conversations = _read_channel_conversations(clean_domain)
     conversation = next((row for row in conversations if str(row.get("id") or "") == clean_id), None)
-    if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found.")
+    _require_active_channel_conversation(conversation)
     existing = conversation.get("participants") if isinstance(conversation.get("participants"), list) else []
     remaining = [
         participant
@@ -2118,6 +2127,48 @@ def remove_channel_conversation_participant(
     store[clean_domain] = conversations
     _write_json_store(CHANNEL_CONVERSATIONS_PATH, store)
     return {"ok": True, "conversation": conversation, "removed_email": clean_email}
+
+
+@app.post("/api/channels/conversations/{conversation_id}/archive")
+def archive_channel_conversation(
+    conversation_id: str,
+    domain: str = Form(default="dev"),
+    archived: bool = Form(default=True),
+    archived_by_name: str = Form(default=""),
+    archived_by_email: str = Form(default=""),
+):
+    clean_domain = _domain_key(domain)
+    clean_id = _channel_key(conversation_id)
+    store, conversations = _read_channel_conversations(clean_domain)
+    conversation = next((row for row in conversations if str(row.get("id") or "") == clean_id), None)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
+    was_archived = _channel_conversation_is_archived(conversation)
+    now = _now_utc()
+    actor_email = _channel_invite_email(archived_by_email, required=False)
+    actor_name = _channel_user_name(archived_by_name, actor_email)
+    history = conversation.get("archive_history") if isinstance(conversation.get("archive_history"), list) else []
+    if archived and not was_archived:
+        conversation["archived_at"] = now
+        conversation["archived_by"] = actor_name
+        conversation["archived_by_email"] = actor_email
+        history.append({"action": "archived", "at": now, "by": actor_name, "by_email": actor_email})
+    elif not archived and was_archived:
+        conversation["restored_at"] = now
+        conversation.pop("archived_at", None)
+        conversation.pop("archived_by", None)
+        conversation.pop("archived_by_email", None)
+        history.append({"action": "restored", "at": now, "by": actor_name, "by_email": actor_email})
+    conversation["archive_history"] = history[-100:]
+    conversation["updated_at"] = now
+    store[clean_domain] = conversations
+    _write_json_store(CHANNEL_CONVERSATIONS_PATH, store)
+    return {
+        "ok": True,
+        "conversation": conversation,
+        "archived": _channel_conversation_is_archived(conversation),
+        "messages_preserved": True,
+    }
 
 
 def _channel_viewer_allowed(conversation: dict, viewer_email: str = "", profile_id: str = "") -> bool:
@@ -2168,8 +2219,7 @@ def ask_egeria_channel_helper(
     clean_id = _channel_key(conversation_id)
     conv_store, conversations = _read_channel_conversations(clean_domain)
     conversation = next((row for row in conversations if str(row.get("id") or "") == clean_id), None)
-    if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found.")
+    _require_active_channel_conversation(conversation)
 
     message_store = _read_json_store(CHANNEL_MESSAGES_PATH, {})
     room_key = _conversation_message_key(clean_domain, clean_id, clean_id)
@@ -2260,6 +2310,16 @@ def post_channel_message(
     clean_channel = _channel_key(channel)
     clean_domain = _domain_key(domain)
     clean_conversation_id = _channel_key(conversation_id) if str(conversation_id or "").strip() else ""
+    conv_store = None
+    conversations = []
+    conversation = None
+    if clean_conversation_id:
+        conv_store, conversations = _read_channel_conversations(clean_domain)
+        conversation = next(
+            (row for row in conversations if str(row.get("id") or "") == clean_conversation_id),
+            None,
+        )
+        _require_active_channel_conversation(conversation)
     store = _read_json_store(CHANNEL_MESSAGES_PATH, {})
     room_key = _conversation_message_key(clean_domain, clean_conversation_id, clean_channel)
     messages = store.get(room_key, [])
@@ -2280,14 +2340,10 @@ def post_channel_message(
     messages.append(item)
     store[room_key] = messages[-500:]
     _write_json_store(CHANNEL_MESSAGES_PATH, store)
-    if clean_conversation_id:
-        conv_store, conversations = _read_channel_conversations(clean_domain)
-        for conversation in conversations:
-            if str(conversation.get("id") or "") == clean_conversation_id:
-                conversation["updated_at"] = item["created_at"]
-                conversation["last_message"] = clean_message[:180]
-                conversation["last_author"] = item["author_name"]
-                break
+    if conversation is not None and conv_store is not None:
+        conversation["updated_at"] = item["created_at"]
+        conversation["last_message"] = clean_message[:180]
+        conversation["last_author"] = item["author_name"]
         conv_store[clean_domain] = conversations
         _write_json_store(CHANNEL_CONVERSATIONS_PATH, conv_store)
     return {"ok": True, "message": item}

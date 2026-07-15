@@ -341,6 +341,7 @@
             <div class="thread-title">
               <h1 id="conversationTitle">Pool</h1>
               <p id="conversationTopic"></p>
+              <p id="archiveState" class="status-line"></p>
             </div>
             <button class="btn" type="button" onclick="logout()">Sign out</button>
           </header>
@@ -348,7 +349,7 @@
           <form class="composer" onsubmit="sendMessage(event)">
             <textarea id="messageInput" placeholder="Type a message..."></textarea>
             <div class="compose-actions">
-              <button class="btn primary" type="submit">Send</button>
+              <button id="btnSendMessage" class="btn primary" type="submit">Send</button>
               <span id="sendStatus" class="status-line"></span>
             </div>
           </form>
@@ -495,6 +496,13 @@
       function renderConversation() {
         document.getElementById("conversationTitle").textContent = activeConversation?.title || "Pool";
         document.getElementById("conversationTopic").textContent = activeConversation?.topic || "";
+        const archived = Boolean(activeConversation?.archived_at);
+        document.getElementById("archiveState").textContent = archived
+          ? `Archived ${new Date(activeConversation.archived_at).toLocaleDateString()} - message history is read-only.`
+          : "";
+        document.getElementById("messageInput").disabled = archived;
+        document.getElementById("btnSendMessage").disabled = archived;
+        document.getElementById("sendStatus").textContent = archived ? "This conversation has been archived." : "";
         const participants = activeConversation?.participants || [];
         document.getElementById("peopleSummary").textContent = `${participants.length} people in this pool`;
         document.getElementById("participantList").innerHTML = participants
@@ -548,6 +556,10 @@
         const status = document.getElementById("sendStatus");
         const text = input.value.trim();
         if (!text || !activeConversation || !user) return;
+        if (activeConversation.archived_at) {
+          status.textContent = "This conversation has been archived.";
+          return;
+        }
         const body = new URLSearchParams({
           domain: currentDomain(),
           channel: activeConversation.id,
