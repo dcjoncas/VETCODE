@@ -537,11 +537,21 @@ def _pdl_source_audit(response: dict, criteria: dict | None = None, query_mode: 
         "recordsReturned": len(rows) if isinstance(rows, list) else 0,
         "recordsReviewed": len(rows) if isinstance(rows, list) else 0,
         "estimatedCreditsUsed": len(rows) if isinstance(rows, list) else 0,
+        "hasMore": bool(response.get("scroll_token")) if isinstance(response, dict) else False,
         "executedAt": datetime.now(timezone.utc).isoformat(),
         "criteria": criteria or {},
         "contactData": "No personal email, phone, or street address requested in discovery search.",
         "legalReadiness": "California Bar status must be verified before permanent use or outreach.",
         "linkedInMode": "Profile link only; no LinkedIn scraping was performed.",
+    }
+
+
+def _pdl_pagination(response: dict, page_size: int):
+    token = str(response.get("scroll_token") or "").strip() if isinstance(response, dict) else ""
+    return {
+        "pageSize": page_size,
+        "hasNext": bool(token),
+        "nextScrollToken": token,
     }
 
 
@@ -1225,6 +1235,7 @@ def external_candidate_search(
     region: str = Form(default=""),
     min_years: int = Form(default=0),
     strict_locations: bool | None = Form(default=None),
+    scroll_token: str = Form(default=""),
 ):
     domain = _domain_key(domain)
     top_k = _external_result_limit(top_k)
@@ -1234,6 +1245,7 @@ def external_candidate_search(
     results = []
     criteria = None
     source_audit = {}
+    pagination = {"pageSize": top_k, "hasNext": False, "nextScrollToken": ""}
 
     try:
         if selected_source == "pdl":
@@ -1255,16 +1267,19 @@ def external_candidate_search(
                     min_years=criteria["minYears"],
                     strict_locations=criteria["strictLocations"],
                     size=top_k,
+                    scroll_token=scroll_token,
                 )
                 results = [
                     _people_data_row(row, job_skills, search_skills, criteria)
                     for row in pdl_response.get("data", [])
                 ]
                 source_audit = _pdl_source_audit(pdl_response, criteria, "lawyer")
+                pagination = _pdl_pagination(pdl_response, top_k)
             else:
-                pdl_response = peopleDataLabs.searchSkills(search_skills, top_k)
+                pdl_response = peopleDataLabs.searchSkills(search_skills, top_k, scroll_token=scroll_token)
                 results = [_people_data_row(row, job_skills, search_skills) for row in pdl_response.get("data", [])]
                 source_audit = _pdl_source_audit(pdl_response, {"skills": search_skills}, "skills")
+                pagination = _pdl_pagination(pdl_response, top_k)
         elif selected_source == "github":
             results = _github_search(job_skills, search_skills, top_k)
             source_audit = {
@@ -1294,6 +1309,7 @@ def external_candidate_search(
                     "criteria": criteria or {},
                     "error": str(e),
                 },
+                "pagination": {"pageSize": top_k, "hasNext": False, "nextScrollToken": ""},
             },
         )
 
@@ -1311,6 +1327,7 @@ def external_candidate_search(
         "searchUsesJobDescription": True,
         "criteria": criteria or {},
         "sourceAudit": source_audit,
+        "pagination": pagination,
     }
 
 @router.post("/external/search-direct")
@@ -1319,6 +1336,7 @@ def external_candidate_search_direct(
     query: str = Form(...),
     source: str = Form(default="pdl"),
     top_k: int = Form(default=10),
+    scroll_token: str = Form(default=""),
 ):
     domain = _domain_key(domain)
     top_k = _external_result_limit(top_k)
@@ -1336,11 +1354,13 @@ def external_candidate_search_direct(
 
     selected_source = (source or "pdl").strip().lower()
     source_audit = {}
+    pagination = {"pageSize": top_k, "hasNext": False, "nextScrollToken": ""}
     try:
         if selected_source == "pdl":
-            pdl_response = peopleDataLabs.searchDirect(clean_query, top_k)
+            pdl_response = peopleDataLabs.searchDirect(clean_query, top_k, scroll_token=scroll_token)
             results = [_people_data_row(row, search_terms, search_terms) for row in pdl_response.get("data", [])]
             source_audit = _pdl_source_audit(pdl_response, {"terms": search_terms}, "direct")
+            pagination = _pdl_pagination(pdl_response, top_k)
         elif selected_source == "github":
             results = _github_direct_search(clean_query, search_terms, top_k)
             source_audit = {
@@ -1369,6 +1389,7 @@ def external_candidate_search_direct(
                     "recordsReviewed": 0,
                     "error": str(e),
                 },
+                "pagination": {"pageSize": top_k, "hasNext": False, "nextScrollToken": ""},
             },
         )
 
@@ -1383,6 +1404,7 @@ def external_candidate_search_direct(
         "results": results[:top_k],
         "searchUsesJobDescription": False,
         "sourceAudit": source_audit,
+        "pagination": pagination,
     }
 
 @router.post("/external/import")

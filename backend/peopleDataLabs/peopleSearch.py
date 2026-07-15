@@ -67,6 +67,15 @@ def _result_size(value: int, maximum: int = 100) -> int:
     return max(1, min(parsed, maximum))
 
 
+def _add_scroll_token(payload: dict[str, Any], scroll_token: str = "") -> dict[str, Any]:
+    token = str(scroll_token or "").strip()
+    if len(token) > 4096:
+        raise PeopleDataLabsError("The People Data Labs page token is invalid.")
+    if token:
+        payload["scroll_token"] = token
+    return payload
+
+
 def _api_key() -> str:
     value = os.getenv("PDL_API_KEY", "").strip()
     if not value:
@@ -115,6 +124,8 @@ def _post_search(payload: dict[str, Any]) -> dict[str, Any]:
     except requests.RequestException as exc:
         raise PeopleDataLabsError("People Data Labs could not be reached.") from exc
 
+    if response.status_code == 404 and request_payload.get("scroll_token"):
+        return {"status": 404, "total": 0, "data": [], "scroll_token": None}
     if response.status_code != 200:
         raise PeopleDataLabsError(_error_message(response), response.status_code)
 
@@ -150,7 +161,7 @@ def _skill_evidence_clauses(skill_list: list[str]) -> list[dict[str, Any]]:
     return [_skill_evidence_clause(skill) for skill in _clean_terms(skill_list, 20)]
 
 
-def searchSkills(skillList: list[str], size: int = 5):
+def searchSkills(skillList: list[str], size: int = 5, scroll_token: str = ""):
     skills = _clean_terms(skillList, 20)
     if not skills:
         raise PeopleDataLabsError("Add at least one meaningful search skill.")
@@ -166,10 +177,10 @@ def searchSkills(skillList: list[str], size: int = 5):
         },
         "size": _result_size(size),
     }
-    return _post_search(payload)
+    return _post_search(_add_scroll_token(payload, scroll_token))
 
 
-def searchDirect(searchQuery: str, size: int = 5):
+def searchDirect(searchQuery: str, size: int = 5, scroll_token: str = ""):
     clean_query = str(searchQuery or "").strip()
     terms = _clean_terms(
         [part.strip() for part in clean_query.replace(";", ",").split(",")],
@@ -204,7 +215,7 @@ def searchDirect(searchQuery: str, size: int = 5):
         },
         "size": _result_size(size),
     }
-    return _post_search(payload)
+    return _post_search(_add_scroll_token(payload, scroll_token))
 
 
 def build_lawyer_search_payload(
@@ -285,6 +296,7 @@ def searchLawyers(
     min_years: int = 0,
     strict_locations: bool = True,
     size: int = 10,
+    scroll_token: str = "",
 ):
     payload = build_lawyer_search_payload(
         titles=titles,
@@ -295,7 +307,7 @@ def searchLawyers(
         strict_locations=strict_locations,
         size=size,
     )
-    return _post_search(payload)
+    return _post_search(_add_scroll_token(payload, scroll_token))
 
 
 def searchSkillsAndLocation(
@@ -304,6 +316,7 @@ def searchSkillsAndLocation(
     locationState: str = "",
     locationCountry: str = "",
     size: int = 5,
+    scroll_token: str = "",
 ):
     skills = _clean_terms(skillList, 20)
     if not skills:
@@ -328,4 +341,4 @@ def searchSkillsAndLocation(
         },
         "size": _result_size(size),
     }
-    return _post_search(payload)
+    return _post_search(_add_scroll_token(payload, scroll_token))

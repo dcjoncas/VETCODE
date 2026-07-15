@@ -194,6 +194,32 @@
         font-size: 13px;
       }
 
+      .result-pager {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 12px;
+        padding: 10px 0;
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .result-pager[hidden] {
+        display: none;
+      }
+
+      .result-page-status {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .result-page-status span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
       .candidate-card {
         border: 1px solid var(--border);
         border-radius: 8px;
@@ -322,6 +348,17 @@
           text-align: center;
         }
 
+        .result-pager {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          align-items: stretch;
+        }
+
+        .result-pager .btn {
+          width: 100%;
+          justify-content: center;
+        }
+
         .temp-profile-row {
           grid-template-columns: 1fr;
         }
@@ -381,12 +418,12 @@
               <small>Create and review job descriptions from Job Descriptions.</small>
             </div>
             <div class="field">
-              <label>Results to return</label>
+              <label>Results per page</label>
               <select id="topK">
-                <option value="5">Top 5</option>
-                <option value="10" selected>Top 10</option>
-                <option value="20">Top 20</option>
-                <option value="50">Top 50</option>
+                <option value="5">5 per page</option>
+                <option value="10" selected>10 per page</option>
+                <option value="20">20 per page</option>
+                <option value="50">50 per page</option>
               </select>
               <small id="resultsLimitHelp">Applies to both People Data Labs and GitHub searches.</small>
             </div>
@@ -478,7 +515,9 @@
           <div id="sourceAuditNote" class="verification-note" hidden></div>
 
           <div id="jobSkillPanel" class="muted" style="margin-top: 12px"></div>
+          <nav id="resultPagerTop" class="result-pager" data-result-pager aria-label="Candidate result pages" hidden></nav>
           <div id="results"></div>
+          <nav id="resultPagerBottom" class="result-pager" data-result-pager aria-label="Candidate result pages" hidden></nav>
 
           <section class="card" style="box-shadow: none; margin-top: 14px">
             <div id="shortlistTray"></div>
@@ -510,6 +549,10 @@
     <script>
       let selectedSource = "pdl";
       let latestExternalResults = [];
+      let activeExternalSearch = null;
+      let nextExternalScrollToken = "";
+      let cumulativeSourceAudit = null;
+      let paginationLoading = false;
 
       function currentDomain() {
         return sessionStorage.getItem("domain") || "dev";
@@ -532,7 +575,7 @@
         document.getElementById("sourceGuide").textContent =
           "People Data Labs is used for professional discovery. California Bar verification remains required before a candidate becomes permanent or is contacted.";
         document.getElementById("resultsLimitHelp").textContent =
-          "Controls the maximum paid PDL records returned for review.";
+          "Each page can retrieve and charge for up to this many PDL records.";
         setLawCriteria({
           titles: ["Associate Attorney", "Attorney", "Lawyer", "Counsel"],
           practiceAreas: ["Professional Liability", "Professional Negligence", "Insurance Defense"],
@@ -594,6 +637,105 @@
         note.hidden = !notes.length;
       }
 
+      function resetExternalPagination() {
+        latestExternalResults = [];
+        activeExternalSearch = null;
+        nextExternalScrollToken = "";
+        cumulativeSourceAudit = null;
+        paginationLoading = false;
+        document.querySelectorAll("[data-result-pager]").forEach((pager) => {
+          pager.hidden = true;
+          pager.innerHTML = "";
+        });
+      }
+
+      function mergeSourceAudit(previous, current) {
+        if (!previous) return { ...(current || {}) };
+        const pageAudit = current || {};
+        return {
+          ...previous,
+          ...pageAudit,
+          totalMatches: Number(previous.totalMatches || pageAudit.totalMatches || 0),
+          recordsReturned: Number(previous.recordsReturned || 0) + Number(pageAudit.recordsReturned || 0),
+          recordsReviewed: Number(previous.recordsReviewed || 0) + Number(pageAudit.recordsReviewed || 0),
+          estimatedCreditsUsed:
+            Number(previous.estimatedCreditsUsed || 0) + Number(pageAudit.estimatedCreditsUsed || 0),
+        };
+      }
+
+      function renderResultPager() {
+        const total = Number(cumulativeSourceAudit?.totalMatches || 0);
+        const retrieved = Number(cumulativeSourceAudit?.recordsReturned || latestExternalResults.length);
+        const pageSize = Number(activeExternalSearch?.pageSize || 0);
+        const hasNext = Boolean(nextExternalScrollToken);
+        const shouldShow = latestExternalResults.length > 0 && (hasNext || total > retrieved);
+        const buttonLabel = paginationLoading
+          ? "Loading next page..."
+          : hasNext
+            ? `Load next ${pageSize} (paid) &rarr;`
+            : "No more pages available";
+
+        document.querySelectorAll("[data-result-pager]").forEach((pager) => {
+          pager.hidden = !shouldShow;
+          pager.innerHTML = shouldShow
+            ? `<div class="result-page-status">
+                <strong>${latestExternalResults.length.toLocaleString()} candidates displayed</strong>
+                <span>${retrieved.toLocaleString()} records retrieved from ${total.toLocaleString()} provider matches.</span>
+              </div>
+              <button class="btn secondary" type="button" data-load-more ${paginationLoading || !hasNext ? "disabled" : ""}>
+                ${buttonLabel}
+              </button>`
+            : "";
+        });
+      }
+
+      function buildNextPageForm() {
+        const fd = new FormData();
+        (activeExternalSearch?.fields || []).forEach(([key, value]) => fd.append(key, value));
+        fd.append("scroll_token", nextExternalScrollToken);
+        return fd;
+      }
+
+      async function loadMoreExternalCandidates() {
+        if (paginationLoading || !activeExternalSearch || !nextExternalScrollToken) return;
+        paginationLoading = true;
+        renderResultPager();
+        const pageSize = Number(activeExternalSearch.pageSize || 0);
+        const usedToken = nextExternalScrollToken;
+        document.getElementById("mineStatus").textContent =
+          `Loading up to ${pageSize} more PDL records. This is a paid provider request...`;
+
+        try {
+          const response = await api(activeExternalSearch.endpoint, {
+            method: "POST",
+            body: buildNextPageForm(),
+          });
+          const pageResults = response.results || [];
+          const startIndex = latestExternalResults.length;
+          latestExternalResults.push(...pageResults);
+          const returnedToken = response.pagination?.nextScrollToken || "";
+          nextExternalScrollToken = returnedToken === usedToken && !pageResults.length ? "" : returnedToken;
+          cumulativeSourceAudit = mergeSourceAudit(cumulativeSourceAudit, response.sourceAudit || {});
+          renderSourceAudit(cumulativeSourceAudit);
+          renderResults(pageResults, { append: true, startIndex });
+          document.getElementById("mineStatus").textContent = pageResults.length
+            ? `Showing ${latestExternalResults.length.toLocaleString()} candidates. ${Number(cumulativeSourceAudit.recordsReturned || 0).toLocaleString()} PDL records retrieved so far.`
+            : "PDL returned no additional candidates for this search.";
+          if (pageResults.length) {
+            document.getElementById(`candidate-card-${startIndex}`)?.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          }
+        } catch (error) {
+          document.getElementById("mineStatus").textContent =
+            `Next page was not loaded: ${error.message || error}`;
+        } finally {
+          paginationLoading = false;
+          renderResultPager();
+        }
+      }
+
       function setSource(source) {
         selectedSource = source;
         document.querySelectorAll(".source-toggle button").forEach((button) => {
@@ -648,15 +790,17 @@
         }
       }
 
-      function renderResults(results) {
+      function renderResults(results, options = {}) {
         const target = document.getElementById("results");
         if (!results.length) {
-          target.innerHTML = "";
+          if (!options.append) target.innerHTML = "";
           return;
         }
 
-        target.innerHTML = results
+        const startIndex = Number(options.startIndex || 0);
+        const html = results
           .map((candidate, index) => {
+            const globalIndex = startIndex + index;
             const profileLink = candidate.profile_url
               ? `<a class="btn secondary" href="${escapeHtml(candidate.profile_url)}" target="_blank" rel="noopener">Open profile link</a>`
               : "";
@@ -698,12 +842,12 @@
               ? `<div class="meta">Missing: ${candidate.score_details.missing.slice(0, 4).map(escapeHtml).join(", ")}</div>`
               : "";
 
-            return `<div class="candidate-card">
+            return `<div class="candidate-card" id="candidate-card-${globalIndex}">
               <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
                 <label style="display:flex;gap:10px;align-items:flex-start">
-                  <input class="external-candidate-check" type="checkbox" data-index="${index}" style="margin-top:4px">
+                  <input class="external-candidate-check" type="checkbox" data-index="${globalIndex}" style="margin-top:4px">
                   <span>
-                  <strong>${index + 1}. ${escapeHtml(candidate.name)}</strong>
+                  <strong>${globalIndex + 1}. ${escapeHtml(candidate.name)}</strong>
                   <span class="pill" style="margin-left: 8px">TEMP if imported</span>
                   <div class="meta">${escapeHtml(candidate.title || "")}${candidate.company ? " at " + escapeHtml(candidate.company) : ""}</div>
                   <div class="meta">${escapeHtml(candidate.location || "")}</div>
@@ -720,7 +864,7 @@
               </div>
               <div class="skills">${skills}</div>
               <div class="row-actions">
-                <button class="btn primary" type="button" onclick="importExternalCandidate(${index})">
+                <button class="btn primary" type="button" onclick="importExternalCandidate(${globalIndex})">
                   Create TEMP profile from this candidate
                 </button>
                 ${barLink}
@@ -729,6 +873,11 @@
             </div>`;
           })
           .join("");
+        if (options.append) {
+          target.insertAdjacentHTML("beforeend", html);
+        } else {
+          target.innerHTML = html;
+        }
       }
 
       async function mineCandidates() {
@@ -744,6 +893,7 @@
             ? `Searching ${selectedSource === "github" ? "GitHub" : "People Data Labs"} for "${directSearch}"...`
             : `Searching ${selectedSource === "github" ? "GitHub" : "People Data Labs"} from the selected JD skills...`;
         document.getElementById("results").innerHTML = "";
+        resetExternalPagination();
         renderSourceAudit({});
 
         const fd = new FormData();
@@ -757,18 +907,26 @@
           appendLawCriteria(fd);
         }
 
+        const endpoint = directSearch ? "/api/azureJobs/external/search-direct" : "/api/azureJobs/external/search";
         try {
-          const response = await api(directSearch ? "/api/azureJobs/external/search-direct" : "/api/azureJobs/external/search", {
+          const response = await api(endpoint, {
             method: "POST",
             body: fd,
           });
 
           latestExternalResults = response.results || [];
+          activeExternalSearch = {
+            endpoint,
+            fields: [...fd.entries()],
+            pageSize: Number(response.pagination?.pageSize || document.getElementById("topK").value || 0),
+          };
+          nextExternalScrollToken = response.pagination?.nextScrollToken || "";
+          cumulativeSourceAudit = { ...(response.sourceAudit || {}) };
           if (!directSearch) {
             rememberJob(jdId, response.jd || {});
             if (response.criteria && isLawDomain()) setLawCriteria(response.criteria);
           }
-          renderSourceAudit(response.sourceAudit || {});
+          renderSourceAudit(cumulativeSourceAudit);
           sessionStorage.setItem("jobSkills", (response.jobSkills || []).join(", "));
           document.getElementById("jobSkillPanel").textContent =
             directSearch
@@ -776,9 +934,10 @@
               : `Search skills used: ${(response.searchSkills || response.jobSkills || []).join(", ")}`;
           const totalMatches = Number(response.sourceAudit?.totalMatches || 0);
           document.getElementById("mineStatus").textContent = totalMatches
-            ? `PDL matched ${totalMatches.toLocaleString()} profiles and returned ${latestExternalResults.length} for review.`
+            ? `PDL matched ${totalMatches.toLocaleString()} profiles and returned ${latestExternalResults.length} for review. Scroll through these results or load the next paid page.`
             : `Returned ${latestExternalResults.length} ${response.source === "github" ? "GitHub" : "People Data Labs"} candidates${directSearch ? " from direct search" : " from the selected JD"}.`;
           renderResults(latestExternalResults);
+          renderResultPager();
         } catch (e) {
           document.getElementById("mineStatus").textContent = e.message;
         } finally {
@@ -1014,6 +1173,13 @@
 
         document.querySelectorAll(".source-toggle button").forEach((button) => {
           button.addEventListener("click", () => setSource(button.dataset.source));
+        });
+        document.querySelectorAll("[data-result-pager]").forEach((pager) => {
+          pager.addEventListener("click", (event) => {
+            if (event.target.closest("[data-load-more]")) {
+              loadMoreExternalCandidates();
+            }
+          });
         });
         $("#jdSelect").on("change", function () {
           if (!this.value || !isLawDomain()) return;

@@ -3,6 +3,7 @@ import unittest
 from azureUtils.routes.azureJobEndpoints import (
     _lawyer_match_score,
     _lawyer_search_criteria,
+    _pdl_pagination,
     _people_data_row,
 )
 
@@ -59,6 +60,22 @@ class LawyerMiningTests(unittest.TestCase):
         self.assertEqual(result["verification"]["california_bar_status"], "not_verified")
         self.assertIn("Sample+Attorney", result["verification"]["california_bar_search_url"])
         self.assertEqual(result["email"], "")
+
+    def test_pdl_pagination_exposes_only_the_next_page_token(self):
+        pagination = _pdl_pagination({"scroll_token": "next-page-token"}, 5)
+
+        self.assertEqual(
+            pagination,
+            {
+                "pageSize": 5,
+                "hasNext": True,
+                "nextScrollToken": "next-page-token",
+            },
+        )
+        self.assertEqual(
+            _pdl_pagination({}, 5),
+            {"pageSize": 5, "hasNext": False, "nextScrollToken": ""},
+        )
 
 
 if __name__ == "__main__":
