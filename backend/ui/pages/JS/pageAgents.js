@@ -407,7 +407,12 @@
     const pageAgent = agentForCurrentPage();
     if (pageAgent) return pageAgent;
     const key = localStorage.getItem("devreadyActivePageAgent") || "";
-    return allAgents().find((agent) => agent.key === key && isAgentEnabled(agent.key)) || allAgents().find((agent) => isAgentEnabled(agent.key)) || null;
+    const enabledAgents = allAgents().filter((agent) => isAgentEnabled(agent.key));
+    const isNumaAgent = (agent) => agent && !["egeria", "radar"].includes(agent.key);
+    return enabledAgents.find((agent) => agent.key === key && isNumaAgent(agent))
+      || enabledAgents.find((agent) => agent.key === "talent")
+      || enabledAgents.find(isNumaAgent)
+      || null;
   }
 
   function setActiveAgent(key) {
@@ -688,9 +693,9 @@
       .agent-action-card strong{display:block;margin-bottom:4px;font-size:13px}.agent-action-card span{display:block;color:var(--muted,#5b6b62);font-size:12px}
       .agent-action-card button{margin-top:9px;min-height:34px;border:1px solid color-mix(in srgb,var(--primary-2,#2f7d4b),transparent 62%);border-radius:999px;background:#fff;color:var(--primary-2,#2f7d4b);font-weight:900;cursor:pointer}
       .agent-action-card button:disabled{opacity:.62;cursor:not-allowed}
-      body .nav-ai-dock .agent-orb-button{position:static;top:auto;left:auto;right:auto;transform:none;z-index:auto;flex:1 1 0;min-width:0;min-height:42px;padding:5px 11px 5px 5px;border-color:rgba(214,224,235,.38);background:linear-gradient(135deg,rgba(47,125,75,.92),rgba(18,91,54,.84));box-shadow:0 10px 22px rgba(18,91,54,.22),inset 0 1px 0 rgba(255,255,255,.24);backdrop-filter:none}
+      body .nav-ai-dock .agent-orb-button{position:static;top:auto;left:auto;right:auto;transform:none;z-index:auto;order:1;flex:0 0 auto;width:100%;min-width:0;min-height:42px;justify-content:flex-start;padding:5px 11px 5px 5px;border-color:rgba(214,224,235,.38);background:linear-gradient(135deg,rgba(47,125,75,.92),rgba(18,91,54,.84));box-shadow:0 10px 22px rgba(18,91,54,.22),inset 0 1px 0 rgba(255,255,255,.24);backdrop-filter:none}
       body .nav-ai-dock .agent-orb{width:30px;height:30px;flex-basis:30px}
-      body .nav-ai-dock .agent-orb-button span{max-width:74px;color:#fffdf2}
+      body .nav-ai-dock .agent-orb-button span{max-width:none;color:#fffdf2}
       body.agent-docked-in-nav .agent-chat-panel{top:118px;left:214px;right:auto;transform:none}
       @media(max-width:980px){body .agent-orb-button{right:12px;left:auto;top:58px;transform:none}body .agent-chat-panel{right:12px;top:104px}body.agent-docked-in-nav .agent-chat-panel{left:12px;right:12px;top:104px;width:auto}}
     `;
