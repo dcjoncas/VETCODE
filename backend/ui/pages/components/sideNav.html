@@ -321,8 +321,8 @@
   .nav-ai-dock {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    align-items: stretch;
+    justify-content: flex-start;
     gap: 7px;
     width: 100%;
   }
@@ -330,7 +330,7 @@
   .nav-fastboard {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 7px;
     flex: 0 0 auto;
     width: 100%;
@@ -354,6 +354,11 @@
       box-shadow 0.16s ease;
   }
 
+  #pageNavInner .nav-ai-dock .nav-fastboard {
+    gap: 7px;
+    padding: 5px 10px 5px 5px;
+  }
+
   .nav-fastboard:hover {
     transform: translateY(-1px);
     border-color: transparent;
@@ -372,9 +377,9 @@
   }
 
   .nav-fastboard svg {
-    width: 28px;
-    height: 28px;
-    flex: 0 0 28px;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
     border-radius: 999px;
     padding: 5px;
     background:
