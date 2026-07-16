@@ -1682,6 +1682,28 @@
             <div id="relationshipList" class="list-view hidden"></div>
           </section>
         </div>
+
+        <section class="client-briefing-panel" aria-label="Client intelligence briefing">
+          <div class="briefing-head">
+            <div>
+              <h2>Client Intelligence Briefing</h2>
+              <p>Turn Relationship Radar data into a focused sales-call brief using CRM, contacts, meetings, roles, time, invoices, and optional public news.</p>
+            </div>
+            <div class="briefing-controls">
+              <select id="briefingCustomerSelect" aria-label="Briefing customer">
+                <option value="">Auto-pick highest priority client</option>
+              </select>
+              <button id="runClientBriefingBtn" class="btn primary" type="button">Run briefing</button>
+              <button id="runClientBriefingNewsBtn" class="btn secondary" type="button">Include news scan</button>
+            </div>
+          </div>
+          <div id="clientBriefingBody" class="briefing-body">
+            <div class="briefing-angle">
+              <strong>Choose a client or let Egeria pick the highest-priority Atlas record.</strong>
+              <p>The internal relationship record is always read first. Public news is included only when requested.</p>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
 
@@ -3902,6 +3924,7 @@
         await importSeededCrmRecords();
         hydrateFromUrl();
         renderCrm();
+        hydrateBriefingCustomerOptions();
         document.getElementById("saveCrmBtn").addEventListener("click", saveCrmRecord);
         document.getElementById("scanCrmBtn").addEventListener("click", scanCurrentForm);
         document.getElementById("touchCrmBtn").addEventListener("click", touchCurrentForm);
@@ -3921,6 +3944,9 @@
             applyCrmCardSearch();
           }
         });
+        document.getElementById("runClientBriefingBtn").addEventListener("click", () => loadClientBriefing(false));
+        document.getElementById("runClientBriefingNewsBtn").addEventListener("click", () => loadClientBriefing(true));
+        document.getElementById("briefingCustomerSelect").addEventListener("change", () => loadClientBriefing(false));
         document.getElementById("dealDrawerBackdrop").addEventListener("click", (event) => {
           if (event.target.id === "dealDrawerBackdrop") closeDealDetail();
         });
