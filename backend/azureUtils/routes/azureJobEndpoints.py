@@ -982,6 +982,26 @@ def _courtlistener_attorney_row(row: dict, criteria: dict):
     }
 
 
+def _person_name_tokens(value: str) -> list[str]:
+    titles_and_suffixes = {"esq", "esquire", "jr", "sr", "ii", "iii", "iv"}
+    tokens = re.findall(r"[a-z]+", str(value or "").lower())
+    return [token for token in tokens if token not in titles_and_suffixes]
+
+
+def _person_names_align(searched_name: str, returned_name: str) -> bool:
+    searched = _person_name_tokens(searched_name)
+    returned = _person_name_tokens(returned_name)
+    if len(searched) < 2 or len(returned) < 2:
+        return False
+    if searched == returned:
+        return True
+    if searched[0] != returned[0] or searched[-1] != returned[-1]:
+        return False
+    searched_middle = [token[0] for token in searched[1:-1] if token]
+    returned_middle = [token[0] for token in returned[1:-1] if token]
+    return not searched_middle or not returned_middle or searched_middle == returned_middle
+
+
 def _people_data_row(
     row: dict,
     job_skills: list[str],
@@ -1720,6 +1740,187 @@ def external_candidate_legal_evidence(payload: dict = Body(...)):
     evidence["searchedAt"] = datetime.now(timezone.utc).isoformat()
     evidence["usedForScoring"] = False
     return evidence
+
+
+@router.post("/external/court-lead/validate-profile")
+def external_court_lead_validate_profile(payload: dict = Body(...)):
+    domain = _domain_key(payload.get("domain") or "law")
+    if domain != "law":
+        raise HTTPException(status_code=400, detail="Court-lead validation is available in LegalReady.")
+    candidate = payload.get("candidate") if isinstance(payload.get("candidate"), dict) else {}
+    if candidate.get("source") != "courtlistener" or candidate.get("result_type") != "court_attorney_lead":
+        raise HTTPException(status_code=400, detail="Select a CourtListener lawyer lead first.")
+
+    previous_validation = (
+        candidate.get("profile_validation")
+        if isinstance(candidate.get("profile_validation"), dict)
+        else {}
+    )
+    if previous_validation.get("status") in {
+        "confirmed_profile_match",
+        "needs_review",
+        "no_match",
+    }:
+        return {
+            "candidate": candidate,
+            "profileValidation": previous_validation,
+            "reused": True,
+            "usedForCandidateScoring": False,
+            "linkedinScraped": False,
+        }
+
+    name = _external_text(candidate.get("name"), 160)
+    if len(_person_name_tokens(name)) < 2:
+        raise HTTPException(status_code=400, detail="A complete lawyer name is required for validation.")
+
+    jd_id = _external_text(payload.get("jd_id"), 80)
+    criteria = payload.get("criteria") if isinstance(payload.get("criteria"), dict) else {}
+    job_skills: list[str] = []
+    if jd_id:
+        jd, job_skills = _get_job_skills(jd_id, domain)
+        supplied_criteria = criteria
+        criteria = _lawyer_search_criteria(
+            jd,
+            titles=",".join(_safe_list(supplied_criteria.get("titles"))),
+            practice_areas=",".join(_safe_list(supplied_criteria.get("practiceAreas"))),
+            locations=",".join(_safe_list(supplied_criteria.get("locations"))),
+            region=_external_text(supplied_criteria.get("region"), 100),
+            min_years=supplied_criteria.get("minYears") or 0,
+            strict_locations=supplied_criteria.get("strictLocations"),
+        )
+    search_skills = _searchable_job_skills(job_skills, 12)
+    region = _external_text(criteria.get("region"), 100) or "California"
+
+    try:
+        response = peopleDataLabs.enrichPerson(
+            name=name,
+            region=region,
+            country="United States",
+            min_likelihood=8,
+            required="linkedin_url",
+        )
+    except peopleDataLabs.PeopleDataLabsError as exc:
+        provider_status = int(exc.status_code or 502)
+        status_code = provider_status if provider_status in {400, 401, 402, 403, 429, 503} else 502
+        raise HTTPException(
+            status_code=status_code,
+            detail=f"Professional profile validation failed: {str(exc)}",
+        ) from exc
+
+    checked_at = datetime.now(timezone.utc).isoformat()
+    if response.get("status") != 200 or not isinstance(response.get("data"), dict):
+        validation = {
+            "status": "no_match",
+            "provider": "People Data Labs Person Enrichment",
+            "checkedAt": checked_at,
+            "searchedName": name,
+            "likelihood": 0,
+            "exactNameMatch": False,
+            "profileUrl": "",
+            "fieldsAdded": [],
+            "requestsUsed": 1,
+            "successfulEnrichmentCredits": 0,
+            "notice": (
+                "No LinkedIn-linked PDL profile met the exact-name and California lookup threshold. "
+                "The court lead remains unchanged."
+            ),
+            "linkedinMode": "Provider dataset lookup only; LinkedIn was not scraped.",
+        }
+        return {
+            "candidate": {**candidate, "profile_validation": validation},
+            "profileValidation": validation,
+            "reused": False,
+            "usedForCandidateScoring": False,
+            "linkedinScraped": False,
+        }
+
+    mapped = _people_data_row(response["data"], job_skills, search_skills, criteria)
+    returned_name = _external_text(mapped.get("name"), 160)
+    try:
+        likelihood = max(0, min(int(response.get("likelihood") or 0), 10))
+    except (TypeError, ValueError):
+        likelihood = 0
+    profile_url = _external_text(mapped.get("profile_url"), 500)
+    exact_name_match = _person_names_align(name, returned_name)
+    confirmed = exact_name_match and likelihood >= 8 and bool(profile_url)
+    status = "confirmed_profile_match" if confirmed else "needs_review"
+    fields_added = []
+    enriched_candidate = {**candidate}
+
+    if confirmed:
+        field_values = {
+            "professional_profile_url": profile_url,
+            "title": _external_text(mapped.get("title"), 200),
+            "company": _external_text(mapped.get("company"), 200),
+            "location": _external_text(mapped.get("location"), 240),
+            "summary": _external_text(mapped.get("summary"), 1600),
+            "years_experience": mapped.get("years_experience") or 0,
+            "job_last_verified": _external_text(mapped.get("job_last_verified"), 80),
+        }
+        for field, value in field_values.items():
+            if value:
+                enriched_candidate[field] = value
+                fields_added.append(field)
+        if mapped.get("skills"):
+            enriched_candidate["skills"] = _safe_list(mapped.get("skills"))[:30]
+            fields_added.append("skills")
+        original_profile_data = (
+            candidate.get("profile_data") if isinstance(candidate.get("profile_data"), dict) else {}
+        )
+        mapped_profile_data = (
+            mapped.get("profile_data") if isinstance(mapped.get("profile_data"), dict) else {}
+        )
+        enriched_candidate["profile_data"] = {
+            **original_profile_data,
+            **mapped_profile_data,
+            "pdl_person_id": _external_text(mapped.get("source_id"), 180),
+        }
+        enriched_candidate["source_label"] = "CourtListener / RECAP + People Data Labs"
+        enriched_candidate["match_band"] = "Court-data lead + likely profile match"
+        enriched_candidate["score"] = 0
+        enriched_candidate["verification"] = {
+            **(
+                candidate.get("verification")
+                if isinstance(candidate.get("verification"), dict)
+                else {}
+            ),
+            "professional_profile_status": "likely_match",
+            "pdl_identity_likelihood": likelihood,
+            "linkedin_url_source": "People Data Labs",
+            "linkedin_scan": "not_performed",
+        }
+
+    matched = response.get("matched") if isinstance(response.get("matched"), dict) else {}
+    validation = {
+        "status": status,
+        "provider": "People Data Labs Person Enrichment",
+        "checkedAt": checked_at,
+        "searchedName": name,
+        "returnedName": returned_name,
+        "likelihood": likelihood,
+        "likelihoodThreshold": 8,
+        "exactNameMatch": exact_name_match,
+        "profileUrl": profile_url,
+        "fieldsAdded": fields_added,
+        "matchedFields": sorted(str(key) for key in matched.keys())[:12],
+        "requestsUsed": 1,
+        "successfulEnrichmentCredits": 1,
+        "notice": (
+            "A likely LinkedIn-linked professional profile was found and selected provider fields were added. "
+            "Current employment, JD fit, California Bar standing, and interest still require verification."
+            if confirmed
+            else "PDL returned a possible profile, but it did not meet the exact-name, profile-link, and likelihood threshold. No provider fields were merged."
+        ),
+        "linkedinMode": "Provider dataset lookup only; LinkedIn was not scraped.",
+    }
+    enriched_candidate["profile_validation"] = validation
+    return {
+        "candidate": enriched_candidate,
+        "profileValidation": validation,
+        "reused": False,
+        "usedForCandidateScoring": False,
+        "linkedinScraped": False,
+    }
 
 
 @router.post("/external/search")

@@ -161,11 +161,23 @@ def _post_search(payload: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def enrichPerson(profile: str = "", pdl_id: str = "") -> dict[str, Any]:
+def enrichPerson(
+    profile: str = "",
+    pdl_id: str = "",
+    name: str = "",
+    locality: str = "",
+    region: str = "",
+    country: str = "",
+    min_likelihood: int = 0,
+    required: str = "",
+) -> dict[str, Any]:
     clean_profile = str(profile or "").strip()
     clean_id = str(pdl_id or "").strip()
-    if not clean_profile and not clean_id:
-        raise PeopleDataLabsError("A People Data Labs ID or professional profile URL is required.")
+    clean_name = " ".join(str(name or "").split()).strip()
+    if not clean_profile and not clean_id and not clean_name:
+        raise PeopleDataLabsError(
+            "A People Data Labs ID, professional profile URL, or complete name is required."
+        )
 
     params: dict[str, Any] = {
         "titlecase": True,
@@ -174,8 +186,25 @@ def enrichPerson(profile: str = "", pdl_id: str = "") -> dict[str, Any]:
     }
     if clean_id:
         params["pdl_id"] = clean_id
-    else:
+    elif clean_profile:
         params["profile"] = clean_profile
+    else:
+        params["name"] = clean_name[:200]
+        optional_location = {
+            "locality": " ".join(str(locality or "").split()).strip()[:100],
+            "region": " ".join(str(region or "").split()).strip()[:100],
+            "country": " ".join(str(country or "").split()).strip()[:100],
+        }
+        params.update({key: value for key, value in optional_location.items() if value})
+    try:
+        likelihood_floor = max(0, min(int(min_likelihood or 0), 10))
+    except (TypeError, ValueError):
+        likelihood_floor = 0
+    if likelihood_floor:
+        params["min_likelihood"] = likelihood_floor
+    clean_required = " ".join(str(required or "").split()).strip()[:200]
+    if clean_required:
+        params["required"] = clean_required
     headers = {
         "Accept": "application/json",
         "X-Api-Key": _api_key(),

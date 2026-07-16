@@ -191,6 +191,11 @@ class LegalSourceRouteTests(unittest.TestCase):
         self.assertNotIn("core-key", str(result))
         self.assertFalse(result["secretsExposed"])
 
+    def test_profile_name_alignment_rejects_conflicting_middle_initials(self):
+        self.assertTrue(azureJobEndpoints._person_names_align("Alex Morgan", "Alex J Morgan"))
+        self.assertTrue(azureJobEndpoints._person_names_align("Alex J Morgan", "Alex James Morgan"))
+        self.assertFalse(azureJobEndpoints._person_names_align("Alex J Morgan", "Alex R Morgan"))
+
     @patch("azureUtils.routes.azureJobEndpoints.coreSignal.search_people")
     @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
     def test_coresignal_route_returns_standard_candidate_and_credit_audit(self, get_job, search):
@@ -391,6 +396,136 @@ class LegalSourceRouteTests(unittest.TestCase):
         self.assertEqual(result["sourceAudit"]["docketsReviewed"], 20)
         self.assertFalse(result["sourceAudit"]["identityVerified"])
         self.assertEqual(result["pagination"]["costLabel"], "1 API request")
+
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
+    @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
+    def test_court_lead_profile_validation_merges_likely_exact_match_without_scoring(
+        self, get_job, enrich
+    ):
+        get_job.return_value = (
+            self.jd,
+            ["Professional Liability", "Civil Litigation", "Depositions"],
+        )
+        enrich.return_value = {
+            "status": 200,
+            "likelihood": 9,
+            "matched": {"name": "Sample Attorney", "region": "California"},
+            "data": {
+                "id": "pdl-123",
+                "full_name": "Sample Q Attorney",
+                "linkedin_url": "linkedin.com/in/sample-attorney",
+                "job_title": "Professional Liability Associate",
+                "job_company_name": "Example LLP",
+                "job_last_verified": "2026-06-01",
+                "location_name": "Los Angeles, California, United States",
+                "location_region": "California",
+                "location_country": "United States",
+                "inferred_years_experience": 7,
+                "skills": ["Professional Liability", "Civil Litigation"],
+                "summary": "Civil litigation attorney.",
+            },
+        }
+        candidate = {
+            "source": "courtlistener",
+            "source_label": "CourtListener / RECAP",
+            "source_id": "courtlistener-attorney:sample-attorney",
+            "result_type": "court_attorney_lead",
+            "name": "Sample Attorney",
+            "title": "Attorney listed in matching court records",
+            "company": "",
+            "location": "California Central District Court",
+            "profile_url": "https://www.courtlistener.com/docket/101/example/",
+            "score": 0,
+            "verification": {"identity_status": "not_verified"},
+            "profile_data": {"evidence_count": 2, "evidence_records": []},
+        }
+
+        result = azureJobEndpoints.external_court_lead_validate_profile(
+            {
+                "domain": "law",
+                "jd_id": "85",
+                "criteria": {"region": "California"},
+                "candidate": candidate,
+            }
+        )
+
+        enrich.assert_called_once_with(
+            name="Sample Attorney",
+            region="California",
+            country="United States",
+            min_likelihood=8,
+            required="linkedin_url",
+        )
+        updated = result["candidate"]
+        self.assertEqual(updated["profile_validation"]["status"], "confirmed_profile_match")
+        self.assertEqual(updated["professional_profile_url"], "https://www.linkedin.com/in/sample-attorney")
+        self.assertEqual(updated["profile_url"], candidate["profile_url"])
+        self.assertEqual(updated["company"], "Example LLP")
+        self.assertEqual(updated["years_experience"], 7)
+        self.assertEqual(updated["score"], 0)
+        self.assertFalse(result["usedForCandidateScoring"])
+        self.assertFalse(result["linkedinScraped"])
+
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
+    @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
+    def test_court_lead_profile_validation_does_not_merge_name_mismatch(self, get_job, enrich):
+        get_job.return_value = (self.jd, ["Professional Liability"])
+        enrich.return_value = {
+            "status": 200,
+            "likelihood": 10,
+            "data": {
+                "id": "pdl-other",
+                "full_name": "Different Person",
+                "linkedin_url": "linkedin.com/in/different-person",
+                "job_title": "Attorney",
+                "job_company_name": "Other LLP",
+            },
+        }
+        candidate = {
+            "source": "courtlistener",
+            "result_type": "court_attorney_lead",
+            "name": "Sample Attorney",
+            "title": "Attorney listed in matching court records",
+            "company": "",
+            "profile_url": "https://www.courtlistener.com/docket/101/example/",
+            "score": 0,
+        }
+
+        result = azureJobEndpoints.external_court_lead_validate_profile(
+            {"domain": "law", "jd_id": "85", "candidate": candidate}
+        )
+
+        updated = result["candidate"]
+        self.assertEqual(updated["profile_validation"]["status"], "needs_review")
+        self.assertNotIn("professional_profile_url", updated)
+        self.assertEqual(updated["company"], "")
+        self.assertEqual(updated["score"], 0)
+        self.assertFalse(updated["profile_validation"]["exactNameMatch"])
+
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
+    def test_court_lead_profile_validation_reuses_completed_result_without_new_credit(self, enrich):
+        validation = {
+            "status": "confirmed_profile_match",
+            "provider": "People Data Labs Person Enrichment",
+            "requestsUsed": 1,
+            "successfulEnrichmentCredits": 1,
+        }
+        candidate = {
+            "source": "courtlistener",
+            "result_type": "court_attorney_lead",
+            "name": "Sample Attorney",
+            "score": 0,
+            "profile_validation": validation,
+        }
+
+        result = azureJobEndpoints.external_court_lead_validate_profile(
+            {"domain": "law", "jd_id": "85", "candidate": candidate}
+        )
+
+        enrich.assert_not_called()
+        self.assertTrue(result["reused"])
+        self.assertEqual(result["candidate"]["profile_validation"], validation)
+        self.assertEqual(result["candidate"]["score"], 0)
 
     def test_brave_query_excludes_linkedin_and_import_is_blocked(self):
         query = azureJobEndpoints._brave_law_query(

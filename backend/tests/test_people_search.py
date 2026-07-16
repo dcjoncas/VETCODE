@@ -189,6 +189,39 @@ class PeopleSearchTests(unittest.TestCase):
         self.assertEqual(result["status"], 404)
         self.assertIsNone(result["data"])
 
+    @patch.dict(os.environ, {"PDL_API_KEY": "test-key"}, clear=False)
+    @patch("peopleDataLabs.peopleSearch.requests.get")
+    def test_name_enrichment_requires_linkedin_linked_california_match(self, get):
+        response = Mock(status_code=200)
+        response.json.return_value = {
+            "status": 200,
+            "likelihood": 9,
+            "data": {
+                "id": "pdl-court-123",
+                "full_name": "Sample Attorney",
+                "linkedin_url": "linkedin.com/in/sample-attorney",
+            },
+        }
+        get.return_value = response
+
+        result = peopleSearch.enrichPerson(
+            name="Sample Attorney",
+            region="California",
+            country="United States",
+            min_likelihood=8,
+            required="linkedin_url",
+        )
+
+        self.assertEqual(result["likelihood"], 9)
+        params = get.call_args.kwargs["params"]
+        self.assertEqual(params["name"], "Sample Attorney")
+        self.assertEqual(params["region"], "California")
+        self.assertEqual(params["country"], "United States")
+        self.assertEqual(params["min_likelihood"], 8)
+        self.assertEqual(params["required"], "linkedin_url")
+        self.assertNotIn("profile", params)
+        self.assertNotIn("pdl_id", params)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1059,6 +1059,88 @@
         }
       }
 
+      function profileValidationHtml(candidate) {
+        const validation = candidate.profile_validation || {};
+        if (!validation.status) return "";
+        const headings = {
+          confirmed_profile_match: "Second validation: likely professional profile match",
+          needs_review: "Second validation: possible profile needs review",
+          no_match: "Second validation: no exact profile found",
+        };
+        const fieldsAdded = (validation.fieldsAdded || [])
+          .map((field) => String(field || "").replaceAll("_", " "))
+          .filter(Boolean);
+        const likelihood = Number(validation.likelihood || 0);
+        const requestsUsed = Number(validation.requestsUsed || 0);
+        const enrichmentCredits = Number(validation.successfulEnrichmentCredits || 0);
+        const currentRole = [candidate.title, candidate.company ? `at ${candidate.company}` : ""]
+          .filter(Boolean)
+          .join(" ");
+        const experienceDetails = [
+          candidate.years_experience ? `${candidate.years_experience} years inferred experience` : "",
+          candidate.job_last_verified ? `profile job last verified ${candidate.job_last_verified}` : "",
+        ].filter(Boolean).join(" | ");
+        const matchedProfile = validation.profileUrl
+          ? `<a class="btn secondary" href="${escapeHtml(validation.profileUrl)}" target="_blank" rel="noopener">Open matched professional profile</a>`
+          : "";
+        return `
+          <strong>${escapeHtml(headings[validation.status] || "Second profile validation")}</strong>
+          <div class="meta">${escapeHtml(validation.provider || "People Data Labs")}${likelihood ? ` | Identity likelihood ${likelihood}/10` : ""}${validation.exactNameMatch ? " | Name aligned" : ""}</div>
+          ${requestsUsed ? `<div class="meta">Provider usage: ${requestsUsed} request${requestsUsed === 1 ? "" : "s"}${enrichmentCredits ? ` | ${enrichmentCredits} successful enrichment credit${enrichmentCredits === 1 ? "" : "s"}` : " | no successful enrichment returned"}</div>` : ""}
+          ${validation.status === "confirmed_profile_match" && currentRole ? `<div class="meta">Profile role: ${escapeHtml(currentRole)}</div>` : ""}
+          ${validation.status === "confirmed_profile_match" && candidate.location ? `<div class="meta">Profile location: ${escapeHtml(candidate.location)}</div>` : ""}
+          ${validation.status === "confirmed_profile_match" && experienceDetails ? `<div class="meta">${escapeHtml(experienceDetails)}</div>` : ""}
+          ${fieldsAdded.length ? `<div class="meta">Added to this lead: ${fieldsAdded.map(escapeHtml).join(", ")}</div>` : ""}
+          <div class="verification-note">${escapeHtml(validation.notice || "Review this provider match before using it.")}</div>
+          <div class="meta">${escapeHtml(validation.linkedinMode || "Provider dataset lookup only; LinkedIn was not scraped.")}</div>
+          ${matchedProfile ? `<div class="row-actions">${matchedProfile}</div>` : ""}
+        `;
+      }
+
+      async function validateCourtLeadProfile(index) {
+        const candidate = latestExternalResults[index];
+        const panel = document.getElementById(`profile-validation-${index}`);
+        const button = document.querySelector(`[data-profile-validation-index="${index}"]`);
+        if (!candidate || candidate.result_type !== "court_attorney_lead" || !panel || !button) return;
+        if (candidate.profile_validation?.status) return;
+        const approved = confirm(
+          `Validate ${candidate.name || "this lawyer"} against a LinkedIn-linked People Data Labs professional record? A successful match may use 1 PDL Person Enrichment credit. VETCODE does not scrape LinkedIn.`,
+        );
+        if (!approved) return;
+
+        button.disabled = true;
+        panel.hidden = false;
+        panel.innerHTML = '<div class="muted">Checking the exact name against a California, LinkedIn-linked professional record...</div>';
+        try {
+          const jdId = document.getElementById("jdSelect").value;
+          const response = await api("/api/azureJobs/external/court-lead/validate-profile", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              domain: currentDomain(),
+              jd_id: jdId,
+              criteria: currentLawCriteria(),
+              candidate,
+            }),
+          });
+          latestExternalResults[index] = response.candidate || candidate;
+          renderResults(latestExternalResults);
+          const validation = latestExternalResults[index].profile_validation || {};
+          document.getElementById("mineStatus").textContent = validation.status === "confirmed_profile_match"
+            ? `Added the likely professional profile data for ${candidate.name}. Fit score remains 0 until the profile, Bar standing, and JD requirements are reviewed.`
+            : validation.status === "no_match"
+              ? `No exact LinkedIn-linked PDL profile met the validation threshold for ${candidate.name}. The court lead was not changed.`
+              : `A possible professional profile was returned for ${candidate.name}, but it needs manual identity review. No provider fields were merged.`;
+          document.getElementById(`candidate-card-${index}`)?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        } catch (error) {
+          panel.innerHTML = `<div class="verification-note">Professional profile validation failed: ${escapeHtml(error.message || error)}</div>`;
+          button.disabled = externalProviderStatus.pdl?.ready === false;
+        }
+      }
+
       function renderResults(results, options = {}) {
         const target = document.getElementById("results");
         if (!results.length) {
@@ -1087,6 +1169,19 @@
             const courtEvidenceButton = canCheckCourtEvidence
               ? `<button class="btn secondary" type="button" data-evidence-index="${globalIndex}" onclick="checkLegalEvidence(${globalIndex})" ${courtListenerReady ? "" : "disabled"}>
                   ${courtListenerReady ? "Check court evidence" : "CourtListener key needed"}
+                </button>`
+              : "";
+            const profileValidationStatus = candidate.profile_validation?.status || "";
+            const profileValidationComplete = ["confirmed_profile_match", "needs_review", "no_match"].includes(profileValidationStatus);
+            const profileValidationLabels = {
+              confirmed_profile_match: "Profile match added",
+              needs_review: "Possible match needs review",
+              no_match: "No exact profile found",
+            };
+            const pdlReady = externalProviderStatus.pdl?.ready === true;
+            const profileValidationButton = isCourtAttorneyLead
+              ? `<button class="btn secondary" type="button" data-profile-validation-index="${globalIndex}" onclick="validateCourtLeadProfile(${globalIndex})" ${profileValidationComplete || !pdlReady ? "disabled" : ""}>
+                  ${profileValidationLabels[profileValidationStatus] || (pdlReady ? "Validate professional profile" : "PDL key needed")}
                 </button>`
               : "";
             const isResearchOnly = ["public_web_evidence", "court_record_evidence", "court_attorney_lead"].includes(candidate.result_type);
@@ -1172,10 +1267,12 @@
               <div class="skills">${skills}</div>
               <div class="row-actions">
                 ${importButton}
-                ${barLink}
-                ${profileLink}
-                ${courtEvidenceButton}
-              </div>
+                  ${barLink}
+                  ${profileLink}
+                  ${profileValidationButton}
+                  ${courtEvidenceButton}
+                </div>
+              <div id="profile-validation-${globalIndex}" class="legal-evidence-panel" ${profileValidationStatus ? "" : "hidden"}>${profileValidationHtml(candidate)}</div>
               <div id="legal-evidence-${globalIndex}" class="legal-evidence-panel" hidden></div>
             </div>`;
           })
