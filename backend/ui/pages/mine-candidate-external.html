@@ -948,12 +948,18 @@
           button.classList.toggle("active", isActive);
           button.setAttribute("aria-pressed", isActive ? "true" : "false");
         });
-        const researchOnly = ["brave", "courtlistener"].includes(source);
+        const researchOnly = source === "brave";
+        const isCourtListener = source === "courtlistener";
         const batchImport = document.getElementById("btnImportSelected");
         batchImport.disabled = researchOnly;
         batchImport.title = researchOnly
           ? `${sourceDisplayName(source)} results remain research-only`
-          : "Create temporary profiles from checked results";
+          : isCourtListener
+            ? "Create identity-unverified TEMP research profiles from checked lawyer leads"
+            : "Create temporary profiles from checked results";
+        batchImport.textContent = isCourtListener
+          ? "Create selected TEMP research profiles"
+          : "Enrich selected and create TEMP profiles";
         const directInput = document.getElementById("externalSearchInput");
         directInput.placeholder = source === "courtlistener"
           ? "Optional: enter a known lawyer, or leave blank to use the selected JD"
@@ -972,7 +978,7 @@
           pdl: "Professional discovery using PDL record credits. Returned profiles still require identity and California Bar verification.",
           coresignal: "Professional-profile comparison using one Coresignal search credit per preview page. No LinkedIn scraping is performed by VETCODE.",
           brave: "Public-web discovery for law-firm bios, practice pages, and publications. Results are research leads, not verified candidate profiles.",
-          courtlistener: "JD-driven lawyer discovery across matching RECAP dockets. Names are court-data leads; verify identity, current role, experience, location, and California Bar status.",
+          courtlistener: "JD-driven lawyer discovery across matching RECAP dockets. Select up to five named lawyer leads to create identity-unverified TEMP research profiles; verify identity, current role, experience, location, and California Bar status before outreach.",
           github: "Public code-footprint discovery for technical candidates.",
         };
         document.getElementById("sourceGuide").textContent = guides[source] || "Select an external source.";
@@ -1129,7 +1135,7 @@
           document.getElementById("mineStatus").textContent = validation.status === "confirmed_profile_match"
             ? `Added the likely professional profile data for ${candidate.name}. Fit score remains 0 until the profile, Bar standing, and JD requirements are reviewed.`
             : validation.status === "no_match"
-              ? `No exact LinkedIn-linked PDL profile met the validation threshold for ${candidate.name}. The court lead was not changed.`
+              ? `No exact LinkedIn-linked PDL profile met the validation threshold for ${candidate.name}. You can still save the court evidence as an identity-unverified TEMP research profile.`
               : `A possible professional profile was returned for ${candidate.name}, but it needs manual identity review. No provider fields were merged.`;
           document.getElementById(`candidate-card-${index}`)?.scrollIntoView({
             behavior: "smooth",
@@ -1184,18 +1190,18 @@
                   ${profileValidationLabels[profileValidationStatus] || (pdlReady ? "Validate professional profile" : "PDL key needed")}
                 </button>`
               : "";
-            const isResearchOnly = ["public_web_evidence", "court_record_evidence", "court_attorney_lead"].includes(candidate.result_type);
+            const isResearchOnly = ["public_web_evidence", "court_record_evidence"].includes(candidate.result_type);
             const selectControl = isResearchOnly
               ? '<span class="pill">Research only</span>'
               : `<input class="external-candidate-check" type="checkbox" data-index="${globalIndex}" onchange="updateSelectedEnrichmentCount(this)" style="margin-top:4px">`;
             const importButton = isResearchOnly
               ? ""
               : `<button class="btn primary" type="button" onclick="importExternalCandidate(${globalIndex})">
-                  ${candidate.source === "pdl" ? "Enrich, rematch, and create TEMP profile" : "Create TEMP profile from this candidate"}
+                  ${isCourtAttorneyLead ? "Create identity-unverified TEMP profile" : candidate.source === "pdl" ? "Enrich, rematch, and create TEMP profile" : "Create TEMP profile from this candidate"}
                 </button>`;
             const profileStatusBadge = isResearchOnly
               ? ""
-              : '<span class="pill" style="margin-left: 8px">TEMP if imported</span>';
+              : `<span class="pill" style="margin-left: 8px">${isCourtAttorneyLead ? "Research TEMP if imported" : "TEMP if imported"}</span>`;
             const skills = (candidate.top_matches || candidate.skills || [])
               .slice(0, 10)
               .map((skill) => `<span class="skill-pill">${escapeHtml(skill)}</span>`)
@@ -1230,7 +1236,7 @@
                 : isCourtRecord
                 ? `<div class="meta">${candidate.profile_data?.docket_number ? `Docket ${escapeHtml(candidate.profile_data.docket_number)}` : "Court record"}${candidate.profile_data?.date_filed ? ` | Filed ${escapeHtml(candidate.profile_data.date_filed)}` : ""}</div>`
                 : "";
-            const researchSummary = isResearchOnly && candidate.summary
+            const researchSummary = (isResearchOnly || isCourtAttorneyLead) && candidate.summary
               ? `<div class="meta" style="margin-top:8px">${escapeHtml(candidate.summary)}</div>`
               : "";
             const barStatus = isCourtResearch
@@ -1382,9 +1388,16 @@
       async function importExternalCandidate(index, options = {}) {
         let candidate = latestExternalResults[index];
         if (!candidate) return;
+        const isCourtLead = candidate.source === "courtlistener" && candidate.result_type === "court_attorney_lead";
         if (candidate.source === "pdl" && options.skipConfirmation !== true) {
           const approved = confirm(
             "Enrich this selected People Data Labs profile, rerun the match, and create a TEMP profile? A successful enrichment may use 1 PDL Person Enrichment credit.",
+          );
+          if (!approved) return null;
+        }
+        if (isCourtLead && options.skipConfirmation !== true) {
+          const approved = confirm(
+            `Create a TEMP research profile for ${candidate.name || "this lawyer"}? CourtListener shows the name on matching dockets, but identity, current employer, experience, location, and California Bar standing are not verified. No fit score will be assigned.`,
           );
           if (!approved) return null;
         }
@@ -1392,6 +1405,8 @@
         document.getElementById("mineStatus").textContent =
           candidate.source === "pdl"
             ? `Enriching and rematching ${candidate.name || "selected candidate"}...`
+            : isCourtLead
+              ? `Creating identity-unverified TEMP research profile for ${candidate.name || "selected lawyer"}...`
             : `Creating TEMP profile for ${candidate.name || "selected candidate"}...`;
 
         let response;
@@ -1405,6 +1420,7 @@
               candidate,
               jd_id: document.getElementById("jdSelect").value || "",
               criteria: currentLawCriteria(),
+              identity_unverified_acknowledged: isCourtLead,
             }),
           });
         } catch (e) {
@@ -1428,7 +1444,13 @@
 
         sessionStorage.setItem("candidateId", response.personid);
         sessionStorage.setItem("candidateName", response.name);
-        sessionStorage.setItem("candidateStatus", "Temporary Profile");
+        const temporaryStatus = isCourtLead
+          ? "Temporary Research Profile - Identity Unverified"
+          : "Temporary Profile";
+        const displayTitle = isCourtLead
+          ? "Court-record attorney lead - identity unverified"
+          : candidate.title || "";
+        sessionStorage.setItem("candidateStatus", temporaryStatus);
         sessionStorage.setItem("candidateProfileType", "Temporary Profile");
         sessionStorage.setItem("candidateTopMatches", (candidate.top_matches || []).join(", "));
         sessionStorage.setItem("externalCandidateSource", candidate.source_label || candidate.source);
@@ -1436,9 +1458,9 @@
           {
             id: response.personid,
             name: response.name,
-            title: candidate.title || "",
+            title: displayTitle,
             email: candidate.email || "",
-            status: "Temporary Profile",
+            status: temporaryStatus,
             profileType: "Temporary Profile",
             source: candidate.source_label || candidate.source,
             score: candidate.score,
@@ -1459,15 +1481,19 @@
         renderLatestTempProfile({
           personid: response.personid,
           name: response.name,
-          title: candidate.title || "",
+          title: displayTitle,
           source: candidate.source_label || candidate.source,
           enrichment: response.enrichment || {},
           match: response.match || {},
+          identityUnverified: response.identityUnverified === true,
+          courtEvidence: response.courtEvidence || {},
           duplicate: response.duplicate === true,
         });
         const score = Number(response.match?.score);
         document.getElementById("mineStatus").textContent = response.duplicate
           ? "This selected candidate already has a TEMP profile, so no additional enrichment credit was used."
+          : response.identityUnverified
+            ? `TEMP research profile created for ${response.name}. Identity and qualifications remain unverified; open the profile to review ${Number(response.courtEvidence?.evidenceCount || 0)} supporting court records and continue verification.`
           : Number.isFinite(score)
             ? `TEMP profile enriched and rematched at ${Math.round(score)}%. Open it below to review the evidence.`
             : "TEMP profile created. Use the link below to review it, make it permanent, or delete it.";
@@ -1480,9 +1506,16 @@
         if (!selected.length) return alert("Check at least one external candidate first.");
         if (selected.length > 5) return alert("Select no more than five candidates for enrichment.");
         const pdlCount = selected.filter((index) => latestExternalResults[index]?.source === "pdl").length;
+        const courtLeadCount = selected.filter((index) => latestExternalResults[index]?.result_type === "court_attorney_lead").length;
         if (pdlCount) {
           const approved = confirm(
             `Enrich ${pdlCount} selected People Data Labs profile${pdlCount === 1 ? "" : "s"}, rerun the match, and create TEMP profiles? This may use up to ${pdlCount} PDL Person Enrichment credit${pdlCount === 1 ? "" : "s"}. Existing TEMP profiles are reused without another enrichment call.`,
+          );
+          if (!approved) return;
+        }
+        if (courtLeadCount) {
+          const approved = confirm(
+            `Create ${courtLeadCount} identity-unverified CourtListener TEMP research profile${courtLeadCount === 1 ? "" : "s"}? These records show names on matching dockets, but identity, employer, experience, location, California Bar standing, and fit are not verified.`,
           );
           if (!approved) return;
         }
@@ -1498,7 +1531,7 @@
           renderResults(latestExternalResults);
           document.getElementById("mineStatus").textContent =
             count
-              ? `Enriched, rematched, and created ${count} TEMP profile${count === 1 ? "" : "s"}.${reused ? ` Reused ${reused} existing TEMP profile${reused === 1 ? "" : "s"} without another enrichment call.` : ""}`
+              ? `${courtLeadCount ? "Created" : "Enriched, rematched, and created"} ${count} TEMP profile${count === 1 ? "" : "s"}.${courtLeadCount ? " CourtListener profiles remain identity-unverified research records until reviewed." : ""}${reused ? ` Reused ${reused} existing TEMP profile${reused === 1 ? "" : "s"} without another enrichment call.` : ""}`
               : reused
                 ? `Reused ${reused} existing TEMP profile${reused === 1 ? "" : "s"}; no new enrichment calls were made for them.`
                 : "No TEMP profiles were created. Check the error message above.";
@@ -1526,7 +1559,7 @@
         panel.innerHTML = `
           <strong>${profile.duplicate ? "Existing TEMP profile:" : "TEMP profile ready:"}</strong> ${escapeHtml(profile.name || "Temporary Profile")}
           ${profile.title ? `<span class="muted"> - ${escapeHtml(profile.title)}</span>` : ""}
-          ${Number.isFinite(Number(profile.match?.score)) ? `<div class="muted">Rematched ${Math.round(Number(profile.match.score))}% - ${escapeHtml(profile.match.band || "Review evidence")}</div>` : ""}
+          ${profile.identityUnverified ? `<div class="muted">Identity unverified - ${Number(profile.courtEvidence?.evidenceCount || 0)} supporting court record${Number(profile.courtEvidence?.evidenceCount || 0) === 1 ? "" : "s"} saved for review. No fit score assigned.</div>` : Number.isFinite(Number(profile.match?.score)) ? `<div class="muted">Rematched ${Math.round(Number(profile.match.score))}% - ${escapeHtml(profile.match.band || "Review evidence")}</div>` : ""}
           ${profile.enrichment?.status === "completed" ? `<div class="muted">PDL selected-profile enrichment completed${profile.enrichment.likelihood ? ` at ${escapeHtml(profile.enrichment.likelihood)}/10 identity likelihood` : ""}. No LinkedIn scraping.</div>` : ""}
           <div class="temp-profile-actions" style="margin-top: 8px">
             ${tempProfileActionHtml(profile.personid)}

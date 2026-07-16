@@ -2371,32 +2371,88 @@ def _external_certifications(candidate: dict) -> list[str]:
     return clean
 
 
+def _external_court_evidence(candidate: dict) -> dict:
+    if candidate.get("source") != "courtlistener" or candidate.get("result_type") != "court_attorney_lead":
+        return {}
+    profile_data = candidate.get("profile_data") if isinstance(candidate.get("profile_data"), dict) else {}
+    records = []
+    for item in profile_data.get("evidence_records", [])[:8]:
+        if not isinstance(item, dict):
+            continue
+        record = {
+            "title": _external_text(item.get("title"), 240),
+            "court": _external_text(item.get("court"), 180),
+            "docketNumber": _external_text(item.get("docketNumber"), 100),
+            "dateFiled": _external_text(item.get("dateFiled"), 40),
+            "url": _external_text(item.get("url"), 500),
+        }
+        if any(record.values()):
+            records.append(record)
+    try:
+        evidence_count = max(int(profile_data.get("evidence_count") or len(records)), len(records))
+    except (TypeError, ValueError):
+        evidence_count = len(records)
+    return {
+        "identityStatus": "not_verified",
+        "associationStatus": "listed_on_matching_docket_not_individually_confirmed",
+        "evidenceCount": evidence_count,
+        "matchedPracticeAreas": _safe_list(profile_data.get("matched_practice_areas"))[:12],
+        "queryPracticeAreas": _safe_list(profile_data.get("query_practice_areas"))[:12],
+        "courts": _safe_list(profile_data.get("courts"))[:8],
+        "records": records,
+    }
+
+
 def _external_profile_metadata(candidate: dict, source: str, enrichment: dict) -> dict:
     score_details = candidate.get("score_details") if isinstance(candidate.get("score_details"), dict) else {}
+    is_court_lead = source == "courtlistener" and candidate.get("result_type") == "court_attorney_lead"
+    profile_validation = (
+        candidate.get("profile_validation")
+        if isinstance(candidate.get("profile_validation"), dict)
+        else {}
+    )
+    verification = candidate.get("verification") if isinstance(candidate.get("verification"), dict) else {}
     try:
         match_score = round(float(candidate.get("score") or 0), 1)
     except (TypeError, ValueError):
         match_score = 0
-    return {
-        "version": 1,
+    metadata = {
+        "version": 2 if is_court_lead else 1,
         "source": _external_text(candidate.get("source_label") or source, 120),
         "sourceId": _external_text(candidate.get("source_id"), 180),
         "profileUrl": _external_text(candidate.get("profile_url"), 500),
+        "recordType": _external_text(candidate.get("result_type"), 80),
         "enrichment": enrichment,
         "match": {
             "score": match_score,
             "band": _external_text(candidate.get("match_band") or score_details.get("band"), 80),
             "formula": _external_text(score_details.get("formula"), 300),
-            "matched": _safe_list(candidate.get("top_matches"))[:12],
+            "matched": [] if is_court_lead else _safe_list(candidate.get("top_matches"))[:12],
             "missing": _safe_list(score_details.get("missing"))[:10],
             "components": score_details.get("components") if isinstance(score_details.get("components"), dict) else {},
         },
         "education": _external_education(candidate),
         "certifications": _external_certifications(candidate),
-        "providerSkills": _external_candidate_skills(candidate),
+        "providerSkills": _safe_list(candidate.get("skills"))[:30] if is_court_lead else _external_candidate_skills(candidate),
         "yearsExperience": candidate.get("years_experience") or 0,
         "lastVerified": _external_text(candidate.get("job_last_verified"), 80),
     }
+    if is_court_lead:
+        metadata["verification"] = {
+            "identityStatus": _external_text(verification.get("identity_status") or "not_verified", 80),
+            "californiaBarStatus": _external_text(verification.get("california_bar_status") or "not_verified", 80),
+            "currentEmployment": _external_text(verification.get("current_employment") or "not_verified", 80),
+            "roleInMatter": _external_text(verification.get("role_in_matter"), 120),
+        }
+        metadata["profileValidation"] = {
+            "status": _external_text(profile_validation.get("status") or "not_run", 80),
+            "provider": _external_text(profile_validation.get("provider"), 120),
+            "checkedAt": _external_text(profile_validation.get("checkedAt"), 80),
+            "notice": _external_text(profile_validation.get("notice"), 600),
+            "profileUrl": _external_text(profile_validation.get("profileUrl"), 500),
+        }
+        metadata["courtEvidence"] = _external_court_evidence(candidate)
+    return metadata
 
 
 @router.post("/external/import")
@@ -2406,7 +2462,9 @@ def external_candidate_import(payload: dict = Body(...)):
     if not isinstance(candidate, dict):
         raise HTTPException(status_code=400, detail="Candidate data is required.")
     source = candidate.get("source") or payload.get("source") or "external"
-    if source in {"brave", "courtlistener"} or candidate.get("result_type") in {
+    result_type = candidate.get("result_type")
+    is_court_lead = source == "courtlistener" and result_type == "court_attorney_lead"
+    if source == "brave" or result_type in {
         "public_web_evidence",
         "court_record_evidence",
     }:
@@ -2414,10 +2472,24 @@ def external_candidate_import(payload: dict = Body(...)):
             status_code=400,
             detail="These research-only evidence results are not stored as candidate profiles.",
         )
+    if source == "courtlistener" and not is_court_lead:
+        raise HTTPException(status_code=400, detail="Select a CourtListener attorney lead, not an individual court record.")
+    if is_court_lead:
+        if domain != "law":
+            raise HTTPException(status_code=400, detail="CourtListener research profiles are available only in LegalReady.")
+        if payload.get("identity_unverified_acknowledged") is not True:
+            raise HTTPException(
+                status_code=400,
+                detail="Confirm that identity, current employment, experience, location, and California Bar standing are unverified.",
+            )
+        if len(_person_name_tokens(candidate.get("name"))) < 2:
+            raise HTTPException(status_code=400, detail="A complete lawyer name is required for a CourtListener TEMP profile.")
 
     source_id = _external_text(candidate.get("source_id"), 180)
     profile_url = _external_text(candidate.get("profile_url"), 500)
-    duplicate = candidates.findTemporaryExternalProfile(domain, source_id, profile_url)
+    # Multiple lawyer names can share the same supporting docket. Court leads are
+    # therefore deduplicated by their generated person source id, not the docket URL.
+    duplicate = candidates.findTemporaryExternalProfile(domain, source_id, "" if is_court_lead else profile_url)
     if duplicate:
         duplicate.update({"source": source, "enrichmentSkipped": True})
         return duplicate
@@ -2449,6 +2521,25 @@ def external_candidate_import(payload: dict = Body(...)):
         "enrichedAt": "",
         "dataOrigin": "Provider-supplied professional data; no LinkedIn scraping.",
     }
+    if is_court_lead:
+        profile_validation = (
+            candidate.get("profile_validation")
+            if isinstance(candidate.get("profile_validation"), dict)
+            else {}
+        )
+        try:
+            successful_enrichment_credits = int(profile_validation.get("successfulEnrichmentCredits") or 0)
+        except (TypeError, ValueError):
+            successful_enrichment_credits = 0
+        enrichment.update(
+            {
+                "status": _external_text(profile_validation.get("status") or "not_run", 80),
+                "provider": _external_text(profile_validation.get("provider") or "CourtListener / RECAP", 120),
+                "creditsUsed": successful_enrichment_credits,
+                "enrichedAt": _external_text(profile_validation.get("checkedAt"), 80),
+                "dataOrigin": "CourtListener docket research; identity and professional qualifications are not verified.",
+            }
+        )
     if source == "pdl":
         try:
             response = peopleDataLabs.enrichPerson(profile=profile_url, pdl_id=source_id)
@@ -2483,7 +2574,8 @@ def external_candidate_import(payload: dict = Body(...)):
                 detail="People Data Labs could not enrich the selected person. No TEMP profile was created.",
             )
 
-    skills = [{"title": skill, "years": 1} for skill in _external_candidate_skills(candidate)]
+    imported_skills = _safe_list(candidate.get("skills")) if is_court_lead else _external_candidate_skills(candidate)
+    skills = [{"title": skill, "years": 1} for skill in imported_skills]
     full_name = candidate.get("name") or "External Candidate"
     profile_url = candidate.get("profile_url") or profile_url
     metadata = _external_profile_metadata(candidate, source, enrichment)
@@ -2497,6 +2589,17 @@ def external_candidate_import(payload: dict = Body(...)):
         f"Imported from {candidate.get('source_label') or source}.",
         summary,
     ]
+    if is_court_lead:
+        court_evidence = metadata.get("courtEvidence") or {}
+        summary_parts.insert(
+            1,
+            "Court-record research profile. Identity, current employer, current location, years of experience, and California Bar standing are not verified.",
+        )
+        if court_evidence.get("evidenceCount"):
+            summary_parts.append(
+                f"Court evidence: listed in {court_evidence['evidenceCount']} matching docket record"
+                f"{'s' if court_evidence['evidenceCount'] != 1 else ''}; this association is not candidate-fit scoring."
+            )
     if source == "github":
         repos = ((candidate.get("profile_data") or {}).get("repos") or [])[:5]
         repo_lines = [
@@ -2511,6 +2614,21 @@ def external_candidate_import(payload: dict = Body(...)):
     )
     profile_data = candidate.get("profile_data") if isinstance(candidate.get("profile_data"), dict) else {}
     location_data = profile_data.get("location") if isinstance(profile_data.get("location"), dict) else {}
+    linked_profile_url = (
+        _external_text(candidate.get("professional_profile_url"), 500)
+        if is_court_lead
+        else profile_url
+    )
+    profile_validation = (
+        candidate.get("profile_validation")
+        if isinstance(candidate.get("profile_validation"), dict)
+        else {}
+    )
+    candidate_title = (
+        "Court-record attorney lead - identity unverified"
+        if is_court_lead and profile_validation.get("status") != "confirmed_profile_match"
+        else candidate.get("title") or ""
+    )
 
     try:
         created = candidates.uploadProfile(
@@ -2519,11 +2637,11 @@ def external_candidate_import(payload: dict = Body(...)):
             candidateDescription=description,
             domain=domain,
             email=candidate.get("email") or None,
-            linkedInUrl=profile_url,
+            linkedInUrl=linked_profile_url or None,
             candidateCity=location_data.get("locality") or None,
             candidateState=location_data.get("region") or None,
-            candidateCountry=location_data.get("country") or candidate.get("location") or None,
-            candidateTitle=candidate.get("title") or "",
+            candidateCountry=location_data.get("country") or (None if is_court_lead else candidate.get("location") or None),
+            candidateTitle=candidate_title,
             portfolioExperiences=_external_portfolio(candidate),
         )
         created["source"] = source
@@ -2531,6 +2649,8 @@ def external_candidate_import(payload: dict = Body(...)):
         created["importedSkills"] = [skill["title"] for skill in skills]
         created["enrichment"] = enrichment
         created["match"] = metadata["match"]
+        created["identityUnverified"] = is_court_lead
+        created["courtEvidence"] = metadata.get("courtEvidence") or {}
         created["enriched_candidate"] = candidate
         return created
     except HTTPException:

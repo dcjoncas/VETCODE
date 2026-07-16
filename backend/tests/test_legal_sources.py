@@ -568,6 +568,118 @@ class LegalSourceRouteTests(unittest.TestCase):
                 }
             )
 
+    def test_court_attorney_lead_requires_explicit_unverified_identity_acknowledgment(self):
+        with self.assertRaises(HTTPException) as error:
+            azureJobEndpoints.external_candidate_import(
+                {
+                    "domain": "law",
+                    "source": "courtlistener",
+                    "candidate": {
+                        "source": "courtlistener",
+                        "result_type": "court_attorney_lead",
+                        "name": "Jennifer Pafiti",
+                    },
+                }
+            )
+
+        self.assertEqual(error.exception.status_code, 400)
+        self.assertIn("unverified", error.exception.detail)
+
+    @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.uploadProfile")
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.findTemporaryExternalProfile")
+    def test_court_attorney_lead_creates_unscored_temp_research_profile(
+        self,
+        find_temp,
+        upload,
+        get_job,
+    ):
+        get_job.return_value = (self.jd, ["Professional Liability", "Accounting Malpractice"])
+        find_temp.return_value = None
+        upload.return_value = {"status": "success", "personid": 777, "name": "Jennifer Pafiti"}
+        candidate = {
+            "source": "courtlistener",
+            "source_label": "CourtListener / RECAP",
+            "result_type": "court_attorney_lead",
+            "source_id": "courtlistener-attorney:jennifer-pafiti",
+            "name": "Jennifer Pafiti",
+            "title": "Attorney listed in matching court records",
+            "location": "District Court, C.D. California, District Court, N.D. California",
+            "profile_url": "https://www.courtlistener.com/docket/123/example/",
+            "score": 0,
+            "top_matches": ["Court query: accounting malpractice", "Court query: professional liability"],
+            "score_details": {
+                "band": "Court-data lead",
+                "missing": [
+                    "Current employer and role",
+                    "3+ years experience",
+                    "Current location",
+                    "California Bar standing",
+                ],
+            },
+            "verification": {
+                "identity_status": "not_verified",
+                "california_bar_status": "not_verified",
+                "current_employment": "not_verified",
+            },
+            "profile_validation": {
+                "status": "no_match",
+                "provider": "People Data Labs Person Enrichment",
+                "requestsUsed": 1,
+                "successfulEnrichmentCredits": 0,
+                "notice": "No LinkedIn-linked PDL profile met the exact-name and California lookup threshold.",
+            },
+            "profile_data": {
+                "evidence_count": 4,
+                "matched_practice_areas": ["Accounting Malpractice", "Professional Liability"],
+                "query_practice_areas": ["Accounting Malpractice", "Professional Liability"],
+                "courts": ["District Court, C.D. California", "District Court, N.D. California"],
+                "evidence_records": [
+                    {
+                        "title": "Douglas Bray v. Rocket Lab USA, Inc.",
+                        "court": "District Court, C.D. California",
+                        "docketNumber": "2:24-cv-00123",
+                        "url": "https://www.courtlistener.com/docket/123/example/",
+                    }
+                ],
+            },
+        }
+
+        result = azureJobEndpoints.external_candidate_import(
+            {
+                "domain": "law",
+                "source": "courtlistener",
+                "jd_id": "85",
+                "criteria": {"minYears": 3, "region": "California"},
+                "identity_unverified_acknowledged": True,
+                "candidate": candidate,
+            }
+        )
+
+        find_temp.assert_called_once_with("law", "courtlistener-attorney:jennifer-pafiti", "")
+        upload_args = upload.call_args.kwargs
+        self.assertEqual(upload_args["skills"], [])
+        self.assertIsNone(upload_args["linkedInUrl"])
+        self.assertIsNone(upload_args["candidateCity"])
+        self.assertIsNone(upload_args["candidateState"])
+        self.assertIsNone(upload_args["candidateCountry"])
+        self.assertEqual(upload_args["candidateTitle"], "Court-record attorney lead - identity unverified")
+        self.assertEqual(upload_args["portfolioExperiences"], [])
+        clean_description, metadata = azureJobEndpoints.candidates.splitExternalProfileDescription(
+            upload_args["candidateDescription"]
+        )
+        self.assertIn("Court-record research profile", clean_description)
+        self.assertEqual(metadata["recordType"], "court_attorney_lead")
+        self.assertEqual(metadata["match"]["score"], 0)
+        self.assertEqual(metadata["match"]["matched"], [])
+        self.assertEqual(metadata["providerSkills"], [])
+        self.assertEqual(metadata["verification"]["identityStatus"], "not_verified")
+        self.assertEqual(metadata["profileValidation"]["status"], "no_match")
+        self.assertEqual(metadata["courtEvidence"]["evidenceCount"], 4)
+        self.assertEqual(metadata["courtEvidence"]["records"][0]["title"], "Douglas Bray v. Rocket Lab USA, Inc.")
+        self.assertTrue(result["identityUnverified"])
+        self.assertEqual(result["courtEvidence"]["evidenceCount"], 4)
+
     @patch("azureUtils.routes.azureJobEndpoints.candidates.uploadProfile")
     @patch("azureUtils.routes.azureJobEndpoints.candidates.findTemporaryExternalProfile")
     @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")

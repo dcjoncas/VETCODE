@@ -1596,6 +1596,13 @@
         const profile = profileData.profile || {};
         const enrichment = metadata.enrichment || {};
         const match = metadata.match || {};
+        const isCourtLead = metadata.recordType === "court_attorney_lead";
+        const courtEvidence = isCourtLead && metadata.courtEvidence && typeof metadata.courtEvidence === "object"
+          ? metadata.courtEvidence
+          : {};
+        const profileValidation = isCourtLead && metadata.profileValidation && typeof metadata.profileValidation === "object"
+          ? metadata.profileValidation
+          : {};
         const skills = Array.isArray(metadata.providerSkills) && metadata.providerSkills.length
           ? metadata.providerSkills
           : (profileData.skills || []).map((item) => item.skill).filter(Boolean);
@@ -1623,19 +1630,51 @@
           const group = tempSkillGroup(skill);
           (groupedSkills[group] ||= []).push(skill);
         });
-        const profileUrl = /^https?:\/\//i.test(String(profile.linkedinUrl || "")) ? profile.linkedinUrl : "";
+        const profileUrl = /^https?:\/\//i.test(String(profileValidation.profileUrl || profile.linkedinUrl || ""))
+          ? (profileValidation.profileUrl || profile.linkedinUrl)
+          : "";
+        const supportingRecordUrl = isCourtLead && /^https?:\/\//i.test(String(metadata.profileUrl || ""))
+          ? metadata.profileUrl
+          : "";
         const matchScore = Number(match.score);
         const likelihood = Number(enrichment.likelihood);
         const source = metadata.source || sessionStorage.getItem("externalCandidateSource") || "External provider";
         const evidenceHeading = isTemporaryProfile
           ? "Temporary profile evidence"
           : "External profile evidence";
-        const evidenceIntro = isTemporaryProfile
+        const evidenceIntro = isCourtLead
+          ? `Court-record research evidence from ${profileEscapeHtml(source)}. This record does not verify identity, current employment, experience, location, California Bar standing, or candidate fit.`
+          : isTemporaryProfile
           ? `Selected-profile data from ${profileEscapeHtml(source)}. Identity, California Bar standing, and all material facts still require human verification.`
           : `Provider-supplied evidence from ${profileEscapeHtml(source)}. The profile is available for pipeline use; source dates, California Bar standing, and material facts remain visible for review.`;
-        const sourceAssurance = /people data labs|pdl/i.test(String(source))
+        const sourceAssurance = isCourtLead
+          ? "CourtListener docket evidence was saved as research. It is not proof that this is the intended person or that the person meets the job requirements."
+          : /people data labs|pdl/i.test(String(source))
           ? "Enrichment used licensed PDL data linked to the selected professional profile. VETCODE did not scrape LinkedIn."
           : `Evidence was imported from ${profileEscapeHtml(source)}. VETCODE did not scrape LinkedIn.`;
+
+        const courtRecords = Array.isArray(courtEvidence.records) ? courtEvidence.records : [];
+        const courtEvidenceHtml = isCourtLead ? `
+          <section class="temp-evidence-section">
+            <h3>Supporting court evidence</h3>
+            <p>${Number(courtEvidence.evidenceCount || courtRecords.length)} matching docket record${Number(courtEvidence.evidenceCount || courtRecords.length) === 1 ? "" : "s"} were saved. A name appearing on a docket is a research lead, not verified identity or proof of candidate fit.</p>
+            ${Array.isArray(courtEvidence.matchedPracticeAreas) && courtEvidence.matchedPracticeAreas.length ? `<div class="temp-chip-row">${courtEvidence.matchedPracticeAreas.map((item) => `<span class="temp-chip">Query evidence: ${profileEscapeHtml(item)}</span>`).join("")}</div>` : ""}
+            <div class="temp-work-list" style="margin-top:12px">
+              ${courtRecords.length ? courtRecords.map((record) => `
+                <article class="temp-work-item">
+                  <div>
+                    <strong>${profileEscapeHtml(record.court || "Court not reported")}</strong>
+                    <span class="temp-work-meta">${profileEscapeHtml(record.docketNumber || record.dateFiled || "Docket details not reported")}</span>
+                  </div>
+                  <div>
+                    <strong>${profileEscapeHtml(record.title || "Court record")}</strong>
+                    ${record.url ? `<p><a href="${profileEscapeHtml(record.url)}" target="_blank" rel="noopener">Open supporting court record</a></p>` : ""}
+                  </div>
+                </article>
+              `).join("") : '<p class="muted">Supporting docket links were not returned.</p>'}
+            </div>
+          </section>
+        ` : "";
 
         standardProfile.style.display = "none";
         standardPortfolio.style.display = "none";
@@ -1690,33 +1729,35 @@
               <p>${evidenceIntro}</p>
             </div>
             <div class="row-actions" style="margin:0">
-              ${profileUrl ? `<a class="btn secondary" href="${profileEscapeHtml(profileUrl)}" target="_blank" rel="noopener">Open provider profile</a>` : ""}
+              ${profileUrl ? `<a class="btn secondary" href="${profileEscapeHtml(profileUrl)}" target="_blank" rel="noopener">Open matched professional profile</a>` : ""}
+              ${supportingRecordUrl ? `<a class="btn secondary" href="${profileEscapeHtml(supportingRecordUrl)}" target="_blank" rel="noopener">Open supporting court record</a>` : ""}
               <a class="btn secondary" href="https://apps.calbar.ca.gov/attorney/LicenseeSearch/QuickSearch" target="_blank" rel="noopener">Verify California Bar</a>
             </div>
           </div>
           <div class="temp-facts">
             <div class="temp-fact"><span>Source</span><strong>${profileEscapeHtml(source)}</strong></div>
-            <div class="temp-fact"><span>Rematch</span><strong>${Number.isFinite(matchScore) ? `${Math.round(matchScore)}% ${profileEscapeHtml(match.band || "")}` : "Not scored"}</strong></div>
+            <div class="temp-fact"><span>${isCourtLead ? "Identity" : "Rematch"}</span><strong>${isCourtLead ? "Unverified" : Number.isFinite(matchScore) ? `${Math.round(matchScore)}% ${profileEscapeHtml(match.band || "")}` : "Not scored"}</strong></div>
             <div class="temp-fact"><span>Experience</span><strong>${metadata.yearsExperience ? `${profileEscapeHtml(metadata.yearsExperience)} years` : "Not reported"}</strong></div>
-            <div class="temp-fact"><span>Enrichment</span><strong>${enrichment.status === "completed" ? `Completed${Number.isFinite(likelihood) && likelihood ? ` ${likelihood}/10` : ""}` : profileEscapeHtml(enrichment.status || "Not run")}</strong></div>
+            <div class="temp-fact"><span>${isCourtLead ? "Court records" : "Enrichment"}</span><strong>${isCourtLead ? profileEscapeHtml(courtEvidence.evidenceCount || courtRecords.length || 0) : enrichment.status === "completed" ? `Completed${Number.isFinite(likelihood) && likelihood ? ` ${likelihood}/10` : ""}` : profileEscapeHtml(enrichment.status || "Not run")}</strong></div>
           </div>
           <div class="temp-evidence-columns">
             <section class="temp-evidence-section">
               <h3>Professional summary</h3>
               <p>${profileEscapeHtml(summary)}</p>
               <div class="temp-chip-row">
-                <span class="temp-chip">Provider-linked profile</span>
+                <span class="temp-chip">${isCourtLead ? "Court-record research lead" : "Provider-linked profile"}</span>
                 <span class="temp-chip gap">California Bar not verified</span>
                 ${metadata.lastVerified ? `<span class="temp-chip">Job data verified ${profileEscapeHtml(metadata.lastVerified)}</span>` : ""}
               </div>
             </section>
             <section class="temp-evidence-section">
-              <h3>Match analysis</h3>
-              <p>${profileEscapeHtml(match.formula || "Matched from provider-supplied professional evidence against the selected role.")}</p>
+              <h3>${isCourtLead ? "Verification required" : "Match analysis"}</h3>
+              <p>${profileEscapeHtml(isCourtLead ? "No candidate-fit score was assigned. Verify the exact person, current employment, location, experience, and Bar standing before outreach." : match.formula || "Matched from provider-supplied professional evidence against the selected role.")}</p>
               <div class="temp-chip-row">${matched.length ? matched.map((item) => `<span class="temp-chip">${profileEscapeHtml(item)}</span>`).join("") : '<span class="muted">No matched evidence returned.</span>'}</div>
               ${missing.length ? `<div class="temp-chip-row">${missing.map((item) => `<span class="temp-chip gap">Verify: ${profileEscapeHtml(item)}</span>`).join("")}</div>` : ""}
             </section>
           </div>
+          ${courtEvidenceHtml}
           <section class="temp-evidence-section">
             <h3>Grouped professional evidence</h3>
             <p>Skills are grouped by legal relevance; no unsupported years are assigned.</p>
