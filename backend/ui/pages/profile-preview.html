@@ -1587,10 +1587,11 @@
         return `${start} - ${finish}`;
       }
 
-      function renderTemporaryProfileEvidence(profileData = {}) {
+      function renderExternalProfileEvidence(profileData = {}, options = {}) {
         const panel = document.getElementById("tempProfileEvidence");
         const standardProfile = document.getElementById("standardProfileEvidence");
         const standardPortfolio = document.getElementById("standardPortfolioEvidence");
+        const isTemporaryProfile = options.isTemporaryProfile === true;
         const metadata = profileData.externalProfile || {};
         const profile = profileData.profile || {};
         const enrichment = metadata.enrichment || {};
@@ -1609,7 +1610,16 @@
           .filter((line) => line && !/^Temporary external profile/i.test(line) && !/^Imported from /i.test(line))
           .join(" ") || "The provider did not return a professional summary. Review the structured work history and source evidence below.";
         const groupedSkills = {};
+        const uniqueSkills = [];
+        const seenSkills = new Set();
         skills.forEach((skill) => {
+          const cleanSkill = String(skill || "").trim();
+          const key = cleanSkill.toLowerCase();
+          if (!cleanSkill || seenSkills.has(key)) return;
+          seenSkills.add(key);
+          uniqueSkills.push(cleanSkill);
+        });
+        uniqueSkills.forEach((skill) => {
           const group = tempSkillGroup(skill);
           (groupedSkills[group] ||= []).push(skill);
         });
@@ -1617,6 +1627,15 @@
         const matchScore = Number(match.score);
         const likelihood = Number(enrichment.likelihood);
         const source = metadata.source || sessionStorage.getItem("externalCandidateSource") || "External provider";
+        const evidenceHeading = isTemporaryProfile
+          ? "Temporary profile evidence"
+          : "External profile evidence";
+        const evidenceIntro = isTemporaryProfile
+          ? `Selected-profile data from ${profileEscapeHtml(source)}. Identity, California Bar standing, and all material facts still require human verification.`
+          : `Provider-supplied evidence from ${profileEscapeHtml(source)}. The profile is available for pipeline use; source dates, California Bar standing, and material facts remain visible for review.`;
+        const sourceAssurance = /people data labs|pdl/i.test(String(source))
+          ? "Enrichment used licensed PDL data linked to the selected professional profile. VETCODE did not scrape LinkedIn."
+          : `Evidence was imported from ${profileEscapeHtml(source)}. VETCODE did not scrape LinkedIn.`;
 
         standardProfile.style.display = "none";
         standardPortfolio.style.display = "none";
@@ -1667,11 +1686,11 @@
         panel.innerHTML = `
           <div class="temp-evidence-head">
             <div>
-              <h2>Temporary profile evidence</h2>
-              <p>Selected-profile data from ${profileEscapeHtml(source)}. Identity, California Bar standing, and all material facts still require human verification.</p>
+              <h2>${evidenceHeading}</h2>
+              <p>${evidenceIntro}</p>
             </div>
             <div class="row-actions" style="margin:0">
-              ${profileUrl ? `<a class="btn secondary" href="${profileEscapeHtml(profileUrl)}" target="_blank" rel="noopener">Open LinkedIn profile</a>` : ""}
+              ${profileUrl ? `<a class="btn secondary" href="${profileEscapeHtml(profileUrl)}" target="_blank" rel="noopener">Open provider profile</a>` : ""}
               <a class="btn secondary" href="https://apps.calbar.ca.gov/attorney/LicenseeSearch/QuickSearch" target="_blank" rel="noopener">Verify California Bar</a>
             </div>
           </div>
@@ -1715,7 +1734,7 @@
             <section class="temp-evidence-section">
               <h3>Certifications</h3>
               <div class="temp-chip-row">${certifications.length ? certifications.map((item) => `<span class="temp-chip">${profileEscapeHtml(item)}</span>`).join("") : '<span class="muted">No certifications were returned.</span>'}</div>
-              <p style="margin-top:12px">Enrichment used licensed PDL data keyed to the selected profile. VETCODE did not scrape LinkedIn.</p>
+              <p style="margin-top:12px">${sourceAssurance}</p>
             </section>
           </div>
         `;
@@ -1804,6 +1823,11 @@
           console.log(profileData);
 
           const profileDescription = profileData.profile?.description || "";
+          const hasExternalProfileEvidence = Boolean(
+            profileData.externalProfile
+            && typeof profileData.externalProfile === "object"
+            && Object.keys(profileData.externalProfile).length,
+          );
           const isTemporaryProfile =
             profileType === "Temporary Profile" ||
             profileDescription.includes("Temporary external profile");
@@ -2034,8 +2058,8 @@
             );
           });
 
-          if (isTemporaryProfile) {
-            renderTemporaryProfileEvidence(profileData);
+          if (isTemporaryProfile || hasExternalProfileEvidence) {
+            renderExternalProfileEvidence(profileData, { isTemporaryProfile });
           }
 
           // Get resume
