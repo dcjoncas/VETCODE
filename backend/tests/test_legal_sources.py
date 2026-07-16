@@ -92,6 +92,67 @@ class LegalSourceClientTests(unittest.TestCase):
         self.assertEqual(result["results"][0]["snippet"], "Sample Attorney")
         self.assertEqual(result["results"][0]["url"], "https://www.courtlistener.com/docket/1/example/")
 
+    @patch.dict(os.environ, {"COURTLISTENER_API_TOKEN": "court-test-token"}, clear=False)
+    @patch("legalSources.courtListener.requests.get")
+    def test_courtlistener_discovers_attorneys_from_jd_dockets(self, get):
+        response = Mock(status_code=200)
+        response.json.return_value = {
+            "count": 921,
+            "results": [
+                {
+                    "docket_id": 101,
+                    "caseName": "Design Claim v. Architect",
+                    "docketNumber": "2:25-cv-00101",
+                    "docket_absolute_url": "/docket/101/design-claim/",
+                    "court": "California Central District Court",
+                    "court_id": "cacd",
+                    "dateFiled": "2025-02-10",
+                    "attorney": ["Alex Morgan", "Jamie Lee"],
+                    "attorney_id": [11, 12],
+                    "recap_documents": [
+                        {"snippet": "The complaint alleges professional liability."}
+                    ],
+                },
+                {
+                    "docket_id": 202,
+                    "caseName": "Broker Claim v. Insurer",
+                    "docketNumber": "3:24-cv-00202",
+                    "docket_absolute_url": "/docket/202/broker-claim/",
+                    "court": "California Northern District Court",
+                    "court_id": "cand",
+                    "dateFiled": "2024-07-12",
+                    "attorney": ["Alex Morgan", "State of California"],
+                    "attorney_id": [11, 13],
+                    "recap_documents": [
+                        {"snippet": "The action concerns accounting malpractice."}
+                    ],
+                },
+            ],
+        }
+        get.return_value = response
+
+        result = courtListener.search_attorneys_by_criteria(
+            {
+                "requiredPracticeAreas": ["Professional Liability", "Accounting Malpractice"],
+                "locations": ["Los Angeles", "Walnut Creek"],
+                "region": "California",
+                "minYears": 3,
+            },
+            size=5,
+        )
+
+        self.assertEqual(get.call_count, 1)
+        params = get.call_args.kwargs["params"]
+        self.assertEqual(params["type"], "r")
+        self.assertIn("court_id:(cacd OR cand)", params["q"])
+        self.assertIn('"Professional Liability"', params["q"])
+        self.assertIn("dateFiled:[", params["q"])
+        self.assertEqual(result["attorneysDiscovered"], 2)
+        self.assertEqual(result["results"][0]["name"], "Alex Morgan")
+        self.assertEqual(len(result["results"][0]["evidence"]), 2)
+        self.assertEqual(result["requestsUsed"], 1)
+        self.assertFalse(result["identityVerified"])
+
     @patch.dict(os.environ, {}, clear=True)
     def test_missing_provider_keys_are_explicit(self):
         with self.assertRaisesRegex(coreSignal.CoreSignalError, "not configured"):
@@ -267,6 +328,69 @@ class LegalSourceRouteTests(unittest.TestCase):
         self.assertEqual(result["sourceAudit"]["estimatedCreditsUsed"], 2)
         self.assertFalse(result["sourceAudit"]["identityVerified"])
         self.assertEqual(result["pagination"]["costLabel"], "2 API requests")
+
+    @patch("azureUtils.routes.azureJobEndpoints.courtListener.search_attorneys_by_criteria")
+    @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
+    def test_courtlistener_jd_search_returns_unscored_attorney_leads(self, get_job, search):
+        get_job.return_value = (
+            self.jd,
+            ["Professional Liability", "Accounting Malpractice", "Los Angeles"],
+        )
+        search.return_value = {
+            "provider": "CourtListener / RECAP",
+            "queryExecuted": True,
+            "matchingDockets": 921,
+            "docketsReviewed": 20,
+            "attorneysDiscovered": 7,
+            "courtIds": ["cacd", "cand"],
+            "practiceTerms": ["Professional Liability", "Accounting Malpractice"],
+            "results": [
+                {
+                    "name": "Alex Morgan",
+                    "attorneyId": "11",
+                    "matchedPracticeAreas": ["Professional Liability"],
+                    "courts": ["California Central District Court"],
+                    "evidence": [
+                        {
+                            "docketId": "101",
+                            "title": "Design Claim v. Architect",
+                            "url": "https://www.courtlistener.com/docket/101/design-claim/",
+                        }
+                    ],
+                }
+            ],
+            "requestsUsed": 1,
+            "countIsEstimate": False,
+            "identityVerified": False,
+            "notice": "Verify every lead before use.",
+        }
+
+        result = azureJobEndpoints.external_candidate_search(
+            domain="law",
+            jd_id="85",
+            source="courtlistener",
+            top_k=5,
+            titles="",
+            practice_areas="",
+            locations="",
+            region="",
+            min_years=0,
+            strict_locations=None,
+            scroll_token="",
+        )
+
+        search.assert_called_once()
+        self.assertEqual(result["source"], "courtlistener")
+        self.assertTrue(result["searchUsesJobDescription"])
+        self.assertEqual(result["results"][0]["result_type"], "court_attorney_lead")
+        self.assertEqual(result["results"][0]["name"], "Alex Morgan")
+        self.assertEqual(result["results"][0]["score"], 0)
+        self.assertTrue(result["results"][0]["profile_data"]["discovered_from_jd"])
+        self.assertEqual(result["sourceAudit"]["queryMode"], "jd_court_attorney_discovery")
+        self.assertEqual(result["sourceAudit"]["matchingDockets"], 921)
+        self.assertEqual(result["sourceAudit"]["docketsReviewed"], 20)
+        self.assertFalse(result["sourceAudit"]["identityVerified"])
+        self.assertEqual(result["pagination"]["costLabel"], "1 API request")
 
     def test_brave_query_excludes_linkedin_and_import_is_blocked(self):
         query = azureJobEndpoints._brave_law_query(

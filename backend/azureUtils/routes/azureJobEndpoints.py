@@ -895,6 +895,10 @@ def _courtlistener_row(row: dict, searched_name: str):
             "identity_status": "not_verified",
             "role_in_matter": "not_verified",
             "california_bar_status": "not_verified",
+            "california_bar_search_url": (
+                "https://apps.calbar.ca.gov/attorney/LicenseeSearch/QuickSearch?FreeText="
+                + quote_plus(searched_name)
+            ),
             "linkedin_scan": "not_performed",
         },
         "profile_data": {
@@ -903,6 +907,77 @@ def _courtlistener_row(row: dict, searched_name: str):
             "docket_number": docket_number,
             "date_filed": date_filed,
             "attorney_field": str(row.get("attorney") or ""),
+        },
+    }
+
+
+def _courtlistener_attorney_row(row: dict, criteria: dict):
+    name = str(row.get("name") or "CourtListener attorney lead").strip()
+    evidence = [item for item in row.get("evidence", []) if isinstance(item, dict)]
+    first_evidence = evidence[0] if evidence else {}
+    evidence_count = len(evidence)
+    matched_terms = _safe_list(row.get("matchedPracticeAreas"))
+    courts = _safe_list(row.get("courts"))
+    case_titles = [str(item.get("title") or "").strip() for item in evidence if item.get("title")]
+    case_summary = "; ".join(case_titles[:3])
+    summary = (
+        f"Listed as an attorney in {evidence_count} CourtListener docket"
+        f"{'s' if evidence_count != 1 else ''} returned by the selected JD query."
+    )
+    if case_summary:
+        summary += f" Supporting records: {case_summary}."
+    return {
+        "source": "courtlistener",
+        "source_label": "CourtListener / RECAP",
+        "source_id": "courtlistener-attorney:" + str(row.get("attorneyId") or name.lower()),
+        "result_type": "court_attorney_lead",
+        "name": name,
+        "email": str(row.get("email") or ""),
+        "title": "Attorney listed in matching court records",
+        "company": "",
+        "location": ", ".join(courts[:3]),
+        "profile_url": str(first_evidence.get("url") or ""),
+        "avatar_url": "",
+        "summary": summary,
+        "skills": [],
+        "score": 0,
+        "match_band": "Court-data lead",
+        "score_details": {
+            "formula": "Court-docket association is not candidate-fit scoring.",
+            "band": "Court-data lead",
+            "missing": [
+                "Current employer and role",
+                f"{int(criteria.get('minYears') or 0)}+ years experience"
+                if criteria.get("minYears")
+                else "Years of experience",
+                "Current location",
+                "California Bar standing",
+            ],
+        },
+        "top_matches": [f"Court query: {term}" for term in matched_terms[:4]],
+        "verification": {
+            "identity_status": "not_verified",
+            "role_in_matter": "listed_on_matching_docket_not_individually_confirmed",
+            "california_bar_status": "not_verified",
+            "california_bar_search_url": (
+                "https://apps.calbar.ca.gov/attorney/LicenseeSearch/QuickSearch?FreeText="
+                + quote_plus(name)
+            ),
+            "current_employment": "not_verified",
+            "linkedin_scan": "not_performed",
+        },
+        "profile_data": {
+            "courtlistener_attorney_id": str(row.get("attorneyId") or ""),
+            "evidence_count": evidence_count,
+            "evidence_records": evidence[:8],
+            "matched_practice_areas": matched_terms,
+            "query_practice_areas": _safe_list(
+                criteria.get("requiredPracticeAreas") or criteria.get("practiceAreas")
+            ),
+            "courts": courts,
+            "phone": str(row.get("phone") or ""),
+            "contact_raw": str(row.get("contactRaw") or ""),
+            "discovered_from_jd": True,
         },
     }
 
@@ -1594,7 +1669,7 @@ def external_provider_status():
             "courtlistener": {
                 "label": "CourtListener / RECAP",
                 "ready": courtListener.configured(),
-                "role": "court_record_research",
+                "role": "jd_court_attorney_discovery_and_name_research",
                 "environmentVariable": "COURTLISTENER_API_TOKEN",
                 "signupUrl": "https://www.courtlistener.com/sign-in/",
                 "tokenUrl": "https://www.courtlistener.com/profile/api-token/",
@@ -1756,10 +1831,52 @@ def external_candidate_search(
             source_audit["totalIsEstimate"] = True
             pagination = _provider_pagination(brave_response, top_k, "1 API request")
         elif selected_source == "courtlistener":
-            raise HTTPException(
-                status_code=400,
-                detail="CourtListener research requires a lawyer's full name in the direct-search field.",
+            if domain != "law" or not criteria:
+                raise HTTPException(
+                    status_code=400,
+                    detail="CourtListener JD discovery is available in LegalReady with a selected job description.",
+                )
+            court_response = courtListener.search_attorneys_by_criteria(criteria, size=top_k)
+            results = [
+                _courtlistener_attorney_row(row, criteria)
+                for row in court_response.get("results", [])
+                if isinstance(row, dict)
+            ][:top_k]
+            requests_used = max(1, int(court_response.get("requestsUsed") or 1))
+            attorneys_discovered = max(
+                len(results), int(court_response.get("attorneysDiscovered") or 0)
             )
+            source_audit = {
+                "provider": "CourtListener / RECAP",
+                "queryExecuted": bool(court_response.get("queryExecuted", True)),
+                "queryCompleted": True,
+                "queryMode": "jd_court_attorney_discovery",
+                "totalMatches": attorneys_discovered,
+                "recordsReturned": len(results),
+                "recordsReviewed": len(results),
+                "matchingDockets": int(court_response.get("matchingDockets") or 0),
+                "docketsReviewed": int(court_response.get("docketsReviewed") or 0),
+                "estimatedCreditsUsed": requests_used,
+                "costLabel": "API requests (rate limited)",
+                "executedAt": datetime.now(timezone.utc).isoformat(),
+                "criteria": criteria,
+                "courtIds": court_response.get("courtIds") or [],
+                "practiceTerms": court_response.get("practiceTerms") or [],
+                "providerCountIsEstimate": bool(court_response.get("countIsEstimate")),
+                "identityVerified": False,
+                "legalReadiness": court_response.get("notice") or "Verify every court-data lead.",
+                "linkedInMode": "No LinkedIn data was requested or scanned.",
+                "statusMessage": (
+                    "Lawyer names were discovered from matching court dockets; "
+                    "court association is not proof of current candidate fit."
+                ),
+            }
+            pagination = {
+                "pageSize": len(results),
+                "hasNext": False,
+                "nextScrollToken": "",
+                "costLabel": f"{requests_used} API request{'s' if requests_used != 1 else ''}",
+            }
         elif selected_source == "github":
             results = _github_search(job_skills, search_skills, top_k)
             source_audit = {
