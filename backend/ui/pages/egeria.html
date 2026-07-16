@@ -112,6 +112,7 @@
       }
 
       .one-tap-button {
+        position: relative;
         display: inline-flex;
         align-items: center;
         gap: 11px;
@@ -129,6 +130,48 @@
           0 16px 32px rgba(65, 90, 124, 0.18),
           inset 0 1px 0 rgba(255, 255, 255, 0.72);
         cursor: pointer;
+      }
+
+      .one-tap-feedback-badge {
+        display: inline-grid;
+        place-items: center;
+        min-width: 22px;
+        height: 22px;
+        border-radius: 999px;
+        padding: 0 6px;
+        background: #b42318;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 1000;
+        line-height: 1;
+      }
+
+      .one-tap-feedback-badge[hidden],
+      .one-tap-feedback-alert[hidden] {
+        display: none !important;
+      }
+
+      .one-tap-feedback-alert {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        border-left: 4px solid #b42318;
+        border-radius: 8px;
+        padding: 10px 12px;
+        background: #fff4ed;
+      }
+
+      .one-tap-feedback-alert strong,
+      .one-tap-feedback-alert span {
+        display: block;
+      }
+
+      .one-tap-feedback-alert span {
+        margin-top: 2px;
+        color: #7a271a;
+        font-size: 12px;
       }
 
       .one-tap-orb {
@@ -231,6 +274,149 @@
         color: var(--muted);
         font-size: 11px;
         line-height: 1.3;
+      }
+
+      .one-tap-history-row.has-feedback {
+        border-left: 4px solid var(--primary);
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.07);
+      }
+
+      .feedback-dialog {
+        width: min(760px, calc(100vw - 32px));
+        max-width: calc(100vw - 32px);
+        max-height: calc(100vh - 48px);
+        box-sizing: border-box;
+        overflow: hidden;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0;
+        color: var(--ink);
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+      }
+
+      .feedback-dialog::backdrop {
+        background: rgba(15, 23, 42, 0.58);
+      }
+
+      .feedback-dialog[open] {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        height: min(760px, calc(100vh - 48px));
+      }
+
+      .feedback-dialog-head,
+      .feedback-dialog-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        background: #fff;
+      }
+
+      .feedback-dialog-head {
+        border-bottom: 1px solid var(--line);
+      }
+
+      .feedback-dialog-head h2 {
+        margin: 0;
+        font-size: 20px;
+        overflow-wrap: anywhere;
+      }
+
+      .feedback-dialog-head > div,
+      .feedback-dialog-body {
+        min-width: 0;
+      }
+
+      .feedback-dialog-body {
+        display: grid;
+        gap: 16px;
+        overflow: auto;
+        padding: 16px;
+        background: #fff;
+      }
+
+      .feedback-dialog-actions {
+        justify-content: flex-end;
+        border-top: 1px solid var(--line);
+      }
+
+      .feedback-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px 16px;
+        margin: 0;
+      }
+
+      .feedback-detail-grid > div {
+        min-width: 0;
+      }
+
+      .feedback-detail-grid dt {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .feedback-detail-grid dd {
+        margin: 3px 0 0;
+        overflow-wrap: anywhere;
+        line-height: 1.45;
+      }
+
+      .feedback-flow {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .feedback-flow li {
+        display: grid;
+        grid-template-columns: 26px minmax(0, 1fr);
+        gap: 9px;
+        align-items: start;
+        color: var(--muted);
+      }
+
+      .feedback-flow li > span:last-child {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .feedback-flow-marker {
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 1000;
+      }
+
+      .feedback-flow li.complete,
+      .feedback-flow li.current {
+        color: var(--ink);
+        font-weight: 800;
+      }
+
+      .feedback-flow li.complete .feedback-flow-marker {
+        border-color: var(--primary);
+        background: var(--primary);
+        color: #fff;
+      }
+
+      .feedback-flow li.current .feedback-flow-marker {
+        border-color: #b88727;
+        background: #fff8dc;
+        color: #7a4d09;
       }
 
       .egeria-section {
@@ -564,13 +750,41 @@
       @media (max-width: 860px) {
         .egeria-hero,
         .egeria-section-head,
-        .pilot-guide {
+        .pilot-guide,
+        .one-tap-bar,
+        .one-tap-panel {
           grid-template-columns: 1fr;
         }
 
         .egeria-actions,
         .pilot-guide-links {
           justify-content: flex-start;
+        }
+
+        .one-tap-feedback-alert,
+        .feedback-detail-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .one-tap-button,
+        #oneTapRefreshJobsBtn {
+          justify-self: start;
+        }
+
+        .feedback-dialog-head {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: start;
+        }
+
+        .feedback-dialog-actions {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+
+        .feedback-dialog-actions .btn {
+          width: 100%;
+          white-space: normal;
         }
       }
     </style>
@@ -593,12 +807,14 @@
           <button id="oneTapOpenBtn" class="one-tap-button" type="button">
             <span class="one-tap-orb" aria-hidden="true">E</span>
             <span>One-Tap Pilot</span>
+            <span id="oneTapFeedbackBadge" class="one-tap-feedback-badge" aria-label="Unread candidate feedback" hidden></span>
           </button>
           <div class="one-tap-copy">
             <strong>Fast asset path from job to candidate interest.</strong>
             <span>Select one job. Egeria picks one best internal candidate, creates the secure interest link, opens the candidate email draft, and checkpoints the workflow.</span>
           </div>
           <button id="oneTapRefreshJobsBtn" class="btn secondary" type="button">Refresh jobs</button>
+          <div id="oneTapFeedbackAlert" class="one-tap-feedback-alert" role="status" hidden></div>
           <div id="oneTapPanel" class="one-tap-panel">
             <label>
               Job to fill
@@ -616,6 +832,21 @@
             <div id="oneTapHistory" class="one-tap-history"></div>
           </div>
         </section>
+
+        <dialog id="oneTapFeedbackDialog" class="feedback-dialog" aria-labelledby="oneTapFeedbackTitle">
+          <div class="feedback-dialog-head">
+            <div>
+              <h2 id="oneTapFeedbackTitle">Candidate feedback</h2>
+              <div id="oneTapFeedbackMeta" class="breadcrumb"></div>
+            </div>
+            <button id="oneTapFeedbackCloseBtn" class="btn secondary" type="button">Close</button>
+          </div>
+          <div id="oneTapFeedbackBody" class="feedback-dialog-body"></div>
+          <div class="feedback-dialog-actions">
+            <button id="oneTapFeedbackProfileBtn" class="btn secondary" type="button">Open private profile notes</button>
+            <button id="oneTapFeedbackContinueBtn" class="btn primary" type="button">Continue to internal review</button>
+          </div>
+        </dialog>
 
         <section class="egeria-hero">
           <div>
@@ -829,7 +1060,16 @@
         return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
       }
 
+      const ONE_TAP_WORKFLOW_STEPS = [
+        "Candidate answers the interest link.",
+        "Egeria records the response as private profile feedback.",
+        "DevReady runs the internal candidate review.",
+        "After approval, Egeria prepares the client interview and outreach.",
+        "After client approval, onboarding starts from the completed profile.",
+      ];
       let oneTapLastRun = null;
+      let oneTapFeedbackNotifications = [];
+      let activeOneTapFeedback = null;
 
       function oneTapHistoryKey() {
         return `egeriaOneTapHistory:${currentDomain()}`;
@@ -858,12 +1098,16 @@
         const link = payload.link || {};
         const note = payload.note || {};
         const interestUrl = payload.interest_url || after.interestLink || (link.token ? `/ui/pages/role-feedback.html?token=${encodeURIComponent(link.token)}` : "");
+        const feedbackReceived = event?.event_type === "candidate_role_feedback_submitted";
         return {
           id: event?.id || `one-tap-${Date.now()}`,
+          workflow_id: payload.workflow_id || context.workflowId || after.workflowId || link.token || "",
           created_at: event?.created_at || new Date().toISOString(),
           event_type: event?.event_type || "one_tap_interest_started",
-          status: event?.event_type === "candidate_role_feedback_submitted" ? "Candidate feedback received" : "Waiting for candidate feedback",
+          status: feedbackReceived ? "Candidate feedback received" : "Waiting for candidate feedback",
           message: event?.message || "",
+          acknowledged: Boolean(event?.acknowledged_at),
+          feedback_event_id: feedbackReceived ? event?.id || "" : "",
           job: {
             jd_id: job.jd_id || context.jobId || after.jobId || link.job_id || "",
             company: job.company || context.jobCompany || link.role_company || "",
@@ -880,9 +1124,16 @@
             subject: after.emailSubject || `DevReady role interest: ${job.title || context.jobTitle || link.role_title || ""}`,
             feedback: note.interest || after.interest || "",
           },
-          next_steps: event?.event_type === "candidate_role_feedback_submitted"
-            ? ["Candidate interest is saved.", "Confirm profile and shortlist.", "Run the internal candidate review.", "Prepare client interview/outreach."]
-            : ["Candidate answers the interest link.", "Egeria records the response.", "DevReady runs the internal candidate review."],
+          feedback: feedbackReceived ? {
+            note_id: note.id || after.note_id || "",
+            interest: note.interest || after.interest || "",
+            thoughts: note.note || "",
+            skills: note.skills || "",
+            availability: note.availability || "",
+            questions: note.questions || "",
+            private: true,
+          } : null,
+          next_steps: ONE_TAP_WORKFLOW_STEPS,
         };
       }
 
@@ -891,6 +1142,7 @@
         const run = {
           ...data,
           id: data.event?.id || data.id || `one-tap-${Date.now()}`,
+          workflow_id: data.workflow_id || data.event?.context?.workflowId || data.event?.payload?.workflow_id || data.event?.payload?.link?.token || "",
           created_at: data.event?.created_at || data.created_at || new Date().toISOString(),
           event_type: data.event?.event_type || data.event_type || "one_tap_interest_started",
           status: data.status || "Waiting for candidate feedback",
@@ -900,6 +1152,195 @@
         rows.unshift(run);
         writeOneTapHistory(rows);
         oneTapLastRun = run;
+      }
+
+      function oneTapRunKey(run) {
+        const candidate = run?.candidate || {};
+        const job = run?.job || {};
+        return run?.workflow_id || [candidate.profile_id || "candidate", job.jd_id || "job"].join(":");
+      }
+
+      function mergeOneTapHistoryRows(rows) {
+        const merged = new Map();
+        [...(rows || [])]
+          .sort((a, b) => String(a.created_at || "").localeCompare(String(b.created_at || "")))
+          .forEach((run) => {
+            const key = oneTapRunKey(run);
+            const existing = merged.get(key) || {};
+            const feedbackReceived = run.event_type === "candidate_role_feedback_submitted" || Boolean(run.feedback);
+            merged.set(key, {
+              ...existing,
+              ...run,
+              id: run.workflow_id || existing.workflow_id || existing.id || run.id,
+              workflow_id: run.workflow_id || existing.workflow_id || "",
+              candidate: { ...(existing.candidate || {}), ...(run.candidate || {}) },
+              job: { ...(existing.job || {}), ...(run.job || {}) },
+              match: { ...(existing.match || {}), ...(run.match || {}) },
+              interest: { ...(existing.interest || {}), ...(run.interest || {}) },
+              feedback: run.feedback || existing.feedback || null,
+              feedback_event_id: run.feedback_event_id || existing.feedback_event_id || "",
+              acknowledged: feedbackReceived ? Boolean(run.acknowledged) : Boolean(existing.acknowledged),
+              event_type: feedbackReceived ? "candidate_role_feedback_submitted" : existing.event_type || run.event_type,
+              status: feedbackReceived ? "Candidate feedback received" : existing.status || run.status,
+              created_at: run.created_at || existing.created_at || "",
+              next_steps: ONE_TAP_WORKFLOW_STEPS,
+            });
+          });
+        return Array.from(merged.values())
+          .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+      }
+
+      function oneTapRunFromNotification(notification) {
+        return {
+          id: notification.workflow_id || notification.id,
+          workflow_id: notification.workflow_id || "",
+          feedback_event_id: notification.id || "",
+          created_at: notification.created_at || new Date().toISOString(),
+          event_type: "candidate_role_feedback_submitted",
+          status: "Candidate feedback received",
+          acknowledged: Boolean(notification.acknowledged),
+          candidate: notification.candidate || {},
+          job: notification.job || {},
+          feedback: notification.feedback || {},
+          interest: { feedback: notification.feedback?.interest || "" },
+          next_steps: notification.workflow?.steps || ONE_TAP_WORKFLOW_STEPS,
+        };
+      }
+
+      function feedbackNotificationForRun(run) {
+        return oneTapFeedbackNotifications.find((notification) =>
+          notification.id === run?.feedback_event_id
+          || (notification.workflow_id && notification.workflow_id === run?.workflow_id)
+        ) || null;
+      }
+
+      function renderFeedbackIndicators() {
+        const badge = document.getElementById("oneTapFeedbackBadge");
+        const alert = document.getElementById("oneTapFeedbackAlert");
+        const unread = oneTapFeedbackNotifications.filter((item) => !item.acknowledged);
+        if (badge) {
+          badge.hidden = unread.length === 0;
+          badge.textContent = unread.length ? String(unread.length) : "";
+          badge.setAttribute("aria-label", `${unread.length} unread candidate feedback response${unread.length === 1 ? "" : "s"}`);
+        }
+        if (!alert) return;
+        const newest = unread[0];
+        if (!newest) {
+          alert.hidden = true;
+          alert.innerHTML = "";
+          return;
+        }
+        const candidate = newest.candidate || {};
+        const job = newest.job || {};
+        const interest = newest.feedback?.interest || "Response received";
+        alert.hidden = false;
+        alert.innerHTML = `
+          <div>
+            <strong>New candidate feedback: ${escapeHtml(candidate.name || "Candidate")}</strong>
+            <span>${escapeHtml(interest)} for ${escapeHtml(job.title || "the selected role")}. Egeria saved the private response and queued the internal review.</span>
+          </div>
+          <button class="btn primary" type="button" data-feedback-alert-id="${escapeHtml(newest.id)}">View response</button>
+        `;
+        alert.querySelector("[data-feedback-alert-id]")?.addEventListener("click", () => openCandidateFeedback(newest));
+      }
+
+      async function hydrateCandidateFeedback() {
+        try {
+          const response = await fetch(`/api/egeria/one-tap/feedback?domain=${encodeURIComponent(currentDomain())}&limit=40`, { cache: "no-store" });
+          const data = await response.json();
+          if (!response.ok || data.ok === false) throw new Error(data.detail || "Could not load candidate feedback.");
+          oneTapFeedbackNotifications = Array.isArray(data.notifications) ? data.notifications : [];
+        } catch {
+          oneTapFeedbackNotifications = [];
+        }
+        renderFeedbackIndicators();
+        renderOneTapHistory();
+      }
+
+      async function acknowledgeCandidateFeedback(notification) {
+        if (!notification?.id || notification.acknowledged) return;
+        const form = new FormData();
+        form.append("domain", currentDomain());
+        form.append("acknowledged_by", "DevReady");
+        try {
+          const response = await fetch(`/api/egeria/one-tap/feedback/${encodeURIComponent(notification.id)}/acknowledge`, { method: "POST", body: form });
+          const data = await response.json();
+          if (!response.ok || data.ok === false) throw new Error(data.detail || "Could not acknowledge feedback.");
+          oneTapFeedbackNotifications = oneTapFeedbackNotifications.map((item) => item.id === notification.id ? data.notification : item);
+          const rows = readOneTapHistory().map((run) => run.feedback_event_id === notification.id ? { ...run, acknowledged: true } : run);
+          writeOneTapHistory(rows);
+          renderFeedbackIndicators();
+          renderOneTapHistory();
+        } catch {}
+      }
+
+      function feedbackDetail(label, value) {
+        return `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || "Not provided")}</dd></div>`;
+      }
+
+      function openCandidateFeedback(item) {
+        const notification = item?.workflow ? item : feedbackNotificationForRun(item);
+        const run = item?.workflow ? oneTapRunFromNotification(item) : item;
+        if (!run) return;
+        const feedback = notification?.feedback || run.feedback || {};
+        const candidate = notification?.candidate || run.candidate || {};
+        const job = notification?.job || run.job || {};
+        const steps = notification?.workflow?.steps || run.next_steps || ONE_TAP_WORKFLOW_STEPS;
+        activeOneTapFeedback = {
+          ...run,
+          candidate: { ...(run.candidate || {}), ...candidate },
+          job: { ...(run.job || {}), ...job },
+          feedback,
+          feedback_event_id: notification?.id || run.feedback_event_id || "",
+        };
+        restoreOneTapRun(activeOneTapFeedback);
+        document.getElementById("oneTapFeedbackTitle").textContent = `${candidate.name || "Candidate"} - candidate feedback`;
+        document.getElementById("oneTapFeedbackMeta").textContent = [
+          job.title || "Selected role",
+          job.company || "",
+          notification?.created_at || run.created_at ? new Date(notification?.created_at || run.created_at).toLocaleString() : "",
+        ].filter(Boolean).join(" - ");
+        document.getElementById("oneTapFeedbackBody").innerHTML = `
+          <section>
+            <h3 style="margin:0 0 8px">Private response</h3>
+            <dl class="feedback-detail-grid">
+              ${feedbackDetail("Interest", feedback.interest)}
+              ${feedbackDetail("Availability", feedback.availability)}
+              ${feedbackDetail("Thoughts", feedback.thoughts)}
+              ${feedbackDetail("Skills or fit", feedback.skills)}
+              ${feedbackDetail("Questions", feedback.questions)}
+              ${feedbackDetail("Role", job.title)}
+            </dl>
+          </section>
+          <section>
+            <h3 style="margin:0 0 8px">Egeria workflow</h3>
+            <ol class="feedback-flow">
+              ${steps.map((step, index) => `
+                <li class="${index < 2 ? "complete" : index === 2 ? "current" : ""}">
+                  <span class="feedback-flow-marker">${index < 2 ? "OK" : index + 1}</span>
+                  <span>${escapeHtml(step)}</span>
+                </li>
+              `).join("")}
+            </ol>
+          </section>
+          <div class="egeria-notice"><strong>Next action:</strong> DevReady runs the internal candidate review. Egeria will keep client outreach and onboarding behind their approval gates.</div>
+        `;
+        const profileButton = document.getElementById("oneTapFeedbackProfileBtn");
+        profileButton.disabled = !candidate.profile_id;
+        const dialog = document.getElementById("oneTapFeedbackDialog");
+        if (!dialog.open) dialog.showModal();
+        if (notification) acknowledgeCandidateFeedback(notification);
+      }
+
+      function continueCandidateFeedbackWorkflow() {
+        if (!activeOneTapFeedback) return;
+        document.getElementById("oneTapFeedbackDialog")?.close();
+        document.getElementById("oneTapPanel")?.classList.add("open");
+        restoreOneTapRun(activeOneTapFeedback);
+        oneTapLastRun = activeOneTapFeedback;
+        renderOneTapResult(activeOneTapFeedback);
+        runPilot();
+        document.getElementById("processPilotSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }
 
       function restoreOneTapRun(run) {
@@ -929,7 +1370,7 @@
       function renderOneTapHistory() {
         const target = document.getElementById("oneTapHistory");
         if (!target) return;
-        const rows = readOneTapHistory();
+        const rows = mergeOneTapHistoryRows(readOneTapHistory());
         if (!rows.length) {
           target.innerHTML = `<div class="egeria-notice">No One-Tap Pilot history yet. Started pilots and candidate feedback will stay here after refresh.</div>`;
           return;
@@ -942,9 +1383,12 @@
           ${rows.slice(0, 8).map((run, index) => {
             const candidate = run.candidate || {};
             const job = run.job || {};
-            const status = run.status || (run.event_type === "candidate_role_feedback_submitted" ? "Candidate feedback received" : "Waiting for candidate feedback");
+            const feedbackReceived = run.event_type === "candidate_role_feedback_submitted" || Boolean(run.feedback);
+            const notification = feedbackNotificationForRun(run);
+            const unread = feedbackReceived && notification && !notification.acknowledged;
+            const status = unread ? "New candidate feedback" : run.status || (feedbackReceived ? "Candidate feedback received" : "Waiting for candidate feedback");
             return `
-              <div class="one-tap-history-row">
+              <div class="one-tap-history-row${feedbackReceived ? " has-feedback" : ""}">
                 <div>
                   <strong>${escapeHtml(candidate.name || "Candidate")} - ${escapeHtml(job.title || "Selected role")}</strong>
                   <span>${escapeHtml(status)}${job.company ? " - " + escapeHtml(job.company) : ""}${run.created_at ? " - " + escapeHtml(new Date(run.created_at).toLocaleString()) : ""}</span>
@@ -952,7 +1396,7 @@
                 <div class="egeria-link-row" style="margin-top:0">
                   <button class="btn secondary" type="button" data-one-tap-resume="${index}">Resume</button>
                   ${candidate.profile_id ? `<a class="btn secondary" href="profile-preview.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(candidate.profile_id)}">Profile</a>` : ""}
-                  ${run.interest?.url ? `<a class="btn secondary" href="${escapeHtml(run.interest.url)}" target="_blank" rel="noopener">Feedback</a>` : ""}
+                  ${feedbackReceived ? `<button class="btn primary" type="button" data-one-tap-feedback="${index}">View response</button>` : run.interest?.url ? `<a class="btn secondary" href="${escapeHtml(run.interest.url)}" target="_blank" rel="noopener">Open interest link</a>` : ""}
                 </div>
               </div>
             `;
@@ -968,6 +1412,12 @@
             runPilot();
           });
         });
+        target.querySelectorAll("[data-one-tap-feedback]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const run = rows[Number(button.getAttribute("data-one-tap-feedback") || 0)];
+            openCandidateFeedback(run);
+          });
+        });
       }
 
       async function hydrateOneTapHistory() {
@@ -980,9 +1430,7 @@
             .filter((event) => ["one_tap_interest_started", "candidate_role_feedback_submitted"].includes(event.event_type))
             .map(oneTapRunFromEvent);
           if (serverRuns.length) {
-            const byId = new Map(readOneTapHistory().map((run) => [run.id, run]));
-            serverRuns.forEach((run) => byId.set(run.id, { ...(byId.get(run.id) || {}), ...run }));
-            const rows = Array.from(byId.values()).sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+            const rows = mergeOneTapHistoryRows([...readOneTapHistory(), ...serverRuns]);
             writeOneTapHistory(rows);
             const hasSessionContext = Boolean(sessionStorage.getItem("candidateId") && sessionStorage.getItem("jobId"));
             if (!hasSessionContext && rows[0]) restoreOneTapRun(rows[0]);
@@ -995,6 +1443,7 @@
         document.getElementById("oneTapPanel")?.classList.add("open");
         hydrateOneTapJobs();
         hydrateOneTapHistory();
+        hydrateCandidateFeedback();
       }
 
       async function hydrateOneTapJobs() {
@@ -1031,6 +1480,36 @@
         const match = data.match || {};
         const interest = data.interest || {};
         const nextSteps = Array.isArray(data.next_steps) ? data.next_steps : [];
+        const feedbackReceived = data.event_type === "candidate_role_feedback_submitted" || Boolean(data.feedback);
+        if (feedbackReceived) {
+          const feedback = data.feedback || {};
+          target.innerHTML = `
+            <article class="egeria-card recommended">
+              <div class="pill-row">
+                <span class="egeria-pill">Candidate feedback received</span>
+                <span class="egeria-pill">Private profile note saved</span>
+              </div>
+              <strong>${escapeHtml(candidate.name || "Candidate")} responded about ${escapeHtml(job.title || "the selected role")}</strong>
+              <span>${escapeHtml(feedback.interest || interest.feedback || "Response received")}${feedback.availability ? " - " + escapeHtml(feedback.availability) : ""}</span>
+              <p>${escapeHtml(feedback.thoughts || "Open the response to review the candidate's full comments, skills, availability, and questions.")}</p>
+              <div class="egeria-link-row">
+                <button class="btn secondary" type="button" id="oneTapResultFeedbackBtn">View private response</button>
+                <button class="btn primary" type="button" id="oneTapResultContinueBtn">Continue to internal review</button>
+                ${candidate.profile_id ? `<a class="btn secondary" href="profile-preview.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(candidate.profile_id)}">Open profile</a>` : ""}
+              </div>
+            </article>
+            <article class="egeria-card">
+              <strong>Next governed steps</strong>
+              <span>${ONE_TAP_WORKFLOW_STEPS.map((step, index) => `${index + 1}. ${escapeHtml(step)}`).join("<br>")}</span>
+            </article>
+          `;
+          document.getElementById("oneTapResultFeedbackBtn")?.addEventListener("click", () => openCandidateFeedback(data));
+          document.getElementById("oneTapResultContinueBtn")?.addEventListener("click", () => {
+            activeOneTapFeedback = data;
+            continueCandidateFeedbackWorkflow();
+          });
+          return;
+        }
         target.innerHTML = `
           <article class="egeria-card recommended">
             <div class="pill-row">
@@ -1049,7 +1528,7 @@
           </article>
           <article class="egeria-card">
             <strong>What happens next</strong>
-            <span>${nextSteps.map((step, index) => `${index + 1}. ${escapeHtml(step)}`).join("<br>")}</span>
+              <span>${(nextSteps.length ? nextSteps : ONE_TAP_WORKFLOW_STEPS).map((step, index) => `${index + 1}. ${escapeHtml(step)}`).join("<br>")}</span>
           </article>
         `;
       }
@@ -1530,8 +2009,17 @@
       document.getElementById("runOpportunityBtn").addEventListener("click", () => runOpportunity(false));
       document.getElementById("runExternalOpportunityBtn").addEventListener("click", () => runOpportunity(true));
       document.getElementById("oneTapOpenBtn").addEventListener("click", openOneTapPanel);
-      document.getElementById("oneTapRefreshJobsBtn").addEventListener("click", hydrateOneTapJobs);
+      document.getElementById("oneTapRefreshJobsBtn").addEventListener("click", () => {
+        hydrateOneTapJobs();
+        hydrateCandidateFeedback();
+      });
       document.getElementById("oneTapStartBtn").addEventListener("click", startOneTapPilot);
+      document.getElementById("oneTapFeedbackCloseBtn").addEventListener("click", () => document.getElementById("oneTapFeedbackDialog")?.close());
+      document.getElementById("oneTapFeedbackProfileBtn").addEventListener("click", () => {
+        const profileId = activeOneTapFeedback?.candidate?.profile_id || "";
+        if (profileId) openInEgeriaContext(`profile-preview.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(profileId)}`);
+      });
+      document.getElementById("oneTapFeedbackContinueBtn").addEventListener("click", continueCandidateFeedbackWorkflow);
       document.getElementById("runPilotBtn").addEventListener("click", runPilot);
       document.getElementById("saveCheckpointBtn").addEventListener("click", saveCheckpoint);
       document.getElementById("rollbackCheckpointBtn").addEventListener("click", rollbackCheckpoint);
@@ -1545,7 +2033,7 @@
       applyPilotProcessLinks();
       hydrateOneTapJobs();
       hydrateBriefingCustomers();
-      hydrateOneTapHistory().then(runPilot);
+      Promise.all([hydrateOneTapHistory(), hydrateCandidateFeedback()]).then(runPilot);
     </script>
   </body>
 </html>

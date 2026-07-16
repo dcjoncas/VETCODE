@@ -4647,6 +4647,111 @@ def egeria_process_pilot_log(domain: str = "dev", limit: int = 20):
     return {"ok": True, "domain": clean_domain, "events": _egeria_recent_log(clean_domain, limit)}
 
 
+EGERIA_CANDIDATE_WORKFLOW = [
+    "Candidate answers the interest link.",
+    "Egeria records the response as private profile feedback.",
+    "DevReady runs the internal candidate review.",
+    "After approval, Egeria prepares the client interview and outreach.",
+    "After client approval, onboarding starts from the completed profile.",
+]
+
+
+def _egeria_feedback_notification(event: dict) -> dict:
+    payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+    context = event.get("context") if isinstance(event.get("context"), dict) else {}
+    after = event.get("after") if isinstance(event.get("after"), dict) else {}
+    link = payload.get("link") if isinstance(payload.get("link"), dict) else {}
+    note = payload.get("note") if isinstance(payload.get("note"), dict) else {}
+    acknowledged_at = _safe_action_text(event.get("acknowledged_at"), 80)
+    return {
+        "id": _safe_action_text(event.get("id"), 100),
+        "workflow_id": _safe_action_text(
+            context.get("workflowId") or after.get("workflowId") or link.get("token"),
+            140,
+        ),
+        "domain": _domain_key(event.get("domain") or link.get("domain") or "dev"),
+        "created_at": _safe_action_text(event.get("created_at"), 80),
+        "acknowledged": bool(acknowledged_at),
+        "acknowledged_at": acknowledged_at,
+        "candidate": {
+            "profile_id": _safe_action_text(context.get("candidateId") or link.get("profile_id"), 80),
+            "name": _safe_action_text(context.get("candidateName") or link.get("candidate_name"), 240),
+            "email": _safe_action_text(context.get("candidateEmail") or link.get("candidate_email"), 320),
+        },
+        "job": {
+            "jd_id": _safe_action_text(context.get("jobId") or link.get("job_id"), 80),
+            "company": _safe_action_text(context.get("jobCompany") or link.get("role_company"), 240),
+            "title": _safe_action_text(context.get("jobTitle") or link.get("role_title"), 240),
+        },
+        "feedback": {
+            "note_id": _safe_action_text(note.get("id") or after.get("note_id"), 100),
+            "interest": _safe_action_text(note.get("interest") or after.get("interest"), 80),
+            "thoughts": _safe_action_text(note.get("note"), 5000),
+            "skills": _safe_action_text(note.get("skills"), 3000),
+            "availability": _safe_action_text(note.get("availability"), 1000),
+            "questions": _safe_action_text(note.get("questions"), 2000),
+            "private": True,
+        },
+        "workflow": {
+            "current_stage": "candidate-review",
+            "completed_steps": 2,
+            "steps": EGERIA_CANDIDATE_WORKFLOW,
+            "next_action": "Run the internal candidate review.",
+        },
+    }
+
+
+def _egeria_candidate_feedback(domain: str = "dev", limit: int = 40) -> list[dict]:
+    clean_domain = _domain_key(domain)
+    rows = [
+        row for row in _egeria_log_rows()
+        if row.get("event_type") == "candidate_role_feedback_submitted"
+        and (clean_domain == "all" or _domain_key(row.get("domain") or "dev") == clean_domain)
+    ]
+    rows.sort(key=lambda row: row.get("created_at") or "", reverse=True)
+    try:
+        safe_limit = max(1, min(int(limit or 40), 100))
+    except (TypeError, ValueError):
+        safe_limit = 40
+    return [_egeria_feedback_notification(row) for row in rows[:safe_limit]]
+
+
+@app.get("/api/egeria/one-tap/feedback")
+def egeria_one_tap_feedback(domain: str = "dev", limit: int = 40):
+    notifications = _egeria_candidate_feedback(domain, limit)
+    return {
+        "ok": True,
+        "domain": _domain_key(domain),
+        "count": len(notifications),
+        "unread_count": sum(1 for item in notifications if not item.get("acknowledged")),
+        "notifications": notifications,
+    }
+
+
+@app.post("/api/egeria/one-tap/feedback/{event_id}/acknowledge")
+def acknowledge_egeria_one_tap_feedback(
+    event_id: str,
+    domain: str = Form(default="dev"),
+    acknowledged_by: str = Form(default="DevReady"),
+):
+    clean_id = _safe_action_text(event_id, 100)
+    clean_domain = _domain_key(domain)
+    rows = _egeria_log_rows()
+    event = next((
+        row for row in rows
+        if row.get("id") == clean_id
+        and row.get("event_type") == "candidate_role_feedback_submitted"
+        and (clean_domain == "all" or _domain_key(row.get("domain") or "dev") == clean_domain)
+    ), None)
+    if not event:
+        raise HTTPException(status_code=404, detail="Candidate feedback notification not found.")
+    if not event.get("acknowledged_at"):
+        event["acknowledged_at"] = _now_utc()
+        event["acknowledged_by"] = _safe_action_text(acknowledged_by, 160) or "DevReady"
+        _write_json_store(EGERIA_PROCESS_LOG_PATH, rows[:1200])
+    return {"ok": True, "notification": _egeria_feedback_notification(event)}
+
+
 @app.get("/api/egeria/one-tap/jobs")
 def egeria_one_tap_jobs(domain: str = "dev", limit: int = 50):
     clean_domain = _domain_key(domain)
@@ -4754,6 +4859,7 @@ def egeria_one_tap_start(
         role_description=role_description,
     )
     interest_url = feedback.get("url", "")
+    workflow_id = feedback.get("token", "")
     subject = f"DevReady role interest: {role_title}"
     body = (
         f"Hi {candidate_name},\n\n"
@@ -4774,6 +4880,7 @@ def egeria_one_tap_start(
         "candidateEmail": candidate_email,
         "jobId": str(job.get("jd_id") or job_id),
         "jobTitle": role_title,
+        "workflowId": workflow_id,
     }
     event = _egeria_log_event(
         clean_domain,
@@ -4795,6 +4902,8 @@ def egeria_one_tap_start(
             },
             "candidate": candidate,
             "match": best,
+            "link": feedback.get("link") or {},
+            "workflow_id": workflow_id,
             "interest_url": interest_url,
         },
     )
@@ -7294,6 +7403,7 @@ def profile_role_feedback_submit(
             "domain": domain,
             "currentStep": "candidate-interest",
             "nextStep": "candidate-review",
+            "workflowId": token,
             "candidateId": profile_id,
             "candidateName": link.get("candidate_name") or "",
             "candidateEmail": link.get("candidate_email") or "",
@@ -7308,6 +7418,7 @@ def profile_role_feedback_submit(
             "note_id": item["id"],
             "interest": item["interest"],
             "submitted_at": item["created_at"],
+            "workflowId": token,
         },
         message=f"{link.get('candidate_name') or 'Candidate'} submitted interest feedback for {link.get('role_title') or 'the role'}.",
         payload={"link": link, "note": item},
