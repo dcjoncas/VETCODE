@@ -320,6 +320,23 @@
         letter-spacing: 0.04em;
       }
 
+      .participant-action {
+        min-height: 30px;
+        border: 1px solid rgba(var(--primary-rgb), 0.28);
+        border-radius: 999px;
+        padding: 5px 9px;
+        background: #fff;
+        color: var(--primary-2);
+        cursor: pointer;
+        font: inherit;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .participant-action:hover {
+        border-color: var(--primary);
+      }
+
       .participant-copy {
         min-width: 0;
       }
@@ -500,9 +517,10 @@
             </header>
             <div id="messageLog" class="message-log">Loading messages...</div>
             <form id="messageComposer" class="composer" onsubmit="sendMessage(event)">
-              <textarea id="messageInput" placeholder="Type a new message..."></textarea>
+              <textarea id="messageInput" placeholder="Type a message, or mention @Egeria for help..."></textarea>
               <div class="compose-actions">
                 <button id="btnSendMessage" class="btn primary" type="submit">Send</button>
+                <button id="btnAskEgeria" class="btn secondary" type="button" onclick="askEgeriaFromComposer()">Ask Egeria</button>
                 <span id="sendStatus" class="status-line"></span>
               </div>
             </form>
@@ -517,7 +535,7 @@
             </div>
             <div id="participantList" class="participant-list"></div>
             <form id="addPersonForm" class="add-people-box" onsubmit="addPersonToConversation(event)">
-              <input id="addPersonEmail" class="email-input" type="email" placeholder="Email address" autocomplete="email" required />
+              <input id="addPersonEmail" class="email-input" type="text" inputmode="email" placeholder="Email address or Egeria" autocomplete="email" required />
               <button id="btnSubmitPerson" class="btn secondary" type="submit">Add to conversation</button>
               <span id="peopleStatus" class="status-line"></span>
             </form>
@@ -674,6 +692,7 @@
         document.getElementById("btnAddPerson").disabled = !conversation || archived;
         document.getElementById("messageInput").disabled = !conversation || archived;
         document.getElementById("btnSendMessage").disabled = !conversation || archived;
+        document.getElementById("btnAskEgeria").disabled = !conversation || archived;
         document.getElementById("addPersonEmail").disabled = !conversation || archived;
         document.getElementById("btnSubmitPerson").disabled = !conversation || archived;
         document.getElementById("sendStatus").textContent = archived ? "Archived conversations are read-only." : "";
@@ -780,8 +799,36 @@
         }
       }
 
-      async function sendMessage(event) {
-        event.preventDefault();
+      function messageAddressesEgeria(value) {
+        return /(?:^|[\s(])@?egeria\b/i.test(String(value || ""));
+      }
+
+      function mentionEgeria() {
+        const conversation = activeConversation();
+        const status = document.getElementById("sendStatus");
+        if (!conversation || isConversationArchived(conversation)) {
+          status.textContent = "Restore this conversation before asking Egeria.";
+          return;
+        }
+        const input = document.getElementById("messageInput");
+        if (!messageAddressesEgeria(input.value)) {
+          input.value = `@Egeria ${input.value}`.trimEnd() + " ";
+        }
+        input.focus();
+        status.textContent = "Ask Egeria a question, request a summary, or have her draft the next text.";
+      }
+
+      async function askEgeriaFromComposer() {
+        const input = document.getElementById("messageInput");
+        if (!input.value.trim()) {
+          mentionEgeria();
+          return;
+        }
+        await sendMessage(null, true);
+      }
+
+      async function sendMessage(event, askEgeria = false) {
+        event?.preventDefault();
         const input = document.getElementById("messageInput");
         const status = document.getElementById("sendStatus");
         const text = input.value.trim();
@@ -800,8 +847,10 @@
           audience: "conversation",
           author_name: user.display_name || user.username || user.email || "",
           author_email: user.email || "",
+          ask_egeria: askEgeria ? "true" : "false",
         });
-        status.textContent = "Sending...";
+        const egeriaRequested = askEgeria || messageAddressesEgeria(text);
+        status.textContent = egeriaRequested ? "Sending and asking Egeria..." : "Sending...";
         try {
           const response = await fetch("/api/channels/messages", {
             method: "POST",
@@ -811,8 +860,13 @@
           const data = await response.json();
           if (!response.ok || data.ok === false) throw new Error(data.detail || "Message failed.");
           input.value = "";
-          status.textContent = "Sent.";
+          status.textContent = data.egeria_error
+            ? `Message sent. ${data.egeria_error}`
+            : data.egeria_message
+              ? "Message sent. Egeria replied in the conversation."
+              : "Sent.";
           await loadConversations();
+          await loadMessages();
         } catch (error) {
           status.textContent = error.message || "Message failed.";
         }
@@ -921,7 +975,10 @@
         const participants = conversation?.participants || [];
         const archived = isConversationArchived(conversation);
         const humanCount = participants.filter((person) => !isEgeria(person)).length;
-        document.getElementById("peopleSummary").textContent = `${humanCount} ${humanCount === 1 ? "person" : "people"}`;
+        const hasEgeria = participants.some(isEgeria);
+        document.getElementById("peopleSummary").textContent = hasEgeria
+          ? `${humanCount} ${humanCount === 1 ? "person" : "people"} + Egeria`
+          : `${humanCount} ${humanCount === 1 ? "person" : "people"}`;
         document.getElementById("participantList").innerHTML = participants
           .map((person) => {
             const egeria = isEgeria(person);
@@ -929,9 +986,13 @@
               <div class="participant-chip${egeria ? " egeria" : ""}">
                 <div class="participant-copy">
                   <strong>${escapeHtml(person.name || person.email || "Participant")}</strong>
-                  <span>${escapeHtml(egeria ? "Conversation helper" : (person.email || ""))}</span>
+                  <span>${escapeHtml(egeria ? "AI texting participant" : (person.email || ""))}</span>
                 </div>
-                ${egeria || archived ? "" : `<button class="remove-person" type="button" onclick="removePersonFromConversation('${encodeURIComponent(person.email || "")}')">Remove</button>`}
+                ${egeria
+                  ? `<button class="participant-action" type="button" onclick="mentionEgeria()"${archived ? " disabled" : ""}>Ask</button>`
+                  : archived
+                    ? ""
+                    : `<button class="remove-person" type="button" onclick="removePersonFromConversation('${encodeURIComponent(person.email || "")}')">Remove</button>`}
               </div>
             `;
           })
@@ -951,6 +1012,16 @@
         const email = normalizeEmail(input.value);
         if (!email) {
           status.textContent = "Enter an email address.";
+          return;
+        }
+        if (["egeria", "@egeria", "egeria@devready.ai"].includes(email)) {
+          input.value = "";
+          status.textContent = "Egeria is already an active participant. Ask her from the message box.";
+          mentionEgeria();
+          return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          status.textContent = "Enter a valid email address, or type Egeria.";
           return;
         }
         status.textContent = "Adding...";

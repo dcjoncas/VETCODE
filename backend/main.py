@@ -2207,6 +2207,110 @@ def channel_conversation_access(
     return {"ok": True, "domain": clean_domain, "conversation": conversation}
 
 
+def _channel_egeria_requested(message: str = "", explicit: bool = False) -> bool:
+    if explicit:
+        return True
+    return bool(re.search(r"(?:^|[\s(])@?egeria\b", str(message or ""), re.IGNORECASE))
+
+
+def _channel_egeria_response_text(
+    conversation: dict,
+    messages: list[dict],
+    prompt: str,
+    requester: str,
+) -> str:
+    clean_prompt = str(prompt or "").strip()[:1200]
+    if not clean_prompt:
+        raise HTTPException(status_code=400, detail="Type what you want Egeria to help with.")
+    if not os.getenv("OPENAI_API_KEY", "").strip():
+        raise HTTPException(
+            status_code=503,
+            detail="Egeria live replies need OPENAI_API_KEY to be configured.",
+        )
+
+    title = _safe_action_text(conversation.get("title"), 160) or "Poolside conversation"
+    topic = _safe_action_text(conversation.get("topic"), 400) or "No topic has been set."
+    participant_names = [
+        _safe_action_text(row.get("name") or row.get("email"), 120)
+        for row in conversation.get("participants", [])
+        if isinstance(row, dict) and not row.get("system")
+    ]
+    thread_lines = []
+    for row in messages[-12:]:
+        if not isinstance(row, dict):
+            continue
+        author = _safe_action_text(row.get("author_name") or "Participant", 100)
+        text = str(row.get("message") or "").strip()[:1200]
+        if text:
+            thread_lines.append(f"{author}: {text}")
+    thread_context = "\n".join(thread_lines) or "No earlier messages."
+    user_context = (
+        f"Conversation: {title}\n"
+        f"Topic: {topic}\n"
+        f"Participants: {', '.join(filter(None, participant_names)) or 'Not named'}\n"
+        f"Recent thread:\n{thread_context}\n\n"
+        f"Current request from {requester}: {clean_prompt}"
+    )
+
+    try:
+        client = getOpenAPIClient()
+        response = client.chat.completions.create(
+            model=os.getenv("OPENAI_AGENT_MODEL", "gpt-4o-mini"),
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are Egeria, an AI participant in a private DevReady Poolside text conversation. "
+                        "Respond directly to the latest request using only the supplied conversation context. "
+                        "Help participants draft or improve a text, answer a question, summarize the thread, clarify a decision, "
+                        "or propose the next message. When asked to write text, provide a concise send-ready draft. "
+                        "Do not invent people, facts, commitments, prices, schedules, or completed actions. "
+                        "Do not claim you sent a message or contacted anyone. Keep normal replies under 140 words unless detail is requested."
+                    ),
+                },
+                {"role": "user", "content": user_context},
+            ],
+            temperature=0.25,
+            max_tokens=420,
+        )
+        content = str(response.choices[0].message.content or "").strip()
+        if not content:
+            raise ValueError("Empty Egeria response")
+        return content[:2400]
+    except HTTPException:
+        raise
+    except Exception as exc:
+        print(f"Poolside Egeria response failed: {type(exc).__name__}")
+        raise HTTPException(
+            status_code=502,
+            detail="Egeria could not reply right now. Your message was still saved.",
+        ) from exc
+
+
+def _channel_egeria_message(
+    conversation: dict,
+    messages: list[dict],
+    prompt: str,
+    requester: str,
+    clean_domain: str,
+    clean_id: str,
+) -> dict:
+    reply = _channel_egeria_response_text(conversation, messages, prompt, requester)
+    return {
+        "id": _safe_token("EGR"),
+        "channel": clean_id,
+        "conversation_id": clean_id,
+        "domain": clean_domain,
+        "author_name": "Egeria",
+        "author_email": "egeria@devready.ai",
+        "audience": "conversation",
+        "message": reply,
+        "created_at": _now_utc(),
+        "helper": True,
+        "provider": "openai",
+    }
+
+
 @app.post("/api/channels/conversations/{conversation_id}/egeria")
 def ask_egeria_channel_helper(
     conversation_id: str,
@@ -2226,43 +2330,16 @@ def ask_egeria_channel_helper(
     messages = message_store.get(room_key, [])
     if not isinstance(messages, list):
         messages = []
-    recent = [str(row.get("message") or "").strip() for row in messages[-3:] if isinstance(row, dict)]
-    participants = [
-        str(row.get("name") or row.get("email") or "").strip()
-        for row in conversation.get("participants", [])
-        if isinstance(row, dict) and not row.get("system")
-    ]
-    clean_prompt = _safe_action_text(prompt, 600)
+    clean_prompt = str(prompt or "").strip()[:1200]
     requester = _channel_user_name(requested_by_name, requested_by_email)
-    title = str(conversation.get("title") or clean_id).strip()
-    topic = str(conversation.get("topic") or "").strip()
-    helper_lines = [
-        f"Egeria is here to help keep {title} moving.",
-        f"Context: {topic or 'No topic has been set yet.'}",
-    ]
-    if participants:
-        helper_lines.append(f"People included: {', '.join(participants[:8])}.")
-    if recent:
-        helper_lines.append(f"Recent thread signal: {recent[-1][:220]}")
-    if clean_prompt:
-        helper_lines.append(f"{requester} asked: {clean_prompt}")
-        helper_lines.append("Suggested next step: confirm the owner, the expected outcome, and the next decision needed from this group.")
-    else:
-        helper_lines.append("Suggested next step: add the people who need to decide, then post the specific outcome this conversation should produce.")
-
-    now = _now_utc()
-    item = {
-        "id": _safe_token("EGR"),
-        "channel": clean_id,
-        "conversation_id": clean_id,
-        "domain": clean_domain,
-        "author_name": "Egeria",
-        "author_email": "egeria@devready.ai",
-        "audience": "conversation",
-        "message": "\n".join(helper_lines)[:2400],
-        "created_at": now,
-        "helper": True,
-    }
+    item = _channel_egeria_message(
+        conversation,
+        messages,
+        clean_prompt,
+        requester,
+        clean_domain,
+        clean_id,
+    )
     messages.append(item)
     message_store[room_key] = messages[-500:]
     _write_json_store(CHANNEL_MESSAGES_PATH, message_store)
@@ -2270,7 +2347,7 @@ def ask_egeria_channel_helper(
     conversation["participants"] = _ensure_egeria_participant(
         conversation.get("participants") if isinstance(conversation.get("participants"), list) else []
     )
-    conversation["updated_at"] = now
+    conversation["updated_at"] = item["created_at"]
     conversation["last_message"] = item["message"][:180]
     conversation["last_author"] = "Egeria"
     conv_store[clean_domain] = conversations
@@ -2303,6 +2380,7 @@ def post_channel_message(
     author_name: str = Form(default=""),
     author_email: str = Form(default=""),
     audience: str = Form(default="all"),
+    ask_egeria: bool = Form(default=False),
 ):
     clean_message = str(message or "").strip()
     if not clean_message:
@@ -2346,7 +2424,40 @@ def post_channel_message(
         conversation["last_author"] = item["author_name"]
         conv_store[clean_domain] = conversations
         _write_json_store(CHANNEL_CONVERSATIONS_PATH, conv_store)
-    return {"ok": True, "message": item}
+
+    result = {"ok": True, "message": item, "egeria_requested": False}
+    author_is_egeria = (
+        _normalize_user_key(item.get("author_email")) == _egeria_participant()["email"]
+        or _normalize_user_key(item.get("author_name")) == "egeria"
+    )
+    should_ask_egeria = (
+        conversation is not None
+        and not author_is_egeria
+        and _channel_egeria_requested(clean_message, ask_egeria)
+    )
+    if should_ask_egeria:
+        result["egeria_requested"] = True
+        try:
+            egeria_item = _channel_egeria_message(
+                conversation,
+                messages,
+                clean_message,
+                item["author_name"],
+                clean_domain,
+                clean_conversation_id,
+            )
+            messages.append(egeria_item)
+            store[room_key] = messages[-500:]
+            _write_json_store(CHANNEL_MESSAGES_PATH, store)
+            conversation["updated_at"] = egeria_item["created_at"]
+            conversation["last_message"] = egeria_item["message"][:180]
+            conversation["last_author"] = "Egeria"
+            conv_store[clean_domain] = conversations
+            _write_json_store(CHANNEL_CONVERSATIONS_PATH, conv_store)
+            result["egeria_message"] = egeria_item
+        except HTTPException as exc:
+            result["egeria_error"] = str(exc.detail)
+    return result
 
 
 @app.get("/api/channels/audience")

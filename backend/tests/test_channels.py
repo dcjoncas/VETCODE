@@ -216,5 +216,70 @@ class ChannelArchiveTests(unittest.TestCase):
         self.assertEqual(blocked.exception.status_code, 409)
 
 
+class ChannelEgeriaParticipantTests(unittest.TestCase):
+    def test_egeria_can_be_addressed_naturally_or_explicitly(self):
+        self.assertTrue(main._channel_egeria_requested("Hi Egeria, what does this link do?"))
+        self.assertTrue(main._channel_egeria_requested("@Egeria please draft the next text"))
+        self.assertTrue(main._channel_egeria_requested("Please help with this", explicit=True))
+        self.assertFalse(main._channel_egeria_requested("Please help with this"))
+
+    @patch("main._channel_egeria_response_text", return_value="Here is a concise, send-ready reply.")
+    @patch("main._write_json_store")
+    @patch("main._read_json_store")
+    @patch("main._read_channel_conversations")
+    def test_message_mention_adds_live_egeria_reply_to_same_thread(
+        self,
+        read_conversations,
+        read_store,
+        _write_store,
+        response_text,
+    ):
+        conversation = {
+            "id": "outside-counsel",
+            "title": "Outside counsel",
+            "topic": "Prepare a client response.",
+            "participants": [
+                main._egeria_participant(),
+                {"name": "Darrin", "email": "owner@example.com"},
+            ],
+        }
+        conversation_store = {"law": [conversation]}
+        message_store = {}
+        read_conversations.return_value = (conversation_store, [conversation])
+        read_store.return_value = message_store
+
+        result = main.post_channel_message(
+            channel="outside-counsel",
+            conversation_id="outside-counsel",
+            domain="law",
+            message="Hi Egeria, help me write the next response.",
+            author_name="Darrin",
+            author_email="owner@example.com",
+            audience="conversation",
+        )
+
+        thread = message_store["law:conversation:outside-counsel"]
+        self.assertEqual(len(thread), 2)
+        self.assertEqual(thread[0]["author_name"], "Darrin")
+        self.assertEqual(thread[1]["author_name"], "Egeria")
+        self.assertEqual(thread[1]["provider"], "openai")
+        self.assertTrue(result["egeria_requested"])
+        self.assertEqual(result["egeria_message"]["message"], "Here is a concise, send-ready reply.")
+        self.assertEqual(conversation["last_author"], "Egeria")
+        response_text.assert_called_once()
+
+    @patch.dict(main.os.environ, {}, clear=True)
+    def test_missing_model_key_is_reported_instead_of_faking_a_reply(self):
+        with self.assertRaises(HTTPException) as unavailable:
+            main._channel_egeria_response_text(
+                {"title": "Pool", "participants": []},
+                [],
+                "Help me draft a reply.",
+                "Darrin",
+            )
+        self.assertEqual(unavailable.exception.status_code, 503)
+        self.assertIn("OPENAI_API_KEY", str(unavailable.exception.detail))
+
+
 if __name__ == "__main__":
     unittest.main()
