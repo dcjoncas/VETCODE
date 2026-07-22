@@ -1,0 +1,45 @@
+{
+  "ok": true,
+  "documents": [
+    {
+      "file": "LegalReady-End-to-End-Training-Guide.docx",
+      "paragraphs": 74,
+      "tables": 8,
+      "sections": 1,
+      "issues": [],
+      "ok": true
+    },
+    {
+      "file": "Sample-JD-Legal-Operations-eDiscovery-Analyst.docx",
+      "paragraphs": 30,
+      "tables": 1,
+      "sections": 1,
+      "issues": [],
+      "ok": true
+    },
+    {
+      "file": "Sample-Resume-Jordan-Ellis-Mitch.docx",
+      "paragraphs": 34,
+      "tables": 1,
+      "sections": 1,
+      "issues": [],
+      "ok": true
+    },
+    {
+      "file": "Sample-Resume-Jordan-Ellis-Michael.docx",
+      "paragraphs": 34,
+      "tables": 1,
+      "sections": 1,
+      "issues": [],
+      "ok": true
+    },
+    {
+      "file": "Sample-Resume-Jordan-Ellis-Kacey-Jo.docx",
+      "paragraphs": 34,
+      "tables": 1,
+      "sections": 1,
+      "issues": [],
+      "ok": true
+    }
+  ]
+}

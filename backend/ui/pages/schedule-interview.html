@@ -617,6 +617,61 @@
         return document.getElementById(id);
       }
 
+      function legalReadyTrainingContext() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("training") !== "1" || (sessionStorage.getItem("domain") || "dev") !== "law") return null;
+        const allowed = {
+          "mitch.blake@legalready.io": "Mitch Blake",
+          "michael.shrader@legalready.io": "Michael Shrader",
+          "kacey-jo.hyde@legalready.io": "Kacey-Jo Hyde",
+        };
+        const email = String(params.get("trainingEmail") || sessionStorage.getItem("legalreadyTrainingEmail") || "").trim().toLowerCase();
+        if (!allowed[email]) return null;
+        return {
+          email,
+          name: params.get("trainee") || sessionStorage.getItem("legalreadyTrainingName") || allowed[email],
+        };
+      }
+
+      function applyTrainingActionSafety() {
+        const button = byId("scheduleActionButton");
+        if (!button) return;
+        const training = legalReadyTrainingContext();
+        button.disabled = Boolean(training);
+        if (training) {
+          button.textContent = "Training: live send blocked";
+          button.title = "Generate the email draft to archive the training handoff. Live calendar sending is disabled.";
+        } else {
+          button.removeAttribute("title");
+        }
+      }
+
+      function applyLegalReadyTrainingRouting() {
+        const training = legalReadyTrainingContext();
+        if (!training) return;
+        sessionStorage.setItem("legalreadyTrainingEmail", training.email);
+        sessionStorage.setItem("legalreadyTrainingName", training.name);
+        byId("candidateNameInput").value = "Jordan Ellis";
+        byId("candidateEmailInput").value = training.email;
+        byId("roleInput").value = "Legal Operations & eDiscovery Analyst - Training";
+        byId("companyInput").value = "Summit & Vale LLP - LegalReady Training";
+        byId("candidateInterviewerNameInput").value = training.name;
+        byId("candidateInterviewerEmailInput").value = training.email;
+        byId("clientCompanyInput").value = "Summit & Vale LLP - LegalReady Training";
+        byId("clientContactNameInput").value = "Avery Stone (Training Client)";
+        byId("clientContactEmailInput").value = training.email;
+        byId("attendeesInput").value = training.email;
+        appendContextBlock(
+          "LegalReady training routing",
+          `Candidate, client, interviewer, and attendee all route to ${training.email}. Generate and archive the draft only; live sending is blocked.`,
+        );
+        byId("contextNotice").textContent = `Jordan Ellis - LegalReady training - ${training.email}`;
+        byId("scheduleBreadcrumb").textContent = `${interviewType === "ready" ? "Candidate Review" : "Client Interview"} - draft-only training`;
+        showResult(`Training mode is active for ${training.email}. Generate the email to archive the draft; live calendar sending is disabled.`);
+        applyTrainingActionSafety();
+        updateCalendlyLink();
+      }
+
       function setTile(id, connected, message) {
         const tile = byId(id);
         tile.classList.toggle("status-ok", Boolean(connected));
@@ -683,6 +738,7 @@
             : connected
               ? `Send ${isReady ? "Candidate Review" : "Client Interview"} invite`
               : `Connect ${selectedProvider === "outlook" ? "Outlook" : "Google"}`;
+        applyTrainingActionSafety();
       }
 
       function connectGoogle() {
@@ -715,6 +771,7 @@
           outlook: "Microsoft Teams",
         }[provider];
         updateCalendlyLink();
+        applyTrainingActionSafety();
       }
 
       function updateCrossWorkflowLinks() {
@@ -1395,14 +1452,15 @@
           });
           byId("subjectInput").value = latestDraft.email_subject || latestDraft.title || "";
           byId("emailOutput").textContent = latestDraft.email_body || "";
+          const training = legalReadyTrainingContext();
           saveScheduleTracking({
-            provider: "Draft",
-            status: "Draft generated",
+            provider: training ? "training-no-send" : "Draft",
+            status: training ? "Training draft archived" : "Draft generated",
             subject: latestDraft.email_subject || latestDraft.title || "",
             message: latestDraft.email_body || "",
-            nextAction: "Review and send interview invite",
+            nextAction: training ? "Verify the training draft in Status; do not send" : "Review and send interview invite",
           });
-          showResult("Draft ready.");
+          showResult(training ? "Training draft ready and archived. Live sending remains blocked." : "Draft ready.");
           return latestDraft;
         } catch (error) {
           showResult(error.message || String(error), true);
@@ -1412,6 +1470,10 @@
 
       async function createInvite() {
         try {
+          if (legalReadyTrainingContext()) {
+            showResult("Live calendar sending is blocked in LegalReady training mode. Generate the email draft to archive the exercise.", true);
+            return;
+          }
           if (!validateInterviewContacts()) return;
           const draft = latestDraft || (await generateDraft());
           if (!draft) return;
@@ -1448,6 +1510,10 @@
       }
 
       async function scheduleSelectedProvider() {
+        if (legalReadyTrainingContext()) {
+          showResult("Live booking and calendar sending are blocked in LegalReady training mode. Use Generate email instead.", true);
+          return;
+        }
         if (selectedProvider === "calendly") {
           bookWithCalendly();
           return;
@@ -1572,6 +1638,7 @@
         await loadInterviewArchive();
         loadClientCommunicationContext();
         await loadCandidateChatContext(sessionStorage.getItem("candidateId"));
+        applyLegalReadyTrainingRouting();
         byId("companyInput").addEventListener("input", () => {
           if (interviewType === "client") byId("clientCompanyInput").value = byId("companyInput").value;
         });

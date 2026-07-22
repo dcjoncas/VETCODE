@@ -1,0 +1,183 @@
+{
+  "run_id": "LR-TRAIN-20260722T213504Z-31B7C6",
+  "generated_at": "2026-07-22T21:35:04.841296Z",
+  "base_url": "https://vetcode-dev.up.railway.app",
+  "domain": "law",
+  "email": "mitch.blake@legalready.io",
+  "trainee_name": "Mitch Blake",
+  "mode": "execute",
+  "no_send_guarantee": "The runner never calls /api/calendar/invite/create.",
+  "steps": [
+    {
+      "name": "Page/API reachable: /",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "Page/API reachable: /api/environment",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "Page/API reachable: /ui/pages/job-descriptions.html?domain=law",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "Page/API reachable: /ui/pages/find-candidate.html?domain=law",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "Page/API reachable: /ui/pages/match-role.html?domain=law",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "Page/API reachable: /ui/pages/profile-preview.html?domain=law",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "Page/API reachable: /ui/pages/client-comm.html?domain=law",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "Page/API reachable: /ui/pages/schedule-interview.html?domain=law&interview=ready",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "Page/API reachable: /ui/pages/schedule-interview.html?domain=law&interview=client",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "Page/API reachable: /ui/pages/status-tracker.html?domain=law",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "Calendar and AI health",
+      "ok": true,
+      "detail": "{\"ok\": true, \"google_secret_found\": false, \"google_secret_location\": null, \"google\": {\"connected\": false, \"token_found\": false, \"needs_auth\": true}, \"outlook\": {\"connected\": false, \"token_found\": false, \"needs_auth\": true, \"client_configured\": true, \"secret_value_needed\": false, \"redirect_uri\": \"http://localhost:8000/auth/outlook/callback\", \"tenant\": \"common\", \"required_scopes\": [\"offline_access\","
+    },
+    {
+      "name": "Training files present",
+      "ok": true,
+      "detail": "JD=Sample-JD-Legal-Operations-eDiscovery-Analyst.docx; resume=Sample-Resume-Jordan-Ellis-Mitch.docx"
+    },
+    {
+      "name": "Create training job description",
+      "ok": true,
+      "detail": "JD ID 88; extracted skills 33"
+    },
+    {
+      "name": "Upload résumé and generate profile",
+      "ok": true,
+      "detail": "Profile ID 2368; name Jordan Ellis; existing=True"
+    },
+    {
+      "name": "Read generated profile",
+      "ok": true,
+      "detail": "Profile email mitch.blake@legalready.io; profile returned"
+    },
+    {
+      "name": "Rank candidate against JD",
+      "ok": true,
+      "detail": "Candidate found in 11 results; score=63"
+    },
+    {
+      "name": "Generate candidate-review email",
+      "ok": true,
+      "detail": "Ready Interview: Legal Operations & eDiscovery Analyst - Training (45 minutes)"
+    },
+    {
+      "name": "Generate client-interview email",
+      "ok": true,
+      "detail": "Client Interview: Legal Operations & eDiscovery Analyst - Training at Summit & Vale LLP - LegalReady Training"
+    },
+    {
+      "name": "Archive candidate review",
+      "ok": true,
+      "detail": "Archive ID LR-TRAIN-20260722T213504Z-31B7C6-CANDIDATE; provider training-no-send"
+    },
+    {
+      "name": "Archive client interview",
+      "ok": true,
+      "detail": "Archive ID LR-TRAIN-20260722T213504Z-31B7C6-CLIENT; provider training-no-send"
+    },
+    {
+      "name": "Verify archive LR-TRAIN-20260722T213504Z-31B7C6-CANDIDATE",
+      "ok": true,
+      "detail": "Read-back count=1; trainee email present=True"
+    },
+    {
+      "name": "Verify archive LR-TRAIN-20260722T213504Z-31B7C6-CLIENT",
+      "ok": true,
+      "detail": "Read-back count=1; trainee email present=True"
+    }
+  ],
+  "artifacts": {
+    "calendar_health": {
+      "ok": true,
+      "google_secret_found": false,
+      "google_secret_location": null,
+      "google": {
+        "connected": false,
+        "token_found": false,
+        "needs_auth": true
+      },
+      "outlook": {
+        "connected": false,
+        "token_found": false,
+        "needs_auth": true,
+        "client_configured": true,
+        "secret_value_needed": false,
+        "redirect_uri": "http://localhost:8000/auth/outlook/callback",
+        "tenant": "common",
+        "required_scopes": [
+          "offline_access",
+          "User.Read",
+          "Calendars.ReadWrite",
+          "Mail.Send"
+        ],
+        "mail_send_ready_after_reauth": true,
+        "session_scoped": true
+      },
+      "openai_key_found": true,
+      "model": "gpt-5"
+    },
+    "jd": {
+      "jd_id": "88",
+      "company": "Summit & Vale LLP - LegalReady Training",
+      "title": "Legal Operations & eDiscovery Analyst - Training"
+    },
+    "profile": {
+      "profile_id": "2368",
+      "name": "Jordan Ellis",
+      "email": "mitch.blake@legalready.io"
+    },
+    "match": {
+      "candidate_found": true,
+      "score": 63,
+      "top_matches": [
+        "SQL",
+        "Python",
+        "Power BI",
+        "Excel",
+        "Adobe",
+        "Microsoft",
+        "Adobe Acrobat"
+      ]
+    },
+    "archive_ids": [
+      "LR-TRAIN-20260722T213504Z-31B7C6-CANDIDATE",
+      "LR-TRAIN-20260722T213504Z-31B7C6-CLIENT"
+    ],
+    "candidate_review_time_utc": "2026-07-23T16:00:00Z",
+    "client_interview_time_utc": "2026-07-23T19:00:00Z"
+  },
+  "ok": true
+}

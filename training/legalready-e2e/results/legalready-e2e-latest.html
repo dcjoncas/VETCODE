@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>LegalReady E2E Training Evidence</title>
+<style>
+body{font:15px/1.5 Arial,sans-serif;color:#17211b;margin:36px;max-width:1100px}
+h1,h2{color:#134b2f} .summary{padding:14px 18px;border-left:5px solid #69a932;background:#f1f8ec}
+table{border-collapse:collapse;width:100%;margin-top:18px}th,td{border:1px solid #cfd9d1;padding:9px;text-align:left;vertical-align:top}
+th{background:#edf4ef}.pass{color:#176b38;font-weight:700}.fail{color:#a12622;font-weight:700}
+code{background:#f3f5f4;padding:2px 5px}small{color:#58635c}
+</style></head><body>
+<h1>LegalReady End-to-End Training Evidence</h1>
+<div class="summary"><strong>PASS</strong> - LR-TRAIN-20260722T213504Z-31B7C6<br>
+Trainee routing: <code>mitch.blake@legalready.io</code><br>
+No email or calendar invite was sent. Draft and archive endpoints only.</div>
+<h2>Validated workflow</h2><table><thead><tr><th>Step</th><th>Result</th><th>Evidence</th></tr></thead><tbody><tr><td>Page/API reachable: /</td><td class="pass">PASS</td><td>HTTP 200</td></tr><tr><td>Page/API reachable: /api/environment</td><td class="pass">PASS</td><td>HTTP 200</td></tr><tr><td>Page/API reachable: /ui/pages/job-descriptions.html?domain=law</td><td class="pass">PASS</td><td>HTTP 200</td></tr><tr><td>Page/API reachable: /ui/pages/find-candidate.html?domain=law</td><td class="pass">PASS</td><td>HTTP 200</td></tr><tr><td>Page/API reachable: /ui/pages/match-role.html?domain=law</td><td class="pass">PASS</td><td>HTTP 200</td></tr><tr><td>Page/API reachable: /ui/pages/profile-preview.html?domain=law</td><td class="pass">PASS</td><td>HTTP 200</td></tr><tr><td>Page/API reachable: /ui/pages/client-comm.html?domain=law</td><td class="pass">PASS</td><td>HTTP 200</td></tr><tr><td>Page/API reachable: /ui/pages/schedule-interview.html?domain=law&amp;interview=ready</td><td class="pass">PASS</td><td>HTTP 200</td></tr><tr><td>Page/API reachable: /ui/pages/schedule-interview.html?domain=law&amp;interview=client</td><td class="pass">PASS</td><td>HTTP 200</td></tr><tr><td>Page/API reachable: /ui/pages/status-tracker.html?domain=law</td><td class="pass">PASS</td><td>HTTP 200</td></tr><tr><td>Calendar and AI health</td><td class="pass">PASS</td><td>{&quot;ok&quot;: true, &quot;google_secret_found&quot;: false, &quot;google_secret_location&quot;: null, &quot;google&quot;: {&quot;connected&quot;: false, &quot;token_found&quot;: false, &quot;needs_auth&quot;: true}, &quot;outlook&quot;: {&quot;connected&quot;: false, &quot;token_found&quot;: false, &quot;needs_auth&quot;: true, &quot;client_configured&quot;: true, &quot;secret_value_needed&quot;: false, &quot;redirect_uri&quot;: &quot;http://localhost:8000/auth/outlook/callback&quot;, &quot;tenant&quot;: &quot;common&quot;, &quot;required_scopes&quot;: [&quot;offline_access&quot;,</td></tr><tr><td>Training files present</td><td class="pass">PASS</td><td>JD=Sample-JD-Legal-Operations-eDiscovery-Analyst.docx; resume=Sample-Resume-Jordan-Ellis-Mitch.docx</td></tr><tr><td>Create training job description</td><td class="pass">PASS</td><td>JD ID 88; extracted skills 33</td></tr><tr><td>Upload résumé and generate profile</td><td class="pass">PASS</td><td>Profile ID 2368; name Jordan Ellis; existing=True</td></tr><tr><td>Read generated profile</td><td class="pass">PASS</td><td>Profile email mitch.blake@legalready.io; profile returned</td></tr><tr><td>Rank candidate against JD</td><td class="pass">PASS</td><td>Candidate found in 11 results; score=63</td></tr><tr><td>Generate candidate-review email</td><td class="pass">PASS</td><td>Ready Interview: Legal Operations &amp; eDiscovery Analyst - Training (45 minutes)</td></tr><tr><td>Generate client-interview email</td><td class="pass">PASS</td><td>Client Interview: Legal Operations &amp; eDiscovery Analyst - Training at Summit &amp; Vale LLP - LegalReady Training</td></tr><tr><td>Archive candidate review</td><td class="pass">PASS</td><td>Archive ID LR-TRAIN-20260722T213504Z-31B7C6-CANDIDATE; provider training-no-send</td></tr><tr><td>Archive client interview</td><td class="pass">PASS</td><td>Archive ID LR-TRAIN-20260722T213504Z-31B7C6-CLIENT; provider training-no-send</td></tr><tr><td>Verify archive LR-TRAIN-20260722T213504Z-31B7C6-CANDIDATE</td><td class="pass">PASS</td><td>Read-back count=1; trainee email present=True</td></tr><tr><td>Verify archive LR-TRAIN-20260722T213504Z-31B7C6-CLIENT</td><td class="pass">PASS</td><td>Read-back count=1; trainee email present=True</td></tr></tbody></table>
+<h2>Result IDs</h2><pre>{
+  &quot;calendar_health&quot;: {
+    &quot;ok&quot;: true,
+    &quot;google_secret_found&quot;: false,
+    &quot;google_secret_location&quot;: null,
+    &quot;google&quot;: {
+      &quot;connected&quot;: false,
+      &quot;token_found&quot;: false,
+      &quot;needs_auth&quot;: true
+    },
+    &quot;outlook&quot;: {
+      &quot;connected&quot;: false,
+      &quot;token_found&quot;: false,
+      &quot;needs_auth&quot;: true,
+      &quot;client_configured&quot;: true,
+      &quot;secret_value_needed&quot;: false,
+      &quot;redirect_uri&quot;: &quot;http://localhost:8000/auth/outlook/callback&quot;,
+      &quot;tenant&quot;: &quot;common&quot;,
+      &quot;required_scopes&quot;: [
+        &quot;offline_access&quot;,
+        &quot;User.Read&quot;,
+        &quot;Calendars.ReadWrite&quot;,
+        &quot;Mail.Send&quot;
+      ],
+      &quot;mail_send_ready_after_reauth&quot;: true,
+      &quot;session_scoped&quot;: true
+    },
+    &quot;openai_key_found&quot;: true,
+    &quot;model&quot;: &quot;gpt-5&quot;
+  },
+  &quot;jd&quot;: {
+    &quot;jd_id&quot;: &quot;88&quot;,
+    &quot;company&quot;: &quot;Summit &amp; Vale LLP - LegalReady Training&quot;,
+    &quot;title&quot;: &quot;Legal Operations &amp; eDiscovery Analyst - Training&quot;
+  },
+  &quot;profile&quot;: {
+    &quot;profile_id&quot;: &quot;2368&quot;,
+    &quot;name&quot;: &quot;Jordan Ellis&quot;,
+    &quot;email&quot;: &quot;mitch.blake@legalready.io&quot;
+  },
+  &quot;match&quot;: {
+    &quot;candidate_found&quot;: true,
+    &quot;score&quot;: 63,
+    &quot;top_matches&quot;: [
+      &quot;SQL&quot;,
+      &quot;Python&quot;,
+      &quot;Power BI&quot;,
+      &quot;Excel&quot;,
+      &quot;Adobe&quot;,
+      &quot;Microsoft&quot;,
+      &quot;Adobe Acrobat&quot;
+    ]
+  },
+  &quot;archive_ids&quot;: [
+    &quot;LR-TRAIN-20260722T213504Z-31B7C6-CANDIDATE&quot;,
+    &quot;LR-TRAIN-20260722T213504Z-31B7C6-CLIENT&quot;
+  ],
+  &quot;candidate_review_time_utc&quot;: &quot;2026-07-23T16:00:00Z&quot;,
+  &quot;client_interview_time_utc&quot;: &quot;2026-07-23T19:00:00Z&quot;
+}</pre>
+<small>Generated 2026-07-22T21:35:04.841296Z</small>
+</body></html>
