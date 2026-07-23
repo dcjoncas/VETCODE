@@ -2,6 +2,8 @@
 
 Use `LegalReady-End-to-End-Training-Guide.docx` as the trainer script. The exercise follows the live Law workflow from job description through candidate intake, matching, vetting, client communication, candidate review, client interview, and Status verification.
 
+The live platform now has a separate **Platform Training** page at `/ui/pages/legalready-training.html?domain=law`. It starts in Talent and walks a trainee through finding a candidate internally or externally, completing the profile, selecting the JD, matching, shortlisting, confirming interest, scheduling both calls, and onboarding. This guide is intentionally separate from Mobile Modules, which remains the phone-first user app.
+
 ## Files trainees use
 
 - `Sample-JD-Legal-Operations-eDiscovery-Analyst.docx`

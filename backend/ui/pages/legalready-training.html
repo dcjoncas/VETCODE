@@ -1,0 +1,1120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LegalReady - Platform Training</title>
+    <link class="domainLogo" rel="icon" href="../assets/lawLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/lawStyles.css" />
+    <script>
+      (function () {
+        sessionStorage.setItem("domain", "law");
+        document.documentElement.dataset.domain = "law";
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html?v=20260722-platform-training");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+    <style>
+      :root {
+        --training-ink: #15251c;
+        --training-muted: #5a6a61;
+        --training-green: #1f6b45;
+        --training-green-dark: #12482e;
+        --training-soft: #edf7f1;
+        --training-gold: #a66b16;
+        --training-gold-soft: #fff7e6;
+        --training-line: #d8e5dc;
+        --training-shadow: 0 16px 42px rgba(19, 55, 36, 0.1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      .main {
+        min-width: 0;
+      }
+
+      .training-shell,
+      .training-shell * {
+        overflow-wrap: normal;
+        word-break: normal;
+      }
+
+      .training-shell {
+        display: grid;
+        gap: 16px;
+        max-width: 1460px;
+        margin: 0 auto;
+        color: var(--training-ink);
+      }
+
+      .training-hero {
+        position: relative;
+        overflow: hidden;
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.7fr);
+        gap: 24px;
+        padding: 26px;
+        border: 1px solid var(--training-line);
+        border-radius: 20px;
+        background:
+          radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.24), transparent 28%),
+          linear-gradient(135deg, #12482e, #277950);
+        color: #fff;
+        box-shadow: var(--training-shadow);
+      }
+
+      .training-hero::after {
+        content: "";
+        position: absolute;
+        right: -90px;
+        bottom: -120px;
+        width: 280px;
+        height: 280px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 50%;
+      }
+
+      .eyebrow {
+        margin: 0 0 8px;
+        color: #d9f5e4;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .training-hero h1 {
+        max-width: 780px;
+        margin: 0;
+        font-size: clamp(28px, 3vw, 46px);
+        line-height: 1.04;
+        letter-spacing: -0.035em;
+      }
+
+      .training-hero .lede {
+        max-width: 760px;
+        margin: 14px 0 0;
+        color: #edf9f1;
+        font-size: 16px;
+        line-height: 1.55;
+      }
+
+      .hero-proof {
+        position: relative;
+        z-index: 1;
+        align-self: stretch;
+        display: grid;
+        align-content: center;
+        gap: 8px;
+        padding: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(8px);
+      }
+
+      .hero-proof strong {
+        font-size: 30px;
+        line-height: 1;
+      }
+
+      .hero-proof span {
+        color: #e4f4ea;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .setup-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .setup-card,
+      .safety-card {
+        min-width: 0;
+        padding: 16px;
+        border: 1px solid var(--training-line);
+        border-radius: 14px;
+        background: #fff;
+      }
+
+      .setup-card label {
+        display: grid;
+        gap: 7px;
+        color: var(--training-muted);
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .setup-card select {
+        width: 100%;
+        min-height: 44px;
+        padding: 9px 11px;
+        border: 1px solid #bdcec2;
+        border-radius: 10px;
+        background: #fff;
+        color: var(--training-ink);
+        font-size: 14px;
+        font-weight: 750;
+      }
+
+      .path-toggle {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .path-button {
+        min-height: 44px;
+        padding: 9px 11px;
+        border: 1px solid #bdcec2;
+        border-radius: 10px;
+        background: #fff;
+        color: var(--training-ink);
+        cursor: pointer;
+        font: inherit;
+        font-weight: 850;
+      }
+
+      .path-button.active {
+        border-color: var(--training-green);
+        background: var(--training-soft);
+        color: var(--training-green-dark);
+        box-shadow: inset 0 0 0 1px var(--training-green);
+      }
+
+      .safety-card {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        border-color: #ebd8a7;
+        background: var(--training-gold-soft);
+      }
+
+      .safety-icon {
+        flex: 0 0 auto;
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: #fff0c9;
+        color: #77500f;
+        font-weight: 950;
+      }
+
+      .safety-card strong,
+      .safety-card span {
+        display: block;
+      }
+
+      .safety-card span {
+        margin-top: 3px;
+        color: #6b562c;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .flow-strip {
+        display: flex;
+        gap: 7px;
+        align-items: center;
+        overflow-x: auto;
+        padding: 12px;
+        border: 1px solid var(--training-line);
+        border-radius: 14px;
+        background: #fff;
+        scrollbar-width: thin;
+      }
+
+      .flow-chip {
+        flex: 0 0 auto;
+        padding: 7px 9px;
+        border-radius: 999px;
+        background: #f3f6f4;
+        color: var(--training-muted);
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .flow-arrow {
+        flex: 0 0 auto;
+        color: #9aaba0;
+        font-weight: 900;
+      }
+
+      .guide-layout {
+        display: grid;
+        grid-template-columns: minmax(250px, 0.34fr) minmax(0, 1fr);
+        gap: 16px;
+        align-items: start;
+      }
+
+      .roadmap-card {
+        position: sticky;
+        top: 12px;
+        overflow: hidden;
+        border: 1px solid var(--training-line);
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 10px 28px rgba(19, 55, 36, 0.07);
+      }
+
+      .roadmap-head {
+        padding: 16px;
+        border-bottom: 1px solid var(--training-line);
+        background: #f8fbf9;
+      }
+
+      .roadmap-head strong,
+      .roadmap-head span {
+        display: block;
+      }
+
+      .roadmap-head span {
+        margin-top: 4px;
+        color: var(--training-muted);
+        font-size: 12px;
+      }
+
+      .progress-track {
+        height: 6px;
+        margin-top: 11px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e5ece7;
+      }
+
+      .progress-fill {
+        width: 0;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--training-green), #44a36e);
+        transition: width 180ms ease;
+      }
+
+      .roadmap-list {
+        display: grid;
+        max-height: min(620px, calc(100vh - 250px));
+        overflow-y: auto;
+        padding: 8px;
+      }
+
+      .roadmap-step {
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr);
+        gap: 10px;
+        align-items: center;
+        width: 100%;
+        padding: 9px;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--training-ink);
+        cursor: pointer;
+        text-align: left;
+        font: inherit;
+      }
+
+      .roadmap-step:hover {
+        background: #f4f8f5;
+      }
+
+      .roadmap-step.current {
+        background: var(--training-soft);
+        color: var(--training-green-dark);
+      }
+
+      .step-number {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border: 1px solid #cbd9cf;
+        border-radius: 50%;
+        color: var(--training-muted);
+        font-size: 12px;
+        font-weight: 950;
+      }
+
+      .roadmap-step.complete .step-number {
+        border-color: var(--training-green);
+        background: var(--training-green);
+        color: #fff;
+      }
+
+      .roadmap-label {
+        min-width: 0;
+        font-size: 13px;
+        font-weight: 850;
+        line-height: 1.25;
+      }
+
+      .lesson-card {
+        min-width: 0;
+        overflow: hidden;
+        border: 1px solid var(--training-line);
+        border-radius: 18px;
+        background: #fff;
+        box-shadow: var(--training-shadow);
+      }
+
+      .lesson-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: start;
+        padding: 24px;
+        border-bottom: 1px solid var(--training-line);
+        background: linear-gradient(180deg, #fff, #f9fbfa);
+      }
+
+      .lesson-kicker {
+        margin: 0 0 6px;
+        color: var(--training-green);
+        font-size: 12px;
+        font-weight: 950;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .lesson-head h2 {
+        margin: 0;
+        color: var(--training-ink);
+        font-size: clamp(24px, 2.3vw, 34px);
+        line-height: 1.12;
+        letter-spacing: -0.025em;
+      }
+
+      .lesson-why {
+        max-width: 760px;
+        margin: 10px 0 0;
+        color: var(--training-muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .open-workspace {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 10px 15px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--training-green);
+        color: #fff;
+        cursor: pointer;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 900;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      .lesson-body {
+        display: grid;
+        gap: 16px;
+        padding: 24px;
+      }
+
+      .instruction-block h3,
+      .proof-block h3,
+      .practice-block h3 {
+        margin: 0 0 10px;
+        color: var(--training-ink);
+        font-size: 14px;
+      }
+
+      .checklist {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        counter-reset: training-action;
+      }
+
+      .checklist li {
+        counter-increment: training-action;
+        display: grid;
+        grid-template-columns: 29px minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+        color: #2f4037;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .checklist li::before {
+        content: counter(training-action);
+        display: grid;
+        place-items: center;
+        width: 27px;
+        height: 27px;
+        border-radius: 8px;
+        background: var(--training-soft);
+        color: var(--training-green-dark);
+        font-size: 12px;
+        font-weight: 950;
+      }
+
+      .lesson-lower {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .proof-block,
+      .practice-block {
+        min-width: 0;
+        padding: 15px;
+        border: 1px solid var(--training-line);
+        border-radius: 12px;
+        background: #f8fbf9;
+      }
+
+      .proof-block p,
+      .practice-block p {
+        margin: 0;
+        color: var(--training-muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .practice-facts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 10px;
+      }
+
+      .fact-pill {
+        padding: 6px 8px;
+        border-radius: 999px;
+        background: #fff;
+        color: var(--training-green-dark);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .lesson-actions {
+        display: flex;
+        gap: 9px;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        padding: 16px 24px;
+        border-top: 1px solid var(--training-line);
+        background: #fbfcfb;
+      }
+
+      .action-group {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .guide-button {
+        min-height: 40px;
+        padding: 8px 13px;
+        border: 1px solid #bdcec2;
+        border-radius: 9px;
+        background: #fff;
+        color: var(--training-ink);
+        cursor: pointer;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 850;
+      }
+
+      .guide-button.primary {
+        border-color: var(--training-green-dark);
+        background: var(--training-green-dark);
+        color: #fff;
+      }
+
+      .guide-button.complete {
+        border-color: var(--training-green);
+        background: var(--training-soft);
+        color: var(--training-green-dark);
+      }
+
+      .guide-button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .completion-card {
+        display: none;
+        padding: 20px;
+        border: 1px solid #b8d9c3;
+        border-radius: 14px;
+        background: var(--training-soft);
+      }
+
+      .completion-card.show {
+        display: block;
+      }
+
+      .completion-card h3 {
+        margin: 0 0 6px;
+        color: var(--training-green-dark);
+      }
+
+      .completion-card p {
+        margin: 0;
+        color: #3f6350;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 980px) {
+        .container {
+          display: block;
+          width: 100%;
+          min-width: 0;
+        }
+
+        #siteSidebar {
+          display: none;
+        }
+
+        .main {
+          width: 100%;
+          min-width: 0;
+          padding: 16px;
+        }
+
+        .topbar {
+          flex-wrap: wrap;
+        }
+
+        .training-hero,
+        .guide-layout {
+          grid-template-columns: 1fr;
+        }
+
+        .roadmap-card {
+          position: static;
+        }
+
+        .roadmap-list {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          max-height: none;
+        }
+      }
+
+      @media (max-width: 680px) {
+        .main {
+          padding: 12px;
+        }
+
+        .topbar > div:first-child {
+          width: 100%;
+          min-width: 0;
+        }
+
+        .breadcrumb {
+          white-space: normal;
+        }
+
+        #searchBar,
+        .search {
+          width: 100%;
+          min-width: 0;
+        }
+
+        .search .input {
+          min-width: 0;
+          flex: 1 1 auto;
+        }
+
+        .training-hero {
+          padding: 20px;
+        }
+
+        .setup-grid,
+        .lesson-lower,
+        .lesson-head {
+          grid-template-columns: 1fr;
+        }
+
+        .roadmap-list {
+          grid-template-columns: 1fr;
+        }
+
+        .lesson-head,
+        .lesson-body {
+          padding: 18px;
+        }
+
+        .lesson-actions {
+          padding: 14px 18px;
+        }
+
+        .open-workspace {
+          width: 100%;
+          white-space: normal;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Platform Training</div>
+            <div class="breadcrumb">LegalReady · Talent to onboarding</div>
+          </div>
+          <div id="searchBar"></div>
+        </div>
+
+        <div class="training-shell">
+          <section class="training-hero" aria-labelledby="trainingTitle">
+            <div>
+              <p class="eyebrow">LegalReady guided practice</p>
+              <h1 id="trainingTitle">Run one candidate through the complete platform.</h1>
+              <p class="lede">Follow the real Law workflow in order. Each step tells you what to do, where to do it, and what proof your trainer should check before you move on.</p>
+            </div>
+            <div class="hero-proof" aria-label="Validated practice result">
+              <span>Validated sample result</span>
+              <strong>63% match</strong>
+              <span>Jordan Ellis · profile 2368 · JD 88 · passes the 50% training threshold</span>
+            </div>
+          </section>
+
+          <section class="setup-grid" aria-label="Training setup">
+            <div class="setup-card">
+              <label for="traineeSelect">1. Choose your LegalReady training identity
+                <select id="traineeSelect">
+                  <option value="mitch.blake@legalready.io">Mitch Blake · mitch.blake@legalready.io</option>
+                  <option value="michael.shrader@legalready.io">Michael Shrader · michael.shrader@legalready.io</option>
+                  <option value="kacey-jo.hyde@legalready.io">Kacey-Jo Hyde · kacey-jo.hyde@legalready.io</option>
+                </select>
+              </label>
+            </div>
+            <div class="setup-card">
+              <label>2. Choose how you will find the candidate</label>
+              <div class="path-toggle" role="group" aria-label="Candidate source">
+                <button class="path-button active" type="button" data-path="internal">Find (In)</button>
+                <button class="path-button" type="button" data-path="external">Find (Out)</button>
+              </div>
+            </div>
+            <div class="safety-card">
+              <span class="safety-icon" aria-hidden="true">!</span>
+              <div>
+                <strong>Training safety rule</strong>
+                <span>Use your selected LegalReady email for the candidate, client, interviewer, and attendee. Create drafts or archived practice records only. Do not send a live email or calendar invitation unless your trainer specifically authorizes it.</span>
+              </div>
+            </div>
+          </section>
+
+          <div id="flowStrip" class="flow-strip" aria-label="End-to-end workflow"></div>
+
+          <section class="guide-layout">
+            <aside class="roadmap-card" aria-label="Training roadmap">
+              <div class="roadmap-head">
+                <strong>Your progress</strong>
+                <span id="progressLabel">0 of 10 steps complete</span>
+                <div class="progress-track" aria-hidden="true"><div id="progressFill" class="progress-fill"></div></div>
+              </div>
+              <div id="roadmapList" class="roadmap-list"></div>
+            </aside>
+
+            <div>
+              <article class="lesson-card" aria-live="polite">
+                <header class="lesson-head">
+                  <div>
+                    <p id="lessonKicker" class="lesson-kicker"></p>
+                    <h2 id="lessonTitle"></h2>
+                    <p id="lessonWhy" class="lesson-why"></p>
+                  </div>
+                  <a id="openWorkspace" class="open-workspace" href="#">Open this platform page →</a>
+                </header>
+                <div class="lesson-body">
+                  <section class="instruction-block">
+                    <h3>Do this</h3>
+                    <ol id="lessonChecklist" class="checklist"></ol>
+                  </section>
+                  <div class="lesson-lower">
+                    <section class="proof-block">
+                      <h3>Pass proof</h3>
+                      <p id="lessonProof"></p>
+                    </section>
+                    <section class="practice-block">
+                      <h3>Practice record</h3>
+                      <p id="lessonPractice"></p>
+                      <div class="practice-facts">
+                        <span class="fact-pill">Candidate: Jordan Ellis</span>
+                        <span class="fact-pill">Profile: 2368</span>
+                        <span class="fact-pill">JD: 88</span>
+                        <span class="fact-pill">Expected: 63%</span>
+                      </div>
+                    </section>
+                  </div>
+                  <section id="completionCard" class="completion-card">
+                    <h3>Training run complete</h3>
+                    <p>You completed the whole LegalReady platform path. Show the trainer the profile, JD match, shortlist, interest response, both schedule records, and onboarding record.</p>
+                  </section>
+                </div>
+                <footer class="lesson-actions">
+                  <div class="action-group">
+                    <button id="previousButton" class="guide-button" type="button">Previous</button>
+                    <button id="nextButton" class="guide-button" type="button">Next</button>
+                  </div>
+                  <div class="action-group">
+                    <button id="resetButton" class="guide-button" type="button">Reset progress</button>
+                    <button id="completeButton" class="guide-button primary" type="button">Mark step complete</button>
+                  </div>
+                </footer>
+              </article>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="JS/apiScripts.js"></script>
+    <script>
+      const traineeNames = {
+        "mitch.blake@legalready.io": "Mitch Blake",
+        "michael.shrader@legalready.io": "Michael Shrader",
+        "kacey-jo.hyde@legalready.io": "Kacey-Jo Hyde",
+      };
+
+      const trainingSteps = [
+        {
+          key: "talent",
+          short: "Talent",
+          title: "Start in Talent",
+          route: "find-candidate.html",
+          why: "Talent is the front door for every candidate workflow. Starting here keeps the candidate, job, and Law-domain context connected as you move through the platform.",
+          actions: [
+            "Confirm the page shows the Law domain before you touch a candidate record.",
+            "Review the Talent choices: upload a resume, use an existing profile, choose a job description, or search for a candidate.",
+            "For this exercise, continue to the candidate-source step and keep the sample name Jordan Ellis available for reference.",
+          ],
+          proof: "The Talent workspace is open in the Law domain and you can explain whether you will find the candidate inside or outside the existing profile database.",
+          practice: "This guide stores Law as the active domain and preserves any candidate or JD you already selected.",
+        },
+        {
+          key: "candidate-source",
+          short: "Candidate In/Out",
+          title: "Find the candidate internally",
+          route: "find-candidate.html",
+          why: "Search existing profiles first. Reusing a vetted internal record avoids duplicate people and gets you to matching faster.",
+          actions: [
+            "Search the existing Law profiles for Jordan Ellis or another trainer-approved candidate.",
+            "Open the best matching record and confirm the name, email, experience, and resume belong to the same person.",
+            "If there is no suitable internal result, switch the path above to Find (Out) and use the external search workflow.",
+          ],
+          proof: "A single candidate record is selected and its profile opens without creating a duplicate.",
+          practice: "The validated sample candidate is Jordan Ellis, profile 2368.",
+        },
+        {
+          key: "profile",
+          short: "Complete Profile",
+          title: "Vet and complete the candidate profile",
+          route: "profile-preview.html",
+          why: "Matching and client outreach are only as reliable as the profile. Verify the source facts and fill the gaps before presenting the person for a role.",
+          actions: [
+            "Compare the resume with the profile name, contact details, work history, education, skills, and location.",
+            "Correct missing or inaccurate fields. Never invent a credential, employer, date, or skill.",
+            "Review public-profile visibility and private recruiter notes. Record any question that must be confirmed on the internal call.",
+          ],
+          proof: "The profile has a resume, usable contact information, relevant experience, and private notes listing any unresolved questions.",
+          practice: "Use the trainee-specific Jordan Ellis resume from the training kit so all practice identities route to your own LegalReady address.",
+        },
+        {
+          key: "jd",
+          short: "Choose JD",
+          title: "Choose or create the job description",
+          route: "job-descriptions.html",
+          why: "The JD is the scorecard for the rest of the workflow. A clear role produces a useful match instead of a vague percentage.",
+          actions: [
+            "Open the saved Law job descriptions and choose the trainer-approved role, or create one from the sample JD.",
+            "Confirm client, title, required skills, preferred skills, location, compensation, and active status.",
+            "Select the JD so the platform carries it into matching. Use JD 88 for the validated sample run when it is available.",
+          ],
+          proof: "One active Law JD is selected and its required skills are specific enough to explain why a candidate does or does not fit.",
+          practice: "Validated role: Legal Operations / eDiscovery Analyst, JD 88.",
+        },
+        {
+          key: "match",
+          short: "Match",
+          title: "Align the candidate to the JD",
+          route: "match-role.html",
+          why: "The match compares evidence in the profile with the role requirements. Use the result to guide judgment, not replace it.",
+          actions: [
+            "Confirm the correct JD and candidate are selected before running or reviewing the match.",
+            "Read the matched strengths, missing requirements, and score. Open the source profile when a claim needs verification.",
+            "For training, require at least 50%. The validated Jordan Ellis result is 63%; explain the strengths and gaps behind that number.",
+          ],
+          proof: "You can show the match result and explain at least two supported strengths and one real gap without relying only on the percentage.",
+          practice: "Expected validated result: profile 2368 + JD 88 = 63%, above the 50% training threshold.",
+        },
+        {
+          key: "shortlist",
+          short: "Shortlist",
+          title: "Add the candidate to the shortlist",
+          route: "client-comm.html",
+          why: "The shortlist is the controlled handoff between evaluation and client presentation. Only candidates you can defend should appear here.",
+          actions: [
+            "Add the matched candidate to the role shortlist and confirm the selected JD is still attached.",
+            "Review the candidate summary for accuracy, remove unsupported language, and clearly state meaningful fit gaps.",
+            "Prepare the client message as a draft. Use your selected LegalReady email as the client recipient during training.",
+          ],
+          proof: "The candidate appears once on the correct role shortlist and the client draft is accurate, balanced, and still unsent.",
+          practice: "All candidate and client email fields use the selected trainee alias during this exercise.",
+        },
+        {
+          key: "interest",
+          short: "Ask Interest",
+          title: "Ask whether the candidate is interested",
+          route: "profile-preview.html",
+          why: "Candidate interest should be confirmed before a client interview is booked. The platform keeps that response connected to the profile.",
+          actions: [
+            "Open Private recruiter notes on the candidate profile and choose Create feedback link.",
+            "Review the role-interest message and feedback link. In training, address the message to your own selected LegalReady email.",
+            "Open the feedback form, record an interested/not-interested response, and confirm it returns to the private profile notes. Do not send externally without trainer approval.",
+          ],
+          proof: "A role-feedback link exists and the practice response is visible in private recruiter notes with the role context intact.",
+          practice: "The training identity shown in the safety banner is the only email used for the candidate response.",
+        },
+        {
+          key: "internal-call",
+          short: "Internal Call",
+          title: "Schedule the internal candidate call",
+          route: "schedule-interview.html?interview=ready&purpose=role",
+          why: "The internal call validates interest, compensation, timing, experience, and any match gaps before the candidate reaches the client.",
+          actions: [
+            "Open Candidate Review scheduling and confirm the candidate and JD are correct.",
+            "Set the interviewer, attendee, and candidate email to your selected LegalReady address. Choose a practice date and time.",
+            "Prepare the invite or archive a practice record only. On the call, capture interest, pay, timing, strengths, gaps, and next steps in notes.",
+          ],
+          proof: "A candidate-review schedule record or approved draft exists with the candidate, role, time, and internal-call purpose visible; no unauthorized live invite was sent.",
+          practice: "Use the same trainee email in every participant field so the exercise never targets a real candidate.",
+        },
+        {
+          key: "client-call",
+          short: "Client Call",
+          title: "Schedule the external client call",
+          route: "schedule-interview.html?interview=client",
+          why: "The client call should happen only after the candidate is vetted and interested. Keeping the shortlist and JD attached prevents context loss.",
+          actions: [
+            "Open Client Interview scheduling and verify the shortlisted candidate, client, and JD.",
+            "Use your selected LegalReady address for the client, candidate, interviewer, and attendee during training.",
+            "Prepare the agenda and invitation as a draft or archived practice record. Include the role, confirmed participants, time zone, and next-step owner.",
+          ],
+          proof: "A client-interview schedule record or approved draft contains the correct candidate and role, with all practice recipients set to the trainee alias and no unauthorized send.",
+          practice: "Compare this record with the internal call and explain why they are two separate stages.",
+        },
+        {
+          key: "onboarding",
+          short: "Onboard",
+          title: "Start and verify onboarding",
+          route: "onboarding-admin.html",
+          why: "Onboarding turns an accepted placement into a trackable start. It records required documents, ownership, dates, and outstanding work.",
+          actions: [
+            "Create or open the candidate onboarding record only after the trainer confirms the mock placement is ready.",
+            "Verify candidate, client, role, start date, owner, checklist items, and document status. Use your trainee alias for practice contact fields.",
+            "Mark only items you actually verified. Review the record from the administration view and identify the next open action.",
+          ],
+          proof: "The onboarding record is connected to the same candidate and role, shows a clear owner and next action, and contains no falsely completed item.",
+          practice: "Finish by showing the trainer the connected profile, JD, match, shortlist, interest response, both call records, and onboarding record.",
+        },
+      ];
+
+      let selectedPath = sessionStorage.getItem("legalreadyCandidatePath") === "external" ? "external" : "internal";
+      let activeStep = 0;
+      let completedSteps = new Set();
+
+      function selectedEmail() {
+        return document.getElementById("traineeSelect").value;
+      }
+
+      function progressKey() {
+        return `legalreadyPlatformTraining:${selectedEmail()}:${selectedPath}`;
+      }
+
+      function loadProgress() {
+        try {
+          const saved = JSON.parse(sessionStorage.getItem(progressKey()) || "[]");
+          completedSteps = new Set(Array.isArray(saved) ? saved.filter((value) => Number.isInteger(value) && value >= 0 && value < trainingSteps.length) : []);
+        } catch (_error) {
+          completedSteps = new Set();
+        }
+      }
+
+      function saveProgress() {
+        sessionStorage.setItem(progressKey(), JSON.stringify([...completedSteps].sort((a, b) => a - b)));
+      }
+
+      function stepForDisplay(index) {
+        const step = { ...trainingSteps[index] };
+        if (index !== 1 || selectedPath === "internal") return step;
+        step.title = "Find the candidate externally";
+        step.route = "mine-candidate-external.html";
+        step.why = "Use outside sourcing when the internal database has no suitable person. Review temporary results carefully before accepting one into the permanent profile workflow.";
+        step.actions = [
+          "Enter the approved Law role criteria and run the external candidate search only after confirming the internal search was not sufficient.",
+          "Review the source, identity, experience, location, and contact evidence for each temporary result. Reject weak or duplicate records.",
+          "Accept one trainer-approved result into the profile workflow, then open it and confirm the saved data matches the source before continuing.",
+        ];
+        step.proof = "One reviewed external result is accepted as a candidate profile, its source is traceable, and no duplicate person was created.";
+        step.practice = "If using the validated Jordan Ellis sample instead, keep profile 2368 selected and document that the external-search step was practiced without adding a duplicate.";
+        return step;
+      }
+
+      function prepareContext() {
+        const email = selectedEmail();
+        sessionStorage.setItem("domain", "law");
+        sessionStorage.setItem("legalreadyTraineeEmail", email);
+        sessionStorage.setItem("legalreadyTraineeName", traineeNames[email] || email);
+        sessionStorage.setItem("legalreadyCandidatePath", selectedPath);
+        if (!["jdId", "jobId", "jobID", "selectedJdId"].some((key) => sessionStorage.getItem(key))) {
+          sessionStorage.setItem("jdId", "88");
+          sessionStorage.setItem("jobId", "88");
+          sessionStorage.setItem("jobID", "88");
+          sessionStorage.setItem("selectedJdId", "88");
+        }
+        if (!sessionStorage.getItem("candidateId") && !sessionStorage.getItem("profileId")) {
+          sessionStorage.setItem("candidateId", "2368");
+          sessionStorage.setItem("profileId", "2368");
+        }
+      }
+
+      function routeWithContext(route) {
+        const url = new URL(route, window.location.href);
+        url.searchParams.set("domain", "law");
+        const email = selectedEmail();
+        url.searchParams.set("trainingEmail", email);
+        if (route.includes("profile-preview.html")) {
+          url.searchParams.set("profileId", sessionStorage.getItem("candidateId") || sessionStorage.getItem("profileId") || "2368");
+        }
+        if (route.includes("match-role.html")) {
+          url.searchParams.set("jdId", sessionStorage.getItem("jdId") || sessionStorage.getItem("jobId") || sessionStorage.getItem("jobID") || sessionStorage.getItem("selectedJdId") || "88");
+        }
+        return url.pathname.split("/").pop() + url.search;
+      }
+
+      function renderFlow() {
+        const flow = trainingSteps.map((step, index) => {
+          const label = index === 1 ? (selectedPath === "internal" ? "Candidate In" : "Candidate Out") : step.short;
+          return `<span class="flow-chip">${index + 1}. ${label}</span>`;
+        });
+        document.getElementById("flowStrip").innerHTML = flow.join('<span class="flow-arrow" aria-hidden="true">→</span>');
+      }
+
+      function renderRoadmap() {
+        const list = document.getElementById("roadmapList");
+        list.innerHTML = trainingSteps.map((step, index) => {
+          const label = index === 1 ? (selectedPath === "internal" ? "Find Candidate (In)" : "Find Candidate (Out)") : step.short;
+          const classes = ["roadmap-step", index === activeStep ? "current" : "", completedSteps.has(index) ? "complete" : ""].filter(Boolean).join(" ");
+          const number = completedSteps.has(index) ? "✓" : index + 1;
+          return `<button class="${classes}" type="button" data-step-index="${index}" aria-current="${index === activeStep ? "step" : "false"}"><span class="step-number">${number}</span><span class="roadmap-label">${label}</span></button>`;
+        }).join("");
+        list.querySelectorAll("[data-step-index]").forEach((button) => {
+          button.addEventListener("click", () => {
+            activeStep = Number(button.dataset.stepIndex);
+            render();
+          });
+        });
+      }
+
+      function renderLesson() {
+        const step = stepForDisplay(activeStep);
+        document.getElementById("lessonKicker").textContent = `Step ${activeStep + 1} of ${trainingSteps.length}`;
+        document.getElementById("lessonTitle").textContent = step.title;
+        document.getElementById("lessonWhy").textContent = step.why;
+        document.getElementById("lessonChecklist").innerHTML = step.actions.map((action) => `<li><span>${action}</span></li>`).join("");
+        document.getElementById("lessonProof").textContent = step.proof;
+        document.getElementById("lessonPractice").textContent = step.practice;
+        const openLink = document.getElementById("openWorkspace");
+        openLink.href = routeWithContext(step.route);
+        openLink.onclick = prepareContext;
+
+        document.getElementById("previousButton").disabled = activeStep === 0;
+        document.getElementById("nextButton").disabled = activeStep === trainingSteps.length - 1;
+        const completeButton = document.getElementById("completeButton");
+        const isComplete = completedSteps.has(activeStep);
+        completeButton.textContent = isComplete ? "Step complete ✓" : "Mark step complete";
+        completeButton.classList.toggle("complete", isComplete);
+        document.getElementById("completionCard").classList.toggle("show", completedSteps.size === trainingSteps.length);
+      }
+
+      function renderProgress() {
+        const count = completedSteps.size;
+        document.getElementById("progressLabel").textContent = `${count} of ${trainingSteps.length} steps complete`;
+        document.getElementById("progressFill").style.width = `${(count / trainingSteps.length) * 100}%`;
+      }
+
+      function render() {
+        prepareContext();
+        document.querySelectorAll("[data-path]").forEach((button) => button.classList.toggle("active", button.dataset.path === selectedPath));
+        renderFlow();
+        renderRoadmap();
+        renderLesson();
+        renderProgress();
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const traineeSelect = document.getElementById("traineeSelect");
+        const savedEmail = sessionStorage.getItem("legalreadyTraineeEmail");
+        if (savedEmail && traineeNames[savedEmail]) traineeSelect.value = savedEmail;
+        loadProgress();
+
+        traineeSelect.addEventListener("change", () => {
+          activeStep = 0;
+          loadProgress();
+          render();
+        });
+
+        document.querySelectorAll("[data-path]").forEach((button) => {
+          button.addEventListener("click", () => {
+            selectedPath = button.dataset.path;
+            activeStep = 1;
+            loadProgress();
+            render();
+          });
+        });
+
+        document.getElementById("previousButton").addEventListener("click", () => {
+          activeStep = Math.max(0, activeStep - 1);
+          render();
+        });
+        document.getElementById("nextButton").addEventListener("click", () => {
+          activeStep = Math.min(trainingSteps.length - 1, activeStep + 1);
+          render();
+        });
+        document.getElementById("completeButton").addEventListener("click", () => {
+          if (completedSteps.has(activeStep)) completedSteps.delete(activeStep);
+          else completedSteps.add(activeStep);
+          saveProgress();
+          render();
+        });
+        document.getElementById("resetButton").addEventListener("click", () => {
+          completedSteps = new Set();
+          activeStep = 0;
+          saveProgress();
+          render();
+        });
+        render();
+      });
+    </script>
+  </body>
+</html>

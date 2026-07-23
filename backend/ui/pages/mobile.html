@@ -62,50 +62,12 @@
       }
 
       .mobile-app {
-        display: flex;
-        flex-direction: column;
         width: min(100%, 520px);
         max-width: 100%;
         min-width: 0;
         min-height: 100vh;
         margin: 0 auto;
         padding: max(14px, env(safe-area-inset-top)) 14px max(22px, env(safe-area-inset-bottom));
-      }
-
-      .hero {
-        order: 0;
-      }
-
-      #moduleChooser {
-        order: 1;
-      }
-
-      #moduleDetail {
-        order: 2;
-      }
-
-      .training-module,
-      .onboarding-module {
-        order: 3;
-      }
-
-      .footer {
-        order: 20;
-      }
-
-      body.training-active .training-module,
-      body.onboarding-active .onboarding-module {
-        order: 1;
-      }
-
-      body.training-active #moduleChooser,
-      body.onboarding-active #moduleChooser {
-        order: 2;
-      }
-
-      body.training-active #moduleDetail,
-      body.onboarding-active #moduleDetail {
-        order: 3;
       }
 
       .hero {
@@ -337,8 +299,7 @@
       }
 
       .module-detail[hidden],
-      .onboarding-module[hidden],
-      .training-module[hidden] {
+      .onboarding-module[hidden] {
         display: none;
       }
 
@@ -444,224 +405,6 @@
         overflow-wrap: break-word;
       }
 
-      .training-head {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 10px;
-      }
-
-      .training-head > div {
-        min-width: 0;
-      }
-
-      .training-kicker,
-      .safety-badge {
-        display: inline-flex;
-        align-items: center;
-        min-height: 24px;
-        border-radius: 999px;
-        padding: 0 9px;
-        background: rgba(var(--primary-rgb, 47, 125, 75), 0.12);
-        color: var(--primary-2, #145c32);
-        font-size: 10px;
-        font-weight: 950;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-      }
-
-      .safety-badge {
-        flex: 0 0 auto;
-        background: #fff2d7;
-        color: #7b4a00;
-      }
-
-      .training-head h2 {
-        margin-top: 8px;
-      }
-
-      .training-proof {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 7px;
-        margin-top: 12px;
-      }
-
-      .training-proof div {
-        min-width: 0;
-        border-radius: 12px;
-        padding: 10px 7px;
-        background: var(--mobile-soft);
-        text-align: center;
-      }
-
-      .training-proof strong,
-      .training-proof span {
-        display: block;
-      }
-
-      .training-proof strong {
-        color: var(--primary-2, #145c32);
-        font-size: 15px;
-      }
-
-      .training-proof span {
-        margin-top: 3px;
-        color: var(--muted, #58675e);
-        font-size: 10px;
-        line-height: 1.25;
-        overflow-wrap: break-word;
-      }
-
-      .training-route strong,
-      .training-route span {
-        display: block;
-      }
-
-      .training-route span {
-        margin-top: 4px;
-        overflow-wrap: anywhere;
-      }
-
-      .training-progress {
-        margin-top: 14px;
-      }
-
-      .training-progress-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        color: var(--text, #14221b);
-        font-size: 12px;
-        font-weight: 900;
-      }
-
-      .training-progress-track {
-        height: 9px;
-        margin-top: 7px;
-        overflow: hidden;
-        border-radius: 999px;
-        background: rgba(var(--primary-rgb, 47, 125, 75), 0.13);
-      }
-
-      .training-progress-fill {
-        width: 0;
-        height: 100%;
-        border-radius: inherit;
-        background: var(--primary, #2f7d4b);
-        transition: width 160ms ease;
-      }
-
-      .training-steps {
-        display: grid;
-        gap: 9px;
-        margin-top: 14px;
-      }
-
-      .training-step {
-        display: grid;
-        grid-template-columns: 34px minmax(0, 1fr);
-        gap: 10px;
-        min-width: 0;
-        border: 1px solid var(--mobile-line);
-        border-radius: 14px;
-        padding: 11px;
-        background: #fff;
-      }
-
-      .training-step.done {
-        background: rgba(var(--primary-rgb, 47, 125, 75), 0.07);
-        border-color: rgba(var(--primary-rgb, 47, 125, 75), 0.42);
-      }
-
-      .training-step-index {
-        display: grid;
-        place-items: center;
-        width: 34px;
-        height: 34px;
-        border-radius: 11px;
-        background: rgba(var(--primary-rgb, 47, 125, 75), 0.12);
-        color: var(--primary-2, #145c32);
-        font-size: 11px;
-        font-weight: 950;
-      }
-
-      .training-step.done .training-step-index {
-        background: var(--primary, #2f7d4b);
-        color: #fff;
-      }
-
-      .training-step-copy {
-        min-width: 0;
-      }
-
-      .training-step-copy strong,
-      .training-step-copy span {
-        display: block;
-        word-break: normal;
-        overflow-wrap: break-word;
-      }
-
-      .training-step-copy strong {
-        font-size: 14px;
-      }
-
-      .training-step-copy span {
-        margin-top: 4px;
-        color: var(--muted, #58675e);
-        font-size: 12px;
-        line-height: 1.35;
-      }
-
-      .training-step-actions {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        gap: 7px;
-        margin-top: 9px;
-      }
-
-      .training-step-actions .btn {
-        display: grid;
-        place-items: center;
-        min-width: 0;
-        min-height: 40px;
-        padding: 7px 10px;
-        border-radius: 11px;
-        text-align: center;
-        text-decoration: none;
-        font-size: 11px;
-      }
-
-      .training-step.done [data-training-toggle] {
-        background: var(--primary, #2f7d4b);
-        color: #fff;
-      }
-
-      .training-samples details {
-        border-top: 1px solid var(--mobile-line);
-        padding: 11px 0;
-      }
-
-      .training-samples details:first-of-type {
-        margin-top: 10px;
-      }
-
-      .training-samples summary {
-        color: var(--primary-2, #145c32);
-        cursor: pointer;
-        font-size: 13px;
-        font-weight: 950;
-      }
-
-      .training-samples ul {
-        margin: 8px 0 0;
-        padding-left: 20px;
-        color: var(--muted, #58675e);
-        font-size: 12px;
-        line-height: 1.45;
-      }
-
       .notice {
         border: 1px dashed rgba(var(--primary-rgb, 47, 125, 75), 0.34);
         border-radius: 14px;
@@ -749,18 +492,6 @@
         .module-grid {
           grid-template-columns: 1fr;
         }
-
-        .training-head {
-          display: grid;
-        }
-
-        .safety-badge {
-          width: fit-content;
-        }
-
-        .training-step-actions {
-          grid-template-columns: 1fr;
-        }
       }
 
       @media (min-width: 620px) {
@@ -806,7 +537,7 @@
         </div>
       </header>
 
-      <section id="moduleChooser" class="panel">
+      <section class="panel">
         <h2>Choose a mobile module</h2>
         <p>Pick the part of the workflow you need right now. Each module is trimmed for phone use: capture, inspect, or jump to the next step without loading the full desktop workspace.</p>
         <div id="moduleGrid" class="module-grid" aria-label="Mobile modules"></div>
@@ -816,82 +547,6 @@
         <h2 id="moduleTitle">Mobile module</h2>
         <p id="modulePurpose">Choose a module to see mobile-ready actions.</p>
         <div id="moduleActions" class="module-actions"></div>
-      </section>
-
-      <section class="panel training-module" hidden>
-        <div class="training-head">
-          <div>
-            <span class="training-kicker">LegalReady mobile training</span>
-            <h2>Run the proven workflow</h2>
-          </div>
-          <span class="safety-badge">Drafts only</span>
-        </div>
-        <p>One trainee plays the recruiter, candidate, interviewer, and client contact. Use the trainee's LegalReady address everywhere, generate drafts, and archive the handoff. Do not send a live invitation during training.</p>
-
-        <div class="training-proof" aria-label="Validated training result">
-          <div><strong>JD 88</strong><span>validated job</span></div>
-          <div><strong>63%</strong><span>match score</span></div>
-          <div><strong>2</strong><span>drafts archived</span></div>
-        </div>
-
-        <label>
-          Training as
-          <select id="trainingPersonSelect">
-            <option value="mitch.blake@legalready.io">Mitch Blake</option>
-            <option value="michael.shrader@legalready.io">Michael Shrader</option>
-            <option value="kacey-jo.hyde@legalready.io">Kacey-Jo Hyde</option>
-          </select>
-        </label>
-
-        <div id="trainingRoute" class="notice training-route" aria-live="polite"></div>
-
-        <div class="training-progress">
-          <div class="training-progress-row">
-            <span>Training progress</span>
-            <strong id="trainingProgressText">0 of 8 complete</strong>
-          </div>
-          <div class="training-progress-track" role="progressbar" aria-label="Training progress" aria-valuemin="0" aria-valuemax="8" aria-valuenow="0">
-            <div id="trainingProgressFill" class="training-progress-fill"></div>
-          </div>
-        </div>
-
-        <div id="trainingSteps" class="training-steps"></div>
-
-        <div class="button-row">
-          <button id="trainingReset" class="btn secondary" type="button">Reset training progress</button>
-        </div>
-      </section>
-
-      <section class="panel training-module training-samples" hidden>
-        <h2>Sample exercise</h2>
-        <p>The full Word files remain in the trainer kit. These phone summaries are enough to run the guided mobile version.</p>
-        <details>
-          <summary>Sample job description</summary>
-          <ul>
-            <li>Client: Summit &amp; Vale LLP - LegalReady Training</li>
-            <li>Role: Legal Operations &amp; eDiscovery Analyst - Training</li>
-            <li>Core work: litigation data, document review, reporting, workflow improvement, and stakeholder support</li>
-            <li>Required evidence: Python, SQL, Power BI, Excel, SharePoint, Microsoft 365, Adobe Acrobat, confidentiality, and client service</li>
-          </ul>
-        </details>
-        <details>
-          <summary>Sample resume</summary>
-          <ul>
-            <li>Candidate: Jordan Ellis</li>
-            <li>Background: legal operations, litigation support, and eDiscovery workflow experience</li>
-            <li>Tools: Python, SQL, Power BI, Excel, SharePoint, Microsoft 365, and Adobe Acrobat</li>
-            <li id="sampleResumeRoute">Training email: mitch.blake@legalready.io</li>
-          </ul>
-        </details>
-        <details>
-          <summary>Pass rule</summary>
-          <ul>
-            <li>Save the JD and candidate profile.</li>
-            <li>Explain the match score; do not treat AI as the hiring decision.</li>
-            <li>Show candidate and client drafts plus both archived records.</li>
-            <li>Verify every candidate, client, interviewer, and attendee address is the trainee's own LegalReady email.</li>
-          </ul>
-        </details>
       </section>
 
       <section class="panel onboarding-module">
@@ -978,86 +633,9 @@
         selectedJobId: "",
         selectedCandidateId: "",
         activeModule: "talent",
-        trainingPersonEmail: "mitch.blake@legalready.io",
-        trainingCompleted: new Set(),
       };
 
-      const legalReadyTrainingPeople = [
-        { name: "Mitch Blake", email: "mitch.blake@legalready.io" },
-        { name: "Michael Shrader", email: "michael.shrader@legalready.io" },
-        { name: "Kacey-Jo Hyde", email: "kacey-jo.hyde@legalready.io" },
-      ];
-
-      const legalReadyTrainingSteps = [
-        {
-          key: "job",
-          number: "1",
-          title: "Review the sample JD",
-          detail: "Open Job Descriptions. Use the validated JD 88 or upload the sample Legal Operations and eDiscovery role.",
-          href: "job-descriptions.html",
-        },
-        {
-          key: "candidate",
-          number: "2",
-          title: "Load the sample resume",
-          detail: "Open Find Candidate and load Jordan Ellis. Keep the selected trainee email on the training profile.",
-          href: "find-candidate.html",
-        },
-        {
-          key: "profile",
-          number: "3",
-          title: "Vet the profile",
-          detail: "Confirm identity, experience, tools, evidence, gaps, and the trainee email before shortlisting.",
-          href: "profile-preview.html?profileId=2368",
-        },
-        {
-          key: "match",
-          number: "4",
-          title: "Match to the role",
-          detail: "Load JD 88, rank profiles, find Jordan Ellis, and explain the 63% result against the 50% training mark.",
-          href: "match-role.html",
-        },
-        {
-          key: "client",
-          number: "5",
-          title: "Build client communication",
-          detail: "Create the shortlist draft for Avery Stone. Route the client contact to the trainee email.",
-          href: "client-comm.html",
-        },
-        {
-          key: "candidate-review",
-          number: "6A",
-          title: "Draft candidate review",
-          detail: "Use the trainee email for both candidate and interviewer. Generate the draft and archive it; do not send.",
-          href: "schedule-interview.html?interview=ready&purpose=role",
-          interview: "ready",
-        },
-        {
-          key: "client-interview",
-          number: "6B",
-          title: "Draft client interview",
-          detail: "Use the trainee email for candidate and client contact. Generate the draft and archive it; do not send.",
-          href: "schedule-interview.html?interview=client",
-          interview: "client",
-        },
-        {
-          key: "status",
-          number: "7",
-          title: "Verify Status",
-          detail: "Show both archived records, role, people, dates, draft messages, and the next action.",
-          href: "status-tracker.html",
-        },
-      ];
-
       const mobileModules = [
-        {
-          key: "training",
-          label: "Training",
-          pill: "Practice",
-          purpose: "Run the eight-step LegalReady exercise with safe same-email routing and draft-only scheduling.",
-          next: "jobs",
-          actions: [],
-        },
         {
           key: "talent",
           label: "Talent",
@@ -1191,13 +769,8 @@
         byId("stepOnboard").classList.toggle("on", canOnboard());
       }
 
-      function availableModules() {
-        return mobileModules.filter((item) => item.key !== "training" || state.domain === "law");
-      }
-
       function moduleByKey(key) {
-        const modules = availableModules();
-        return modules.find((item) => item.key === key) || modules.find((item) => item.key === "talent") || modules[0];
+        return mobileModules.find((item) => item.key === key) || mobileModules[0];
       }
 
       function mobileHref(href) {
@@ -1210,7 +783,7 @@
       }
 
       function renderModules() {
-        byId("moduleGrid").innerHTML = availableModules()
+        byId("moduleGrid").innerHTML = mobileModules
           .map((module) => `
             <button class="module-card ${module.key === state.activeModule ? "active" : ""}" type="button" data-module="${escapeHtml(module.key)}">
               <span class="module-pill">${escapeHtml(module.pill)}</span>
@@ -1232,7 +805,7 @@
           .map(([label, detail, href]) => `
             <a class="module-action" href="${escapeHtml(mobileHref(href))}" data-module-action="${escapeHtml(href)}">
               <span><strong>${escapeHtml(label)}</strong><span>${escapeHtml(detail)}</span></span>
-              <i aria-hidden="true">&rsaquo;</i>
+              <i>›</i>
             </a>
           `)
           .join("");
@@ -1254,14 +827,7 @@
       }
 
       function renderModuleVisibility() {
-        const showTraining = state.domain === "law" && state.activeModule === "training";
         const showOnboarding = state.activeModule === "onboarding";
-        document.body.classList.toggle("training-active", showTraining);
-        document.body.classList.toggle("onboarding-active", showOnboarding);
-        byId("moduleDetail").hidden = showTraining;
-        document.querySelectorAll(".training-module").forEach((section) => {
-          section.hidden = !showTraining;
-        });
         document.querySelectorAll(".onboarding-module").forEach((section) => {
           section.hidden = !showOnboarding;
         });
@@ -1275,120 +841,6 @@
         renderModules();
         renderModuleDetail();
         renderModuleVisibility();
-        if (state.activeModule === "training") renderTraining();
-      }
-
-      function selectedTrainingPerson() {
-        return legalReadyTrainingPeople.find((person) => person.email === state.trainingPersonEmail) || legalReadyTrainingPeople[0];
-      }
-
-      function trainingStorageKey() {
-        return `legalreadyMobileTraining:${state.trainingPersonEmail}`;
-      }
-
-      function loadTrainingProgress() {
-        try {
-          const saved = JSON.parse(sessionStorage.getItem(trainingStorageKey()) || "[]");
-          state.trainingCompleted = new Set(Array.isArray(saved) ? saved : []);
-        } catch {
-          state.trainingCompleted = new Set();
-        }
-      }
-
-      function saveTrainingProgress() {
-        sessionStorage.setItem(trainingStorageKey(), JSON.stringify(Array.from(state.trainingCompleted)));
-      }
-
-      function prepareTrainingContext(step) {
-        const person = selectedTrainingPerson();
-        const context = {
-          source: "legalready-mobile-training",
-          traineeName: person.name,
-          traineeEmail: person.email,
-          candidateName: "Jordan Ellis",
-          clientName: "Avery Stone (Training Client)",
-          jobId: "88",
-          profileId: "2368",
-          matchScore: 63,
-          safeMode: "draft-and-archive-only",
-        };
-        sessionStorage.setItem("domain", "law");
-        sessionStorage.setItem("jdId", context.jobId);
-        sessionStorage.setItem("selectedJdId", context.jobId);
-        sessionStorage.setItem("jobId", context.jobId);
-        sessionStorage.setItem("jobID", context.jobId);
-        sessionStorage.setItem("jobTitle", "Legal Operations & eDiscovery Analyst - Training");
-        sessionStorage.setItem("jobCompany", "Summit & Vale LLP - LegalReady Training");
-        sessionStorage.setItem("jobSkills", "Python, SQL, Power BI, Excel, SharePoint, Microsoft 365, Adobe Acrobat, confidentiality, client service");
-        sessionStorage.setItem("candidateId", context.profileId);
-        sessionStorage.setItem("candidateName", context.candidateName);
-        sessionStorage.setItem("candidateStatus", "LegalReady training profile");
-        sessionStorage.setItem("shortlist", context.profileId);
-        sessionStorage.setItem("legalreadyTrainingName", person.name);
-        sessionStorage.setItem("legalreadyTrainingEmail", person.email);
-        sessionStorage.setItem("legalreadyTrainingContext", JSON.stringify(context));
-        if (step.interview) sessionStorage.setItem("scheduleInterviewType", step.interview);
-      }
-
-      function trainingHref(step) {
-        const person = selectedTrainingPerson();
-        const url = new URL(step.href, window.location.href);
-        url.searchParams.set("domain", "law");
-        url.searchParams.set("training", "1");
-        url.searchParams.set("trainingEmail", person.email);
-        url.searchParams.set("trainee", person.name);
-        return url.href;
-      }
-
-      function renderTraining() {
-        const personSelect = byId("trainingPersonSelect");
-        if (!personSelect) return;
-        const person = selectedTrainingPerson();
-        personSelect.value = person.email;
-        byId("trainingRoute").innerHTML = `<strong>Use one safe address for every identity</strong><span>${escapeHtml(person.email)}</span>`;
-        byId("sampleResumeRoute").textContent = `Training email: ${person.email}`;
-
-        const completedCount = legalReadyTrainingSteps.filter((step) => state.trainingCompleted.has(step.key)).length;
-        const percent = Math.round((completedCount / legalReadyTrainingSteps.length) * 100);
-        byId("trainingProgressText").textContent = `${completedCount} of ${legalReadyTrainingSteps.length} complete`;
-        byId("trainingProgressFill").style.width = `${percent}%`;
-        const progress = document.querySelector(".training-progress-track");
-        if (progress) progress.setAttribute("aria-valuenow", String(completedCount));
-
-        byId("trainingSteps").innerHTML = legalReadyTrainingSteps
-          .map((step) => {
-            const done = state.trainingCompleted.has(step.key);
-            return `
-              <article class="training-step ${done ? "done" : ""}">
-                <span class="training-step-index">${escapeHtml(step.number)}</span>
-                <div class="training-step-copy">
-                  <strong>${escapeHtml(step.title)}</strong>
-                  <span>${escapeHtml(step.detail)}</span>
-                  <div class="training-step-actions">
-                    <a class="btn" href="${escapeHtml(trainingHref(step))}" data-training-open="${escapeHtml(step.key)}">Open step</a>
-                    <button class="btn secondary" type="button" data-training-toggle="${escapeHtml(step.key)}">${done ? "Completed" : "Mark complete"}</button>
-                  </div>
-                </div>
-              </article>
-            `;
-          })
-          .join("");
-
-        document.querySelectorAll("[data-training-open]").forEach((link) => {
-          link.addEventListener("click", () => {
-            const step = legalReadyTrainingSteps.find((item) => item.key === link.dataset.trainingOpen);
-            if (step) prepareTrainingContext(step);
-          });
-        });
-        document.querySelectorAll("[data-training-toggle]").forEach((button) => {
-          button.addEventListener("click", () => {
-            const key = button.dataset.trainingToggle;
-            if (state.trainingCompleted.has(key)) state.trainingCompleted.delete(key);
-            else state.trainingCompleted.add(key);
-            saveTrainingProgress();
-            renderTraining();
-          });
-        });
       }
 
       function starterJobs(domain) {
@@ -1435,10 +887,8 @@
 
       function applyDomain(domain) {
         state.domain = normalizeDomain(domain);
-        state.activeModule = moduleByKey(state.activeModule).key;
         sessionStorage.setItem("domain", state.domain);
         document.documentElement.dataset.domain = state.domain;
-        document.title = `${domainMeta[state.domain].title} Mobile Modules`;
         byId("domainSelect").value = state.domain;
         byId("brandTitle").textContent = domainMeta[state.domain].title;
         byId("brandWordmark").src = domainMeta[state.domain].logo;
@@ -1452,8 +902,6 @@
         window.history.replaceState({}, "", url.toString());
         renderModules();
         renderModuleDetail();
-        renderModuleVisibility();
-        if (state.activeModule === "training") renderTraining();
       }
 
       function renderJobs() {
@@ -1620,16 +1068,11 @@
 
       function init() {
         const params = new URLSearchParams(window.location.search);
-        const initialDomain = normalizeDomain(params.get("domain") || sessionStorage.getItem("domain") || "dev");
-        state.domain = initialDomain;
-        const requestedModule = params.get("module") || (initialDomain === "law" ? "training" : "talent");
-        state.activeModule = moduleByKey(requestedModule).key;
-        const savedTrainingEmail = sessionStorage.getItem("legalreadyTrainingEmail");
-        if (legalReadyTrainingPeople.some((person) => person.email === savedTrainingEmail)) {
-          state.trainingPersonEmail = savedTrainingEmail;
-        }
-        loadTrainingProgress();
-        applyDomain(initialDomain);
+        applyDomain(params.get("domain") || sessionStorage.getItem("domain") || "dev");
+        state.activeModule = moduleByKey(params.get("module") || "talent").key;
+        renderModules();
+        renderModuleDetail();
+        renderModuleVisibility();
         byId("startDate").value = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
         byId("domainSelect").addEventListener("change", (event) => {
           applyDomain(event.target.value);
@@ -1646,17 +1089,6 @@
         byId("onboardButton").addEventListener("click", createOnboarding);
         byId("copyOnboarding").addEventListener("click", () => copyLink("onboardingLink"));
         byId("copyTime").addEventListener("click", () => copyLink("timeEntryLink"));
-        byId("trainingPersonSelect").addEventListener("change", (event) => {
-          state.trainingPersonEmail = event.target.value;
-          sessionStorage.setItem("legalreadyTrainingEmail", state.trainingPersonEmail);
-          loadTrainingProgress();
-          renderTraining();
-        });
-        byId("trainingReset").addEventListener("click", () => {
-          state.trainingCompleted = new Set();
-          saveTrainingProgress();
-          renderTraining();
-        });
         loadData();
       }
 
