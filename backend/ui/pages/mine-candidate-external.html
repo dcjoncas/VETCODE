@@ -92,6 +92,70 @@
         font-weight: 700;
       }
 
+      .source-directory {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface, #f7f8fa);
+      }
+
+      .source-directory[hidden] {
+        display: none;
+      }
+
+      .source-directory-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .source-directory-head h3 {
+        margin: 0 0 4px;
+        font-size: 16px;
+      }
+
+      .source-directory-head p {
+        margin: 0;
+      }
+
+      .source-directory-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 8px;
+      }
+
+      .source-directory-card {
+        display: grid;
+        gap: 7px;
+        min-width: 0;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--card);
+      }
+
+      .source-directory-card strong,
+      .source-directory-card span {
+        overflow-wrap: anywhere;
+      }
+
+      .source-directory-card .meta {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .source-directory-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
       .source-guide {
         margin: 6px 0 10px;
         max-width: 680px;
@@ -555,6 +619,19 @@
               </button>
             </div>
             <div id="providerReadiness" class="provider-readiness" aria-live="polite"></div>
+            <section id="dentalSourceDirectory" class="source-directory" aria-labelledby="dentalSourceDirectoryTitle" hidden>
+              <div class="source-directory-head">
+                <div>
+                  <h3 id="dentalSourceDirectoryTitle">DentalReady source directory</h3>
+                  <p class="muted">
+                    Dental boards rarely expose public candidate APIs. Use this directory to pick the correct portal,
+                    partner path, or research channel, then keep imported leads as TEMP until reviewed.
+                  </p>
+                </div>
+                <span class="pill">Dental-only</span>
+              </div>
+              <div id="dentalSourceDirectoryGrid" class="source-directory-grid"></div>
+            </section>
           </div>
 
           <div class="row-actions">
@@ -760,6 +837,38 @@
         }[source] || "External provider";
       }
 
+      function renderDentalSourceDirectory(sources = []) {
+        const panel = document.getElementById("dentalSourceDirectory");
+        const grid = document.getElementById("dentalSourceDirectoryGrid");
+        if (!panel || !grid) return;
+        if (!isDentalDomain()) {
+          panel.hidden = true;
+          grid.innerHTML = "";
+          return;
+        }
+        panel.hidden = false;
+        if (!sources.length) {
+          grid.innerHTML = `<div class="notice">Dental source directory is not available from the provider status API yet.</div>`;
+          return;
+        }
+        grid.innerHTML = sources.map((source) => {
+          const url = source.url || "";
+          const accountUrl = source.accountUrl || url;
+          return `
+            <article class="source-directory-card">
+              <strong>${escapeHtml(source.label || "Dental source")}</strong>
+              <span class="pill">${escapeHtml(source.accessModel || "Source")}</span>
+              <div class="meta"><strong>API:</strong> ${escapeHtml(source.apiStatus || "Unknown")}</div>
+              <div class="meta"><strong>Access:</strong> ${escapeHtml(source.candidateAccess || "")}</div>
+              <div class="meta"><strong>VETCODE use:</strong> ${escapeHtml(source.vetcodeUse || "")}</div>
+              <div class="source-directory-actions">
+                ${url ? `<a class="btn secondary" href="${escapeHtml(url)}" target="_blank" rel="noopener">Open source</a>` : ""}
+                ${accountUrl ? `<a class="btn secondary" href="${escapeHtml(accountUrl)}" target="_blank" rel="noopener">Account path</a>` : ""}
+              </div>
+            </article>`;
+        }).join("");
+      }
+
       async function loadProviderStatus() {
         const response = await api("/api/azureJobs/external/providers");
         externalProviderStatus = response.providers || {};
@@ -774,15 +883,19 @@
             ? `${provider.environmentVariable || "API key"} is not configured`
             : `${baseLabel} is configured`;
         });
+        renderDentalSourceDirectory(response.directories?.dental || []);
         const readiness = document.getElementById("providerReadiness");
-        const missing = ["coresignal", "brave", "courtlistener"]
+        const statusKeys = isDentalDomain() ? ["pdl", "coresignal", "brave"] : ["coresignal", "brave", "courtlistener"];
+        const missing = statusKeys
           .map((key) => externalProviderStatus[key])
           .filter((provider) => provider && !provider.ready);
         readiness.innerHTML = missing.length
           ? missing.map((provider) =>
               `<span>${escapeHtml(provider.label)}: <a href="${escapeHtml(provider.signupUrl)}" target="_blank" rel="noopener">get account key</a></span>`,
             ).join("")
-          : "<span>Professional discovery and court-evidence providers are configured.</span>";
+          : isDentalDomain()
+            ? "<span>Configured API options are ready. Dental boards below are portal, partner, or manual-import channels.</span>"
+            : "<span>Professional discovery and court-evidence providers are configured.</span>";
       }
 
       function renderSourceAudit(audit = {}) {

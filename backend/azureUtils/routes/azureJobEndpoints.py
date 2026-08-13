@@ -1699,6 +1699,78 @@ def run_match(domain: str = Form(default="dev"), jd_id: str = Form(None), top_k:
 
 @router.get("/external/providers")
 def external_provider_status():
+    dental_sources = [
+        {
+            "key": "ada-careercenter",
+            "label": "ADA CareerCenter",
+            "url": "https://careercenter.ada.org/",
+            "accountUrl": "https://careercenter.ada.org/employers/",
+            "accessModel": "Employer portal / job board",
+            "apiStatus": "No public candidate API found",
+            "candidateAccess": "Post jobs and receive applicants through ADA's career center.",
+            "vetcodeUse": "Use Brave as research-only discovery and track ADA as a posting/channel source.",
+        },
+        {
+            "key": "dentalpost",
+            "label": "DentalPost",
+            "url": "https://www.dentalpost.net/",
+            "accountUrl": "https://www.dentalpost.net/employers/",
+            "accessModel": "Employer portal / candidate workflow",
+            "apiStatus": "No public self-serve API found",
+            "candidateAccess": "Employer account supports posting, screening, scheduling, tracking, and messaging candidates.",
+            "vetcodeUse": "Use as a high-priority dental board; integrate by partnership/export if DentalPost offers it.",
+        },
+        {
+            "key": "adaa",
+            "label": "ADAA Career Center",
+            "url": "https://jobs.adaausa.org/",
+            "accountUrl": "https://jobs.adaausa.org/employer/pricing/",
+            "accessModel": "Association career center",
+            "apiStatus": "Likely platform-managed job board; no public candidate API found",
+            "candidateAccess": "Post dental-assistant jobs and manage applicants through employer tools.",
+            "vetcodeUse": "Use for dental-assistant posting and public-web research signals.",
+        },
+        {
+            "key": "danb",
+            "label": "DANB",
+            "url": "https://www.danb.org/career-center/dental-assistant-jobs",
+            "accountUrl": "https://www.danb.org/career-center/danb-list-rentals",
+            "accessModel": "List rental / sponsored email",
+            "apiStatus": "No candidate API; outreach product is list rental or sponsored email",
+            "candidateAccess": "Reach certificants or certificate holders through DANB-managed employer outreach.",
+            "vetcodeUse": "Use for credentialed dental assistant campaigns; store responses as reviewed TEMP leads.",
+        },
+        {
+            "key": "toothio",
+            "label": "Toothio",
+            "url": "https://www.toothio.com/",
+            "accountUrl": "https://www.toothio.com/practices",
+            "accessModel": "Staffing platform",
+            "apiStatus": "No public API found; likely partner/demo path",
+            "candidateAccess": "Hire dental temps or full-time staff through Toothio's platform.",
+            "vetcodeUse": "Use as an external staffing channel; import only candidate details explicitly provided to VETCODE.",
+        },
+        {
+            "key": "stynt",
+            "label": "Stynt",
+            "url": "https://stynt.com/JobBoard/",
+            "accountUrl": "https://stynt.com/dental-offices/",
+            "accessModel": "Dental staffing / AI job board",
+            "apiStatus": "No public API found; contact sales/partner path",
+            "candidateAccess": "Stynt ranks and prioritizes dental candidates for employer interview workflows.",
+            "vetcodeUse": "Use as a channel to compare ranked candidates against DentalReady jobs.",
+        },
+        {
+            "key": "dentistjobcafe",
+            "label": "DentistJobCafe",
+            "url": "https://www.dentistjobcafe.com/",
+            "accountUrl": "https://www.dentistjobcafe.com/employers",
+            "accessModel": "Employer/recruiter resume database",
+            "apiStatus": "No public API found; employer sales/demo path",
+            "candidateAccess": "Employer tools include posting jobs and searching dental resumes.",
+            "vetcodeUse": "Use as a resume-search channel; import manually reviewed candidate leads only.",
+        },
+    ]
     return {
         "providers": {
             "pdl": {
@@ -1736,6 +1808,9 @@ def external_provider_status():
                 "ready": True,
                 "role": "public_code_evidence",
             },
+        },
+        "directories": {
+            "dental": dental_sources,
         },
         "secretsExposed": False,
     }

@@ -14,14 +14,30 @@ DentalReady is the VETCODE tenant for dental assistants, registered dental hygie
 
 ## Dental Industry Sources To Evaluate
 
-- DentalPost: dental-focused job board for assistants, hygienists, dentists, and front-office staff. Treat as a likely employer/partner workflow unless a private integration is negotiated.
-- American Dental Assistants Association Career Center: dental assistant job-posting channel.
-- DANB: useful for reaching certificants/certificate holders through listed employer outreach options.
-- ADA CareerCenter: broad dental jobs marketplace.
-- Toothio: dental temp/full-time staffing platform.
-- Stynt: dental recruitment and job-board platform.
-- DentistJobCafe: dental job board with employer/recruiter services and resume search.
+- ADA CareerCenter: broad dental jobs marketplace. Public pages expose job search/posting and employer advertising, but no public candidate API was found. Treat as an employer portal/job-board channel.
+- DentalPost: dental-focused job board for assistants, hygienists, dentists, and front-office staff. Public materials describe job posting, screening, scheduling, tracking, and messaging inside the employer app; no public self-serve API was found. Treat as a likely employer/partner workflow unless a private integration is negotiated.
+- American Dental Assistants Association Career Center: dental assistant job-posting channel. The career center appears to be a managed association job-board portal; no public candidate API was found.
+- DANB: useful for reaching certificants/certificate holders through listed employer outreach options. DANB's public employer path is list rental or sponsored email, not an API.
+- Toothio: dental temp/full-time staffing platform. No public API was found; use practice account/demo/partner path and import only candidate details explicitly provided to VETCODE.
+- Stynt: dental recruitment and job-board platform. No public API was found; use sales/partner path if VETCODE needs structured candidate handoff.
+- DentistJobCafe: dental job board with employer/recruiter services and resume search. No public API was found; use employer account/demo path for resume database access.
 - iHireDental and Jobley: dental/healthcare job board options to evaluate for distribution or candidate pipeline.
+
+## Current API Verdict
+
+- Available API-style integrations now surfaced in DentalReady:
+  - People Data Labs: candidate/professional discovery when `PDL_API_KEY` is configured.
+  - Coresignal: professional-profile comparison when `CORESIGNAL_API_KEY` is configured.
+  - Brave Search: public-web research when `BRAVE_SEARCH_API_KEY` is configured; results remain research-only.
+- Dental-specific boards currently added to the DentalReady source directory as portal/partner/manual channels:
+  - ADA CareerCenter
+  - DentalPost
+  - ADAA Career Center
+  - DANB
+  - Toothio
+  - Stynt
+  - DentistJobCafe
+- Do not scrape logged-in candidate databases. If a vendor provides exports, webhook access, a partner API, or email/applicant forwarding, import those leads into TEMP profiles with source notes and manual verification.
 
 ## Verification Rules
 
