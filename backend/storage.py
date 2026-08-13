@@ -123,7 +123,6 @@ def list_profiles(db_path: str, domain: Optional[str] = "technology", limit: int
     cur = conn.cursor()
 
     if skills_filter:
-        # If domain filter yields none, fall back to all (so you never "lose" data in UI)
         if domain is None:
             cur.execute("""SELECT p.profile_id, p.domain, p.full_name, p.email, COUNT(DISTINCT input_skill.value) AS overlap_count
                     FROM profiles p
@@ -149,7 +148,6 @@ def list_profiles(db_path: str, domain: Optional[str] = "technology", limit: int
         return [dict(r) for r in rows]
     
     else:
-        # If domain filter yields none, fall back to all (so you never "lose" data in UI)
         if domain is None:
             cur.execute("SELECT profile_id, domain, full_name, email FROM profiles ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", (limit,))
             rows = cur.fetchall()
@@ -168,7 +166,6 @@ def count_profiles(db_path: str, domain: Optional[str] = "technology") -> int:
 
     print(f"Finding number of profiles with domain='{domain}'")
 
-    # If domain filter yields none, fall back to all (so you never "lose" data in UI)
     if domain is None:
         cur.execute("SELECT COUNT(*) FROM profiles ORDER BY COALESCE(updated_at, created_at) DESC")
         rows = cur.fetchall()
@@ -197,7 +194,6 @@ def count_profiles_recent(db_path: str, domain: Optional[str] = "technology") ->
 
     print(f"Finding number of profiles with domain='{domain}'")
 
-    # If domain filter yields none, fall back to all (so you never "lose" data in UI)
     if domain is None:
         cur.execute("SELECT COUNT(*) FROM profiles WHERE updated_at >= ? ORDER BY COALESCE(updated_at, created_at) DESC", (weekAgo,))
         rows = cur.fetchall()
@@ -226,7 +222,6 @@ def search_profiles(db_path: str, domain: Optional[str] = "technology", search_s
 
     print(f"Searching profiles with domain='{domain}' and search_string='{search_string}'")
 
-    # If domain filter yields none, fall back to all (so you never "lose" data in UI)
     if domain is None:
         cur.execute("SELECT profile_id, domain, full_name, email FROM profiles WHERE full_name LIKE ? OR email LIKE ? ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", (f"%{search_string}%", f"%{search_string}%", limit))
         rows = cur.fetchall()
@@ -298,10 +293,13 @@ def search_profiles_full(db_path: str, domain: Optional[str] = "technology", sea
     conn.close()
     return returned_profiles
 
-def get_profile(db_path: str, profile_id: str) -> Optional[dict]:
+def get_profile(db_path: str, profile_id: str, domain: Optional[str] = None) -> Optional[dict]:
     conn = _conn(db_path)
     cur = conn.cursor()
-    cur.execute("SELECT data_json FROM profiles WHERE profile_id=?", (profile_id,))
+    if domain is None:
+        cur.execute("SELECT data_json FROM profiles WHERE profile_id=?", (profile_id,))
+    else:
+        cur.execute("SELECT data_json FROM profiles WHERE profile_id=? AND COALESCE(domain,'')=?", (profile_id, domain))
     row = cur.fetchone()
     conn.close()
     if not row:
@@ -414,22 +412,20 @@ def list_jds(db_path: str, domain: Optional[str] = "technology"):
 
     rows = _fetch(domain)
 
-    # If filtered list is empty but we *do* have JDs overall, fall back to all so UI shows them.
-    if len(rows) == 0:
-        rows_all = _fetch(None)
-        rows = rows_all
-
     conn.close()
     return [dict(r) for r in rows]
 
-def get_jd(db_path: str, jd_id: str) -> Optional[dict]:
+def get_jd(db_path: str, jd_id: str, domain: Optional[str] = None) -> Optional[dict]:
     conn = _conn(db_path)
     cur = conn.cursor()
 
     cols = _table_columns(conn, "jds")
     legacy_has_jd_skills = ("jd_skills" in cols)
 
-    cur.execute("SELECT * FROM jds WHERE jd_id=?", (jd_id,))
+    if domain is None:
+        cur.execute("SELECT * FROM jds WHERE jd_id=?", (jd_id,))
+    else:
+        cur.execute("SELECT * FROM jds WHERE jd_id=? AND COALESCE(domain,'')=?", (jd_id, domain))
     row = cur.fetchone()
     conn.close()
     if not row:
@@ -459,14 +455,10 @@ def get_latest_jd(db_path: str, domain: str = "technology") -> Optional[dict]:
     conn = _conn(db_path)
     cur = conn.cursor()
 
-    # Prefer matching domain; if none found, fall back to any JD
     cur.execute("SELECT jd_id FROM jds WHERE COALESCE(domain,'')=? ORDER BY COALESCE(updated_at, created_at) DESC LIMIT 1", (domain,))
     row = cur.fetchone()
-    if not row:
-        cur.execute("SELECT jd_id FROM jds ORDER BY COALESCE(updated_at, created_at) DESC LIMIT 1")
-        row = cur.fetchone()
 
     conn.close()
     if not row:
         return None
-    return get_jd(db_path, row["jd_id"])
+    return get_jd(db_path, row["jd_id"], domain=domain)

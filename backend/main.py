@@ -488,15 +488,19 @@ def _devmeet_rewrite_html(html: str, css: str, domain: str = "dev") -> str:
 
 
 def _profile_db_path(profile_id: str, domain: str = "") -> str:
-    for _, db_path in _domain_db_items(domain or "all"):
-        if storage.get_profile(db_path, profile_id):
+    clean_domain = _storage_domain(domain) if domain else None
+    for key, db_path in _domain_db_items(domain or "all"):
+        expected_domain = clean_domain if clean_domain is not None else _storage_domain(key)
+        if storage.get_profile(db_path, profile_id, domain=expected_domain):
             return db_path
     return _domain_db_path(domain or "dev")
 
 
 def _jd_db_path(jd_id: str, domain: str = "") -> str:
-    for _, db_path in _domain_db_items(domain or "all"):
-        if storage.get_jd(db_path, jd_id):
+    clean_domain = _storage_domain(domain) if domain else None
+    for key, db_path in _domain_db_items(domain or "all"):
+        expected_domain = clean_domain if clean_domain is not None else _storage_domain(key)
+        if storage.get_jd(db_path, jd_id, domain=expected_domain):
             return db_path
     return _domain_db_path(domain or "dev")
 
@@ -7234,7 +7238,8 @@ def search_profiles(domain: str = Form("technology"), skills: str = Form("")):
 
 @app.get("/api/profiles/{profile_id}")
 def get_profile(profile_id: str, domain: str = ""):
-    p = storage.get_profile(_profile_db_path(profile_id, domain), profile_id)
+    expected_domain = _storage_domain(domain) if domain else None
+    p = storage.get_profile(_profile_db_path(profile_id, domain), profile_id, domain=expected_domain)
     if not p:
         raise HTTPException(status_code=404, detail="Profile not found")
     return p
@@ -7242,7 +7247,8 @@ def get_profile(profile_id: str, domain: str = ""):
 
 @app.get("/api/profiles/{profile_id}/html", response_class=HTMLResponse)
 def get_profile_html(profile_id: str, domain: str = ""):
-    p = storage.get_profile(_profile_db_path(profile_id, domain), profile_id)
+    expected_domain = _storage_domain(domain) if domain else None
+    p = storage.get_profile(_profile_db_path(profile_id, domain), profile_id, domain=expected_domain)
     if not p:
         raise HTTPException(status_code=404, detail="Profile not found")
     return HTMLResponse(profile_to_html(p))
@@ -7250,7 +7256,8 @@ def get_profile_html(profile_id: str, domain: str = ""):
 
 @app.get("/api/profiles/{profile_id}/docx")
 def get_profile_docx(profile_id: str, domain: str = ""):
-    p = storage.get_profile(_profile_db_path(profile_id, domain), profile_id)
+    expected_domain = _storage_domain(domain) if domain else None
+    p = storage.get_profile(_profile_db_path(profile_id, domain), profile_id, domain=expected_domain)
     if not p:
         raise HTTPException(status_code=404, detail="Profile not found")
     out = os.path.join(EXPORT_DIR, f"{profile_id}.docx")
@@ -7560,22 +7567,23 @@ def profile_role_feedback_submit(
 
 @app.get("/api/profile/{profile_id}")
 def profile_get(profile_id: str, domain: str = ""):
-    p = storage.get_profile(_profile_db_path(profile_id, domain), profile_id)
+    expected_domain = _storage_domain(domain) if domain else None
+    p = storage.get_profile(_profile_db_path(profile_id, domain), profile_id, domain=expected_domain)
     if not p:
         raise HTTPException(status_code=404, detail="Profile not found.")
     return p
 
 
 @app.get("/api/profile/{profile_id}/html", response_class=HTMLResponse)
-def profile_html(profile_id: str):
+def profile_html(profile_id: str, domain: str = ""):
     # Reuse the canonical /api/profiles/{id}/html implementation
-    return get_profile_html(profile_id)
+    return get_profile_html(profile_id, domain=domain)
 
 
 @app.get("/api/profile/{profile_id}/docx")
-def profile_docx(profile_id: str):
+def profile_docx(profile_id: str, domain: str = ""):
     # Reuse the canonical /api/profiles/{id}/docx implementation
-    return get_profile_docx(profile_id)
+    return get_profile_docx(profile_id, domain=domain)
 
 
 @app.get("/api/jd/list")
@@ -7588,9 +7596,18 @@ def jd_list(domain: str = "technology"):
     return storage.list_jds(_domain_db_path(domain), domain=_storage_domain(domain))
 
 
+@app.get("/api/jd/latest")
+def jd_latest(domain: str = "technology", jd_id: Optional[str] = None):
+    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id, domain=_storage_domain(domain)) if jd_id else storage.get_latest_jd(_domain_db_path(domain), domain=_storage_domain(domain))
+    if not jd:
+        return {"jd_id": "", "company":"", "title": "", "domain": _storage_domain(domain), "created_at": "", "jd_text": "", "jd_skills": {}}
+    return jd
+
+
 @app.get("/api/jd/{jd_id}")
 def jd_get(jd_id: str, domain: str = ""):
-    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id)
+    expected_domain = _storage_domain(domain) if domain else None
+    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id, domain=expected_domain)
     if not jd:
         raise HTTPException(status_code=404, detail="JD not found")
     return jd
@@ -7598,7 +7615,8 @@ def jd_get(jd_id: str, domain: str = ""):
 
 @app.get("/api/jd/{jd_id}/html", response_class=HTMLResponse)
 def jd_html(jd_id: str, domain: str = ""):
-    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id)
+    expected_domain = _storage_domain(domain) if domain else None
+    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id, domain=expected_domain)
     if not jd:
         raise HTTPException(status_code=404, detail="JD not found")
     return HTMLResponse(jd_to_html(jd))
@@ -7606,21 +7624,14 @@ def jd_html(jd_id: str, domain: str = ""):
 
 @app.get("/api/jd/{jd_id}/docx")
 def jd_docx(jd_id: str, domain: str = ""):
-    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id)
+    expected_domain = _storage_domain(domain) if domain else None
+    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id, domain=expected_domain)
     if not jd:
         raise HTTPException(status_code=404, detail="JD not found")
     out = os.path.join(EXPORT_DIR, f"{jd_id}.docx")
     jd_to_docx(jd, out)
     filename = f"Job_Description_{jd.get('company','Company').replace(' ','_')}_{jd.get('title','Role').replace(' ','_')}.docx"
     return FileResponse(out, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", filename=filename)
-
-
-@app.get("/api/jd/latest")
-def jd_latest(domain: str = "technology", jd_id: Optional[str] = None):
-    jd = storage.get_jd(_jd_db_path(jd_id, domain), jd_id) if jd_id else storage.get_latest_jd(_domain_db_path(domain), domain=_storage_domain(domain))
-    if not jd:
-        return {"jd_id": "", "company":"", "title": "", "domain": _storage_domain(domain), "created_at": "", "jd_text": "", "jd_skills": {}}
-    return jd
 
 from openAI import externalPeopleSearch
 import peopleDataLabs.peopleSearch as peopleDataLabs
