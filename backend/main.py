@@ -2567,78 +2567,272 @@ def channel_audience(domain: str = "dev"):
     }
 
 
-CALL_INTAKE_QUESTIONS = [
-    {
-        "key": "practice",
-        "label": "Practice area",
-        "prompt": "Is this for DevReady technology and AI, LegalReady legal, or BuildReady construction and engineering?",
-        "captures": ["practice", "domain", "brand"],
-    },
-    {
-        "key": "role",
-        "label": "Role target",
-        "prompt": "Tell me about the role or business need in your own words. What outcome are you trying to create?",
-        "captures": ["job_title", "business_outcome"],
-    },
-    {
-        "key": "client",
-        "label": "Client context",
-        "prompt": "Who is the client or team, and what problem should this person solve?",
-        "captures": ["company", "team", "problem_statement"],
-    },
-    {
-        "key": "skills",
-        "label": "Required skills",
-        "prompt": "What skills, tools, or platforms are must-haves on day one?",
-        "captures": ["required_skills", "domain_stack"],
-    },
-    {
-        "key": "seniority",
-        "label": "Seniority",
-        "prompt": "What seniority level and years of experience feel right?",
-        "captures": ["seniority", "leadership_scope", "years_experience"],
-    },
-    {
-        "key": "delivery",
-        "label": "Delivery model",
-        "prompt": "Is the role remote, hybrid, onsite, contract, or full time?",
-        "captures": ["location", "work_model", "engagement_type"],
-    },
-    {
-        "key": "constraints",
-        "label": "Constraints",
-        "prompt": "Any timing, budget, compliance, clearance, or deal-breaker constraints?",
-        "captures": ["start_date", "rate_range", "compliance", "exclusions"],
-    },
-    {
-        "key": "success",
-        "label": "Success profile",
-        "prompt": "What would success look like in the first 30 to 90 days?",
-        "captures": ["success_metrics", "deliverables"],
-    },
-    {
-        "key": "caller_email",
-        "label": "Caller email",
-        "prompt": "What email should I save on this request?",
-        "captures": ["caller_email"],
-    },
-    {
-        "key": "caller_phone",
-        "label": "Caller phone",
-        "prompt": "What phone number should I keep on the request?",
-        "captures": ["caller_phone"],
-    },
-    {
-        "key": "callback_permission",
-        "label": "Follow-up preference",
-        "prompt": "Would you like a quick confirmation email with what I captured, and is a callback okay once the strongest match is confirmed?",
-        "captures": ["callback_permission", "confirmation_email", "delivery_preference"],
-    },
-]
+CALL_INTAKE_QUESTION_DEFAULTS = {
+    "dev": [
+        {
+            "key": "role",
+            "label": "Technology role",
+            "prompt": "Tell me about the technology, AI, data, or software role you need filled and the business outcome you want.",
+            "captures": ["role", "job_title", "business_outcome"],
+        },
+        {
+            "key": "client",
+            "label": "Client and team",
+            "prompt": "Which company or team is this for, and what product, platform, or initiative will the person support?",
+            "captures": ["client", "company", "team", "initiative"],
+        },
+        {
+            "key": "skills",
+            "label": "Technical stack",
+            "prompt": "What languages, frameworks, cloud platforms, data tools, AI tools, security needs, or integrations are must-haves?",
+            "captures": ["skills", "required_skills", "domain_stack"],
+        },
+        {
+            "key": "seniority",
+            "label": "Engineering level",
+            "prompt": "What level do you need: hands-on developer, senior engineer, architect, lead, product-minded builder, or delivery leader?",
+            "captures": ["seniority", "leadership_scope", "years_experience"],
+        },
+        {
+            "key": "delivery",
+            "label": "Work model",
+            "prompt": "Is this remote, hybrid, onsite, contract, fractional, or full time, and what time zone or collaboration overlap matters?",
+            "captures": ["delivery", "location", "work_model", "engagement_type"],
+        },
+        {
+            "key": "constraints",
+            "label": "Technical constraints",
+            "prompt": "Any timing, budget, clearance, compliance, architecture, legacy system, data privacy, or vendor constraints?",
+            "captures": ["constraints", "start_date", "rate_range", "compliance", "exclusions"],
+        },
+        {
+            "key": "success",
+            "label": "Delivery success",
+            "prompt": "What should this person ship, stabilize, automate, or improve in the first 30 to 90 days?",
+            "captures": ["success", "success_metrics", "deliverables"],
+        },
+        {
+            "key": "caller_email",
+            "label": "Caller email",
+            "prompt": "What email should I save for the confirmation and next-step summary?",
+            "captures": ["caller_email"],
+        },
+        {
+            "key": "caller_phone",
+            "label": "Caller phone",
+            "prompt": "What phone number should I keep on the request in case the team needs to clarify details?",
+            "captures": ["caller_phone"],
+        },
+        {
+            "key": "callback_permission",
+            "label": "Follow-up preference",
+            "prompt": "Would you like a confirmation email, and is a callback okay once the strongest technology match is confirmed?",
+            "captures": ["callback_permission", "confirmation_email", "delivery_preference"],
+        },
+    ],
+    "engineer": [
+        {
+            "key": "role",
+            "label": "Build role",
+            "prompt": "Tell me about the construction, engineering, project delivery, or field leadership role you need filled.",
+            "captures": ["role", "job_title", "business_outcome"],
+        },
+        {
+            "key": "client",
+            "label": "Project context",
+            "prompt": "Which company, project, facility, or site is this for, and what problem needs to be solved?",
+            "captures": ["client", "company", "project", "site"],
+        },
+        {
+            "key": "skills",
+            "label": "Required expertise",
+            "prompt": "What construction, civil, mechanical, electrical, estimating, scheduling, inspection, CAD, or project controls skills are must-haves?",
+            "captures": ["skills", "required_skills", "domain_stack"],
+        },
+        {
+            "key": "seniority",
+            "label": "Field level",
+            "prompt": "What level do you need: coordinator, superintendent, project manager, engineer, estimator, inspector, or senior program lead?",
+            "captures": ["seniority", "leadership_scope", "years_experience"],
+        },
+        {
+            "key": "delivery",
+            "label": "Site model",
+            "prompt": "Where is the work located, what schedule is expected, and is it onsite, travel-based, contract, or full time?",
+            "captures": ["delivery", "location", "work_model", "engagement_type"],
+        },
+        {
+            "key": "constraints",
+            "label": "Safety and constraints",
+            "prompt": "Any safety requirements, licenses, OSHA expectations, union rules, security access, budget, timing, or site constraints?",
+            "captures": ["constraints", "start_date", "rate_range", "compliance", "exclusions"],
+        },
+        {
+            "key": "success",
+            "label": "Project success",
+            "prompt": "What would make this engagement successful in the first 30 to 90 days: schedule recovery, cost control, inspections, closeout, or field coordination?",
+            "captures": ["success", "success_metrics", "deliverables"],
+        },
+        {
+            "key": "caller_email",
+            "label": "Caller email",
+            "prompt": "What email should I save for the BuildReady confirmation and next-step summary?",
+            "captures": ["caller_email"],
+        },
+        {
+            "key": "caller_phone",
+            "label": "Caller phone",
+            "prompt": "What phone number should I keep on the request for project follow-up?",
+            "captures": ["caller_phone"],
+        },
+        {
+            "key": "callback_permission",
+            "label": "Follow-up preference",
+            "prompt": "Would you like a confirmation email, and is a callback okay once the strongest BuildReady match is confirmed?",
+            "captures": ["callback_permission", "confirmation_email", "delivery_preference"],
+        },
+    ],
+    "law": [
+        {
+            "key": "role",
+            "label": "Legal role",
+            "prompt": "Tell me about the legal role or support need: attorney, paralegal, contract support, compliance, eDiscovery, or legal operations.",
+            "captures": ["role", "job_title", "business_outcome"],
+        },
+        {
+            "key": "client",
+            "label": "Matter context",
+            "prompt": "Which firm, legal department, client, or matter is this for, and what legal problem needs support?",
+            "captures": ["client", "company", "matter", "team"],
+        },
+        {
+            "key": "skills",
+            "label": "Practice skills",
+            "prompt": "What practice area, jurisdiction, drafting, research, litigation, transactional, regulatory, eDiscovery, or case management skills are must-haves?",
+            "captures": ["skills", "required_skills", "practice_area", "jurisdiction"],
+        },
+        {
+            "key": "seniority",
+            "label": "Legal level",
+            "prompt": "What level do you need: junior support, experienced paralegal, associate, counsel, senior attorney, or legal operations lead?",
+            "captures": ["seniority", "leadership_scope", "years_experience"],
+        },
+        {
+            "key": "delivery",
+            "label": "Engagement model",
+            "prompt": "Is this remote, hybrid, onsite, temporary, contract, fractional, or full time, and what court or client deadlines matter?",
+            "captures": ["delivery", "location", "work_model", "engagement_type", "deadlines"],
+        },
+        {
+            "key": "constraints",
+            "label": "Legal constraints",
+            "prompt": "Any bar admission, jurisdiction, conflicts, confidentiality, privilege, rate, background check, or compliance requirements?",
+            "captures": ["constraints", "start_date", "rate_range", "compliance", "exclusions"],
+        },
+        {
+            "key": "success",
+            "label": "Matter success",
+            "prompt": "What should this person accomplish in the first 30 to 90 days: filings, contracts, discovery, compliance cleanup, or case acceleration?",
+            "captures": ["success", "success_metrics", "deliverables"],
+        },
+        {
+            "key": "caller_email",
+            "label": "Caller email",
+            "prompt": "What email should I save for the LegalReady confirmation and next-step summary?",
+            "captures": ["caller_email"],
+        },
+        {
+            "key": "caller_phone",
+            "label": "Caller phone",
+            "prompt": "What phone number should I keep on the request for legal follow-up?",
+            "captures": ["caller_phone"],
+        },
+        {
+            "key": "callback_permission",
+            "label": "Follow-up preference",
+            "prompt": "Would you like a confirmation email, and is a callback okay once the strongest LegalReady match is confirmed?",
+            "captures": ["callback_permission", "confirmation_email", "delivery_preference"],
+        },
+    ],
+    "dental": [
+        {
+            "key": "role",
+            "label": "Dental role",
+            "prompt": "Tell me about the dental role you need filled: dental assistant, hygienist, EFDA, front office, treatment coordinator, or practice manager.",
+            "captures": ["role", "job_title", "business_outcome"],
+        },
+        {
+            "key": "client",
+            "label": "Practice context",
+            "prompt": "Which dental practice, specialty office, or clinic is this for, and what patient-care or staffing problem needs to be solved?",
+            "captures": ["client", "company", "practice", "team"],
+        },
+        {
+            "key": "skills",
+            "label": "Clinical skills",
+            "prompt": "What clinical or office skills are must-haves: chairside assisting, hygiene, radiography, sterilization, impressions, Dentrix, Eaglesoft, Open Dental, insurance, or scheduling?",
+            "captures": ["skills", "required_skills", "domain_stack"],
+        },
+        {
+            "key": "seniority",
+            "label": "Dental experience",
+            "prompt": "What experience level do you need, and are certifications like RDH, EFDA, CDA, DANB, CPR, or radiology required?",
+            "captures": ["seniority", "certifications", "years_experience"],
+        },
+        {
+            "key": "delivery",
+            "label": "Schedule and location",
+            "prompt": "Where is the practice, what days or shifts need coverage, and is this temp, temp-to-hire, part time, or full time?",
+            "captures": ["delivery", "location", "work_model", "engagement_type"],
+        },
+        {
+            "key": "constraints",
+            "label": "Practice constraints",
+            "prompt": "Any license, state rule, infection-control, specialty procedure, language, patient volume, pay range, or start-date constraints?",
+            "captures": ["constraints", "start_date", "rate_range", "compliance", "exclusions"],
+        },
+        {
+            "key": "success",
+            "label": "Patient-care success",
+            "prompt": "What would make this placement successful in the first 30 to 90 days for patient flow, chair turnover, hygiene production, or front-office reliability?",
+            "captures": ["success", "success_metrics", "deliverables"],
+        },
+        {
+            "key": "caller_email",
+            "label": "Caller email",
+            "prompt": "What email should I save for the DentalReady confirmation and next-step summary?",
+            "captures": ["caller_email"],
+        },
+        {
+            "key": "caller_phone",
+            "label": "Caller phone",
+            "prompt": "What phone number should I keep on the request for dental staffing follow-up?",
+            "captures": ["caller_phone"],
+        },
+        {
+            "key": "callback_permission",
+            "label": "Follow-up preference",
+            "prompt": "Would you like a confirmation email, and is a callback okay once the strongest DentalReady match is confirmed?",
+            "captures": ["callback_permission", "confirmation_email", "delivery_preference"],
+        },
+    ],
+}
+CALL_INTAKE_QUESTIONS = CALL_INTAKE_QUESTION_DEFAULTS["dev"]
 
 
-def _default_call_intake_questions() -> list[dict]:
-    return json.loads(json.dumps(CALL_INTAKE_QUESTIONS))
+def _call_intake_brand(domain: str = "dev") -> str:
+    return {
+        "dev": "DevReady",
+        "engineer": "BuildReady",
+        "law": "LegalReady",
+        "dental": "DentalReady",
+    }.get(_domain_key(domain), "DevReady")
+
+
+def _default_call_intake_questions(domain: str = "dev") -> list[dict]:
+    clean_domain = _domain_key(domain)
+    questions = CALL_INTAKE_QUESTION_DEFAULTS.get(clean_domain) or CALL_INTAKE_QUESTION_DEFAULTS["dev"]
+    return json.loads(json.dumps(questions))
 
 
 def _normalize_call_intake_question(question: dict, index: int) -> dict | None:
@@ -2677,13 +2871,13 @@ def _call_intake_questions(domain: str = "dev") -> list[dict]:
     store = _call_intake_question_store()
     custom = store.get(clean_domain)
     if not isinstance(custom, list):
-        return _default_call_intake_questions()
+        return _default_call_intake_questions(clean_domain)
     questions = [
         clean
         for index, question in enumerate(custom[:20])
         if (clean := _normalize_call_intake_question(question, index))
     ]
-    return questions or _default_call_intake_questions()
+    return questions or _default_call_intake_questions(clean_domain)
 
 
 def _save_call_intake_questions(domain: str, questions: list[dict]) -> list[dict]:
@@ -3049,7 +3243,8 @@ def _call_intake_gather_twiml(request: Request, domain: str, call_sid: str, step
     action = f"{base_url}/api/call-intake/gather?domain={quote_plus(clean_domain)}&callSid={quote_plus(call_sid)}&step={step}"
     no_answer_action = f"{action}&retry={retry + 1}"
     prompt = question["prompt"]
-    intro = lead_in or ("Hi, this is Egeria with DevReady. Happy to help. I will grab the key details and look for a strong match. " if step == 0 else "")
+    brand = _call_intake_brand(clean_domain)
+    intro = lead_in or (f"Hi, this is Egeria with {brand}. Happy to help. I will grab the key details and look for a strong match. " if step == 0 else "")
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather input="speech" action="{_xml_escape(action)}" method="POST" speechTimeout="auto" timeout="5" enhanced="true" speechModel="phone_call">
@@ -3291,8 +3486,9 @@ def _call_intake_finalize(session: dict) -> dict:
             "I saved the intake, queued a confirmation email with the captured details, and the team can confirm readiness before following up."
         )
     elif session.get("error"):
+        brand = _call_intake_brand(domain)
         summary = (
-            "Thanks, I captured the intake. I am sending it to the DevReady team for review, "
+            f"Thanks, I captured the intake. I am sending it to the {brand} team for review, "
             "and they will follow up with the best match."
         )
     else:
@@ -3316,7 +3512,7 @@ def _call_intake_partial_summary(session: dict) -> dict:
     session["status"] = "needs_follow_up"
     session["summary"] = (
         f"Thanks, I saved what I have for {role}. "
-        "The DevReady team will review this Call Ask and follow up."
+        f"The {_call_intake_brand(session.get('domain') or 'dev')} team will review this Call Ask and follow up."
     )
     session["completed_at"] = session.get("completed_at") or _now_utc()
     try:
@@ -3451,6 +3647,8 @@ def _call_intake_domain_from_text(value: str, default: str = "dev") -> str:
     text = (value or "").strip().lower()
     if not text:
         return _domain_key(default)
+    if any(token in text for token in ["dentalready", "dental ready", "dental", "dentist", "hygienist", "dental assistant", "efda", "rdh", "danb", "chairside"]):
+        return "dental"
     if any(token in text for token in ["legalready", "legal ready", "law", "legal", "attorney", "paralegal", "compliance counsel"]):
         return "law"
     if any(token in text for token in ["buildready", "build ready", "construction", "engineering", "engineer", "project manager", "superintendent"]):
@@ -3874,13 +4072,13 @@ def call_intake_blueprint(request: Request, domain: str = "dev"):
         "ok": True,
         "domain": clean_domain,
         "questions": questions,
-        "default_questions": _default_call_intake_questions(),
+        "default_questions": _default_call_intake_questions(clean_domain),
         "flow": [
             {"step": "open", "label": "Egeria opens warmly and asks how the caller is doing"},
             {"step": "freeflow", "label": "Caller describes the need naturally while Egeria listens and takes notes"},
             {"step": "checklist", "label": "Egeria optionally fills gaps with the saved question set"},
             {"step": "jd", "label": "Full transcript is post-processed into a saved job description"},
-            {"step": "match", "label": "Existing DevReady, LegalReady, or BuildReady profiles are ranked against the JD"},
+            {"step": "match", "label": f"Existing {_call_intake_brand(clean_domain)} profiles are ranked against the JD"},
             {"step": "confirm", "label": "Egeria queues a confirmation email and prepares a callback-ready match summary"},
         ],
         "handoff_contract": {
@@ -3906,7 +4104,7 @@ async def call_intake_save_questions(request: Request, domain: str = "dev"):
         store = _call_intake_question_store()
         store.pop(clean_domain, None)
         _write_json_store(CALL_INTAKE_QUESTIONS_PATH, store)
-        questions = _default_call_intake_questions()
+        questions = _default_call_intake_questions(clean_domain)
     else:
         questions = _save_call_intake_questions(clean_domain, payload.get("questions") or [])
     return {"ok": True, "domain": clean_domain, "questions": questions, "updated_at": _now_utc()}

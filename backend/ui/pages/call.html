@@ -527,7 +527,7 @@
             <div class="call-next">
               <div class="call-next-item">
                 <strong>1. Call Egeria</strong>
-                <span>Have a natural conversation about DevReady, LegalReady, BuildReady, or the role you need filled.</span>
+                <span>Have a natural conversation about the domain-specific role you need filled.</span>
               </div>
               <div class="call-next-item">
                 <strong>2. Egeria builds the ask</strong>
@@ -603,6 +603,15 @@
 
       function currentDomain() {
         return sessionStorage.getItem("domain") || new URLSearchParams(window.location.search).get("domain") || "dev";
+      }
+
+      function currentBrand() {
+        return {
+          dev: "DevReady",
+          engineer: "BuildReady",
+          law: "LegalReady",
+          dental: "DentalReady",
+        }[currentDomain()] || "DevReady";
       }
 
       async function callApi(path) {
@@ -935,7 +944,7 @@
       }
 
       async function resetQuestionSet() {
-        if (!confirm("Reset the Call page questions to the DevReady defaults?")) return;
+        if (!confirm(`Reset the Call page questions to the ${currentBrand()} defaults?`)) return;
         setQuestionState("Resetting questions...");
         try {
           const result = await callApiPost("/api/call-intake/questions", { reset: true });
@@ -949,14 +958,15 @@
 
       async function copyRetellQuestionPrompt() {
         const questions = collectQuestionSet();
+        const brand = currentBrand();
         const prompt = [
-          "You are Egeria, a very human, friendly AI assistant for DevReady, LegalReady, and BuildReady.",
+          `You are Egeria, a very human, friendly AI assistant for ${brand}.`,
           "First sentence only: say exactly, \"Hello, this is Egeria. How can I help you today?\" Then stop talking and listen.",
           "Do not sound like a form. Listen first. Use only tiny acknowledgements like got it, okay, that helps, or makes sense. Do not repeat back what the caller just said.",
           "Ask follow-up questions only when you need missing information. Confirm normal details only at the end.",
           "Only confirm details immediately when they are easy to get wrong, especially email, phone, budget, timing, compliance, clearance, and hard deal-breakers.",
-          "Position DevReady as highly differentiated: the team can search more than 2,000 senior vetted technology and AI profiles, plus the relevant LegalReady and BuildReady talent networks.",
-          "Explain that after the call, DevReady will save the transcript, create a job description, match against existing internal profiles, and queue a confirmation email with the details captured. The team can follow up with the strongest candidate once confirmed ready and interested.",
+          `Position ${brand} as highly differentiated inside its own domain and do not discuss other tenant networks unless the caller explicitly asks.`,
+          `Explain that after the call, ${brand} will save the transcript, create a job description, match against existing ${brand} profiles, and queue a confirmation email with the details captured. The team can follow up with the strongest candidate once confirmed ready and interested.`,
           "Optional closing checklist:",
           ...questions.map((question, index) => `${index + 1}. ${question.label}: ${question.prompt}`),
           "End casually with a light recap. Say you will queue a confirmation email with the details, then ask whether a callback is okay once the strongest match is confirmed. Be friendly, confident, and concise.",
