@@ -679,7 +679,7 @@
         const connected = latestHealth && latestHealth[selectedProvider] && latestHealth[selectedProvider].connected;
         byId("scheduleActionButton").textContent =
           selectedProvider === "calendly"
-            ? "Connect Calendly"
+            ? "Open Calendly"
             : connected
               ? `Send ${isReady ? "Candidate Review" : "Client Interview"} invite`
               : `Connect ${selectedProvider === "outlook" ? "Outlook" : "Google"}`;
@@ -705,7 +705,7 @@
         const connected = latestHealth && latestHealth[provider] && latestHealth[provider].connected;
         byId("scheduleActionButton").textContent =
           provider === "calendly"
-            ? "Connect Calendly"
+            ? "Open Calendly"
             : connected
               ? `Send ${interviewType === "ready" ? "Candidate Review" : "Client"} invite`
               : `Connect ${provider === "outlook" ? "Outlook" : "Google"}`;
@@ -825,6 +825,14 @@
         if (link) link.href = calendlyUrl();
       }
 
+      function restoreCalendlyScroll() {
+        document.documentElement.style.overflow = "";
+        document.body.style.overflow = "";
+        document.body.style.position = "";
+        document.body.style.width = "";
+        document.body.style.top = "";
+      }
+
       function bookWithCalendly() {
         const url = calendlyUrl();
         updateCalendlyLink();
@@ -833,11 +841,13 @@
           status: "Booking link opened",
           eventLink: url,
         });
-        if (window.Calendly && Calendly.initPopupWidget) {
-          Calendly.initPopupWidget({ url });
-          showResult("Calendly opened with the selected candidate prefilled. This was saved to Status.");
+        restoreCalendlyScroll();
+        const opened = window.open(url, "_blank", "noopener,noreferrer");
+        if (opened) {
+          showResult("Calendly opened in a new tab with the selected candidate prefilled. This was saved to Status.");
           return;
         }
+        showResult("Calendly is ready. Use the direct link button if your browser blocked the new tab.", true);
         window.location.href = url;
       }
 
@@ -1576,6 +1586,9 @@
           if (interviewType === "client") byId("clientCompanyInput").value = byId("companyInput").value;
         });
         updateCalendlyLink();
+        restoreCalendlyScroll();
+        window.addEventListener("focus", restoreCalendlyScroll);
+        window.addEventListener("pageshow", restoreCalendlyScroll);
         updateCrossWorkflowLinks();
         await refreshHealth();
       });
