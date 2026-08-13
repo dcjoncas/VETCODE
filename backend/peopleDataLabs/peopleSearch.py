@@ -260,7 +260,6 @@ def build_skill_search_payload(skill_list: list[str], size: int = 5) -> dict[str
         "query": {
             "bool": {
                 "should": skill_clauses,
-                "minimum_should_match": 1,
             }
         },
         "size": _result_size(size),

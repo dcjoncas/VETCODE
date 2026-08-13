@@ -96,7 +96,7 @@ class PeopleSearchTests(unittest.TestCase):
 
         query = payload["query"]["bool"]
         self.assertNotIn("must", query)
-        self.assertEqual(query["minimum_should_match"], 1)
+        self.assertNotIn("minimum_should_match", query)
         self.assertEqual(len(query["should"]), 3)
         self.assertEqual(payload["size"], 5)
 
