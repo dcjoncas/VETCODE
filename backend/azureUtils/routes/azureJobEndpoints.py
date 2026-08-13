@@ -560,7 +560,12 @@ def _lawyer_match_score(row: dict, criteria: dict):
     }
 
 
-def _pdl_source_audit(response: dict, criteria: dict | None = None, query_mode: str = "skills"):
+def _pdl_source_audit(
+    response: dict,
+    criteria: dict | None = None,
+    query_mode: str = "skills",
+    domain: str = "law",
+):
     rows = response.get("data", []) if isinstance(response, dict) else []
     requested_size = int(response.get("requested_size") or len(rows)) if isinstance(response, dict) else len(rows)
     effective_size = int(response.get("effective_size") or requested_size) if isinstance(response, dict) else requested_size
@@ -582,7 +587,11 @@ def _pdl_source_audit(response: dict, criteria: dict | None = None, query_mode: 
         "executedAt": datetime.now(timezone.utc).isoformat(),
         "criteria": criteria or {},
         "contactData": "No personal email, phone, or street address requested in discovery search.",
-        "legalReadiness": "California Bar status must be verified before permanent use or outreach.",
+        "legalReadiness": (
+            "California Bar status must be verified before permanent use or outreach."
+            if domain == "law"
+            else "Identity, current role, and material facts require human verification before outreach."
+        ),
         "linkedInMode": "Profile link only; no LinkedIn scraping was performed.",
         "statusMessage": (
             f"PDL rejected the requested {requested_size}-record page, so VETCODE retried with "
@@ -730,6 +739,7 @@ def _provider_source_audit(
     criteria: dict | None,
     query_mode: str,
     cost_label: str,
+    domain: str = "law",
 ):
     rows = response.get("data", []) if isinstance(response, dict) else []
     returned = len(rows) if isinstance(rows, list) else 0
@@ -748,7 +758,11 @@ def _provider_source_audit(
         "executedAt": datetime.now(timezone.utc).isoformat(),
         "criteria": criteria or {},
         "contactData": "No personal email, phone, or street address requested in discovery search.",
-        "legalReadiness": "California Bar status and candidate identity require manual verification.",
+        "legalReadiness": (
+            "California Bar status and candidate identity require manual verification."
+            if domain == "law"
+            else "Candidate identity, current role, credentials, and availability require manual verification."
+        ),
         "linkedInMode": "Professional profile links may be returned; no LinkedIn scraping was performed.",
     }
 
@@ -2127,12 +2141,12 @@ def external_candidate_search(
                     _people_data_row(row, job_skills, search_skills, criteria)
                     for row in pdl_response.get("data", [])
                 ]
-                source_audit = _pdl_source_audit(pdl_response, criteria, "lawyer")
+                source_audit = _pdl_source_audit(pdl_response, criteria, "lawyer", domain)
                 pagination = _pdl_pagination(pdl_response, top_k)
             else:
                 pdl_response = peopleDataLabs.searchSkills(search_skills, top_k, scroll_token=scroll_token)
                 results = [_people_data_row(row, job_skills, search_skills) for row in pdl_response.get("data", [])]
-                source_audit = _pdl_source_audit(pdl_response, {"skills": search_skills}, "skills")
+                source_audit = _pdl_source_audit(pdl_response, {"skills": search_skills}, "skills", domain)
                 pagination = _pdl_pagination(pdl_response, top_k)
         elif selected_source == "coresignal":
             page = _provider_page(scroll_token, 1, 100)
@@ -2154,6 +2168,7 @@ def external_candidate_search(
                 criteria or {"skills": search_skills},
                 "employee_profile_preview",
                 "search credits",
+                domain,
             )
             pagination = _provider_pagination(core_response, top_k, "1 search credit")
         elif selected_source == "brave":
@@ -2176,6 +2191,7 @@ def external_candidate_search(
                 criteria or {"skills": search_skills},
                 "public_web_legal_evidence" if domain == "law" else "public_web_professional_evidence",
                 "API requests",
+                domain,
             )
             source_audit["totalIsEstimate"] = True
             pagination = _provider_pagination(brave_response, top_k, "1 API request")
@@ -2305,7 +2321,7 @@ def external_candidate_search_direct(
         if selected_source == "pdl":
             pdl_response = peopleDataLabs.searchDirect(clean_query, top_k, scroll_token=scroll_token)
             results = [_people_data_row(row, search_terms, search_terms) for row in pdl_response.get("data", [])]
-            source_audit = _pdl_source_audit(pdl_response, {"terms": search_terms}, "direct")
+            source_audit = _pdl_source_audit(pdl_response, {"terms": search_terms}, "direct", domain)
             pagination = _pdl_pagination(pdl_response, top_k)
         elif selected_source == "coresignal":
             page = _provider_page(scroll_token, 1, 100)
@@ -2327,6 +2343,7 @@ def external_candidate_search_direct(
                 {"terms": search_terms},
                 "direct_profile_preview",
                 "search credits",
+                domain,
             )
             pagination = _provider_pagination(core_response, top_k, "1 search credit")
         elif selected_source == "brave":
@@ -2343,6 +2360,7 @@ def external_candidate_search_direct(
                 {"terms": search_terms},
                 "direct_public_web",
                 "API requests",
+                domain,
             )
             source_audit["totalIsEstimate"] = True
             pagination = _provider_pagination(brave_response, top_k, "1 API request")

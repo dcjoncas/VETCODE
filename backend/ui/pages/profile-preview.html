@@ -1597,6 +1597,8 @@
         const enrichment = metadata.enrichment || {};
         const match = metadata.match || {};
         const isCourtLead = metadata.recordType === "court_attorney_lead";
+        const domain = profileData.domain || profileDomain();
+        const isLawProfile = domain === "law";
         const courtEvidence = isCourtLead && metadata.courtEvidence && typeof metadata.courtEvidence === "object"
           ? metadata.courtEvidence
           : {};
@@ -1645,8 +1647,14 @@
         const evidenceIntro = isCourtLead
           ? `Court-record research evidence from ${profileEscapeHtml(source)}. This record does not verify identity, current employment, experience, location, California Bar standing, or candidate fit.`
           : isTemporaryProfile
-          ? `Selected-profile data from ${profileEscapeHtml(source)}. Identity, California Bar standing, and all material facts still require human verification.`
-          : `Provider-supplied evidence from ${profileEscapeHtml(source)}. The profile is available for pipeline use; source dates, California Bar standing, and material facts remain visible for review.`;
+          ? `Selected-profile data from ${profileEscapeHtml(source)}. Identity, current role, and all material facts still require human verification.`
+          : `Provider-supplied evidence from ${profileEscapeHtml(source)}. The profile is available for pipeline use; source dates and material facts remain visible for review.`;
+        const barVerificationButton = isLawProfile
+          ? `<a class="btn secondary" href="https://apps.calbar.ca.gov/attorney/LicenseeSearch/QuickSearch" target="_blank" rel="noopener">Verify California Bar</a>`
+          : "";
+        const barVerificationChip = isLawProfile
+          ? '<span class="temp-chip gap">California Bar not verified</span>'
+          : "";
         const sourceAssurance = isCourtLead
           ? "CourtListener docket evidence was saved as research. It is not proof that this is the intended person or that the person meets the job requirements."
           : /people data labs|pdl/i.test(String(source))
@@ -1731,7 +1739,7 @@
             <div class="row-actions" style="margin:0">
               ${profileUrl ? `<a class="btn secondary" href="${profileEscapeHtml(profileUrl)}" target="_blank" rel="noopener">Open matched professional profile</a>` : ""}
               ${supportingRecordUrl ? `<a class="btn secondary" href="${profileEscapeHtml(supportingRecordUrl)}" target="_blank" rel="noopener">Open supporting court record</a>` : ""}
-              <a class="btn secondary" href="https://apps.calbar.ca.gov/attorney/LicenseeSearch/QuickSearch" target="_blank" rel="noopener">Verify California Bar</a>
+              ${barVerificationButton}
             </div>
           </div>
           <div class="temp-facts">
@@ -1746,7 +1754,7 @@
               <p>${profileEscapeHtml(summary)}</p>
               <div class="temp-chip-row">
                 <span class="temp-chip">${isCourtLead ? "Court-record research lead" : "Provider-linked profile"}</span>
-                <span class="temp-chip gap">California Bar not verified</span>
+                ${barVerificationChip}
                 ${metadata.lastVerified ? `<span class="temp-chip">Job data verified ${profileEscapeHtml(metadata.lastVerified)}</span>` : ""}
               </div>
             </section>
@@ -1760,7 +1768,7 @@
           ${courtEvidenceHtml}
           <section class="temp-evidence-section">
             <h3>Grouped professional evidence</h3>
-            <p>Skills are grouped by legal relevance; no unsupported years are assigned.</p>
+            <p>Skills are grouped by professional relevance; no unsupported years are assigned.</p>
             <div class="temp-skill-groups" style="margin-top:12px">${skillGroupsHtml}</div>
           </section>
           <section class="temp-work-history">

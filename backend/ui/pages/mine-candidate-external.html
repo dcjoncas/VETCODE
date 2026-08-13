@@ -1312,7 +1312,7 @@
               ? `<a class="btn secondary" href="${escapeHtml(candidate.profile_url)}" target="_blank" rel="noopener">${isCourtAttorneyLead ? "Open supporting court record" : isCourtRecord ? "Open CourtListener record" : "Open profile link"}</a>`
               : "";
             const verification = candidate.verification || {};
-            const barLink = verification.california_bar_search_url
+            const barLink = isLawDomain() && verification.california_bar_search_url
               ? `<a class="btn secondary" href="${escapeHtml(verification.california_bar_search_url)}" target="_blank" rel="noopener">Verify California Bar</a>`
               : "";
             const courtListenerReady = externalProviderStatus.courtlistener?.ready === true;
