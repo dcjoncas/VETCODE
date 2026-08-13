@@ -16,7 +16,7 @@
       (function () {
         const params = new URLSearchParams(window.location.search);
         const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
-        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law", "dental"].includes(requested) ? requested : "dev");
         sessionStorage.setItem("domain", domain);
         const css = document.getElementById("domainCss");
         if (css) css.href = `../assets/${domain}Styles.css`;
@@ -636,7 +636,30 @@
         return currentDomain() === "law";
       }
 
+      function isDentalDomain() {
+        return currentDomain() === "dental";
+      }
+
       function configureDomainPage() {
+        if (isDentalDomain()) {
+          document.getElementById("pageTitle").textContent = "Mine Dental Talent";
+          document.getElementById("pageBreadcrumb").textContent = "DentalReady - External dental sourcing";
+          document.getElementById("pageHeading").textContent = "Find dental assistants and hygiene candidates";
+          document.getElementById("pageIntro").textContent =
+            "Search professional and public sources from a saved dental practice JD, then create TEMP profiles for dental assistant, hygienist, front-office, and specialty-clinic staffing review.";
+          document.getElementById("externalSearchInput").placeholder =
+            "Dental assistant, RDH, EFDA, treatment coordinator, city, or profile URL";
+          document.getElementById("githubSourceButton").hidden = true;
+          document.getElementById("courtListenerSourceButton").hidden = true;
+          document.getElementById("sourceGuide").textContent =
+            "Use PDL or Coresignal for professional discovery. Use Brave for research-only discovery around DentalPost, ADAA, DANB, Toothio, Stynt, DentistJobCafe, and practice staff pages before building TEMP profiles.";
+          document.getElementById("directSearchHelp").textContent =
+            "Try role plus location, such as EFDA Denver, RDH Phoenix, dental treatment coordinator, or a known professional profile URL.";
+          document.getElementById("resultsLimitHelp").textContent =
+            "Provider usage is shown before each additional page is requested. Dental-specific boards may require employer accounts or partnerships.";
+          setSource("pdl");
+          return;
+        }
         if (!isLawDomain()) return;
         document.getElementById("pageTitle").textContent = "Mine Lawyers";
         document.getElementById("pageBreadcrumb").textContent = "LegalReady - External lawyer sourcing";
@@ -965,9 +988,13 @@
           ? "Optional: enter a known lawyer, or leave blank to use the selected JD"
           : isLawDomain()
             ? "Exact name, work email, or public profile URL"
+            : isDentalDomain()
+              ? "Dental assistant, RDH, EFDA, treatment coordinator, city, or profile URL"
             : "Exact name, work email, public profile URL, or skills";
         document.getElementById("directSearchHelp").textContent = source === "courtlistener"
           ? "Leave blank to discover lawyers from the selected JD. Enter a full name only for a direct court-evidence check."
+          : isDentalDomain()
+            ? "Use professional discovery for candidate profiles; use Brave as research-only discovery for dental boards, associations, and practice staff pages."
           : "Use this when you do not have a job description yet. Results still create TEMP profiles only.";
         document.getElementById("btnMine").textContent = source === "courtlistener"
           ? "Find Lawyers in Court Records"
@@ -981,6 +1008,13 @@
           courtlistener: "JD-driven lawyer discovery across matching RECAP dockets. Select up to five named lawyer leads to create identity-unverified TEMP research profiles; verify identity, current role, experience, location, and California Bar status before outreach.",
           github: "Public code-footprint discovery for technical candidates.",
         };
+        if (isDentalDomain()) {
+          guides.pdl = "Professional discovery for dental assistants, hygienists, EFDAs, treatment coordinators, and dental front-office staff. Verify license/certification and current availability before outreach.";
+          guides.coresignal = "Professional-profile comparison for dental practice staff. Useful for title/location matching when PDL is unavailable or limited.";
+          guides.brave = "Research-only public-web discovery across dental job boards, association pages, staffing platforms, and practice team pages. Do not treat public-web hits as verified candidate profiles.";
+          guides.github = "GitHub is hidden for DentalReady because public code footprint is not a dental staffing signal.";
+          guides.courtlistener = "CourtListener is hidden for DentalReady; use dental boards and professional discovery instead.";
+        }
         document.getElementById("sourceGuide").textContent = guides[source] || "Select an external source.";
       }
 

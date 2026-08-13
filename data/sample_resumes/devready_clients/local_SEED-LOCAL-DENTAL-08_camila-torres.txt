@@ -1,0 +1,20 @@
+Camila Torres
+Orthodontic Assistant
+camila.torres.local.08@seed.dentalready.example
+Las Vegas, NV
+
+SUMMARY
+Synthetic DevReady Dental example for Orthodontics. Camila Torres has client-facing experience helping AlignWest Orthodontics with: Support busy orthodontic clinic flow with scanner, wire, and patient-photo readiness.
+
+SKILLS
+Bracket Placement, Clinical documentation, Dental PMS, Intraoral Scanning, Ortho Charting, Patient Photos, Sterilization, Wire Changes
+
+EXPERIENCE
+Orthodontic Assistant | AlignWest Orthodontics | 2020 - Present
+Led orthodontics delivery work focused on support busy orthodontic clinic flow with scanner, wire, and patient-photo readiness.
+
+CERTIFICATION
+AI / ML L3 - Foundations | certified | 94% | SEED-LOCAL-DENTAL-08-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

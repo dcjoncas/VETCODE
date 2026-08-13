@@ -1,0 +1,20 @@
+Noah Bennett
+Dental Hygiene Temp
+noah.bennett.local.07@seed.dentalready.example
+Phoenix, AZ
+
+SUMMARY
+Synthetic DevReady Dental example for Community Dental. Noah Bennett has client-facing experience helping MetroCare Dental with: Cover hygiene demand while maintaining consistent documentation and patient communication.
+
+SKILLS
+Clinical documentation, Community Health, Dental PMS, Electronic Health Records, Fluoride, Patient Education, RDH, Scaling
+
+EXPERIENCE
+Dental Hygiene Temp | MetroCare Dental | 2023 - Present
+Led community dental delivery work focused on cover hygiene demand while maintaining consistent documentation and patient communication.
+
+CERTIFICATION
+AI / ML L2 - Foundations | certified | 93% | SEED-LOCAL-DENTAL-07-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

@@ -1,0 +1,20 @@
+Elena Watkins
+Lead Dental Assistant
+elena.watkins.local.06@seed.dentalready.example
+Salt Lake City, UT
+
+SUMMARY
+Synthetic DevReady Dental example for Implant Dentistry. Elena Watkins has client-facing experience helping Summit Implant Center with: Lead implant chairside support and coordinate surgical-to-restorative handoffs.
+
+SKILLS
+Asepsis, CBCT Workflow, Clinical documentation, Dental PMS, Implant Chairside, Lab Coordination, Patient Handoff, Temporary Crowns
+
+EXPERIENCE
+Lead Dental Assistant | Summit Implant Center | 2022 - Present
+Led implant dentistry delivery work focused on lead implant chairside support and coordinate surgical-to-restorative handoffs.
+
+CERTIFICATION
+AI / ML L1 - Foundations | certified | 92% | SEED-LOCAL-DENTAL-06-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

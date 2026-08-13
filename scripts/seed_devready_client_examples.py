@@ -24,9 +24,10 @@ DOMAIN_DB_PATHS = {
     "dev": BACKEND / "devready.db",
     "engineer": BACKEND / "buildready.db",
     "law": BACKEND / "legalready.db",
+    "dental": BACKEND / "dentalready.db",
 }
 
-LOCAL_DOMAIN = {"dev": "technology", "engineer": "engineer", "law": "law"}
+LOCAL_DOMAIN = {"dev": "technology", "engineer": "engineer", "law": "law", "dental": "dental"}
 
 CLIENT_SETS = {
     "dev": {
@@ -77,6 +78,22 @@ CLIENT_SETS = {
             ("Hannah Ortiz", "Employment Law HR Advisor", "PeopleFirst Services", "Workforce", "Minneapolis, MN", ["Employment Law", "Investigations", "Policy Updates", "Training", "ADA", "Employee Relations"], "Support policy rollout and sensitive workplace investigations."),
         ],
     },
+    "dental": {
+        "label": "Dental",
+        "email_domain": "dentalready.example",
+        "roles": [
+            ("Sofia Ramirez", "Registered Dental Hygienist", "BrightSmile Family Dental", "General Dentistry", "Denver, CO", ["RDH", "Prophylaxis", "Periodontal Charting", "Patient Education", "Dentrix", "Digital X-rays"], "Support a high-volume hygiene schedule with strong patient education and perio maintenance."),
+            ("Marcus Lee", "Expanded Functions Dental Assistant", "Peak Pediatric Dentistry", "Pediatric Dentistry", "Aurora, CO", ["EFDA", "Coronal Polishing", "Sealants", "Pediatric Chairside", "Sterilization", "Eaglesoft"], "Assist pediatric providers chairside while keeping rooms turned over and families comfortable."),
+            ("Alyssa Chen", "Dental Treatment Coordinator", "ClearPath Orthodontics", "Orthodontics", "Fort Collins, CO", ["Treatment Plans", "Insurance Verification", "Patient Financing", "Ortho2", "Case Presentation", "Scheduling"], "Improve orthodontic starts by coordinating consults, benefits, and payment options."),
+            ("Jordan Brooks", "Sterile Processing Technician", "Oral Surgery Partners", "Oral Surgery", "Colorado Springs, CO", ["Instrument Sterilization", "OSHA", "Infection Control", "Surgical Trays", "Inventory", "HIPAA"], "Keep surgical operatories stocked, sterile, and ready for procedure blocks."),
+            ("Priya Nair", "Dental Front Office Coordinator", "Lakeside Dental Group", "Multi-Specialty Dental", "Boulder, CO", ["Patient Scheduling", "Recall Management", "Insurance Claims", "Open Dental", "Phone Triage", "Payment Posting"], "Stabilize front-office flow across hygiene recall, claims, and same-day schedule changes."),
+            ("Elena Watkins", "Lead Dental Assistant", "Summit Implant Center", "Implant Dentistry", "Salt Lake City, UT", ["Implant Chairside", "CBCT Workflow", "Temporary Crowns", "Lab Coordination", "Asepsis", "Patient Handoff"], "Lead implant chairside support and coordinate surgical-to-restorative handoffs."),
+            ("Noah Bennett", "Dental Hygiene Temp", "MetroCare Dental", "Community Dental", "Phoenix, AZ", ["RDH", "Community Health", "Fluoride", "Scaling", "Electronic Health Records", "Patient Education"], "Cover hygiene demand while maintaining consistent documentation and patient communication."),
+            ("Camila Torres", "Orthodontic Assistant", "AlignWest Orthodontics", "Orthodontics", "Las Vegas, NV", ["Bracket Placement", "Wire Changes", "Intraoral Scanning", "Sterilization", "Patient Photos", "Ortho Charting"], "Support busy orthodontic clinic flow with scanner, wire, and patient-photo readiness."),
+            ("Damon Pierce", "Dental Lab Liaison", "Precision Prosthodontics", "Prosthodontics", "Seattle, WA", ["Lab Cases", "Shade Matching", "Case Tracking", "Digital Impressions", "Vendor Coordination", "Quality Checks"], "Reduce remake risk by coordinating lab details and tracking complex restorative cases."),
+            ("Mei Tan", "Clinical Dental Assistant", "Evergreen Endodontics", "Endodontics", "Portland, OR", ["Endodontic Chairside", "Rubber Dam", "Digital Radiography", "Sterilization", "Patient Comfort", "Procedure Setup"], "Assist endodontic procedures and keep specialized trays and imaging ready."),
+        ],
+    },
 }
 
 
@@ -121,6 +138,17 @@ def skill_groups(domain: str, skills: list[str]) -> dict[str, list[str]]:
             "data": [item for item in skills if item in {"OEE", "FMEA", "CMMS", "Cost Estimating"}],
             "testing": [item for item in skills if item in {"FAT", "SAT", "Commissioning", "QA/QC", "Metrology", "Process Validation"}],
             "security": ["Safety", "Quality controls"],
+            "other": skills,
+        }
+    if domain == "dental":
+        return {
+            "languages": [],
+            "frontend": [],
+            "backend": ["Dental PMS", "Clinical documentation"],
+            "cloud_devops": [item for item in skills if item in {"Dentrix", "Eaglesoft", "Open Dental", "Ortho2"}],
+            "data": [item for item in skills if item in {"Periodontal Charting", "Insurance Verification", "Recall Management", "Case Tracking"}],
+            "testing": [item for item in skills if item in {"Instrument Sterilization", "Infection Control", "Quality Checks"}],
+            "security": [item for item in skills if item in {"HIPAA", "OSHA", "Asepsis"}],
             "other": skills,
         }
     return {

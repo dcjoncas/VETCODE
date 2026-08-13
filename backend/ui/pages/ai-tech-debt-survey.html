@@ -304,7 +304,7 @@
       }
 
       function setDomainTheme(domain) {
-        const clean = ["dev", "engineer", "law"].includes(domain) ? domain : "dev";
+        const clean = ["dev", "engineer", "law", "dental"].includes(domain) ? domain : "dev";
         document.getElementById("domainCss").href = `../assets/${clean}Styles.css`;
         document.documentElement.dataset.domain = clean;
       }

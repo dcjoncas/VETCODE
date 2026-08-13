@@ -10,7 +10,7 @@
       (function () {
         const params = new URLSearchParams(window.location.search);
         const requested = (params.get("domain") || sessionStorage.getItem("domain") || "dev").toLowerCase();
-        const domain = requested === "technology" || requested === "tech" ? "dev" : ["dev", "engineer", "law"].includes(requested) ? requested : "dev";
+        const domain = requested === "technology" || requested === "tech" ? "dev" : ["dev", "engineer", "law", "dental"].includes(requested) ? requested : "dev";
         sessionStorage.setItem("domain", domain);
         document.documentElement.dataset.domain = domain;
         const css = document.getElementById("domainCss");

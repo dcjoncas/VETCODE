@@ -1,0 +1,20 @@
+Alyssa Chen
+Dental Treatment Coordinator
+alyssa.chen.local.03@seed.dentalready.example
+Fort Collins, CO
+
+SUMMARY
+Synthetic DevReady Dental example for Orthodontics. Alyssa Chen has client-facing experience helping ClearPath Orthodontics with: Improve orthodontic starts by coordinating consults, benefits, and payment options.
+
+SKILLS
+Case Presentation, Clinical documentation, Dental PMS, Insurance Verification, Ortho2, Patient Financing, Scheduling, Treatment Plans
+
+EXPERIENCE
+Dental Treatment Coordinator | ClearPath Orthodontics | 2023 - Present
+Led orthodontics delivery work focused on improve orthodontic starts by coordinating consults, benefits, and payment options.
+
+CERTIFICATION
+AI / ML L1 - Foundations | certified | 89% | SEED-LOCAL-DENTAL-03-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

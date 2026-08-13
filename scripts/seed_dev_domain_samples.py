@@ -17,6 +17,7 @@ DOMAIN_DB_PATHS = {
     "dev": BACKEND / "devready.db",
     "engineer": BACKEND / "buildready.db",
     "law": BACKEND / "legalready.db",
+    "dental": BACKEND / "dentalready.db",
 }
 RESUME_DIR = ROOT / "data" / "sample_resumes"
 
@@ -230,6 +231,90 @@ SAMPLES = [
                 "start": "2017-11",
                 "end": "Present",
                 "summary": "Created AI usage, privacy review, and records governance frameworks for product and legal stakeholders.",
+            }
+        ],
+    ),
+    profile(
+        "SAMPLE-DENTAL-001",
+        "dental",
+        "Sofia Ramirez",
+        "sofia.ramirez.sample@dentalready.example",
+        "Registered Dental Hygienist",
+        "Denver, CO",
+        "Dental hygienist focused on perio maintenance, patient education, digital radiographs, and high-quality hygiene production.",
+        {
+            "languages": [],
+            "frontend": [],
+            "backend": ["Clinical documentation"],
+            "cloud_devops": ["Dentrix"],
+            "data": ["Periodontal charting", "Recall planning"],
+            "testing": ["Infection control", "Radiograph quality"],
+            "security": ["HIPAA"],
+            "other": ["RDH", "Prophylaxis", "Scaling", "Patient education", "Digital X-rays"],
+        },
+        [
+            {
+                "company": "BrightSmile Family Dental",
+                "title": "Registered Dental Hygienist",
+                "start": "2019-04",
+                "end": "Present",
+                "summary": "Managed full hygiene columns, perio charting, patient education, and same-day treatment handoffs.",
+            }
+        ],
+    ),
+    profile(
+        "SAMPLE-DENTAL-002",
+        "dental",
+        "Marcus Lee",
+        "marcus.lee.sample@dentalready.example",
+        "Expanded Functions Dental Assistant",
+        "Aurora, CO",
+        "EFDA with pediatric and general dentistry experience across chairside care, coronal polishing, sealants, and room turnover.",
+        {
+            "languages": [],
+            "frontend": [],
+            "backend": ["Clinical documentation"],
+            "cloud_devops": ["Eaglesoft"],
+            "data": ["Treatment notes", "Schedule flow"],
+            "testing": ["Sterilization", "Room readiness"],
+            "security": ["HIPAA", "OSHA"],
+            "other": ["EFDA", "Chairside assisting", "Coronal polishing", "Sealants", "Pediatric care"],
+        },
+        [
+            {
+                "company": "Peak Pediatric Dentistry",
+                "title": "Expanded Functions Dental Assistant",
+                "start": "2020-06",
+                "end": "Present",
+                "summary": "Supported pediatric chairside procedures, sterilization flow, family handoffs, and provider room readiness.",
+            }
+        ],
+    ),
+    profile(
+        "SAMPLE-DENTAL-003",
+        "dental",
+        "Alyssa Chen",
+        "alyssa.chen.sample@dentalready.example",
+        "Dental Treatment Coordinator",
+        "Fort Collins, CO",
+        "Treatment coordinator experienced in insurance verification, patient financing, consult scheduling, and case acceptance follow-up.",
+        {
+            "languages": [],
+            "frontend": [],
+            "backend": ["Practice management workflow"],
+            "cloud_devops": ["Open Dental", "Ortho2"],
+            "data": ["Insurance verification", "Case tracking"],
+            "testing": ["Benefit checks", "Estimate review"],
+            "security": ["HIPAA"],
+            "other": ["Treatment plans", "Patient financing", "Case presentation", "Scheduling"],
+        },
+        [
+            {
+                "company": "ClearPath Orthodontics",
+                "title": "Dental Treatment Coordinator",
+                "start": "2018-02",
+                "end": "Present",
+                "summary": "Coordinated consults, benefits, payment options, and follow-up that improved treatment starts.",
             }
         ],
     ),

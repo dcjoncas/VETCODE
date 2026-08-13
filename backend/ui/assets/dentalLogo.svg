@@ -1,0 +1,5 @@
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-label="DentalReady">
+  <rect x="6" y="6" width="52" height="52" rx="16" fill="#ffffff" stroke="#111111" stroke-width="3"/>
+  <path d="M24 18c-5 0-8 4-8 9 0 4 2 7 4 10 2 4 2 10 6 10 3 0 3-8 6-8s3 8 6 8c4 0 4-6 6-10 2-3 4-6 4-10 0-5-3-9-8-9-3 0-5 2-8 2s-5-2-8-2z" fill="#ffd8ea" stroke="#111111" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M43 14v8M39 18h8" stroke="#ff5ca8" stroke-width="3" stroke-linecap="round"/>
+</svg>

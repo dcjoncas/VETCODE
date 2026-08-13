@@ -9,7 +9,7 @@
       (function () {
         const params = new URLSearchParams(window.location.search);
         const domain = params.get("domain") || "dev";
-        const clean = domain === "technology" ? "dev" : (["dev", "engineer", "law"].includes(domain) ? domain : "dev");
+        const clean = domain === "technology" ? "dev" : (["dev", "engineer", "law", "dental"].includes(domain) ? domain : "dev");
         document.documentElement.dataset.domain = clean;
         document.getElementById("domainCss").href = `../assets/${clean}Styles.css`;
       })();

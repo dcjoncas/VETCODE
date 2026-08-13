@@ -10,7 +10,7 @@
       (function () {
         const params = new URLSearchParams(window.location.search);
         const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
-        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law", "dental"].includes(requested) ? requested : "dev");
         sessionStorage.setItem("domain", domain);
         const css = document.getElementById("domainCss");
         if (css) css.href = `../assets/${domain}Styles.css`;
@@ -230,6 +230,7 @@
                 <option value="dev">Technology Domain</option>
                 <option value="engineer">Engineer Domain</option>
                 <option value="law">Law Domain</option>
+                <option value="dental">Dental Domain</option>
               </select>
             </label>
             <div id="searchBar"></div>
@@ -369,7 +370,7 @@
 
       function normalizeDomain(value) {
         if (value === "technology") return "dev";
-        return ["dev", "engineer", "law"].includes(value) ? value : "dev";
+        return ["dev", "engineer", "law", "dental"].includes(value) ? value : "dev";
       }
 
       function currentDomain() {

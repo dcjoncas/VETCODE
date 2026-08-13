@@ -1,0 +1,20 @@
+Sofia Ramirez
+Registered Dental Hygienist
+sofia.ramirez.local.01@seed.dentalready.example
+Denver, CO
+
+SUMMARY
+Synthetic DevReady Dental example for General Dentistry. Sofia Ramirez has client-facing experience helping BrightSmile Family Dental with: Support a high-volume hygiene schedule with strong patient education and perio maintenance.
+
+SKILLS
+Clinical documentation, Dental PMS, Dentrix, Digital X-rays, Patient Education, Periodontal Charting, Prophylaxis, RDH
+
+EXPERIENCE
+Registered Dental Hygienist | BrightSmile Family Dental | 2021 - Present
+Led general dentistry delivery work focused on support a high-volume hygiene schedule with strong patient education and perio maintenance.
+
+CERTIFICATION
+AI / ML L2 - Foundations | certified | 87% | SEED-LOCAL-DENTAL-01-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

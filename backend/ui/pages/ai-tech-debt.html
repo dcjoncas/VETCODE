@@ -10,7 +10,7 @@
       (function () {
         const params = new URLSearchParams(window.location.search);
         const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
-        const domain = requested === "technology" || requested === "tech" ? "dev" : (["dev", "engineer", "law", "all"].includes(requested) ? requested : "dev");
+        const domain = requested === "technology" || requested === "tech" ? "dev" : (["dev", "engineer", "law", "dental", "all"].includes(requested) ? requested : "dev");
         sessionStorage.setItem("domain", domain === "all" ? "dev" : domain);
         const css = document.getElementById("domainCss");
         if (css) css.href = `../assets/${domain === "all" ? "dev" : domain}Styles.css`;

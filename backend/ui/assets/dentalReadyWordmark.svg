@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 190" role="img" aria-label="DentalReady">
+  <rect width="520" height="190" fill="none"/>
+  <g font-family="Arial, Helvetica, sans-serif" font-weight="900" letter-spacing="1.5">
+    <text x="28" y="70" font-size="58" fill="#111111">DENTAL</text>
+    <text x="28" y="142" font-size="58" fill="#111111">READY</text>
+  </g>
+  <circle cx="410" cy="119" r="35" fill="#ffffff" stroke="#111111" stroke-width="5"/>
+  <path d="M397 102c-8 0-12 6-12 13 0 6 3 10 6 15 3 6 3 15 9 15 5 0 5-12 10-12s5 12 10 12c6 0 6-9 9-15 3-5 6-9 6-15 0-7-4-13-12-13-5 0-8 3-13 3s-8-3-13-3z" fill="#ffd8ea" stroke="#111111" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M440 89v16M432 97h16" stroke="#ff5ca8" stroke-width="5" stroke-linecap="round"/>
+</svg>

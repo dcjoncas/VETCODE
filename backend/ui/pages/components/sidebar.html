@@ -1119,18 +1119,20 @@
   function domainWordmarkAsset(currentDomain) {
     if (currentDomain === "engineer") return "../assets/buildReadyWordmark.svg";
     if (currentDomain === "law") return "../assets/legalReadyWordmark.svg";
+    if (currentDomain === "dental") return "../assets/dentalReadyWordmark.svg";
     return "../assets/devReadyWordmark.svg";
   }
 
   function domainWordmarkAlt(currentDomain) {
     if (currentDomain === "engineer") return "BuildReady";
     if (currentDomain === "law") return "LegalReady";
+    if (currentDomain === "dental") return "DentalReady";
     return "DevReady";
   }
 
   function domainUpdate(currentDomain) {
     syncDomainSelect(currentDomain);
-    const domainLabel = currentDomain === "engineer" ? "BUILD" : currentDomain.toUpperCase();
+    const domainLabel = currentDomain === "engineer" ? "BUILD" : currentDomain === "dental" ? "DENTAL" : currentDomain.toUpperCase();
     document.getElementById("domainLabelSidebar").innerHTML = domainLabel;
     document.getElementById("readyLabelSidebar").innerHTML = "READY";
 
@@ -1223,6 +1225,8 @@
         ? "Law Domain"
         : domain === "engineer"
           ? "Engineer Domain"
+          : domain === "dental"
+            ? "Dental Domain"
           : "Technology Domain";
     const now = new Date().toLocaleString([], {
       year: "numeric",

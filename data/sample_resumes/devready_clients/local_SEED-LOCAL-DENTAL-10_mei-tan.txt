@@ -1,0 +1,20 @@
+Mei Tan
+Clinical Dental Assistant
+mei.tan.local.10@seed.dentalready.example
+Portland, OR
+
+SUMMARY
+Synthetic DevReady Dental example for Endodontics. Mei Tan has client-facing experience helping Evergreen Endodontics with: Assist endodontic procedures and keep specialized trays and imaging ready.
+
+SKILLS
+Clinical documentation, Dental PMS, Digital Radiography, Endodontic Chairside, Patient Comfort, Procedure Setup, Rubber Dam, Sterilization
+
+EXPERIENCE
+Clinical Dental Assistant | Evergreen Endodontics | 2022 - Present
+Led endodontics delivery work focused on assist endodontic procedures and keep specialized trays and imaging ready.
+
+CERTIFICATION
+AI / ML L2 - Foundations | certified | 86% | SEED-LOCAL-DENTAL-10-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

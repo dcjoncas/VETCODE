@@ -202,6 +202,7 @@ DOMAIN_DB_PATHS = {
     "dev": _local_db_path("DEVREADY_DB_PATH", "devready.db"),
     "engineer": _local_db_path("BUILDREADY_DB_PATH", "buildready.db"),
     "law": _local_db_path("LEGALREADY_DB_PATH", "legalready.db"),
+    "dental": _local_db_path("DENTALREADY_DB_PATH", "dentalready.db"),
 }
 DB_PATH = DOMAIN_DB_PATHS["dev"]
 UPLOAD_DIR = "uploads"
@@ -321,6 +322,19 @@ DOMAIN_ALIASES = {
         "legal ready law",
         "law domain",
     },
+    "dental": {
+        "dental",
+        "dentalready",
+        "dental ready",
+        "dentalready dental",
+        "dental ready dental",
+        "dental domain",
+        "dental assistant",
+        "dental assistants",
+        "dental hygiene",
+        "dental hygienist",
+        "hygienist",
+    },
 }
 
 
@@ -338,7 +352,7 @@ def _storage_domain(domain: str = "dev") -> str:
     key = _domain_key(domain)
     if key == "dev":
         return "technology"
-    if key in {"engineer", "law"}:
+    if key in {"engineer", "law", "dental"}:
         return key
     return ""
 
@@ -376,6 +390,13 @@ def _devmeet_theme(domain: str = "dev") -> dict:
             "primary_2": "#754f2b",
             "primary_3": "#fbf4ea",
             "primary_rgb": "160, 107, 57",
+            "on_primary": "#ffffff",
+        },
+        "dental": {
+            "primary": "#111111",
+            "primary_2": "#ff5ca8",
+            "primary_3": "#fff0f7",
+            "primary_rgb": "17, 17, 17",
             "on_primary": "#ffffff",
         },
     }

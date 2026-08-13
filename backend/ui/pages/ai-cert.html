@@ -16,7 +16,7 @@
       (function () {
         const params = new URLSearchParams(window.location.search);
         const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
-        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law", "dental"].includes(requested) ? requested : "dev");
         sessionStorage.setItem("domain", domain);
         const css = document.getElementById("domainCss");
         if (css) css.href = `../assets/${domain}Styles.css`;
@@ -510,6 +510,7 @@
         { domain: "dev", domainName: "Technology", role: "AI / ML", roleKey: "ai", titlePrefix: "AI / ML" },
         { domain: "engineer", domainName: "Engineer", role: "BuildReady Engineer", roleKey: "buildready-engineer", titlePrefix: "BuildReady Engineer" },
         { domain: "law", domainName: "Law", role: "LawReady", roleKey: "lawready", titlePrefix: "LawReady" },
+        { domain: "dental", domainName: "Dental", role: "DentalReady", roleKey: "dentalready", titlePrefix: "DentalReady" },
       ];
       const certLevels = [
         ["L1", "Foundations"],
@@ -564,7 +565,7 @@
       function activeDomainKey() {
         const raw = new URLSearchParams(window.location.search).get("domain") || sessionStorage.getItem("domain") || "dev";
         if (raw === "technology") return "dev";
-        if (raw === "engineer" || raw === "law") return raw;
+        if (raw === "engineer" || raw === "law" || raw === "dental") return raw;
         return "dev";
       }
 

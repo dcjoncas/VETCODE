@@ -801,6 +801,43 @@ def _brave_law_query(criteria: dict) -> str:
     return " ".join(parts)
 
 
+def _brave_dental_query(job_skills: list[str], jd: dict | None = None) -> str:
+    def phrase(value) -> str:
+        return str(value or "").replace('"', " ").strip()[:55]
+
+    title = phrase((jd or {}).get("title"))
+    skill_terms = [
+        term
+        for term in [phrase(skill) for skill in job_skills[:8]]
+        if term and len(term) > 2
+    ]
+    roles = [
+        title,
+        "dental assistant",
+        "registered dental hygienist",
+        "RDH",
+        "EFDA",
+        "dental treatment coordinator",
+        "dental front office",
+    ]
+    sources = [
+        "DentalPost",
+        "American Dental Assistants Association",
+        "DANB",
+        "Toothio",
+        "Stynt",
+        "DentistJobCafe",
+    ]
+    role_query = " OR ".join(f'"{term}"' for term in roles if term)
+    source_query = " OR ".join(f'"{term}"' for term in sources)
+    skill_query = " OR ".join(f'"{term}"' for term in skill_terms[:5])
+    parts = [f"({role_query})", f"({source_query})"]
+    if skill_query:
+        parts.append(f"({skill_query})")
+    parts.extend(["candidate OR profile OR resume OR staff", "-site:linkedin.com"])
+    return " ".join(parts)
+
+
 def _brave_direct_query(query: str) -> str:
     without_linkedin_scope = re.sub(
         r"(?i)(?:^|\s)[+-]?site:(?:www\.)?linkedin\.com\b",
@@ -816,7 +853,7 @@ def _brave_row(
     scoring_skills: list[str],
     lawyer_criteria: dict | None = None,
 ):
-    name = str(row.get("title") or "Public legal profile").strip()
+    name = str(row.get("title") or "Public professional profile").strip()
     description = str(row.get("description") or "").strip()
     profile_url = str(row.get("url") or "").strip()
     if lawyer_criteria:
@@ -836,7 +873,7 @@ def _brave_row(
         "result_type": "public_web_evidence",
         "name": name,
         "email": "",
-        "title": "Public legal profile or evidence page",
+        "title": "Public legal profile or evidence page" if lawyer_criteria else "Public professional profile or evidence page",
         "company": domain,
         "location": "",
         "profile_url": profile_url,
@@ -2015,6 +2052,8 @@ def external_candidate_search(
             search_query = (
                 _brave_law_query(criteria)
                 if criteria
+                else _brave_dental_query(search_skills, jd)
+                if domain == "dental"
                 else " ".join(search_skills[:8]) + " professional profile -site:linkedin.com"
             )
             brave_response = braveSearch.search_web(search_query, size=top_k, page=page)
@@ -2026,7 +2065,7 @@ def external_candidate_search(
                 "Brave Search",
                 brave_response,
                 criteria or {"skills": search_skills},
-                "public_web_legal_evidence",
+                "public_web_legal_evidence" if domain == "law" else "public_web_professional_evidence",
                 "API requests",
             )
             source_audit["totalIsEstimate"] = True

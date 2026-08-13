@@ -15,7 +15,7 @@
       (function () {
         const params = new URLSearchParams(window.location.search);
         const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
-        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law"].includes(requested) ? requested : "dev");
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law", "dental"].includes(requested) ? requested : "dev");
         sessionStorage.setItem("domain", domain);
         const css = document.getElementById("domainCss");
         if (css) css.href = `../assets/${domain}Styles.css`;
@@ -127,11 +127,13 @@
       function domainWordmarkAsset(domain) {
         if (domain === "engineer") return "../assets/buildReadyWordmark.svg";
         if (domain === "law") return "../assets/legalReadyWordmark.svg";
+        if (domain === "dental") return "../assets/dentalReadyWordmark.svg";
         return "../assets/devReadyWordmark.svg";
       }
       function domainWordmarkAlt(domain) {
         if (domain === "engineer") return "BuildReady";
         if (domain === "law") return "LegalReady";
+        if (domain === "dental") return "DentalReady";
         return "DevReady";
       }
       if (logoImg) {

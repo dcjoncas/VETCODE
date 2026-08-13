@@ -1,0 +1,20 @@
+Jordan Brooks
+Sterile Processing Technician
+jordan.brooks.local.04@seed.dentalready.example
+Colorado Springs, CO
+
+SUMMARY
+Synthetic DevReady Dental example for Oral Surgery. Jordan Brooks has client-facing experience helping Oral Surgery Partners with: Keep surgical operatories stocked, sterile, and ready for procedure blocks.
+
+SKILLS
+Clinical documentation, Dental PMS, HIPAA, Infection Control, Instrument Sterilization, Inventory, OSHA, Surgical Trays
+
+EXPERIENCE
+Sterile Processing Technician | Oral Surgery Partners | 2020 - Present
+Led oral surgery delivery work focused on keep surgical operatories stocked, sterile, and ready for procedure blocks.
+
+CERTIFICATION
+AI / ML L2 - Foundations | certified | 90% | SEED-LOCAL-DENTAL-04-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

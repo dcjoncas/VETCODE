@@ -265,10 +265,11 @@
               <div class="brand-logo primary"><img src="assets/devReadyWordmark.svg" alt="DevReady" /></div>
               <div class="brand-logo"><img src="assets/buildReadyWordmark.svg" alt="BuildReady, a DevReady company" /></div>
               <div class="brand-logo"><img src="assets/legalReadyWordmark.svg" alt="LegalReady, a DevReady company" /></div>
+              <div class="brand-logo"><img src="assets/dentalReadyWordmark.svg" alt="DentalReady, a DevReady company" /></div>
             </div>
             <h1 class="welcome-title">One secure workspace for talent, clients, onboarding, and delivery.</h1>
             <p class="welcome-copy">
-              Choose the workspace you are entering, then sign in. DevReady keeps Technology, Engineering, and Law workflows separated while sharing one controlled operating system.
+              Choose the workspace you are entering, then sign in. DevReady keeps Technology, Engineering, Law, and Dental workflows separated while sharing one controlled operating system.
             </p>
             <div class="hero-points">
               <div class="hero-point"><strong>Domain-aware</strong><span>Profiles, jobs, reports, certification, and time stay in the selected workspace.</span></div>
@@ -290,6 +291,11 @@
             <a class="domain-card" data-domain-card="law" href="pages/find-candidate.html?domain=law">
               <img src="assets/legalReadyWordmark.svg" alt="LegalReady" />
               <span class="domain-meta"><strong>Legal workspace</strong><small>LegalReady legal talent, roles, certification, and client workflow.</small></span>
+              <span class="domain-arrow">→</span>
+            </a>
+            <a class="domain-card" data-domain-card="dental" href="pages/find-candidate.html?domain=dental">
+              <img src="assets/dentalReadyWordmark.svg" alt="DentalReady" />
+              <span class="domain-meta"><strong>Dental workspace</strong><small>DentalReady dental assistant, hygienist, front-office, and practice staffing workflow.</small></span>
               <span class="domain-arrow">→</span>
             </a>
           </div>
@@ -317,6 +323,10 @@
                 <label class="domain-option">
                   <input type="radio" name="domain" value="law" />
                   <img src="assets/legalReadyWordmark.svg" alt="LegalReady" />
+                </label>
+                <label class="domain-option">
+                  <input type="radio" name="domain" value="dental" />
+                  <img src="assets/dentalReadyWordmark.svg" alt="DentalReady" />
                 </label>
               </div>
             </div>
@@ -377,7 +387,7 @@
       }
 
       function setSelectedDomain(domain) {
-        const safeDomain = ["dev", "engineer", "law"].includes(domain) ? domain : "dev";
+        const safeDomain = ["dev", "engineer", "law", "dental"].includes(domain) ? domain : "dev";
         const radio = form.querySelector(`input[name="domain"][value="${safeDomain}"]`);
         if (radio) radio.checked = true;
         document.querySelectorAll("[data-domain-card]").forEach((card) => {

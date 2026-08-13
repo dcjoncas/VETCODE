@@ -69,6 +69,23 @@ DOMAINS = {
         "job_company": "QA LegalReady Client",
         "jd": "Support legal operations, CLM workflow configuration, DocuSign CLM, matter analytics, UAT, access governance, and compliance reporting.",
     },
+    "dental": {
+        "label": "Dental",
+        "first": "QA Dental",
+        "last": "Smoke",
+        "title": "Expanded Functions Dental Assistant",
+        "city": "Denver",
+        "state": "Colorado",
+        "country": "United States",
+        "skills": ["EFDA", "Chairside Assisting", "Dentrix", "Sterilization", "HIPAA", "Patient Education"],
+        "culture": ["Dental Assisting", "Patient Care", "Clinical Operations"],
+        "portfolio_company": "QA DentalReady Clinic",
+        "portfolio_role": "Expanded Functions Dental Assistant",
+        "portfolio_summary": "Supported chairside care, sterilization flow, room turnover, and patient handoff for a busy dental practice.",
+        "job_title": "QA Expanded Functions Dental Assistant",
+        "job_company": "QA DentalReady Client",
+        "jd": "Support chairside dental care, EFDA functions, Dentrix documentation, instrument sterilization, HIPAA-safe patient communication, room turnover, and patient education.",
+    },
 }
 
 

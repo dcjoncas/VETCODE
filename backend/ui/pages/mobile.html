@@ -10,7 +10,7 @@
       (function () {
         const params = new URLSearchParams(window.location.search);
         const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
-        const domain = requested === "technology" ? "dev" : ["dev", "engineer", "law"].includes(requested) ? requested : "dev";
+        const domain = requested === "technology" ? "dev" : ["dev", "engineer", "law", "dental"].includes(requested) ? requested : "dev";
         sessionStorage.setItem("domain", domain);
         document.documentElement.dataset.domain = domain;
         const css = document.getElementById("domainCss");
@@ -528,6 +528,7 @@
             <option value="dev">Technology</option>
             <option value="engineer">Engineering</option>
             <option value="law">Law</option>
+            <option value="dental">Dental</option>
           </select>
         </div>
         <div class="step-strip" aria-label="Mobile process">
@@ -623,6 +624,7 @@
         dev: { title: "DevReady", label: "Technology", logo: "../assets/devReadyWordmark.svg" },
         engineer: { title: "BuildReady", label: "Engineering", logo: "../assets/buildReadyWordmark.svg" },
         law: { title: "LegalReady", label: "Law", logo: "../assets/legalReadyWordmark.svg" },
+        dental: { title: "DentalReady", label: "Dental", logo: "../assets/dentalReadyWordmark.svg" },
       };
 
       const state = {
@@ -738,7 +740,7 @@
 
       function normalizeDomain(value) {
         const clean = value === "technology" ? "dev" : value;
-        return ["dev", "engineer", "law"].includes(clean) ? clean : "dev";
+        return ["dev", "engineer", "law", "dental"].includes(clean) ? clean : "dev";
       }
 
       function escapeHtml(value) {
@@ -859,6 +861,11 @@
             ["MOBILE-LAW-001", "LegalReady", "Legal Operations Consultant"],
             ["MOBILE-LAW-002", "LegalReady", "Contract Lifecycle Specialist"],
             ["MOBILE-LAW-003", "LegalReady", "Compliance Program Advisor"],
+          ],
+          dental: [
+            ["MOBILE-DENTAL-001", "DentalReady", "Registered Dental Hygienist"],
+            ["MOBILE-DENTAL-002", "DentalReady", "Expanded Functions Dental Assistant"],
+            ["MOBILE-DENTAL-003", "DentalReady", "Dental Treatment Coordinator"],
           ],
         };
         return (rows[domain] || rows.dev).map(([jd_id, company, title]) => ({

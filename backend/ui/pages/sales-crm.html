@@ -10,7 +10,7 @@
       (function () {
         const params = new URLSearchParams(window.location.search);
         const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
-        const domain = requested === "technology" ? "dev" : ["dev", "engineer", "law"].includes(requested) ? requested : "dev";
+        const domain = requested === "technology" ? "dev" : ["dev", "engineer", "law", "dental"].includes(requested) ? requested : "dev";
         sessionStorage.setItem("domain", domain);
         document.documentElement.dataset.domain = domain;
         const css = document.getElementById("domainCss");
@@ -291,6 +291,7 @@
               <option value="dev">Technology Domain</option>
               <option value="engineer">Engineer Domain</option>
               <option value="law">Law Domain</option>
+                <option value="dental">Dental Domain</option>
             </select>
           </div>
         </div>
@@ -461,8 +462,8 @@
         })();
         document.querySelectorAll("img.domainWordmark").forEach((img) => {
           const domain = currentDomain();
-          img.src = domain === "engineer" ? "../assets/buildReadyWordmark.svg" : domain === "law" ? "../assets/legalReadyWordmark.svg" : "../assets/devReadyWordmark.svg";
-          img.alt = domain === "engineer" ? "BuildReady" : domain === "law" ? "LegalReady" : "DevReady";
+          img.src = domain === "engineer" ? "../assets/buildReadyWordmark.svg" : domain === "law" ? "../assets/legalReadyWordmark.svg" : domain === "dental" ? "../assets/dentalReadyWordmark.svg" : "../assets/devReadyWordmark.svg";
+          img.alt = domain === "engineer" ? "BuildReady" : domain === "law" ? "LegalReady" : domain === "dental" ? "DentalReady" : "DevReady";
         });
         document.getElementById("domainSelect").value = currentDomain();
         document.getElementById("repInput").value = params.get("rep") || user?.display_name || user?.username || "";

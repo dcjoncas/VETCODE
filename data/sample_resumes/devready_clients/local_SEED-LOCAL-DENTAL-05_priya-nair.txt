@@ -1,0 +1,20 @@
+Priya Nair
+Dental Front Office Coordinator
+priya.nair.local.05@seed.dentalready.example
+Boulder, CO
+
+SUMMARY
+Synthetic DevReady Dental example for Multi-Specialty Dental. Priya Nair has client-facing experience helping Lakeside Dental Group with: Stabilize front-office flow across hygiene recall, claims, and same-day schedule changes.
+
+SKILLS
+Clinical documentation, Dental PMS, Insurance Claims, Open Dental, Patient Scheduling, Payment Posting, Phone Triage, Recall Management
+
+EXPERIENCE
+Dental Front Office Coordinator | Lakeside Dental Group | 2021 - Present
+Led multi-specialty dental delivery work focused on stabilize front-office flow across hygiene recall, claims, and same-day schedule changes.
+
+CERTIFICATION
+AI / ML L3 - Foundations | certified | 91% | SEED-LOCAL-DENTAL-05-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

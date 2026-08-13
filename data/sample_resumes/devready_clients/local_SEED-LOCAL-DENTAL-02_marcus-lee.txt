@@ -1,0 +1,20 @@
+Marcus Lee
+Expanded Functions Dental Assistant
+marcus.lee.local.02@seed.dentalready.example
+Aurora, CO
+
+SUMMARY
+Synthetic DevReady Dental example for Pediatric Dentistry. Marcus Lee has client-facing experience helping Peak Pediatric Dentistry with: Assist pediatric providers chairside while keeping rooms turned over and families comfortable.
+
+SKILLS
+Clinical documentation, Coronal Polishing, Dental PMS, EFDA, Eaglesoft, Pediatric Chairside, Sealants, Sterilization
+
+EXPERIENCE
+Expanded Functions Dental Assistant | Peak Pediatric Dentistry | 2022 - Present
+Led pediatric dentistry delivery work focused on assist pediatric providers chairside while keeping rooms turned over and families comfortable.
+
+CERTIFICATION
+AI / ML L3 - Foundations | certified | 88% | SEED-LOCAL-DENTAL-02-CERT
+
+NOTE
+Synthetic DevReady client example for development and demonstration only.

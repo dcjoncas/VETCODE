@@ -787,7 +787,7 @@
     const params = new URLSearchParams(window.location.search);
     const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
     if (requested === "technology" || requested === "tech") return "dev";
-    return ["dev", "engineer", "law"].includes(requested) ? requested : "dev";
+    return ["dev", "engineer", "law", "dental"].includes(requested) ? requested : "dev";
   }
 
   function escapeRadarHtml(value) {
@@ -800,7 +800,7 @@
   }
 
   function radarDomainLabel(domain) {
-    return domain === "engineer" ? "Engineering" : domain === "law" ? "Law" : "Technology";
+    return domain === "engineer" ? "Engineering" : domain === "law" ? "Law" : domain === "dental" ? "Dental" : "Technology";
   }
 
   function isTalentWorkflowRadarPage() {
