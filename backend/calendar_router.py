@@ -41,6 +41,8 @@ DEVREADY_LOCAL_CONFIG_DIR = Path(
 GOOGLE_CLIENT_SECRET_FILE = Path(
     os.getenv("GOOGLE_CLIENT_SECRET_FILE", str(DEVREADY_LOCAL_CONFIG_DIR / "google_client_secret.json"))
 ).expanduser()
+GOOGLE_REDIRECT_PATH = os.getenv("GOOGLE_REDIRECT_PATH", "/auth/google/callback").strip() or "/auth/google/callback"
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "").strip()
 
 OUTLOOK_TOKEN_FILE = Path(os.getenv("OUTLOOK_TOKEN_FILE", str(BASE_DIR / "outlook_token.json")))
 OUTLOOK_TOKEN_DIR = Path(os.getenv("OUTLOOK_TOKEN_DIR", str(BASE_DIR / "calendar_tokens" / "outlook")))
@@ -88,6 +90,20 @@ def _public_url_for(request: Request, route_name: str) -> str:
     if configured:
         return f"{configured}{request.app.url_path_for(route_name)}"
     return str(request.url_for(route_name))
+
+
+def _google_redirect_uri(request: Request) -> str:
+    if GOOGLE_REDIRECT_URI:
+        return GOOGLE_REDIRECT_URI
+    return _url_for_path(request, GOOGLE_REDIRECT_PATH)
+
+
+def _configured_google_redirect_uri() -> str:
+    if GOOGLE_REDIRECT_URI:
+        return GOOGLE_REDIRECT_URI
+    base_url = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").strip().rstrip("/")
+    clean_path = GOOGLE_REDIRECT_PATH if GOOGLE_REDIRECT_PATH.startswith("/") else f"/{GOOGLE_REDIRECT_PATH}"
+    return f"{base_url}{clean_path}"
 
 
 def _outlook_redirect_uri(request: Request) -> str:
@@ -410,7 +426,11 @@ def calendar_health(request: Request):
         "ok": True,
         "google_secret_found": _google_secret_configured(),
         "google_secret_location": str(google_secret_path) if google_secret_path else None,
-        "google": _google_status(refresh=False),
+        "google": {
+            **_google_status(refresh=False),
+            "redirect_uri": _configured_google_redirect_uri(),
+            "redirect_uri_setup_note": "This exact URI must be listed under Authorized redirect URIs in the Google Cloud OAuth client.",
+        },
         "outlook": {
             **_outlook_status(refresh=False, session_id=session_id),
             "client_configured": bool(OUTLOOK_CLIENT_ID and OUTLOOK_CLIENT_SECRET),
@@ -431,7 +451,7 @@ def calendar_health(request: Request):
 def auth_google(request: Request):
     google_secret_file = _ensure_google_secret_file()
     _allow_loopback_http(request)
-    redirect_uri = _public_url_for(request, "auth_google_callback")
+    redirect_uri = _google_redirect_uri(request)
     flow = Flow.from_client_secrets_file(str(google_secret_file), scopes=GOOGLE_SCOPES, redirect_uri=redirect_uri)
     auth_url, _ = flow.authorization_url(access_type="offline", include_granted_scopes="true", prompt="consent")
     return RedirectResponse(auth_url)
@@ -441,7 +461,7 @@ def auth_google(request: Request):
 def auth_google_callback(request: Request):
     google_secret_file = _ensure_google_secret_file()
     _allow_loopback_http(request)
-    redirect_uri = _public_url_for(request, "auth_google_callback")
+    redirect_uri = _google_redirect_uri(request)
     flow = Flow.from_client_secrets_file(str(google_secret_file), scopes=GOOGLE_SCOPES, redirect_uri=redirect_uri)
     callback_url = f"{redirect_uri}?{request.url.query}" if request.url.query else redirect_uri
     try:
