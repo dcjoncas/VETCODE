@@ -137,7 +137,7 @@ def _post_search(payload: dict[str, Any]) -> dict[str, Any]:
         if response.status_code != 402 or attempt_size == 1:
             break
 
-    if response.status_code == 404 and request_payload.get("scroll_token"):
+    if response.status_code == 404:
         return {"status": 404, "total": 0, "data": [], "scroll_token": None}
     if response.status_code != 200:
         raise PeopleDataLabsError(_error_message(response), response.status_code)
@@ -251,22 +251,28 @@ def _skill_evidence_clauses(skill_list: list[str]) -> list[dict[str, Any]]:
     return [_skill_evidence_clause(skill) for skill in _clean_terms(skill_list, 20)]
 
 
+def build_skill_search_payload(skill_list: list[str], size: int = 5) -> dict[str, Any]:
+    skills = _clean_terms(skill_list, 20)
+    if not skills:
+        raise PeopleDataLabsError("Add at least one meaningful search skill.")
+    skill_clauses = _skill_evidence_clauses(skills)
+    return {
+        "query": {
+            "bool": {
+                "should": skill_clauses,
+                "minimum_should_match": 1,
+            }
+        },
+        "size": _result_size(size),
+    }
+
+
 def searchSkills(skillList: list[str], size: int = 5, scroll_token: str = ""):
     skills = _clean_terms(skillList, 20)
     if not skills:
         raise PeopleDataLabsError("Add at least one meaningful search skill.")
 
-    required_skill_count = max(1, min(3, math.ceil(len(skills) * 0.4)))
-    skill_clauses = _skill_evidence_clauses(skills)
-    payload = {
-        "query": {
-            "bool": {
-                "must": skill_clauses[:required_skill_count],
-                "should": skill_clauses[required_skill_count:],
-            }
-        },
-        "size": _result_size(size),
-    }
+    payload = build_skill_search_payload(skills, size)
     return _post_search(_add_scroll_token(payload, scroll_token))
 
 

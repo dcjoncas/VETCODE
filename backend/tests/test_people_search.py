@@ -88,6 +88,18 @@ class PeopleSearchTests(unittest.TestCase):
                 scroll_token="x" * 4097,
             )
 
+    def test_skill_payload_uses_jd_skills_as_discovery_signals(self):
+        payload = peopleSearch.build_skill_search_payload(
+            ["Digital Radiography", "Endodontic Chairside", "Patient Comfort"],
+            size=5,
+        )
+
+        query = payload["query"]["bool"]
+        self.assertNotIn("must", query)
+        self.assertEqual(query["minimum_should_match"], 1)
+        self.assertEqual(len(query["should"]), 3)
+        self.assertEqual(payload["size"], 5)
+
     @patch.dict(os.environ, {"PDL_API_KEY": "test-key"}, clear=False)
     @patch("peopleDataLabs.peopleSearch.requests.post")
     def test_paged_404_marks_pagination_complete(self, post):
@@ -99,6 +111,18 @@ class PeopleSearchTests(unittest.TestCase):
             scroll_token="last-page-token",
         )
 
+        self.assertEqual(result["data"], [])
+        self.assertIsNone(result["scroll_token"])
+
+    @patch.dict(os.environ, {"PDL_API_KEY": "test-key"}, clear=False)
+    @patch("peopleDataLabs.peopleSearch.requests.post")
+    def test_initial_404_is_clean_zero_match_not_provider_failure(self, post):
+        post.return_value = Mock(status_code=404)
+
+        result = peopleSearch.searchSkills(["very specific missing skill"], size=5)
+
+        self.assertEqual(result["status"], 404)
+        self.assertEqual(result["total"], 0)
         self.assertEqual(result["data"], [])
         self.assertIsNone(result["scroll_token"])
 
