@@ -1,3 +1,4 @@
+import base64
 import datetime as dt
 import json
 import os
@@ -143,7 +144,11 @@ def _google_secret_path() -> Optional[Path]:
 
 
 def _google_secret_configured() -> bool:
-    return bool(_google_secret_path() or os.getenv("GOOGLE_CLIENT_SECRET_JSON", "").strip())
+    return bool(
+        _google_secret_path()
+        or os.getenv("GOOGLE_CLIENT_SECRET_JSON_B64", "").strip()
+        or os.getenv("GOOGLE_CLIENT_SECRET_JSON", "").strip()
+    )
 
 
 def _calendar_session_id(request: Request) -> str:
@@ -206,6 +211,17 @@ def _ensure_google_secret_file() -> Path:
             return existing_path
         except Exception:
             pass
+    secret_b64 = os.getenv("GOOGLE_CLIENT_SECRET_JSON_B64", "").strip()
+    if secret_b64:
+        try:
+            parsed_secret = json.loads(base64.b64decode(secret_b64).decode("utf-8"))
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail="Google OAuth client secret base64 JSON is invalid.") from exc
+        if not isinstance(parsed_secret, dict):
+            raise HTTPException(status_code=500, detail="Google OAuth client secret base64 JSON is invalid.")
+        GOOGLE_CLIENT_SECRET_FILE.parent.mkdir(parents=True, exist_ok=True)
+        GOOGLE_CLIENT_SECRET_FILE.write_text(json.dumps(parsed_secret), encoding="utf-8")
+        return GOOGLE_CLIENT_SECRET_FILE
     secret_json = os.getenv("GOOGLE_CLIENT_SECRET_JSON", "").strip()
     if secret_json:
         try:
