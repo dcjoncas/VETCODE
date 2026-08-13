@@ -45,7 +45,12 @@ OUTLOOK_TOKEN_FILE = Path(os.getenv("OUTLOOK_TOKEN_FILE", str(BASE_DIR / "outloo
 OUTLOOK_TOKEN_DIR = Path(os.getenv("OUTLOOK_TOKEN_DIR", str(BASE_DIR / "calendar_tokens" / "outlook")))
 OUTLOOK_STATE_DIR = Path(os.getenv("OUTLOOK_STATE_DIR", str(BASE_DIR / "calendar_tokens" / "state")))
 CALENDAR_SESSION_COOKIE = os.getenv("CALENDAR_SESSION_COOKIE", "devready_calendar_session")
-OUTLOOK_TENANT_ID = os.getenv("OUTLOOK_TENANT_ID", "common").strip() or "common"
+OUTLOOK_TENANT_ID = (
+    os.getenv("OUTLOOK_TENANT_ID")
+    or os.getenv("AZURE_TENANT_ID")
+    or os.getenv("AZURE_TENNANT_ID")
+    or "common"
+).strip() or "common"
 OUTLOOK_AUTHORITY = f"https://login.microsoftonline.com/{OUTLOOK_TENANT_ID}/oauth2/v2.0"
 OUTLOOK_SCOPES = ["offline_access", "User.Read", "Calendars.ReadWrite", "Mail.Send"]
 OUTLOOK_CLIENT_ID = os.getenv("OUTLOOK_CLIENT_ID", os.getenv("LOGIN_CLIENT_ID", "")).strip()
