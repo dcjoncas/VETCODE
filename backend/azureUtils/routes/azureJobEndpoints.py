@@ -40,14 +40,47 @@ router = APIRouter(
 )
 
 def _domain_key(domain: str = "dev") -> str:
-    value = (domain or "dev").strip().lower()
+    value = re.sub(r"[\s_-]+", " ", (domain or "dev").strip().lower())
     if value in {"technology", "tech", "devready", "dev"}:
         return "dev"
     if value in {"engineer", "engineering", "build", "buildready"}:
         return "engineer"
     if value in {"law", "legal", "legalready"}:
         return "law"
+    if value in {
+        "dental",
+        "dentalready",
+        "dental ready",
+        "dental assistant",
+        "dental assistants",
+        "dental hygiene",
+        "dental hygienist",
+        "hygienist",
+    }:
+        return "dental"
     return "dev"
+
+
+def _external_source_allowed_for_domain(source: str, domain: str) -> bool:
+    clean_source = (source or "").strip().lower()
+    clean_domain = _domain_key(domain)
+    allowed = {
+        "dental": {"pdl", "coresignal", "brave"},
+        "law": {"pdl", "coresignal", "brave", "courtlistener"},
+        "dev": {"pdl", "coresignal", "brave", "github"},
+        "engineer": {"pdl", "coresignal", "brave", "github"},
+    }
+    return clean_source in allowed.get(clean_domain, allowed["dev"])
+
+
+def _assert_external_source_allowed(source: str, domain: str):
+    if _external_source_allowed_for_domain(source, domain):
+        return
+    clean_domain = _domain_key(domain)
+    raise HTTPException(
+        status_code=400,
+        detail=f"{_provider_label(source)} is not available for the {clean_domain} domain.",
+    )
 
 def _safe_list(value):
     if not value:
@@ -2054,6 +2087,7 @@ def external_candidate_search(
     jd, job_skills = _get_job_skills(jd_id, domain)
     search_skills = _searchable_job_skills(job_skills, 12)
     selected_source = (source or "pdl").strip().lower()
+    _assert_external_source_allowed(selected_source, domain)
     results = []
     criteria = (
         _lawyer_search_criteria(
@@ -2259,6 +2293,7 @@ def external_candidate_search_direct(
         search_terms = [clean_query]
 
     selected_source = (source or "pdl").strip().lower()
+    _assert_external_source_allowed(selected_source, domain)
     source_audit = {}
     pagination = {
         "pageSize": top_k,
@@ -2576,6 +2611,7 @@ def external_candidate_import(payload: dict = Body(...)):
     if not isinstance(candidate, dict):
         raise HTTPException(status_code=400, detail="Candidate data is required.")
     source = candidate.get("source") or payload.get("source") or "external"
+    _assert_external_source_allowed(source, domain)
     result_type = candidate.get("result_type")
     is_court_lead = source == "courtlistener" and result_type == "court_attorney_lead"
     if source == "brave" or result_type in {
