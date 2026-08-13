@@ -10,6 +10,32 @@ from openAI import engineeringSurvey
 
 FALLBACK_CHAT_PATH = os.path.join("data", "profile_completion_chats.json")
 
+def _chat_domain_key(domain: str = "dev") -> str:
+    value = str(domain or "dev").strip().lower().replace("_", "-")
+    if value in {"technology", "tech"}:
+        return "dev"
+    if value in {"engineer", "buildready", "build-ready"}:
+        return "engineer"
+    if value in {"law", "legalready", "legal-ready"}:
+        return "law"
+    if value in {"dental", "dentalready", "dental-ready"}:
+        return "dental"
+    if value == "all":
+        return "all"
+    return "dev"
+
+
+def _chat_intro(first_name: str, domain: str = "dev") -> str:
+    name = first_name or "there"
+    clean_domain = _chat_domain_key(domain)
+    if clean_domain == "dental":
+        return f"Hi there {name}! Thanks for taking the time to connect with DentalReady today.<br><br>I'm an AI recruitment assistant helping our team complete your dental talent profile. I'll ask a few quick questions about patient care, chairside work style, reliability, and practice fit. You can skip anything you prefer not to answer. Please answer each question on a scale from 1 to 5. Ready to get started?"
+    if clean_domain == "law":
+        return f"Hi there {name}! Thanks for taking the time to connect with LegalReady today.<br><br>I'm an AI recruitment assistant helping our team complete your legal talent profile. I'll ask a few quick questions about work style, client communication, and practice fit. You can skip anything you prefer not to answer. Please answer each question on a scale from 1 to 5. Ready to get started?"
+    if clean_domain == "engineer":
+        return f"Hi there {name}! Thanks for taking the time to connect with BuildReady today.<br><br>I'm an AI recruitment assistant helping our team complete your engineering talent profile. I'll ask a few quick questions about jobsite work style, safety habits, and project fit. You can skip anything you prefer not to answer. Please answer each question on a scale from 1 to 5. Ready to get started?"
+    return f"Hi there {name}! Thanks for taking the time to connect with us today.<br><br>I'm an AI recruitment assistant helping our team complete your DevReady profile. I'll ask a few quick questions about your work style and career goals. You can skip anything you prefer not to answer. Please answer each question on a scale from 1 to 5. Ready to get started?"
+
 def _sync_identity_sequence(cur, table: str, column: str = "id"):
     allowed_tables = {"aichatlogs", "professionalprofile", "professionalsurvey", "professionalsurveyquestion"}
     if table not in allowed_tables:
@@ -65,9 +91,10 @@ def _candidate_name_parts(profileid: str):
     return "Candidate", ""
 
 def _create_fallback_chat(profileid: str, domain: str = "dev"):
+    clean_domain = _chat_domain_key(domain)
     records = _read_fallback_chats()
     for token, record in records.items():
-        if str(record.get("personId", "")) == str(profileid) and record.get("domain", "dev") == (domain or "dev"):
+        if str(record.get("personId", "")) == str(profileid) and _chat_domain_key(record.get("domain", "dev")) == clean_domain:
             return token
     token = _fallback_token()
     first_name, last_name = _candidate_name_parts(profileid)
@@ -76,7 +103,7 @@ def _create_fallback_chat(profileid: str, domain: str = "dev"):
         "personId": str(profileid),
         "firstName": first_name,
         "lastName": last_name,
-        "domain": domain or "dev",
+        "domain": clean_domain,
         "chatEnd": str((datetime.now() + timedelta(weeks=1)).date()),
         "chatClosed": False,
         "aiTranscript": [],
@@ -363,7 +390,7 @@ def upsertSurveyAnswer(questionId: int, surveyResponse: int, profId: int):
     conn.commit()
     conn.close()
 
-def getChat(urlcode: str, domain: str = "dev"):
+def _legacy_getChat(urlcode: str, domain: str = "dev"):
     fallback_record = _fallback_chat_record(urlcode)
     if fallback_record:
         openAiTranscript = fallback_record.get("aiTranscript") or []
@@ -424,6 +451,83 @@ def getChat(urlcode: str, domain: str = "dev"):
             "domain": "engineer" if engineeringSurvey.is_engineer_domain(domain) else "dev"
         }
     
+    except Exception as e:
+        print(f'Failed to grab chat logs for {urlcode}: {e}')
+        return None
+
+def getChat(urlcode: str, domain: str = "dev"):
+    requested_domain = _chat_domain_key(domain)
+    fallback_record = _fallback_chat_record(urlcode)
+    if fallback_record:
+        actual_domain = _chat_domain_key(fallback_record.get("domain") or domain)
+        if requested_domain != "all" and actual_domain != requested_domain:
+            return None
+        openAiTranscript = fallback_record.get("aiTranscript") or []
+        if not openAiTranscript:
+            openAiTranscript = [{'role': 'assistant', 'content': _chat_intro(fallback_record.get("firstName", "Candidate"), actual_domain)}]
+        try:
+            question_count = countQuestions(actual_domain)
+        except Exception:
+            question_count = len(engineeringSurvey.get_questions()) if engineeringSurvey.is_engineer_domain(actual_domain) else 10
+        return {
+            "firstName": fallback_record.get("firstName", "Candidate"),
+            "lastName": fallback_record.get("lastName", ""),
+            "chatId": fallback_record.get("urlCode", urlcode),
+            "personId": fallback_record.get("personId", ""),
+            "chatEnd": fallback_record.get("chatEnd", ""),
+            "chatClosed": fallback_record.get("chatClosed", False),
+            "aiTranscript": openAiTranscript,
+            "surveyId": None,
+            "questionCount": question_count,
+            "domain": actual_domain,
+        }
+    try:
+        conn = client.getConnection()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT person.firstname, person.lastname, person.domain, ai.id, ai.personid,
+                   ai.enddate, ai.completed, ai.transcript
+            FROM person
+            JOIN aichatlogs ai ON person.id = ai.personid
+            WHERE ai.urlcode = %s
+            ORDER BY ai.id DESC
+            LIMIT 1
+            """,
+            (urlcode,),
+        )
+        row = cur.fetchone()
+        conn.close()
+        if not row:
+            return None
+
+        actual_domain = _chat_domain_key(row[2])
+        if requested_domain != "all" and actual_domain != requested_domain:
+            return None
+
+        openAiTranscript = []
+        if row[7] is not None and len(row[7]) > 0:
+            for r in row[7]:
+                splitLocation = r.find(':')
+                if r[0:splitLocation] == "DevReady AI":
+                    openAiTranscript.append({'role': 'assistant', 'content': r[splitLocation + 1:]})
+                else:
+                    openAiTranscript.append({'role': 'user', 'content': r[splitLocation + 1:]})
+        else:
+            openAiTranscript = [{'role': 'assistant', 'content': _chat_intro(row[0], actual_domain)}]
+
+        return {
+            "firstName": row[0],
+            "lastName": row[1],
+            "chatId": row[3],
+            "personId": row[4],
+            "chatEnd": row[5],
+            "chatClosed": row[6],
+            "aiTranscript": openAiTranscript,
+            "surveyId": getSurveyId(row[4]),
+            "questionCount": countQuestions(actual_domain),
+            "domain": actual_domain,
+        }
     except Exception as e:
         print(f'Failed to grab chat logs for {urlcode}: {e}')
         return None

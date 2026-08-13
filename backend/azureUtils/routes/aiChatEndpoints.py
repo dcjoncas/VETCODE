@@ -30,7 +30,10 @@ async def scheduleChats(profileid: str = Form(default=""), domain: str = Form(de
 @router.get("/getChat/{urlcode}")
 async def getChat(urlcode: str, domain: str = "dev"):
     print(f"Retrieving chat for candidate: {urlcode}")
-    return chatLogs.getChat(urlcode, domain)
+    chat = chatLogs.getChat(urlcode, domain)
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found for this domain.")
+    return chat
 
 @router.get("/getUrlCode/{personid}")
 async def getId(personid: str):
