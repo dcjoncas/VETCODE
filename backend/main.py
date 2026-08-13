@@ -2572,7 +2572,7 @@ CALL_INTAKE_QUESTION_DEFAULTS = {
         {
             "key": "role",
             "label": "Technology role",
-            "prompt": "Tell me about the technology, AI, data, or software role you need filled and the business outcome you want.",
+            "prompt": "First, what company or team is this for? Then tell me about the technology, AI, data, or software role you need filled and the business outcome you want.",
             "captures": ["role", "job_title", "business_outcome"],
         },
         {
@@ -2634,7 +2634,7 @@ CALL_INTAKE_QUESTION_DEFAULTS = {
         {
             "key": "role",
             "label": "Build role",
-            "prompt": "Tell me about the construction, engineering, project delivery, or field leadership role you need filled.",
+            "prompt": "First, what company, project, or site is this for? Then tell me about the construction, engineering, project delivery, or field leadership role you need filled.",
             "captures": ["role", "job_title", "business_outcome"],
         },
         {
@@ -2696,7 +2696,7 @@ CALL_INTAKE_QUESTION_DEFAULTS = {
         {
             "key": "role",
             "label": "Legal role",
-            "prompt": "Tell me about the legal role or support need: attorney, paralegal, contract support, compliance, eDiscovery, or legal operations.",
+            "prompt": "First, what firm, legal department, client, or matter is this for? Then tell me about the legal role or support need: attorney, paralegal, contract support, compliance, eDiscovery, or legal operations.",
             "captures": ["role", "job_title", "business_outcome"],
         },
         {
@@ -2758,7 +2758,7 @@ CALL_INTAKE_QUESTION_DEFAULTS = {
         {
             "key": "role",
             "label": "Dental role",
-            "prompt": "Tell me about the dental role you need filled: dental assistant, hygienist, EFDA, front office, treatment coordinator, or practice manager.",
+            "prompt": "First, what dental practice, specialty office, or clinic is this for? Then tell me about the dental role you need filled: dental assistant, hygienist, EFDA, front office, treatment coordinator, or practice manager.",
             "captures": ["role", "job_title", "business_outcome"],
         },
         {
@@ -2827,6 +2827,62 @@ def _call_intake_brand(domain: str = "dev") -> str:
         "law": "LegalReady",
         "dental": "DentalReady",
     }.get(_domain_key(domain), "DevReady")
+
+
+def _call_intake_phone_digits(value: str) -> str:
+    return re.sub(r"\D+", "", str(value or ""))
+
+
+def _call_intake_direct_phone_number_for_domain(domain: str = "dev") -> str:
+    clean_domain = _domain_key(domain)
+    domain_env = f"CALL_INTAKE_{clean_domain.upper()}_PHONE_NUMBER"
+    brand_env = f"{_call_intake_brand(clean_domain).upper()}_PHONE_NUMBER"
+    return os.getenv(domain_env) or os.getenv(brand_env) or ""
+
+
+def _call_intake_phone_number_for_domain(domain: str = "dev") -> str:
+    clean_domain = _domain_key(domain)
+    direct = _call_intake_direct_phone_number_for_domain(clean_domain)
+    if direct:
+        return direct
+    for fallback in (os.getenv("RETELL_PHONE_NUMBER"), os.getenv("VAPI_PHONE_NUMBER"), os.getenv("TWILIO_PHONE_NUMBER", "")):
+        if not fallback:
+            continue
+        known_domain = _call_intake_known_domain_from_phone(fallback)
+        if known_domain and known_domain != clean_domain:
+            continue
+        return fallback
+    return ""
+
+
+def _call_intake_known_domain_from_phone(value: str) -> str | None:
+    digits = _call_intake_phone_digits(value)
+    if not digits:
+        return None
+    for clean_domain in ("dental", "law", "engineer", "dev"):
+        configured = _call_intake_direct_phone_number_for_domain(clean_domain)
+        if _call_intake_phone_digits(configured) == digits:
+            return clean_domain
+    configured_map = os.getenv("CALL_INTAKE_PHONE_DOMAIN_MAP", "").strip()
+    if configured_map:
+        try:
+            parsed = json.loads(configured_map)
+            if isinstance(parsed, dict):
+                for phone, mapped_domain in parsed.items():
+                    if _call_intake_phone_digits(phone) == digits:
+                        return _domain_key(str(mapped_domain))
+        except Exception:
+            for item in re.split(r"[;,]", configured_map):
+                if ":" not in item:
+                    continue
+                phone, mapped_domain = item.split(":", 1)
+                if _call_intake_phone_digits(phone) == digits:
+                    return _domain_key(mapped_domain)
+    return None
+
+
+def _call_intake_domain_from_phone(value: str, default: str = "dev") -> str:
+    return _call_intake_known_domain_from_phone(value) or _domain_key(default)
 
 
 def _default_call_intake_questions(domain: str = "dev") -> list[dict]:
@@ -2905,10 +2961,12 @@ def _call_intake_public_base(request: Request) -> str:
     return str(request.base_url).rstrip("/")
 
 
-def _call_intake_env_status(request: Request) -> dict:
+def _call_intake_env_status(request: Request, domain: str = "dev") -> dict:
+    clean_domain = _domain_key(domain)
     base_url = _call_intake_public_base(request)
     provider = os.getenv("CALL_INTAKE_PROVIDER", "twilio").strip().lower() or "twilio"
-    twilio_ready = all(os.getenv(key) for key in ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"])
+    phone_number = _call_intake_phone_number_for_domain(clean_domain)
+    twilio_ready = bool(os.getenv("TWILIO_ACCOUNT_SID") and os.getenv("TWILIO_AUTH_TOKEN") and phone_number)
     retell_api_key = bool(os.getenv("RETELL_API_KEY"))
     retell_agent_id = bool(os.getenv("RETELL_AGENT_ID"))
     retell_ready = bool(retell_api_key and retell_agent_id)
@@ -2917,12 +2975,13 @@ def _call_intake_env_status(request: Request) -> dict:
     webhook_ready = bool(os.getenv("CALL_INTAKE_WEBHOOK_SECRET"))
     return {
         "provider": provider,
-        "phone_number": os.getenv("RETELL_PHONE_NUMBER") or os.getenv("VAPI_PHONE_NUMBER") or os.getenv("TWILIO_PHONE_NUMBER", ""),
+        "phone_number": phone_number,
+        "phone_domain": clean_domain,
         "twilio": {
             "configured": twilio_ready,
             "account_sid": bool(os.getenv("TWILIO_ACCOUNT_SID")),
             "auth_token": bool(os.getenv("TWILIO_AUTH_TOKEN")),
-            "phone_number": bool(os.getenv("TWILIO_PHONE_NUMBER")),
+            "phone_number": bool(phone_number),
         },
         "retell": {
             "configured": retell_ready,
@@ -2942,11 +3001,11 @@ def _call_intake_env_status(request: Request) -> dict:
         },
         "webhooks": {
             "configured": webhook_ready,
-            "voice": f"{base_url}/api/call-intake/voice",
-            "status": f"{base_url}/api/call-intake/status",
-            "provider": f"{base_url}/api/call-intake/provider-webhook",
-            "retell": f"{base_url}/api/call-intake/provider-webhook?provider=retell",
-            "vapi": f"{base_url}/api/call-intake/provider-webhook?provider=vapi",
+            "voice": f"{base_url}/api/call-intake/voice?domain={quote_plus(clean_domain)}",
+            "status": f"{base_url}/api/call-intake/status?domain={quote_plus(clean_domain)}",
+            "provider": f"{base_url}/api/call-intake/provider-webhook?domain={quote_plus(clean_domain)}",
+            "retell": f"{base_url}/api/call-intake/provider-webhook?provider=retell&domain={quote_plus(clean_domain)}",
+            "vapi": f"{base_url}/api/call-intake/provider-webhook?provider=vapi&domain={quote_plus(clean_domain)}",
             "media_stream": f"{base_url.replace('https://', 'wss://').replace('http://', 'ws://')}/api/call-intake/media",
         },
         "storage": {
@@ -3205,7 +3264,7 @@ def _get_call_intake_session(call_sid: str, domain: str = "dev", from_number: st
     session.setdefault("answers", {})
     session.setdefault("transcript", [])
     if domain:
-        session["domain"] = _domain_key(session.get("domain") or domain)
+        session["domain"] = _domain_key(domain)
     if from_number and not session.get("from"):
         session["from"] = _safe_action_text(from_number, 80)
     return session
@@ -4021,7 +4080,7 @@ def _call_intake_internal_match_for_jd_id(jd_id: str, domain: str) -> dict:
 @app.get("/api/call-intake/health")
 def call_intake_health(request: Request, domain: str = "dev"):
     clean_domain = _domain_key(domain)
-    status = _call_intake_env_status(request)
+    status = _call_intake_env_status(request, clean_domain)
     provider = str(status.get("provider") or "twilio").lower()
     provider_ready = (
         status["retell"]["configured"]
@@ -4066,7 +4125,7 @@ def call_intake_health(request: Request, domain: str = "dev"):
 @app.get("/api/call-intake/blueprint")
 def call_intake_blueprint(request: Request, domain: str = "dev"):
     clean_domain = _domain_key(domain)
-    status = _call_intake_env_status(request)
+    status = _call_intake_env_status(request, clean_domain)
     questions = _call_intake_questions(clean_domain)
     return {
         "ok": True,
@@ -4518,16 +4577,32 @@ async def call_intake_provider_webhook(request: Request, domain: str = "dev", pr
         or _safe_token("CALL"),
         120,
     )
+    called_number = _call_intake_first(
+        payload,
+        [
+            "to",
+            "To",
+            "to_number",
+            "phone_number",
+            "agent_phone_number",
+            "call.to_number",
+            "call.to",
+            "message.call.to_number",
+            "message.call.to",
+        ],
+    )
+    phone_domain = _call_intake_known_domain_from_phone(called_number)
     clean_domain = _domain_key(
         _call_intake_first(payload, ["domain", "dynamic_variables.domain", "metadata.domain", "call.metadata.domain"], domain)
         or domain
     )
+    clean_domain = phone_domain or clean_domain
     transcript = _call_intake_transcript_from_provider(payload)
     provider_text = _call_intake_provider_text(payload)
     answers = _call_intake_answers_from_provider_payload(payload)
     ai_answers = _call_intake_ai_answers_from_text(provider_text)
     answers = _call_intake_merge_answers(answers, ai_answers)
-    inferred_domain = _call_intake_domain_from_answers(answers, provider_text, clean_domain)
+    inferred_domain = clean_domain if phone_domain else _call_intake_domain_from_answers(answers, provider_text, clean_domain)
     clean_domain = inferred_domain
     session = _get_call_intake_session(call_sid, clean_domain)
     session["provider"] = provider_name
@@ -4582,7 +4657,9 @@ async def call_intake_voice(request: Request, domain: str = "dev"):
             form = {}
     call_sid = _safe_action_text(form.get("CallSid") or request.query_params.get("CallSid"), 120)
     from_number = _safe_action_text(form.get("From") or request.query_params.get("From"), 80)
+    to_number = _safe_action_text(form.get("To") or request.query_params.get("To"), 80)
     clean_domain = _domain_key(form.get("domain") or request.query_params.get("domain") or domain)
+    clean_domain = _call_intake_domain_from_phone(to_number, clean_domain)
     _append_call_intake_record(
         {
             "event": "voice_webhook",
@@ -4590,6 +4667,7 @@ async def call_intake_voice(request: Request, domain: str = "dev"):
             "domain": clean_domain,
             "call_sid": call_sid,
             "from": from_number,
+            "to": to_number,
             "status": "speech_gather_started",
         }
     )
@@ -4607,7 +4685,9 @@ async def call_intake_gather(request: Request, domain: str = "dev", callSid: str
         except Exception:
             form = {}
     call_sid = _safe_action_text(form.get("CallSid") or callSid or request.query_params.get("callSid"), 120)
+    to_number = _safe_action_text(form.get("To") or request.query_params.get("To"), 80)
     clean_domain = _domain_key(form.get("domain") or request.query_params.get("domain") or domain)
+    clean_domain = _call_intake_domain_from_phone(to_number, clean_domain)
     questions = _call_intake_questions(clean_domain)
     step = max(0, min(int(step or request.query_params.get("step") or 0), len(questions) - 1))
     try:
@@ -4707,7 +4787,7 @@ async def call_intake_status(request: Request, domain: str = "dev"):
         {
             "event": _safe_action_text(payload.get("StreamEvent") or payload.get("CallStatus") or "status", 80),
             "provider": "twilio",
-            "domain": _domain_key(payload.get("domain") or domain),
+            "domain": _call_intake_domain_from_phone(payload.get("To"), _domain_key(payload.get("domain") or domain)),
             "call_sid": _safe_action_text(payload.get("CallSid"), 120),
             "stream_sid": _safe_action_text(payload.get("StreamSid"), 120),
             "status": _safe_action_text(payload.get("CallStatus") or payload.get("StreamEvent"), 120),
