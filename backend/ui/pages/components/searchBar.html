@@ -782,9 +782,16 @@
 
   function applyHeaderShortcutAccess() {
     const user = currentDevReadySearchUser();
+    const domain = currentRadarDomain();
+    const domainHiddenKeys = new Set(["law", "dental"].includes(domain) ? ["test_challenge", "ai_cert", "badges"] : []);
+    document.querySelectorAll(".header-shortcuts [data-menu-key]").forEach((item) => {
+      const key = item.dataset.menuKey;
+      if (domainHiddenKeys.has(key)) item.remove();
+    });
     if (!user || user.role === "super_user") return;
     const isAdministrator = String(user.username || "").trim().toLowerCase() === "administrator";
     const allowed = new Set(user.allowed_menu || []);
+    domainHiddenKeys.forEach((key) => allowed.delete(key));
     if (isAdministrator) {
       allowed.add("admin");
       allowed.add("agents");

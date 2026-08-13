@@ -14,6 +14,7 @@ class LegalReadyPlatformTrainingTests(unittest.TestCase):
         cls.mobile = (PAGES_ROOT / "mobile.html").read_text(encoding="utf-8")
         cls.schedule = (PAGES_ROOT / "schedule-interview.html").read_text(encoding="utf-8")
         cls.nav = (PAGES_ROOT / "components" / "sideNav.html").read_text(encoding="utf-8")
+        cls.login = (BACKEND_ROOT / "ui" / "index.html").read_text(encoding="utf-8")
 
     def test_training_is_separate_from_mobile_app(self):
         self.assertNotIn("LegalReady mobile training", self.mobile)
@@ -69,9 +70,11 @@ class LegalReadyPlatformTrainingTests(unittest.TestCase):
         self.assertIn("50% training threshold", self.guide)
         self.assertIn("@media (max-width: 680px)", self.guide)
 
-    def test_shared_navigation_links_to_separate_training_page(self):
-        self.assertIn('href="legalready-training.html?domain=law"', self.nav)
-        self.assertIn(">Platform Training</a>", self.nav)
+    def test_login_screen_links_to_platform_training(self):
+        self.assertIn("Platform Training", self.login)
+        self.assertIn('id="platformTrainingLink"', self.login)
+        self.assertIn("pages/legalready-training.html?domain=dev", self.login)
+        self.assertNotIn("training-guide-link", self.nav)
         self.assertIn('href="mobile.html"', self.nav)
         self.assertIn(">Mobile Modules</a>", self.nav)
 

@@ -291,6 +291,10 @@ DEFAULT_INTERNAL_MENU = [
 ]
 DEFAULT_CANDIDATE_MENU = ["profiles", "channels", "interviews", "time_link", "status"]
 SUPER_MENU = [item["key"] for item in MENU_ITEMS]
+DOMAIN_HIDDEN_MENU = {
+    "law": {"test_challenge", "ai_cert", "badges"},
+    "dental": {"test_challenge", "ai_cert", "badges"},
+}
 
 DOMAIN_ALIASES = {
     "dev": {
@@ -786,6 +790,56 @@ def _upsert_atlas_crm_db(record: dict) -> bool:
             conn.close()
 
 
+def _seed_dental_atlas_demo_records() -> None:
+    fixture = _read_demo_fixture(os.path.basename(CRM_RECORDS_PATH), [])
+    samples = [
+        item for item in fixture
+        if isinstance(item, dict)
+        and _domain_key(item.get("domain", "")) == "dental"
+        and str(item.get("id", "")).startswith("CRM-DEMO-DENTAL-")
+    ]
+    if not samples or not _ensure_business_data_tables():
+        return
+    conn = None
+    try:
+        conn = _business_data_connection()
+        cur = conn.cursor()
+        for record in samples:
+            clean_id = _safe_action_text(record.get("id"), 120)
+            if not clean_id:
+                continue
+            cur.execute("SELECT 1 FROM atlas_crm_records WHERE id = %s LIMIT 1", (clean_id,))
+            if cur.fetchone():
+                continue
+            cur.execute(
+                """
+                INSERT INTO atlas_crm_records
+                  (id, domain, customer, owner, source_import_batch, source_prospect_id, archived, created_at, updated_at, data)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, COALESCE(%s::timestamptz, NOW()), COALESCE(%s::timestamptz, NOW()), %s)
+                """,
+                (
+                    clean_id,
+                    "dental",
+                    _safe_action_text(record.get("customer"), 240),
+                    _safe_action_text(record.get("owner"), 120),
+                    "dentalready-sample-atlas-clients-20260813",
+                    "",
+                    False,
+                    record.get("createdAt") or _now_utc(),
+                    record.get("updatedAt") or _now_utc(),
+                    Jsonb(record),
+                ),
+            )
+        conn.commit()
+    except Exception:
+        if conn:
+            conn.rollback()
+        traceback.print_exc()
+    finally:
+        if conn:
+            conn.close()
+
+
 def _upsert_prospect_reference_db(record: dict) -> bool:
     if not isinstance(record, dict) or not record.get("id") or not _ensure_business_data_tables():
         return False
@@ -1176,6 +1230,16 @@ def _default_menu_for_user(role: str, email: str = "") -> list[str]:
     if role == "super_user" or _normalize_user_key(email).endswith("@devready.io"):
         return SUPER_MENU
     return DEFAULT_INTERNAL_MENU
+
+
+def _domain_menu_keys(keys: list[str], domain: str = "dev") -> list[str]:
+    hidden = DOMAIN_HIDDEN_MENU.get(_domain_key(domain), set())
+    return [key for key in keys if key not in hidden]
+
+
+def _domain_menu_items(domain: str = "dev") -> list[dict]:
+    hidden = DOMAIN_HIDDEN_MENU.get(_domain_key(domain), set())
+    return [item for item in MENU_ITEMS if item.get("key") not in hidden]
 
 
 def _seed_access_users() -> dict:
@@ -1713,6 +1777,11 @@ os.makedirs(DATA_DIR, exist_ok=True)
 for _db_path in DOMAIN_DB_PATHS.values():
     storage.init_db(_db_path)
 
+
+@app.on_event("startup")
+def seed_dentalready_atlas_samples_on_startup():
+    _seed_dental_atlas_demo_records()
+
 app.mount("/ui", StaticFiles(directory=UI_DIR, html=True), name="ui")
 
 
@@ -1848,12 +1917,12 @@ def environment():
 
 
 @app.get("/api/access/menu")
-def access_menu():
+def access_menu(domain: str = "dev"):
     return {
-        "items": MENU_ITEMS,
-        "default_internal_menu": DEFAULT_INTERNAL_MENU,
+        "items": _domain_menu_items(domain),
+        "default_internal_menu": _domain_menu_keys(DEFAULT_INTERNAL_MENU, domain),
         "default_candidate_menu": DEFAULT_CANDIDATE_MENU,
-        "super_menu": SUPER_MENU,
+        "super_menu": _domain_menu_keys(SUPER_MENU, domain),
     }
 
 
@@ -6826,7 +6895,9 @@ def access_login(
     user["last_login_at"] = now
     user["updated_at"] = now
     _write_json_store(ACCESS_USERS_PATH, users)
-    return {"ok": True, "user": _public_user(user), "menu_items": MENU_ITEMS}
+    public_user = _public_user(user)
+    public_user["allowed_menu"] = _domain_menu_keys(public_user.get("allowed_menu", []), domain)
+    return {"ok": True, "user": public_user, "menu_items": _domain_menu_items(domain)}
 
 
 @app.post("/api/access/admin-login")

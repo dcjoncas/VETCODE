@@ -652,6 +652,14 @@
       window.location.href = "/ui/index.html";
       return;
     }
+    const domain = sessionStorage.getItem("domain") || "dev";
+    const domainHiddenKeys = new Set(["law", "dental"].includes(domain) ? ["test_challenge", "ai_cert", "badges"] : []);
+    document.querySelectorAll("#pageNavInner [data-menu-key]").forEach((item) => {
+      if (domainHiddenKeys.has(item.dataset.menuKey)) item.remove();
+    });
+    document.querySelectorAll("#pageNavInner .nav-group").forEach((group) => {
+      if (!group.querySelector("a")) group.remove();
+    });
     if (user.role === "candidate") {
       applyCandidateMenuAccess(user);
       return;
@@ -666,6 +674,7 @@
     }
     if (isSuperUser) return;
     const allowed = new Set(user.allowed_menu || []);
+    domainHiddenKeys.forEach((key) => allowed.delete(key));
     allowed.add("channels");
     if (isAdministrator) {
       allowed.add("admin");

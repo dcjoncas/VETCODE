@@ -243,6 +243,25 @@
         padding-top: 8px;
         border-top: 1px solid var(--line);
       }
+      .training-panel {
+        margin-top: 12px;
+        display: grid;
+        gap: 8px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.74);
+      }
+      .training-panel strong {
+        color: var(--ink);
+        font-size: 13px;
+      }
+      .training-panel p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
       @media (max-width: 900px) {
         .welcome-grid {
           grid-template-columns: 1fr;
@@ -341,6 +360,11 @@
             <button class="btn" type="submit">Login</button>
             <div id="loginStatus" class="login-status"></div>
           </form>
+          <div class="training-panel">
+            <strong>Platform Training</strong>
+            <p>Open the guided workflow practice from the selected workspace before or after signing in.</p>
+            <a id="platformTrainingLink" class="btn secondary" href="pages/legalready-training.html?domain=dev">Open Platform Training</a>
+          </div>
           <div class="create-panel">
             <div class="auth-divider">No account yet?</div>
             <form id="registerForm" class="login-form" style="margin-top: 12px">
@@ -394,6 +418,10 @@
           card.classList.toggle("active", card.dataset.domainCard === safeDomain);
         });
         sessionStorage.setItem("domain", safeDomain);
+        const trainingLink = document.getElementById("platformTrainingLink");
+        if (trainingLink) {
+          trainingLink.href = `pages/legalready-training.html?domain=${encodeURIComponent(safeDomain)}`;
+        }
       }
 
       function enterWorkspace(user) {

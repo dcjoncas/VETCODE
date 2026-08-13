@@ -1772,6 +1772,7 @@
         dev: { label: "Technology / DevReady", rgb: "47, 125, 75", ink: "#1b5f38" },
         engineer: { label: "Engineer / BuildReady", rgb: "31, 91, 128", ink: "#1f5b80" },
         law: { label: "Law / LegalReady", rgb: "63, 74, 88", ink: "#3f4a58" },
+        dental: { label: "Dental / DentalReady", rgb: "218, 77, 139", ink: "#111111" },
       };
 
       const dealStages = [
@@ -3742,15 +3743,20 @@
             ["Civic Rights Alliance", "Noah Patel, Managing Attorney", 68000, "Taylor", 14, 4, "Considering litigation support and evidence review process design.", "Grant funding is pending; relationship needs a helpful check-in.", "Share a light-weight discovery plan.", "Email"],
             ["Meridian Compliance Group", "Olivia Chen, Chief Compliance Officer", 240000, "Alex", 0, 9, "Needs AI policy, privacy review, and records governance support.", "Executive team wants defensible AI usage standards before launch.", "Schedule policy workshop and send two senior legal ops profiles.", "Zoom"],
           ],
+          dental: [
+            ["SmileCraft Dental Group", "Dr. Maya Alvarez, Practice Owner", 98000, "Darrin", 1, 9, "Needs two chairside dental assistants and one sterilization tech for expanded Friday coverage.", "Patient volume is up and hygienist handoffs are slowing room turnover.", "Send DentalReady assistant shortlist and schedule practice fit review.", "Teams"],
+            ["North Denver Endodontics", "Evan Brooks, Operations Manager", 76000, "Taylor", 5, 7, "Reviewing endodontic dental assistant coverage for procedure setup, radiography, and patient comfort.", "Specialty schedule is booked out and current team needs backup coverage.", "Confirm EFDA/radiography requirements and send two qualified profiles.", "Phone"],
+            ["Pearl Pediatric Dentistry", "Nina Shah, Clinical Director", 112000, "Alex", 0, 8, "Needs pediatric dental assistants with calm chairside communication and front-office backup.", "New location opening requires reliable onboarding before the first patient week.", "Prepare pediatric assistant and treatment coordinator shortlist.", "Zoom"],
+          ],
         };
         const source = sampleSets[domain] || sampleSets.dev;
         const sampleEmail = (company) =>
-          `${company.toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.|\.$/g, "")}@${domain === "law" ? "legalready" : domain === "engineer" ? "buildready" : "devready"}.example`;
-        const samplePhone = (index, extension = 10) => `555-${domain === "law" ? "07" : domain === "engineer" ? "05" : "03"}${index + 1}-${String(extension).padStart(4, "0")}`;
+          `${company.toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.|\.$/g, "")}@${domain === "law" ? "legalready" : domain === "engineer" ? "buildready" : domain === "dental" ? "dentalready" : "devready"}.example`;
+        const samplePhone = (index, extension = 10) => `555-${domain === "law" ? "07" : domain === "engineer" ? "05" : domain === "dental" ? "09" : "03"}${index + 1}-${String(extension).padStart(4, "0")}`;
         const teamFor = (company, lead, index) => {
           const [leadName, leadTitle = "Executive Sponsor"] = lead.split(",").map((part) => part.trim());
           const slug = company.toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.|\.$/g, "");
-          const domainSlug = domain === "law" ? "legalready" : domain === "engineer" ? "buildready" : "devready";
+          const domainSlug = domain === "law" ? "legalready" : domain === "engineer" ? "buildready" : domain === "dental" ? "dentalready" : "devready";
           return [
             {
               id: `${slug}-decision-maker`,
@@ -3784,8 +3790,8 @@
               relationshipRole: "Influencer",
               email: `ops.${index + 1}@${slug}.example`,
               phone: samplePhone(index, 3300 + index),
-              title: domain === "law" ? "Legal Operations Manager" : domain === "engineer" ? "Program Engineering Manager" : "Talent Operations Manager",
-              jobTitle: domain === "law" ? "Legal Operations Manager" : domain === "engineer" ? "Program Engineering Manager" : "Talent Operations Manager",
+              title: domain === "law" ? "Legal Operations Manager" : domain === "engineer" ? "Program Engineering Manager" : domain === "dental" ? "Clinical Operations Lead" : "Talent Operations Manager",
+              jobTitle: domain === "law" ? "Legal Operations Manager" : domain === "engineer" ? "Program Engineering Manager" : domain === "dental" ? "Clinical Operations Lead" : "Talent Operations Manager",
               description: "Shapes requirements, interview feedback, and day-to-day hiring coordination.",
               linkedinUrl: demoLinkedInFor({ customer: company }, index === 0 ? "Nora Patel" : index === 1 ? "Evan Brooks" : "Camila Torres"),
               photoUrl: "",
