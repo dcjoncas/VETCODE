@@ -897,7 +897,7 @@
             latestHealth.google && latestHealth.google.connected,
             latestHealth.google && latestHealth.google.connected
               ? "Connected"
-              : "Not connected",
+              : `Not connected - authorize redirect: ${latestHealth.google?.redirect_uri || "/auth/google/callback"}`,
           );
           setProviderConnection(
             "google",
@@ -908,7 +908,7 @@
             latestHealth.outlook && latestHealth.outlook.connected,
             latestHealth.outlook && latestHealth.outlook.connected
               ? "Connected"
-              : "Not connected",
+              : `Not connected - authorize redirect: ${latestHealth.outlook?.redirect_uri || "/auth/outlook/callback"}`,
           );
           setProviderConnection(
             "outlook",
