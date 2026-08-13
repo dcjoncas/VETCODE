@@ -201,11 +201,24 @@ def _pop_outlook_state(state: str) -> Optional[str]:
 def _ensure_google_secret_file() -> Path:
     existing_path = _google_secret_path()
     if existing_path:
-        return existing_path
+        try:
+            json.loads(existing_path.read_text(encoding="utf-8"))
+            return existing_path
+        except Exception:
+            pass
     secret_json = os.getenv("GOOGLE_CLIENT_SECRET_JSON", "").strip()
     if secret_json:
+        try:
+            parsed_secret = json.loads(secret_json)
+        except json.JSONDecodeError:
+            try:
+                parsed_secret = json.loads(json.loads(secret_json))
+            except Exception as exc:
+                raise HTTPException(status_code=500, detail="Google OAuth client secret JSON is invalid.") from exc
+        if not isinstance(parsed_secret, dict):
+            raise HTTPException(status_code=500, detail="Google OAuth client secret JSON is invalid.")
         GOOGLE_CLIENT_SECRET_FILE.parent.mkdir(parents=True, exist_ok=True)
-        GOOGLE_CLIENT_SECRET_FILE.write_text(secret_json, encoding="utf-8")
+        GOOGLE_CLIENT_SECRET_FILE.write_text(json.dumps(parsed_secret), encoding="utf-8")
         return GOOGLE_CLIENT_SECRET_FILE
     raise HTTPException(
         status_code=500,
