@@ -1617,8 +1617,19 @@
               <div class="field full">
                 <label>Relationship strength</label>
                 <div class="range-row">
-                  <input id="crmStrength" type="range" min="1" max="10" value="6" />
+                  <input
+                    id="crmStrength"
+                    type="range"
+                    min="1"
+                    max="10"
+                    value="6"
+                    aria-describedby="crmStrengthHint"
+                    title="Scores relationship health: low means drifting or at risk, high means warm with active momentum."
+                  />
                   <output id="crmStrengthValue" class="range-value">6</output>
+                </div>
+                <div id="crmStrengthHint" class="muted">
+                  Rates relationship health for Atlas: lower scores raise attention/follow-up risk, higher scores show warmer client momentum.
                 </div>
               </div>
               <div class="field full">
