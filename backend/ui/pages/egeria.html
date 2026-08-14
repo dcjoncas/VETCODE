@@ -440,6 +440,10 @@
         box-shadow: none;
       }
 
+      .one-tap-flow-actions a.btn {
+        text-decoration: none;
+      }
+
       .one-tap-activity {
         display: grid;
         gap: 7px;
@@ -1299,6 +1303,15 @@
         });
       }
 
+      function egeriaAppHref(page, params = {}) {
+        const url = new URL(page, window.location.href);
+        url.searchParams.set("domain", currentDomain());
+        Object.entries(params || {}).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, value);
+        });
+        return `${url.pathname.split("/").pop()}${url.search}${url.hash}`;
+      }
+
       function readShortlistIds() {
         const ids = (sessionStorage.getItem("shortlist") || "")
           .split(",")
@@ -2049,6 +2062,9 @@
           externalScheduled: Boolean(state.externalScheduled || state.externalComplete),
           externalComplete: Boolean(state.externalComplete),
           onboardingStarted: Boolean(state.onboardingStarted),
+          internalSchedulerHref: state.internalSchedulerHref || egeriaAppHref("schedule-interview.html", { interview: "ready" }),
+          externalSchedulerHref: state.externalSchedulerHref || egeriaAppHref("schedule-interview.html", { interview: "client" }),
+          meetingHref: state.meetingHref || egeriaAppHref("meet.html"),
         };
       }
 
@@ -2058,6 +2074,11 @@
 
       function oneTapFlowButton(label, action, primary = false, disabled = false) {
         return `<button class="btn ${primary ? "primary" : "secondary"}" type="button" data-one-tap-flow-action="${escapeHtml(action)}"${disabled ? " disabled aria-disabled=\"true\"" : ""}>${escapeHtml(label)}</button>`;
+      }
+
+      function oneTapFlowLink(label, href, primary = false, disabled = false) {
+        if (disabled) return `<button class="btn ${primary ? "primary" : "secondary"}" type="button" disabled aria-disabled="true">${escapeHtml(label)}</button>`;
+        return `<a class="btn ${primary ? "primary" : "secondary"}" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
       }
 
       function renderOneTapProcess() {
@@ -2109,21 +2130,29 @@
             key: "internalComplete",
             done: status.internalComplete,
             title: "Internal interview",
-            detail: status.internalComplete ? "Internal interview is complete." : status.internalScheduled ? "Internal interview scheduled. Mark complete when done." : "Schedule the internal interview.",
+            detail: status.internalComplete ? "Internal interview is complete." : status.internalScheduled ? "Internal interview scheduled. Open it here, then mark complete when done." : "Schedule the internal interview, then confirm it is on the calendar.",
             actions: !status.internalComplete ? [
               !status.internalScheduled ? oneTapFlowButton("Schedule internal", "internal-scheduled", true, !status.interestConfirmed) : "",
+              oneTapFlowLink(status.internalScheduled ? "Open internal scheduler" : "Go to scheduler", status.internalSchedulerHref, false, !status.interestConfirmed),
+              status.internalScheduled ? oneTapFlowLink("Open meeting", status.meetingHref, false, false) : "",
               oneTapFlowButton("Mark complete", "internal-complete", status.internalScheduled, !status.interestConfirmed || !status.internalScheduled),
-            ] : [],
+            ] : [
+              oneTapFlowLink("Open meeting", status.meetingHref),
+            ],
           },
           {
             key: "externalComplete",
             done: status.externalComplete,
             title: "External/client interview",
-            detail: status.externalComplete ? "External interview is complete." : status.externalScheduled ? "External interview scheduled. Mark complete when done." : "Schedule the external/client interview.",
+            detail: status.externalComplete ? "External/client interview is complete." : status.externalScheduled ? "External/client interview scheduled. Open it here, then mark complete when done." : "Schedule the external/client interview, then confirm it is on the calendar.",
             actions: !status.externalComplete ? [
               !status.externalScheduled ? oneTapFlowButton("Schedule external", "external-scheduled", true, !status.internalComplete) : "",
+              oneTapFlowLink(status.externalScheduled ? "Open client scheduler" : "Go to client scheduler", status.externalSchedulerHref, false, !status.internalComplete),
+              status.externalScheduled ? oneTapFlowLink("Open meeting", status.meetingHref, false, false) : "",
               oneTapFlowButton("Mark complete", "external-complete", status.externalScheduled, !status.internalComplete || !status.externalScheduled),
-            ] : [],
+            ] : [
+              oneTapFlowLink("Open meeting", status.meetingHref),
+            ],
           },
           {
             key: "onboardingStarted",
@@ -2172,7 +2201,11 @@
         if (action === "internal-scheduled") {
           saveScheduleRecord(oneTapFlowRecord("candidate-review", "Internal interview scheduled", "Complete internal interview"));
           sessionStorage.setItem("nextFlowStep", "candidate-review");
-          appendOneTapActivity("Internal interview scheduled", "Internal interview scheduled in One-Tap.", { internalScheduled: true });
+          appendOneTapActivity("Internal interview scheduled", "Internal interview scheduled in One-Tap. Use Open internal scheduler or Open meeting from this step.", {
+            internalScheduled: true,
+            internalSchedulerHref: egeriaAppHref("schedule-interview.html", { interview: "ready" }),
+            meetingHref: egeriaAppHref("meet.html"),
+          });
           return;
         }
         if (action === "internal-complete") {
@@ -2188,7 +2221,11 @@
         if (action === "external-scheduled") {
           saveScheduleRecord(oneTapFlowRecord("client-interview", "External/client interview scheduled", "Complete external interview"));
           sessionStorage.setItem("nextFlowStep", "client-interview");
-          appendOneTapActivity("External interview scheduled", "Client/external interview scheduled in One-Tap.", { externalScheduled: true });
+          appendOneTapActivity("External interview scheduled", "Client/external interview scheduled in One-Tap. Use Open client scheduler or Open meeting from this step.", {
+            externalScheduled: true,
+            externalSchedulerHref: egeriaAppHref("schedule-interview.html", { interview: "client" }),
+            meetingHref: egeriaAppHref("meet.html"),
+          });
           return;
         }
         if (action === "external-complete") {
