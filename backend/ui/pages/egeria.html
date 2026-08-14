@@ -112,9 +112,12 @@
       }
 
       .one-tap-window {
-        width: min(820px, calc(100vw - 28px));
+        width: min(1040px, calc(100vw - 28px));
         max-width: calc(100vw - 28px);
+        height: min(860px, calc(100vh - 34px));
         max-height: calc(100vh - 34px);
+        min-width: min(720px, calc(100vw - 28px));
+        min-height: min(580px, calc(100vh - 34px));
         border: 1px solid rgba(184, 135, 39, 0.36);
         border-radius: 12px;
         padding: 0;
@@ -122,6 +125,7 @@
         color: var(--ink);
         box-shadow: 0 28px 80px rgba(15, 23, 42, 0.34);
         overflow: hidden;
+        resize: both;
       }
 
       .one-tap-window::backdrop {
@@ -131,6 +135,13 @@
       .one-tap-window[open] {
         display: grid;
         grid-template-rows: auto minmax(0, 1fr);
+      }
+
+      .one-tap-window.expanded {
+        width: calc(100vw - 18px);
+        height: calc(100vh - 18px);
+        max-width: calc(100vw - 18px);
+        max-height: calc(100vh - 18px);
       }
 
       .one-tap-window-head {
@@ -166,6 +177,7 @@
 
       .one-tap-window-body {
         display: grid;
+        grid-template-columns: minmax(360px, 0.92fr) minmax(280px, 0.58fr);
         gap: 10px;
         overflow: auto;
         padding: 12px 14px 14px;
@@ -277,6 +289,13 @@
         background: rgba(255, 255, 255, 0.82);
       }
 
+      .one-tap-side {
+        display: grid;
+        gap: 10px;
+        align-content: start;
+        min-width: 0;
+      }
+
       .one-tap-panel.open {
         display: grid;
       }
@@ -328,6 +347,109 @@
       .one-tap-result {
         display: grid;
         gap: 8px;
+      }
+
+      .one-tap-flow {
+        display: grid;
+        gap: 7px;
+      }
+
+      .one-tap-flow-step {
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.14);
+        border-radius: 9px;
+        padding: 8px;
+        background: #fff;
+      }
+
+      .one-tap-flow-step.complete {
+        border-color: rgba(var(--primary-rgb, 47, 125, 75), 0.34);
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.06);
+      }
+
+      .one-tap-flow-step.current {
+        border-color: rgba(184, 135, 39, 0.5);
+        box-shadow: 0 0 0 3px rgba(184, 135, 39, 0.1);
+      }
+
+      .one-tap-flow-marker {
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.08);
+        color: var(--primary-2);
+        font-size: 11px;
+        font-weight: 1000;
+      }
+
+      .one-tap-flow-step.complete .one-tap-flow-marker {
+        background: var(--primary);
+        color: #fff;
+      }
+
+      .one-tap-flow-copy strong,
+      .one-tap-flow-copy span {
+        display: block;
+        min-width: 0;
+      }
+
+      .one-tap-flow-copy strong {
+        color: var(--ink);
+        font-size: 12px;
+      }
+
+      .one-tap-flow-copy span {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.25;
+      }
+
+      .one-tap-flow-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 5px;
+      }
+
+      .one-tap-flow-actions .btn {
+        min-height: 28px;
+        padding: 5px 8px;
+        font-size: 11px;
+      }
+
+      .one-tap-activity {
+        display: grid;
+        gap: 7px;
+      }
+
+      .one-tap-activity-line {
+        border-left: 3px solid rgba(var(--primary-rgb, 47, 125, 75), 0.28);
+        padding: 6px 8px;
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.035);
+        border-radius: 7px;
+      }
+
+      .one-tap-activity-line strong,
+      .one-tap-activity-line span {
+        display: block;
+      }
+
+      .one-tap-activity-line strong {
+        color: var(--ink);
+        font-size: 12px;
+      }
+
+      .one-tap-activity-line span {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.3;
       }
 
       .one-tap-history-shell {
@@ -897,7 +1019,9 @@
         .pilot-guide,
         .pilot-stepper,
         .one-tap-bar,
-        .one-tap-panel {
+        .one-tap-panel,
+        .one-tap-window-body,
+        .one-tap-command-row {
           grid-template-columns: 1fr;
         }
 
@@ -969,31 +1093,40 @@
             </div>
             <div class="one-tap-window-actions">
               <button id="oneTapRefreshJobsBtn" class="btn secondary" type="button">Refresh jobs</button>
+              <button id="oneTapExpandBtn" class="btn secondary" type="button">Expand</button>
               <button id="oneTapCloseBtn" class="btn secondary" type="button">Close</button>
             </div>
           </header>
           <div class="one-tap-window-body">
-          <div id="oneTapFeedbackAlert" class="one-tap-feedback-alert" role="status" hidden></div>
-          <div id="oneTapPanel" class="one-tap-panel open">
-            <div class="one-tap-command-row">
-              <label>
-                Job
-                <select id="oneTapJobSelect">
-                  <option value="">Loading jobs...</option>
-                </select>
-              </label>
-              <button id="oneTapStartBtn" class="btn primary" type="button">Run</button>
+            <div id="oneTapPanel" class="one-tap-panel open">
+              <div id="oneTapFeedbackAlert" class="one-tap-feedback-alert" role="status" hidden></div>
+              <div class="one-tap-command-row">
+                <label>
+                  Job
+                  <select id="oneTapJobSelect">
+                    <option value="">Loading jobs...</option>
+                  </select>
+                </label>
+                <button id="oneTapStartBtn" class="btn primary" type="button">Run</button>
+              </div>
+              <div>
+                <div id="oneTapStatus" class="egeria-notice">Choose a job, then run One-Tap.</div>
+                <div id="oneTapStepper" class="pilot-stepper" aria-label="One-Tap Pilot steps"></div>
+              </div>
+              <div id="oneTapResult" class="one-tap-result"></div>
+              <div id="oneTapFlow" class="one-tap-flow" aria-label="One-Tap process state"></div>
             </div>
-            <div>
-              <div id="oneTapStatus" class="egeria-notice">Choose a job, then run One-Tap.</div>
-              <div id="oneTapStepper" class="pilot-stepper" aria-label="One-Tap Pilot steps"></div>
+            <div class="one-tap-side">
+              <article class="egeria-card">
+                <strong>Activity</strong>
+                <span>Chat, results, scheduled interviews, acceptance, and completion notes stay here.</span>
+                <div id="oneTapActivity" class="one-tap-activity"></div>
+              </article>
+              <details class="one-tap-history-shell">
+                <summary>History and resume</summary>
+                <div id="oneTapHistory" class="one-tap-history"></div>
+              </details>
             </div>
-            <div id="oneTapResult" class="one-tap-result"></div>
-            <details class="one-tap-history-shell">
-              <summary>History and resume</summary>
-              <div id="oneTapHistory" class="one-tap-history"></div>
-            </details>
-          </div>
           </div>
         </dialog>
 
@@ -1166,17 +1299,18 @@
         const keys = [
           `scheduleTracking:${currentDomain()}`,
           "scheduleTracking",
+          `latestScheduleTracking:${currentDomain()}`,
           "latestScheduleTracking",
           "candidateReviewStatus",
           "clientInterviewStatus",
         ];
-        const text = keys.map((key) => sessionStorage.getItem(key) || "").filter(Boolean).join(" ").toLowerCase();
+        const text = keys.map((key) => sessionStorage.getItem(key) || localStorage.getItem(key) || "").filter(Boolean).join(" ").toLowerCase();
         let saved = Boolean(text);
         let candidateReviewComplete = /candidate.{0,24}(review|touch|screen)|review.{0,24}(complete|scheduled|saved|ready)/i.test(text);
         let clientInterviewReady = /client.{0,24}(interview|meeting).{0,24}(complete|scheduled|saved|ready)|interview=client/i.test(text);
         keys.forEach((key) => {
           try {
-            const parsed = JSON.parse(sessionStorage.getItem(key) || "null");
+              const parsed = JSON.parse(sessionStorage.getItem(key) || localStorage.getItem(key) || "null");
             const rows = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
             if (rows.length) saved = true;
             rows.forEach((row) => {
@@ -1254,6 +1388,7 @@
         const index = oneTapStepIndex(run);
         renderPilotStepper("oneTapStepper", index);
         renderPilotStepper("pilotStepper", index);
+        renderOneTapProcess();
       }
 
       function focusPilotZone(targetId) {
@@ -1549,6 +1684,11 @@
         profileButton.disabled = !candidate.profile_id;
         const dialog = document.getElementById("oneTapFeedbackDialog");
         if (!dialog.open) dialog.showModal();
+        if (!readOneTapFlow(activeOneTapFeedback).interestConfirmed) {
+          appendOneTapActivity("Interest confirmed", `${candidate.name || "Candidate"} submitted feedback for ${job.title || "the role"}.`, { interestSent: true, interestConfirmed: true });
+        } else {
+          renderOneTapProcess();
+        }
         if (notification) acknowledgeCandidateFeedback(notification);
       }
 
@@ -1789,6 +1929,237 @@
         return rows[0] || null;
       }
 
+      function oneTapFlowKey(run = currentOneTapRun()) {
+        const key = run ? oneTapRunKey(run) : [sessionStorage.getItem("jobId") || "", sessionStorage.getItem("candidateId") || ""].filter(Boolean).join(":");
+        return `oneTapFlow:${currentDomain()}:${key || "active"}`;
+      }
+
+      function readOneTapFlow(run = currentOneTapRun()) {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(oneTapFlowKey(run)) || "{}");
+          return parsed && typeof parsed === "object" ? { activity: [], ...parsed } : { activity: [] };
+        } catch {
+          return { activity: [] };
+        }
+      }
+
+      function writeOneTapFlow(state, run = currentOneTapRun()) {
+        localStorage.setItem(oneTapFlowKey(run), JSON.stringify({ activity: [], ...(state || {}) }));
+      }
+
+      function appendOneTapActivity(title, detail = "", patch = {}) {
+        const run = currentOneTapRun();
+        const state = readOneTapFlow(run);
+        const activity = [{
+          title,
+          detail,
+          at: new Date().toISOString(),
+        }, ...(Array.isArray(state.activity) ? state.activity : [])].slice(0, 18);
+        writeOneTapFlow({ ...state, ...patch, activity }, run);
+        renderOneTapProcess();
+      }
+
+      function oneTapFlowStatus() {
+        const run = currentOneTapRun();
+        const state = readOneTapFlow(run);
+        const feedback = run?.event_type === "candidate_role_feedback_submitted" || Boolean(run?.feedback || egeriaContext().candidateInterestReceived);
+        const schedule = readScheduleState();
+        return {
+          run,
+          state,
+          found: Boolean(run?.candidate && run?.job),
+          interestSent: Boolean(state.interestSent || feedback),
+          interestConfirmed: Boolean(state.interestConfirmed || feedback),
+          internalScheduled: Boolean(state.internalScheduled || state.internalComplete || schedule.candidateReviewComplete),
+          internalComplete: Boolean(state.internalComplete || schedule.candidateReviewComplete),
+          externalScheduled: Boolean(state.externalScheduled || state.externalComplete || schedule.clientInterviewReady),
+          externalComplete: Boolean(state.externalComplete || schedule.clientInterviewReady),
+          onboardingStarted: Boolean(state.onboardingStarted),
+        };
+      }
+
+      function oneTapStepClass(done, current) {
+        return done ? "complete" : current ? "current" : "";
+      }
+
+      function oneTapFlowButton(label, action, primary = false) {
+        return `<button class="btn ${primary ? "primary" : "secondary"}" type="button" data-one-tap-flow-action="${escapeHtml(action)}">${escapeHtml(label)}</button>`;
+      }
+
+      function renderOneTapProcess() {
+        const flowTarget = document.getElementById("oneTapFlow");
+        const activityTarget = document.getElementById("oneTapActivity");
+        if (!flowTarget && !activityTarget) return;
+        const status = oneTapFlowStatus();
+        const run = status.run || {};
+        const state = status.state || {};
+        const candidate = run.candidate || {};
+        const job = run.job || {};
+        const currentStep =
+          !status.found ? "found" :
+          !status.interestSent ? "interestSent" :
+          !status.interestConfirmed ? "interestConfirmed" :
+          !status.internalComplete ? "internalComplete" :
+          !status.externalComplete ? "externalComplete" :
+          !status.onboardingStarted ? "onboardingStarted" :
+          "done";
+        const steps = [
+          {
+            key: "found",
+            done: status.found,
+            title: "Candidate found from JD",
+            detail: status.found ? `${candidate.name || "Candidate"} matched to ${job.title || "selected role"}.` : "Run One-Tap after choosing a job.",
+            actions: status.found ? [oneTapFlowButton("Review", "profile")] : [],
+          },
+          {
+            key: "interestSent",
+            done: status.interestSent,
+            title: "Interest sent",
+            detail: status.interestSent ? "Interest has been sent." : run?.interest?.url ? "Interest email is ready. Send it, then mark sent." : "Send the interest email, then mark it sent.",
+            actions: status.found && !status.interestSent ? [
+              `<a class="btn primary" href="${escapeHtml(oneTapMailto(run.interest || {}))}">Send email</a>`,
+              oneTapFlowButton("Mark sent", "interest-sent"),
+            ] : [],
+          },
+          {
+            key: "interestConfirmed",
+            done: status.interestConfirmed,
+            title: "Interest confirmed",
+            detail: status.interestConfirmed ? "Candidate interest is confirmed." : "Use candidate feedback or mark confirmed manually.",
+            actions: status.interestSent && !status.interestConfirmed ? [
+              oneTapFlowButton("Mark confirmed", "interest-confirmed", true),
+              run.feedback ? oneTapFlowButton("View feedback", "feedback") : "",
+            ] : [],
+          },
+          {
+            key: "internalComplete",
+            done: status.internalComplete,
+            title: "Internal interview",
+            detail: status.internalComplete ? "Internal interview is complete." : status.internalScheduled ? "Internal interview scheduled. Mark complete when done." : "Schedule the internal interview.",
+            actions: status.interestConfirmed && !status.internalComplete ? [
+              !status.internalScheduled ? oneTapFlowButton("Schedule internal", "internal-scheduled", true) : "",
+              oneTapFlowButton("Mark complete", "internal-complete", status.internalScheduled),
+            ] : [],
+          },
+          {
+            key: "externalComplete",
+            done: status.externalComplete,
+            title: "External/client interview",
+            detail: status.externalComplete ? "External interview is complete." : status.externalScheduled ? "External interview scheduled. Mark complete when done." : "Schedule the external/client interview.",
+            actions: status.internalComplete && !status.externalComplete ? [
+              !status.externalScheduled ? oneTapFlowButton("Schedule external", "external-scheduled", true) : "",
+              oneTapFlowButton("Mark complete", "external-complete", status.externalScheduled),
+            ] : [],
+          },
+          {
+            key: "onboardingStarted",
+            done: status.onboardingStarted,
+            title: "Onboarding",
+            detail: status.onboardingStarted ? "Onboarding handoff has started and the Atlas relationship signal is ready." : "Start onboarding after the external interview is complete.",
+            actions: status.externalComplete && !status.onboardingStarted ? [oneTapFlowButton("Start onboarding", "onboarding-started", true)] : [],
+          },
+        ];
+        if (flowTarget) {
+          flowTarget.innerHTML = steps.map((step, index) => `
+            <div class="one-tap-flow-step ${oneTapStepClass(step.done, currentStep === step.key)}">
+              <span class="one-tap-flow-marker">${step.done ? "OK" : index + 1}</span>
+              <span class="one-tap-flow-copy"><strong>${escapeHtml(step.title)}</strong><span>${escapeHtml(step.detail)}</span></span>
+              <span class="one-tap-flow-actions">${(step.actions || []).filter(Boolean).join("")}</span>
+            </div>
+          `).join("");
+          flowTarget.querySelectorAll("[data-one-tap-flow-action]").forEach((button) => {
+            button.addEventListener("click", () => handleOneTapFlowAction(button.getAttribute("data-one-tap-flow-action") || ""));
+          });
+        }
+        if (activityTarget) {
+          const activity = Array.isArray(state.activity) ? state.activity : [];
+          activityTarget.innerHTML = activity.length ? activity.slice(0, 8).map((item) => `
+            <div class="one-tap-activity-line">
+              <strong>${escapeHtml(item.title || "Update")}</strong>
+              <span>${escapeHtml(item.detail || "")}${item.at ? ` - ${escapeHtml(new Date(item.at).toLocaleString())}` : ""}</span>
+            </div>
+          `).join("") : `<div class="one-tap-activity-line"><strong>No activity yet</strong><span>Run One-Tap to start the visible trail.</span></div>`;
+        }
+      }
+
+      async function handleOneTapFlowAction(action) {
+        if (action === "profile") return renderOneTapInlineCard("profile");
+        if (action === "feedback") return openCandidateFeedback(currentOneTapRun());
+        if (action === "interest-sent") {
+          appendOneTapActivity("Interest sent", "Candidate interest email/link marked sent.", { interestSent: true });
+          sessionStorage.setItem("nextFlowStep", "candidate-review");
+          return;
+        }
+        if (action === "interest-confirmed") {
+          sessionStorage.setItem("candidateInterestStatus", JSON.stringify({ status: "Interest confirmed", createdAt: new Date().toISOString() }));
+          appendOneTapActivity("Interest confirmed", "Candidate interest manually confirmed.", { interestSent: true, interestConfirmed: true });
+          return;
+        }
+        if (action === "internal-scheduled") {
+          saveScheduleRecord(oneTapFlowRecord("candidate-review", "Internal interview scheduled", "Complete internal interview"));
+          sessionStorage.setItem("nextFlowStep", "candidate-review");
+          appendOneTapActivity("Internal interview scheduled", "Internal interview scheduled in One-Tap.", { internalScheduled: true });
+          return;
+        }
+        if (action === "internal-complete") {
+          const record = oneTapFlowRecord("candidate-review", "Internal interview complete", "Schedule external/client interview");
+          saveScheduleRecord(record);
+          sessionStorage.setItem("candidateReviewStatus", JSON.stringify(record));
+          sessionStorage.setItem("nextFlowStep", "client-interview");
+          await logPilotAction("One-Tap internal interview marked complete.", record);
+          appendOneTapActivity("Internal interview complete", "Internal interview marked complete.", { internalScheduled: true, internalComplete: true });
+          runPilot();
+          return;
+        }
+        if (action === "external-scheduled") {
+          saveScheduleRecord(oneTapFlowRecord("client-interview", "External/client interview scheduled", "Complete external interview"));
+          sessionStorage.setItem("nextFlowStep", "client-interview");
+          appendOneTapActivity("External interview scheduled", "Client/external interview scheduled in One-Tap.", { externalScheduled: true });
+          return;
+        }
+        if (action === "external-complete") {
+          const record = oneTapFlowRecord("client-interview", "External/client interview complete", "Start onboarding");
+          saveScheduleRecord(record);
+          sessionStorage.setItem("clientInterviewStatus", JSON.stringify(record));
+          sessionStorage.setItem("nextFlowStep", "status");
+          await logPilotAction("One-Tap external interview marked complete.", record);
+          appendOneTapActivity("External interview complete", "Client/external interview marked complete. Atlas handoff is ready.", { externalScheduled: true, externalComplete: true });
+          runPilot();
+          return;
+        }
+        if (action === "onboarding-started") {
+          const record = oneTapFlowRecord("onboarding", "Onboarding started", "Monitor onboarding and Atlas handoff");
+          saveScheduleRecord(record);
+          sessionStorage.setItem("nextFlowStep", "status");
+          await logPilotAction("One-Tap onboarding handoff started.", record);
+          appendOneTapActivity("Onboarding started", "Onboarding handoff started; Atlas should reflect the client relationship signal.", { onboardingStarted: true });
+          runPilot();
+        }
+      }
+
+      function oneTapFlowRecord(type, status, nextAction) {
+        const run = currentOneTapRun() || {};
+        const candidate = run.candidate || {};
+        const job = run.job || {};
+        const ctx = egeriaContext();
+        return {
+          id: `one-tap-${type}-${Date.now()}`,
+          domain: currentDomain(),
+          interviewType: type,
+          purpose: type,
+          candidateId: candidate.profile_id || ctx.candidateId,
+          candidateName: candidate.name || ctx.candidateName,
+          candidateEmail: candidate.email || ctx.candidateEmail,
+          jobId: job.jd_id || ctx.jobId,
+          role: job.title || ctx.jobTitle,
+          client: job.company || ctx.jobCompany || "",
+          status,
+          provider: "Egeria One-Tap",
+          nextAction,
+          createdAt: new Date().toISOString(),
+        };
+      }
+
       function renderOneTapInlineCard(kind) {
         const target = document.getElementById("oneTapResult");
         if (!target) return;
@@ -1887,6 +2258,15 @@
           if (!response.ok || data.ok === false) throw new Error(data.detail || "One-Tap Pilot failed.");
           oneTapLastRun = data;
           rememberOneTapRun(data);
+          writeOneTapFlow({
+            ...readOneTapFlow(data),
+            interestPrepared: Boolean(data.interest?.url),
+            activity: [{
+              title: "Candidate found",
+              detail: `${data.candidate?.name || "Candidate"} matched to ${data.job?.title || "selected role"}.`,
+              at: new Date().toISOString(),
+            }],
+          }, data);
           const candidate = data.candidate || {};
           const job = data.job || {};
           sessionStorage.setItem("candidateId", candidate.profile_id || "");
@@ -1902,6 +2282,7 @@
           setStatus("oneTapStatus", `Egeria selected ${candidate.name || "one candidate"} and prepared the interest email. Use the buttons below when you are ready to send or review.`);
           renderOneTapResult(data);
           renderOneTapHistory();
+          renderOneTapProcess();
           runPilot();
         } catch (error) {
           setStatus("oneTapStatus", error.message || "One-Tap Pilot failed.");
@@ -2140,6 +2521,7 @@
         sessionStorage.setItem("currentFlowStep", "egeria");
         sessionStorage.setItem("nextFlowStep", "candidate-review");
         await logPilotAction(`${ctx.candidateName || "Candidate"} profile reviewed and added to shortlist.`, { shortlistCount: ids.length });
+        appendOneTapActivity("Profile confirmed", `${ctx.candidateName || "Candidate"} added to shortlist.`, { profileConfirmed: true });
         setStatus("pilotStatus", "Profile confirmed. Egeria added the candidate to the shortlist and is checking the next step.");
         runPilot();
       }
@@ -2171,6 +2553,7 @@
         sessionStorage.setItem("currentFlowStep", "egeria");
         sessionStorage.setItem("nextFlowStep", "client-interview");
         await logPilotAction(`Candidate review saved for ${ctx.candidateName || "candidate"}.`, record);
+        appendOneTapActivity("Internal interview complete", `Candidate review saved: ${readiness}.`, { internalScheduled: true, internalComplete: true });
         setStatus("pilotStatus", "Candidate review saved. Egeria is moving to the client interview checkpoint.");
         runPilot();
       }
@@ -2199,6 +2582,7 @@
         sessionStorage.setItem("currentFlowStep", "egeria");
         sessionStorage.setItem("nextFlowStep", "status");
         await logPilotAction(`Client interview readiness saved for ${ctx.candidateName || "candidate"}.`, record);
+        appendOneTapActivity("External interview complete", "Client interview handoff marked ready.", { externalScheduled: true, externalComplete: true });
         setStatus("pilotStatus", "Client interview readiness saved. Egeria is checking final status handoff.");
         runPilot();
       }
@@ -2221,6 +2605,7 @@
         };
         saveScheduleRecord(record);
         await logPilotAction(`Workflow status handoff saved for ${ctx.candidateName || "candidate"}.`, record);
+        appendOneTapActivity("Status handoff saved", "Workflow is ready for status tracking and Atlas relationship follow-up.", { statusReady: true });
         setStatus("pilotStatus", "Workflow status handoff saved. This candidate is now tracked through the Egeria flow.");
         runPilot();
       }
@@ -2239,6 +2624,9 @@
         sessionStorage.setItem("scheduleTracking", JSON.stringify(records));
         sessionStorage.setItem(`latestScheduleTracking:${currentDomain()}`, JSON.stringify(record));
         sessionStorage.setItem("latestScheduleTracking", JSON.stringify(record));
+        localStorage.setItem(storageKey, JSON.stringify(records));
+        localStorage.setItem("scheduleTracking", JSON.stringify(records));
+        localStorage.setItem(`latestScheduleTracking:${currentDomain()}`, JSON.stringify(record));
       }
 
       async function postPilot(path, message = "") {
@@ -2293,6 +2681,11 @@
         hydrateCandidateFeedback();
       });
       document.getElementById("oneTapCloseBtn").addEventListener("click", closeOneTapPanel);
+      document.getElementById("oneTapExpandBtn").addEventListener("click", () => {
+        const dialog = document.getElementById("oneTapPilotDialog");
+        dialog?.classList.toggle("expanded");
+        document.getElementById("oneTapExpandBtn").textContent = dialog?.classList.contains("expanded") ? "Shrink" : "Expand";
+      });
       document.getElementById("oneTapStartBtn").addEventListener("click", startOneTapPilot);
       document.getElementById("oneTapFeedbackCloseBtn").addEventListener("click", () => document.getElementById("oneTapFeedbackDialog")?.close());
       document.getElementById("oneTapFeedbackProfileBtn").addEventListener("click", () => {
