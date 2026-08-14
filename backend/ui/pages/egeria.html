@@ -111,6 +111,69 @@
         box-shadow: 0 18px 36px rgba(65, 90, 124, 0.12);
       }
 
+      .one-tap-window {
+        width: min(1120px, calc(100vw - 28px));
+        max-width: calc(100vw - 28px);
+        max-height: calc(100vh - 34px);
+        border: 1px solid rgba(184, 135, 39, 0.36);
+        border-radius: 12px;
+        padding: 0;
+        background: #fff;
+        color: var(--ink);
+        box-shadow: 0 28px 80px rgba(15, 23, 42, 0.34);
+        overflow: hidden;
+      }
+
+      .one-tap-window::backdrop {
+        background: rgba(15, 23, 42, 0.6);
+      }
+
+      .one-tap-window[open] {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+      }
+
+      .one-tap-window-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 14px 16px;
+        border-bottom: 1px solid rgba(184, 135, 39, 0.2);
+        background:
+          linear-gradient(115deg, rgba(255, 250, 232, 0.98), rgba(255, 255, 255, 0.98) 56%, rgba(var(--primary-rgb, 47, 125, 75), 0.09)),
+          #fff;
+      }
+
+      .one-tap-window-head h2 {
+        margin: 0;
+        font-size: 22px;
+      }
+
+      .one-tap-window-head p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .one-tap-window-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .one-tap-window-body {
+        display: grid;
+        gap: 12px;
+        overflow: auto;
+        padding: 14px 16px 16px;
+        background:
+          linear-gradient(180deg, rgba(255, 250, 232, 0.44), rgba(255, 255, 255, 0.98) 34%),
+          #fff;
+      }
+
       .one-tap-button {
         position: relative;
         display: inline-flex;
@@ -204,13 +267,14 @@
       }
 
       .one-tap-panel {
-        display: none;
-        grid-column: 1 / -1;
+        display: grid;
         grid-template-columns: minmax(260px, 0.75fr) minmax(0, 1fr);
         gap: 12px;
         align-items: start;
-        border-top: 1px solid rgba(184, 135, 39, 0.18);
-        padding-top: 12px;
+        border: 1px solid rgba(184, 135, 39, 0.22);
+        border-radius: 12px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.82);
       }
 
       .one-tap-panel.open {
@@ -846,11 +910,25 @@
           </button>
           <div class="one-tap-copy">
             <strong>Fast asset path from job to candidate interest.</strong>
-            <span>Select one job. Egeria picks one best internal candidate, creates the secure interest link, opens the candidate email draft, and checkpoints the workflow.</span>
+            <span>Launch a contained Egeria workflow window that uses the same jobs, candidates, feedback, shortlist, calendar, and status code as the main app.</span>
           </div>
-          <button id="oneTapRefreshJobsBtn" class="btn secondary" type="button">Refresh jobs</button>
+          <button id="oneTapBarOpenBtn" class="btn secondary" type="button">Open pilot window</button>
+        </section>
+
+        <dialog id="oneTapPilotDialog" class="one-tap-window" aria-labelledby="oneTapPilotTitle">
+          <header class="one-tap-window-head">
+            <div>
+              <h2 id="oneTapPilotTitle">One-Tap Pilot</h2>
+              <p>Self-contained Egeria path: select one job, generate the candidate interest package, review feedback, prepare interview handoff, and move to status without leaving this window.</p>
+            </div>
+            <div class="one-tap-window-actions">
+              <button id="oneTapRefreshJobsBtn" class="btn secondary" type="button">Refresh jobs</button>
+              <button id="oneTapCloseBtn" class="btn secondary" type="button">Close</button>
+            </div>
+          </header>
+          <div class="one-tap-window-body">
           <div id="oneTapFeedbackAlert" class="one-tap-feedback-alert" role="status" hidden></div>
-          <div id="oneTapPanel" class="one-tap-panel">
+          <div id="oneTapPanel" class="one-tap-panel open">
             <label>
               Job to fill
               <select id="oneTapJobSelect">
@@ -867,7 +945,8 @@
             <div id="oneTapResult" class="one-tap-result"></div>
             <div id="oneTapHistory" class="one-tap-history"></div>
           </div>
-        </section>
+          </div>
+        </dialog>
 
         <dialog id="oneTapFeedbackDialog" class="feedback-dialog" aria-labelledby="oneTapFeedbackTitle">
           <div class="feedback-dialog-head">
@@ -1427,12 +1506,12 @@
       function continueCandidateFeedbackWorkflow() {
         if (!activeOneTapFeedback) return;
         document.getElementById("oneTapFeedbackDialog")?.close();
-        document.getElementById("oneTapPanel")?.classList.add("open");
         restoreOneTapRun(activeOneTapFeedback);
         oneTapLastRun = activeOneTapFeedback;
+        openOneTapPanel();
         renderOneTapResult(activeOneTapFeedback);
         runPilot();
-        document.getElementById("processPilotSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        document.getElementById("oneTapResult")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }
 
       function restoreOneTapRun(run) {
@@ -1542,11 +1621,28 @@
       }
 
       function openOneTapPanel() {
+        const dialog = document.getElementById("oneTapPilotDialog");
+        if (dialog && !dialog.open) {
+          if (typeof dialog.showModal === "function") dialog.showModal();
+          else dialog.setAttribute("open", "");
+        }
         document.getElementById("oneTapPanel")?.classList.add("open");
         refreshPilotSteppers(oneTapLastRun);
         hydrateOneTapJobs();
         hydrateOneTapHistory();
         hydrateCandidateFeedback();
+      }
+
+      function closeOneTapPanel() {
+        const dialog = document.getElementById("oneTapPilotDialog");
+        if (dialog?.open && typeof dialog.close === "function") {
+          dialog.close();
+        } else {
+          dialog?.removeAttribute("open");
+        }
+        if (window.location.hash === "#one-tap") {
+          history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+        }
       }
 
       async function hydrateOneTapJobs() {
@@ -2152,10 +2248,12 @@
       document.getElementById("runOpportunityBtn").addEventListener("click", () => runOpportunity(false));
       document.getElementById("runExternalOpportunityBtn").addEventListener("click", () => runOpportunity(true));
       document.getElementById("oneTapOpenBtn").addEventListener("click", openOneTapPanel);
+      document.getElementById("oneTapBarOpenBtn").addEventListener("click", openOneTapPanel);
       document.getElementById("oneTapRefreshJobsBtn").addEventListener("click", () => {
         hydrateOneTapJobs();
         hydrateCandidateFeedback();
       });
+      document.getElementById("oneTapCloseBtn").addEventListener("click", closeOneTapPanel);
       document.getElementById("oneTapStartBtn").addEventListener("click", startOneTapPilot);
       document.getElementById("oneTapFeedbackCloseBtn").addEventListener("click", () => document.getElementById("oneTapFeedbackDialog")?.close());
       document.getElementById("oneTapFeedbackProfileBtn").addEventListener("click", () => {
@@ -2175,6 +2273,9 @@
       applyPilotProcessLinks();
       hydrateOneTapJobs();
       if (window.location.hash === "#one-tap") openOneTapPanel();
+      window.addEventListener("hashchange", () => {
+        if (window.location.hash === "#one-tap") openOneTapPanel();
+      });
       Promise.all([hydrateOneTapHistory(), hydrateCandidateFeedback()]).then(() => {
         refreshPilotSteppers(oneTapLastRun);
         runPilot();

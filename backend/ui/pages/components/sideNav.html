@@ -412,6 +412,23 @@
   .nav-ai-dock .nav-egeria-link {
     order: 2;
   }
+
+  .nav-ai-dock .nav-one-tap-link {
+    order: 3;
+    min-height: 34px;
+    padding-left: 15px;
+    border-radius: 11px;
+    color: rgba(255, 253, 242, 0.86);
+    font-size: 11.5px;
+    font-weight: 900;
+  }
+
+  .nav-ai-dock .nav-one-tap-link svg {
+    width: 22px;
+    height: 22px;
+    flex-basis: 22px;
+    padding: 4px;
+  }
 </style>
 
 <nav id="pageNavInner" class="nav">
@@ -450,6 +467,16 @@
     >
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M4 19a5 5 0 0 1 10 0"></path><path d="M15 11h5"></path><path d="M17.5 8.5v5"></path></svg>
       <span>Egeria</span>
+    </a>
+    <a
+      class="nav-fastboard nav-one-tap-link"
+      href="egeria.html#one-tap"
+      data-hint="Open One-Tap Pilot in Egeria's contained workflow window for the active domain."
+      title="Open One-Tap Pilot"
+      aria-label="Open One-Tap Pilot"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path><path d="M5 6v12"></path></svg>
+      <span>One-Tap Pilot</span>
     </a>
     </div>
   </div>
