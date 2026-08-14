@@ -617,6 +617,19 @@
         background: #fff;
         color: var(--muted);
         min-height: 66px;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+        appearance: none;
+        transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
+      }
+
+      .pilot-stepper-item:hover,
+      .pilot-stepper-item:focus-visible {
+        border-color: rgba(var(--primary-rgb, 47, 125, 75), 0.46);
+        box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 47, 125, 75), 0.08);
+        outline: none;
+        transform: translateY(-1px);
       }
 
       .pilot-stepper-item strong {
@@ -1134,18 +1147,61 @@
           const state = index < activeIndex ? "complete" : index === activeIndex ? "current" : "";
           const status = index < activeIndex ? "Done" : index === activeIndex ? "Now" : "Next";
           return `
-            <div class="pilot-stepper-item ${state}">
+            <button class="pilot-stepper-item ${state}" type="button" data-pilot-step="${index}" aria-current="${index === activeIndex ? "step" : "false"}">
               <strong>${index + 1}. ${escapeHtml(label)}</strong>
               <span>${escapeHtml(status)} - ${escapeHtml(ONE_TAP_STEP_DETAILS[index] || "")}</span>
-            </div>
+            </button>
           `;
         }).join("");
+        target.querySelectorAll("[data-pilot-step]").forEach((button) => {
+          button.addEventListener("click", () => openPilotStep(Number(button.getAttribute("data-pilot-step") || "0")));
+        });
       }
 
       function refreshPilotSteppers(run = oneTapLastRun) {
         const index = oneTapStepIndex(run);
         renderPilotStepper("oneTapStepper", index);
         renderPilotStepper("pilotStepper", index);
+      }
+
+      function focusPilotZone(targetId) {
+        openOneTapPanel();
+        closePilotPreview();
+        const target = document.getElementById(targetId) || document.getElementById("oneTapPanel");
+        target?.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (typeof target?.focus === "function") {
+          setTimeout(() => target.focus({ preventScroll: true }), 180);
+        }
+      }
+
+      function openPilotStep(index) {
+        const ctx = egeriaContext();
+        openOneTapPanel();
+        if (index === 0) {
+          focusPilotZone("oneTapJobSelect");
+          return;
+        }
+        if (index === 1) {
+          focusPilotZone("oneTapResult");
+          return;
+        }
+        if (index === 2) {
+          if (activeOneTapFeedback) {
+            openCandidateFeedback(activeOneTapFeedback);
+            return;
+          }
+          if (ctx.candidateId) {
+            openPilotPreview(`profile-preview.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(ctx.candidateId)}`, ctx.candidateName || "Candidate profile");
+            return;
+          }
+          focusPilotZone("oneTapHistory");
+          return;
+        }
+        if (index === 3) {
+          openPilotPreview(`schedule-interview.html?domain=${encodeURIComponent(currentDomain())}&interview=client`, "Client interview scheduling");
+          return;
+        }
+        openPilotPreview(`status-tracker.html?domain=${encodeURIComponent(currentDomain())}`, "Status tracker");
       }
 
       function oneTapHistoryKey() {
