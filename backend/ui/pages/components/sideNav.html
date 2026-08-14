@@ -411,6 +411,9 @@
 
   .nav-ai-dock .nav-egeria-link {
     order: 2;
+    background: linear-gradient(135deg, rgba(14, 98, 63, 0.94), rgba(24, 112, 72, 0.86));
+    border-color: rgba(255, 255, 255, 0.26);
+    box-shadow: 0 10px 22px rgba(18, 91, 54, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   }
 
   .nav-ai-dock .nav-one-tap-link {
@@ -418,9 +421,12 @@
     min-height: 34px;
     padding-left: 15px;
     border-radius: 11px;
-    color: rgba(255, 253, 242, 0.86);
+    color: #fffdf2;
     font-size: 11.5px;
     font-weight: 900;
+    background: linear-gradient(135deg, rgba(138, 96, 25, 0.94), rgba(190, 132, 38, 0.84));
+    border-color: rgba(255, 236, 178, 0.32);
+    box-shadow: 0 8px 18px rgba(138, 96, 25, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   }
 
   .nav-ai-dock .nav-one-tap-link svg {
@@ -460,10 +466,10 @@
     <div id="navAiDock" class="nav-ai-dock">
     <a
       class="nav-fastboard nav-egeria-link"
-      href="egeria.html"
-      data-hint="Open Egeria's dedicated AI workspace for opportunity scanning, process-pilot checkpoints, rollback support, and candidate workflow guidance."
-      title="Open Egeria"
-      aria-label="Open Egeria"
+      href="egeria.html#opportunity"
+      data-hint="Open Egeria Opportunity Radar for internal and outside opportunity scanning in the active domain."
+      title="Open Opportunity Radar"
+      aria-label="Open Opportunity Radar"
     >
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M4 19a5 5 0 0 1 10 0"></path><path d="M15 11h5"></path><path d="M17.5 8.5v5"></path></svg>
       <span>Egeria</span>
@@ -698,11 +704,13 @@
   }
 
   const currentNavPath = window.location.pathname.replace(/\/$/, "");
+  const currentNavHash = window.location.hash || "";
   const navLinks = document.querySelectorAll("#pageNav a, #sidebarCallLink");
   navLinks.forEach((link) => {
-    const linkPath = new URL(link.href).pathname.replace(/\/$/, "");
+    const linkUrl = new URL(link.href);
+    const linkPath = linkUrl.pathname.replace(/\/$/, "");
 
-    if (currentNavPath === linkPath) {
+    if (currentNavPath === linkPath && (!linkUrl.hash || linkUrl.hash === currentNavHash)) {
       link.classList.add("active");
     }
   });
