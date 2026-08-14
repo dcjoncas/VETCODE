@@ -342,7 +342,7 @@
       <section id="loginPanel" class="panel login-panel">
         <div>
           <h1>Sign in to Poolside</h1>
-          <p>Use the email address invited to this conversation.</p>
+          <p>Use the email, phone, or account name invited to this conversation.</p>
         </div>
         <div class="tabs">
           <button id="loginTab" class="active" type="button" onclick="setAuthMode('login')">Login</button>
@@ -350,7 +350,7 @@
         </div>
         <form id="authForm" class="form" onsubmit="submitAuth(event)">
           <input id="displayNameInput" class="hidden" placeholder="Your name" autocomplete="name" />
-          <input id="emailInput" type="email" placeholder="Invited email address" autocomplete="email" required />
+          <input id="emailInput" type="text" placeholder="Email, phone, or account name" autocomplete="username" required />
           <input id="passwordInput" type="password" placeholder="Password" autocomplete="current-password" required />
           <input id="confirmPasswordInput" class="hidden" type="password" placeholder="Confirm password" autocomplete="new-password" />
           <button id="authSubmit" class="btn primary" type="submit">Login</button>
@@ -452,18 +452,23 @@
       async function submitAuth(event) {
         event.preventDefault();
         const status = document.getElementById("authStatus");
-        const email = document.getElementById("emailInput").value.trim();
+        const identity = document.getElementById("emailInput").value.trim();
         const password = document.getElementById("passwordInput").value;
         const body = new URLSearchParams({
           domain: currentDomain(),
-          email,
-          username: email,
+          email: identity.includes("@") ? identity : "",
+          username: identity,
           password,
         });
         let endpoint = "/api/access/login";
         if (authMode === "register") {
+          if (!identity.includes("@")) {
+            status.textContent = "Create account still needs an invited email address.";
+            return;
+          }
           endpoint = "/api/access/register";
-          body.set("display_name", document.getElementById("displayNameInput").value.trim() || email);
+          body.set("email", identity);
+          body.set("display_name", document.getElementById("displayNameInput").value.trim() || identity);
           body.set("confirm_password", document.getElementById("confirmPasswordInput").value);
           body.set("password_confirm", document.getElementById("confirmPasswordInput").value);
           body.set("login_type", "channel");
@@ -496,6 +501,9 @@
           const response = await fetch(apiUrl(`/api/channels/conversations/${encodeURIComponent(conversationId)}/access`, {
             domain: currentDomain(),
             viewer_email: user.email || "",
+            viewer: user.email || user.username || user.display_name || "",
+            viewer_username: user.username || "",
+            viewer_name: user.display_name || "",
             profile_id: userProfileId(user),
           }), { cache: "no-store" });
           const data = await response.json();
@@ -556,12 +564,14 @@
           const data = await response.json();
           const messages = data.messages || [];
           const me = (storedUser()?.email || "").toLowerCase();
+          const myName = (storedUser()?.username || storedUser()?.display_name || "").toLowerCase();
           if (!messages.length) {
             log.innerHTML = `<div class="message-row"><strong>No messages yet.</strong><span class="status-line">Start the conversation with a short update.</span></div>`;
             return;
           }
           log.innerHTML = messages.map((message) => {
-            const mine = me && String(message.author_email || "").toLowerCase() === me;
+            const mine = (me && String(message.author_email || "").toLowerCase() === me)
+              || (myName && String(message.author_name || "").toLowerCase() === myName);
             const egeria = isEgeria(message);
             return `
               <article class="message-row${mine ? " mine" : ""}${egeria ? " egeria" : ""}">

@@ -2322,17 +2322,77 @@ def archive_channel_conversation(
     }
 
 
-def _channel_viewer_allowed(conversation: dict, viewer_email: str = "", profile_id: str = "") -> bool:
-    email_key = _normalize_user_key(viewer_email)
+def _channel_viewer_identity_keys(*values: str) -> set[str]:
+    keys: set[str] = set()
+    for value in values:
+        raw = str(value or "").strip()
+        if not raw:
+            continue
+        keys.add(raw.lower())
+        if "@" in raw:
+            keys.add(_normalize_user_key(raw))
+        try:
+            phone = _channel_invite_phone(raw, required=False)
+            if phone:
+                keys.add(phone)
+        except HTTPException:
+            pass
+    return keys
+
+
+def _channel_access_user_for_identity(*values: str) -> dict | None:
+    lookup_keys = _channel_viewer_identity_keys(*values)
+    if not lookup_keys:
+        return None
+    try:
+        users = _seed_access_users()
+    except Exception:
+        return None
+    for user in users.values():
+        candidates = _channel_viewer_identity_keys(
+            user.get("username", ""),
+            user.get("display_name", ""),
+            user.get("email", ""),
+        )
+        if lookup_keys.intersection(candidates):
+            return user
+    return None
+
+
+def _channel_viewer_allowed(
+    conversation: dict,
+    viewer_email: str = "",
+    profile_id: str = "",
+    viewer: str = "",
+    viewer_username: str = "",
+    viewer_name: str = "",
+) -> bool:
+    viewer_keys = _channel_viewer_identity_keys(viewer, viewer_email, viewer_username, viewer_name)
     profile_key = str(profile_id or "").strip()
+    access_user = _channel_access_user_for_identity(viewer, viewer_email, viewer_username, viewer_name)
+    if access_user and access_user.get("status", "active") == "active":
+        viewer_keys.update(
+            _channel_viewer_identity_keys(
+                access_user.get("username", ""),
+                access_user.get("display_name", ""),
+                access_user.get("email", ""),
+            )
+        )
+        profile_key = profile_key or str(access_user.get("profile_id") or access_user.get("candidate_profile_id") or "").strip()
+        if access_user.get("role") in {"admin", "super_user"}:
+            return True
     participants = conversation.get("participants") if isinstance(conversation.get("participants"), list) else []
     human_participants = [row for row in participants if isinstance(row, dict) and not row.get("system")]
     if not human_participants:
         return False
     for participant in human_participants:
-        participant_email = _normalize_user_key(participant.get("email", ""))
+        participant_keys = _channel_viewer_identity_keys(
+            participant.get("email", ""),
+            participant.get("phone", ""),
+            participant.get("name", ""),
+        )
         participant_profile = str(participant.get("profile_id") or "").strip()
-        if email_key and participant_email and email_key == participant_email:
+        if viewer_keys and participant_keys and viewer_keys.intersection(participant_keys):
             return True
         if profile_key and participant_profile and profile_key == participant_profile:
             return True
@@ -2345,6 +2405,9 @@ def channel_conversation_access(
     conversation_id: str,
     domain: str = "dev",
     viewer_email: str = "",
+    viewer: str = "",
+    viewer_username: str = "",
+    viewer_name: str = "",
     profile_id: str = "",
 ):
     clean_domain = _domain_key(domain)
@@ -2353,7 +2416,14 @@ def channel_conversation_access(
     conversation = next((row for row in conversations if str(row.get("id") or "") == clean_id), None)
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found.")
-    if not _channel_viewer_allowed(conversation, viewer_email, profile_id):
+    if not _channel_viewer_allowed(
+        conversation,
+        viewer_email=viewer_email,
+        profile_id=profile_id,
+        viewer=viewer,
+        viewer_username=viewer_username,
+        viewer_name=viewer_name,
+    ):
         raise HTTPException(status_code=403, detail="This account is not invited to this conversation.")
     return {"ok": True, "domain": clean_domain, "conversation": conversation}
 
