@@ -483,6 +483,7 @@
           </div>
           <div class="thread-actions">
             <button class="btn primary" type="button" onclick="openNewConversation()">New message</button>
+            <button class="btn secondary" type="button" onclick="popOutConversation()">Pop out</button>
             <button class="btn secondary" type="button" onclick="copyConversationLink()">Copy link</button>
           </div>
         </section>
@@ -535,8 +536,8 @@
             </div>
             <div id="participantList" class="participant-list"></div>
             <form id="addPersonForm" class="add-people-box" onsubmit="addPersonToConversation(event)">
-              <input id="addPersonEmail" class="email-input" type="text" inputmode="email" placeholder="Email address or Egeria" autocomplete="email" required />
-              <button id="btnSubmitPerson" class="btn secondary" type="submit">Add to conversation</button>
+              <input id="addPersonEmail" class="email-input" type="text" inputmode="tel" placeholder="Email, phone, or Egeria" autocomplete="tel" required />
+              <button id="btnSubmitPerson" class="btn secondary" type="submit">Add to text group</button>
               <span id="peopleStatus" class="status-line"></span>
             </form>
           </aside>
@@ -550,7 +551,7 @@
             </header>
             <label class="message-field">
               To
-              <input id="newRecipientEmail" type="email" placeholder="Email address" autocomplete="email" required />
+              <input id="newRecipientEmail" type="text" inputmode="tel" placeholder="Email address or phone" autocomplete="tel" required />
             </label>
             <label class="message-field">
               Subject
@@ -876,6 +877,16 @@
         return String(value || "").trim().toLowerCase();
       }
 
+      function normalizePhone(value) {
+        const raw = String(value || "").trim();
+        const digits = raw.replace(/\D+/g, "");
+        if (!digits) return "";
+        if (digits.length === 10) return `+1${digits}`;
+        if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+        if (raw.startsWith("+") && digits.length >= 8 && digits.length <= 15) return `+${digits}`;
+        return "";
+      }
+
       function emailDisplayName(email) {
         const local = normalizeEmail(email).split("@")[0] || "Participant";
         return local
@@ -883,9 +894,27 @@
           .replace(/\b\w/g, (letter) => letter.toUpperCase());
       }
 
-      function participantFromEmail(email) {
-        const normalized = normalizeEmail(email);
-        return { email: normalized, name: emailDisplayName(normalized) };
+      function phoneDisplayName(phone) {
+        const digits = String(phone || "").replace(/\D+/g, "");
+        if (digits.length === 11 && digits.startsWith("1")) return `Text ${digits.slice(1, 4)}-${digits.slice(4, 7)}-${digits.slice(7)}`;
+        if (digits.length === 10) return `Text ${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+        return `Text ${phone}`;
+      }
+
+      function participantFromContact(value) {
+        const raw = String(value || "").trim();
+        if (raw.includes("@")) {
+          const normalized = normalizeEmail(raw);
+          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)
+            ? { email: normalized, name: emailDisplayName(normalized) }
+            : null;
+        }
+        const phone = normalizePhone(raw);
+        return phone ? { phone, name: phoneDisplayName(phone), source: "sms" } : null;
+      }
+
+      function participantLabel(person) {
+        return person?.email || person?.phone || person?.name || "Participant";
       }
 
       function focusInvite() {
@@ -909,22 +938,24 @@
 
       async function createConversation(event) {
         event.preventDefault();
-        const recipientEmail = normalizeEmail(document.getElementById("newRecipientEmail").value);
+        const recipientContact = document.getElementById("newRecipientEmail").value.trim();
+        const recipient = participantFromContact(recipientContact);
         const rawTitle = document.getElementById("newConversationTitle").value.trim();
         const firstMessage = document.getElementById("newConversationMessage").value.trim();
         const status = document.getElementById("newConversationStatus");
         const user = currentUser();
-        if (!recipientEmail) {
-          status.textContent = "Enter a recipient email address.";
+        if (!recipient) {
+          status.textContent = "Enter a recipient email address or phone number.";
           return;
         }
         if (!firstMessage) {
           status.textContent = "Write the first message.";
           return;
         }
-        const participants = [participantFromEmail(recipientEmail)];
-        const title = rawTitle || `Message with ${recipientEmail}`;
-        const topic = `Conversation with ${recipientEmail}`;
+        const participants = [recipient];
+        const label = participantLabel(recipient);
+        const title = rawTitle || `Message with ${label}`;
+        const topic = `Conversation with ${label}`;
         status.textContent = "Sending...";
         const body = new URLSearchParams({
           domain: currentDomain(),
@@ -985,14 +1016,14 @@
             return `
               <div class="participant-chip${egeria ? " egeria" : ""}">
                 <div class="participant-copy">
-                  <strong>${escapeHtml(person.name || person.email || "Participant")}</strong>
-                  <span>${escapeHtml(egeria ? "AI texting participant" : (person.email || ""))}</span>
+                  <strong>${escapeHtml(person.name || participantLabel(person))}</strong>
+                  <span>${escapeHtml(egeria ? "AI texting participant" : (person.phone ? `${person.phone} - Text/SMS participant` : (person.email || "")))}</span>
                 </div>
                 ${egeria
                   ? `<button class="participant-action" type="button" onclick="mentionEgeria()"${archived ? " disabled" : ""}>Ask</button>`
                   : archived
                     ? ""
-                    : `<button class="remove-person" type="button" onclick="removePersonFromConversation('${encodeURIComponent(person.email || "")}')">Remove</button>`}
+                    : `<button class="remove-person" type="button" onclick="removePersonFromConversation('${encodeURIComponent(participantLabel(person))}')">Remove</button>`}
               </div>
             `;
           })
@@ -1009,25 +1040,28 @@
           return;
         }
         const input = document.getElementById("addPersonEmail");
-        const email = normalizeEmail(input.value);
-        if (!email) {
-          status.textContent = "Enter an email address.";
+        const rawContact = input.value.trim();
+        const lookup = normalizeEmail(rawContact);
+        if (!rawContact) {
+          status.textContent = "Enter an email address, phone number, or Egeria.";
           return;
         }
-        if (["egeria", "@egeria", "egeria@devready.ai"].includes(email)) {
+        if (["egeria", "@egeria", "egeria@devready.ai"].includes(lookup)) {
           input.value = "";
           status.textContent = "Egeria is already an active participant. Ask her from the message box.";
           mentionEgeria();
           return;
         }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          status.textContent = "Enter a valid email address, or type Egeria.";
+        const participant = participantFromContact(rawContact);
+        if (!participant) {
+          status.textContent = "Enter a valid email address, phone number, or type Egeria.";
           return;
         }
+        const label = participantLabel(participant);
         status.textContent = "Adding...";
         const body = new URLSearchParams({
           domain: currentDomain(),
-          participants_json: JSON.stringify([participantFromEmail(email)]),
+          participants_json: JSON.stringify([participant]),
         });
         try {
           const response = await fetch(`/api/channels/conversations/${encodeURIComponent(conversation.id)}/participants`, {
@@ -1040,25 +1074,25 @@
           const index = conversations.findIndex((item) => item.id === data.conversation.id);
           if (index >= 0) conversations[index] = data.conversation;
           input.value = "";
-          status.textContent = `${email} added.`;
+          status.textContent = `${label} added.`;
           renderThread();
         } catch (error) {
-          status.textContent = error.message || "Could not add that email.";
+          status.textContent = error.message || "Could not add that person.";
         }
       }
 
-      async function removePersonFromConversation(encodedEmail) {
+      async function removePersonFromConversation(encodedContact) {
         const conversation = activeConversation();
         const status = document.getElementById("peopleStatus");
-        const email = decodeURIComponent(encodedEmail || "");
-        if (!conversation || !email) return;
+        const contact = decodeURIComponent(encodedContact || "");
+        if (!conversation || !contact) return;
         if (isConversationArchived(conversation)) {
           status.textContent = "Restore this conversation before removing participants.";
           return;
         }
-        if (!confirm(`Remove ${email} from this conversation?`)) return;
+        if (!confirm(`Remove ${contact} from this conversation?`)) return;
         status.textContent = "Removing...";
-        const body = new URLSearchParams({ domain: currentDomain(), email });
+        const body = new URLSearchParams({ domain: currentDomain(), contact });
         try {
           const response = await fetch(`/api/channels/conversations/${encodeURIComponent(conversation.id)}/participants`, {
             method: "DELETE",
@@ -1069,7 +1103,7 @@
           if (!response.ok || data.ok === false) throw new Error(data.detail || "Could not remove that person.");
           const index = conversations.findIndex((item) => item.id === data.conversation.id);
           if (index >= 0) conversations[index] = data.conversation;
-          status.textContent = `${email} removed.`;
+          status.textContent = `${contact} removed.`;
           renderThread();
         } catch (error) {
           status.textContent = error.message || "Could not remove that person.";
@@ -1088,6 +1122,10 @@
 
       function copyConversationLink() {
         copyText(sharedConversationUrl(), "Standalone Poolside app link");
+      }
+
+      function popOutConversation() {
+        window.open(sharedConversationUrl(), "_blank", "noopener,noreferrer");
       }
 
       document.addEventListener("DOMContentLoaded", async () => {

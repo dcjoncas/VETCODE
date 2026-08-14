@@ -1948,10 +1948,45 @@ def _channel_invite_email(value: str = "", required: bool = True) -> str:
     return email
 
 
+def _channel_invite_phone(value: str = "", required: bool = True) -> str:
+    raw = str(value or "").strip()
+    digits = re.sub(r"\D+", "", raw)
+    if not digits and not required:
+        return ""
+    if len(digits) == 10:
+        return f"+1{digits}"
+    if len(digits) == 11 and digits.startswith("1"):
+        return f"+{digits}"
+    if raw.startswith("+") and 8 <= len(digits) <= 15:
+        return f"+{digits}"
+    raise HTTPException(status_code=400, detail="Enter a valid email address or phone number.")
+
+
+def _channel_participant_key(participant: dict | None) -> str:
+    if not isinstance(participant, dict):
+        return ""
+    email = str(participant.get("email") or "").strip().lower()
+    if email:
+        return f"email:{email}"
+    phone = _channel_invite_phone(participant.get("phone") or "", required=False)
+    if phone:
+        return f"phone:{phone}"
+    return str(participant.get("name") or "").strip().lower()
+
+
 def _channel_email_name(email: str) -> str:
     local_part = str(email or "").split("@", 1)[0]
     words = re.sub(r"[._+-]+", " ", local_part).strip()
     return words.title()[:80] or email[:80]
+
+
+def _channel_phone_name(phone: str) -> str:
+    digits = re.sub(r"\D+", "", str(phone or ""))
+    if len(digits) == 11 and digits.startswith("1"):
+        return f"Text {digits[1:4]}-{digits[4:7]}-{digits[7:]}"
+    if len(digits) == 10:
+        return f"Text {digits[:3]}-{digits[3:6]}-{digits[6:]}"
+    return f"Text {str(phone or '').strip()}"
 
 
 def _channel_people(clean_domain: str) -> list[dict]:
@@ -1992,29 +2027,43 @@ def _channel_participants_from_json(participants_json: str, clean_domain: str) -
     try:
         raw = json.loads(participants_json or "[]")
     except Exception as exc:
-        raise HTTPException(status_code=400, detail="Participant emails are invalid.") from exc
+        raise HTTPException(status_code=400, detail="Participants are invalid.") from exc
     if not isinstance(raw, list):
-        raise HTTPException(status_code=400, detail="Participant emails must be a list.")
-    people_by_email = {str(row.get("email") or "").strip().lower(): row for row in _channel_people(clean_domain)}
+        raise HTTPException(status_code=400, detail="Participants must be a list.")
+    people_by_email = {
+        str(row.get("email") or "").strip().lower(): row
+        for row in _channel_people(clean_domain)
+        if str(row.get("email") or "").strip()
+    }
     participants = []
     seen = set()
     for item in raw[:5000]:
+        phone = ""
         if isinstance(item, dict):
-            email = _channel_invite_email(item.get("email") or "")
+            raw_email = str(item.get("email") or "").strip()
+            raw_phone = str(item.get("phone") or "").strip()
+            email = _channel_invite_email(raw_email) if raw_email else ""
+            phone = _channel_invite_phone(raw_phone, required=False) if raw_phone else ""
             name = str(item.get("name") or "").strip()
         else:
-            email = _channel_invite_email(item)
+            raw_value = str(item or "").strip()
+            if "@" in raw_value:
+                email = _channel_invite_email(raw_value)
+            else:
+                email = ""
+                phone = _channel_invite_phone(raw_value)
             name = ""
-        key = email.lower()
+        key = f"email:{email.lower()}" if email else f"phone:{phone}"
         if not key or key in seen:
             continue
         seen.add(key)
-        known = people_by_email.get(email.lower(), {})
+        known = people_by_email.get(email.lower(), {}) if email else {}
         participants.append({
-            "name": _channel_user_name(name or known.get("name") or _channel_email_name(email), email),
+            "name": _channel_user_name(name or known.get("name") or (_channel_email_name(email) if email else _channel_phone_name(phone)), email),
             "email": email,
+            "phone": phone,
             "role": known.get("role") or "member",
-            "source": known.get("source") or "manual",
+            "source": known.get("source") or ("sms" if phone and not email else "manual"),
             "profile_id": known.get("profile_id") or "",
         })
     return participants
@@ -2034,11 +2083,11 @@ def _egeria_participant() -> dict:
 def _ensure_egeria_participant(participants: list[dict] | None) -> list[dict]:
     egeria = _egeria_participant()
     normalized = []
-    seen = {egeria["email"].lower()}
+    seen = {egeria["email"].lower(), f"email:{egeria['email'].lower()}"}
     for participant in participants or []:
         if not isinstance(participant, dict):
             continue
-        key = str(participant.get("email") or participant.get("name") or "").strip().lower()
+        key = _channel_participant_key(participant)
         if not key or key in seen:
             continue
         seen.add(key)
@@ -2183,7 +2232,7 @@ def add_channel_conversation_participants(
     additions = _channel_participants_from_json(participants_json, clean_domain)
     by_key = {}
     for participant in [*existing, *additions]:
-        key = str(participant.get("email") or participant.get("name") or "").strip().lower()
+        key = _channel_participant_key(participant)
         if key:
             by_key[key] = participant
     conversation["participants"] = _ensure_egeria_participant(list(by_key.values()))
@@ -2198,10 +2247,15 @@ def remove_channel_conversation_participant(
     conversation_id: str,
     domain: str = Form(default="dev"),
     email: str = Form(default=""),
+    contact: str = Form(default=""),
 ):
     clean_domain = _domain_key(domain)
     clean_id = _channel_key(conversation_id)
-    clean_email = _channel_invite_email(email)
+    raw_contact = str(contact or email or "").strip()
+    clean_email = _channel_invite_email(raw_contact, required=False) if "@" in raw_contact else ""
+    clean_phone = _channel_invite_phone(raw_contact, required=False) if not clean_email else ""
+    if not clean_email and not clean_phone:
+        raise HTTPException(status_code=400, detail="Enter a valid email address or phone number.")
     if clean_email == _egeria_participant()["email"]:
         raise HTTPException(status_code=400, detail="Egeria cannot be removed from a conversation.")
     store, conversations = _read_channel_conversations(clean_domain)
@@ -2212,15 +2266,18 @@ def remove_channel_conversation_participant(
         participant
         for participant in existing
         if participant.get("system")
-        or _normalize_user_key(participant.get("email", "")) != clean_email
+        or (
+            (clean_email and _normalize_user_key(participant.get("email", "")) != clean_email)
+            or (clean_phone and _channel_invite_phone(participant.get("phone") or "", required=False) != clean_phone)
+        )
     ]
     if len(remaining) == len(existing):
-        raise HTTPException(status_code=404, detail="That email is not in this conversation.")
+        raise HTTPException(status_code=404, detail="That person is not in this conversation.")
     conversation["participants"] = _ensure_egeria_participant(remaining)
     conversation["updated_at"] = _now_utc()
     store[clean_domain] = conversations
     _write_json_store(CHANNEL_CONVERSATIONS_PATH, store)
-    return {"ok": True, "conversation": conversation, "removed_email": clean_email}
+    return {"ok": True, "conversation": conversation, "removed_contact": clean_email or clean_phone}
 
 
 @app.post("/api/channels/conversations/{conversation_id}/archive")
