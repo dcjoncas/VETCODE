@@ -126,6 +126,7 @@
         box-shadow: 0 28px 80px rgba(15, 23, 42, 0.34);
         overflow: hidden;
         resize: both;
+        box-sizing: border-box;
       }
 
       .one-tap-window::backdrop {
@@ -135,13 +136,6 @@
       .one-tap-window[open] {
         display: grid;
         grid-template-rows: auto minmax(0, 1fr);
-      }
-
-      .one-tap-window.expanded {
-        width: calc(100vw - 18px);
-        height: calc(100vh - 18px);
-        max-width: calc(100vw - 18px);
-        max-height: calc(100vh - 18px);
       }
 
       .one-tap-window-head {
@@ -1173,7 +1167,6 @@
             </div>
             <div class="one-tap-window-actions">
               <button id="oneTapRefreshJobsBtn" class="btn secondary" type="button">Refresh jobs</button>
-              <button id="oneTapExpandBtn" class="btn secondary" type="button">Expand</button>
               <button id="oneTapCloseBtn" class="btn secondary" type="button">Close</button>
             </div>
           </header>
@@ -2850,11 +2843,6 @@
       });
       document.getElementById("oneTapJobSelect").addEventListener("change", () => resetOneTapStart(false));
       document.getElementById("oneTapCloseBtn").addEventListener("click", closeOneTapPanel);
-      document.getElementById("oneTapExpandBtn").addEventListener("click", () => {
-        const dialog = document.getElementById("oneTapPilotDialog");
-        dialog?.classList.toggle("expanded");
-        document.getElementById("oneTapExpandBtn").textContent = dialog?.classList.contains("expanded") ? "Shrink" : "Expand";
-      });
       document.getElementById("oneTapStartBtn").addEventListener("click", startOneTapPilot);
       document.getElementById("oneTapFeedbackCloseBtn").addEventListener("click", () => document.getElementById("oneTapFeedbackDialog")?.close());
       document.getElementById("oneTapFeedbackProfileBtn").addEventListener("click", () => {
