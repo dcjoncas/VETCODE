@@ -343,7 +343,8 @@
       }
 
       .one-tap-panel .pilot-stepper-item span {
-        display: none;
+        display: block;
+        font-size: 10px;
       }
 
       .one-tap-panel select {
@@ -892,7 +893,7 @@
 
       .pilot-stepper {
         display: grid;
-        grid-template-columns: repeat(5, minmax(120px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
         gap: 8px;
         margin: 10px 0;
       }
@@ -911,8 +912,8 @@
         transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
       }
 
-      .pilot-stepper-item:hover,
-      .pilot-stepper-item:focus-visible {
+      .pilot-stepper-item:not(.locked):hover,
+      .pilot-stepper-item:not(.locked):focus-visible {
         border-color: rgba(var(--primary-rgb, 47, 125, 75), 0.46);
         box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 47, 125, 75), 0.08);
         outline: none;
@@ -940,6 +941,23 @@
       .pilot-stepper-item.current {
         border-color: rgba(var(--primary-rgb, 47, 125, 75), 0.58);
         box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 47, 125, 75), 0.1);
+      }
+
+      .pilot-stepper-item.locked {
+        background: rgba(17, 24, 39, 0.03);
+        border-color: rgba(17, 24, 39, 0.12);
+        color: rgba(75, 85, 99, 0.74);
+        cursor: not-allowed;
+        opacity: 0.64;
+      }
+
+      .pilot-stepper-item.locked strong {
+        color: rgba(17, 24, 39, 0.62);
+      }
+
+      .pilot-stepper-item.locked:focus-visible {
+        outline: 2px solid rgba(var(--primary-rgb, 47, 125, 75), 0.22);
+        outline-offset: 2px;
       }
 
       .pilot-step-card {
@@ -1411,40 +1429,55 @@
 
       const ONE_TAP_WORKFLOW_STEPS = [
         "Select one job",
-        "Send candidate interest link",
-        "Review candidate response",
-        "Prepare client interview",
-        "Move to status/onboarding",
+        "Send interest",
+        "Confirm interest",
+        "Internal interview",
+        "Client interview",
+        "Onboarding",
       ];
       const ONE_TAP_STEP_DETAILS = [
         "Choose the role Egeria should fill.",
-        "Egeria picks one internal profile and drafts the email.",
-        "Keep the private response here and approve next step.",
-        "Prepare client-facing scheduling and outreach.",
-        "Track handoff, onboarding, time, and follow-up.",
+        "Egeria picks one profile and drafts the email.",
+        "Use the response or confirm manually.",
+        "Schedule, open, and mark complete.",
+        "Schedule, open, and mark complete.",
+        "Track handoff and follow-up.",
       ];
       let oneTapLastRun = null;
       let oneTapFeedbackNotifications = [];
       let activeOneTapFeedback = null;
 
       function oneTapStepIndex(run = oneTapLastRun) {
-        const ctx = egeriaContext();
-        if (!ctx.jobId && !(run?.job?.jd_id)) return 0;
-        const hasFeedback = run?.event_type === "candidate_role_feedback_submitted" || Boolean(run?.feedback || ctx.candidateInterestReceived);
-        if (ctx.clientInterviewReady || ctx.nextStep === "status") return 4;
-        if (ctx.candidateReviewComplete || ctx.nextStep === "client-interview") return 3;
-        if (hasFeedback || ctx.nextStep === "candidate-review") return 2;
-        return 1;
+        const status = oneTapFlowStatusForRun(run);
+        if (!status.found) return 0;
+        if (!status.interestSent) return 1;
+        if (!status.interestConfirmed) return 2;
+        if (!status.internalComplete) return 3;
+        if (!status.externalComplete) return 4;
+        if (!status.onboardingStarted) return 5;
+        return 5;
       }
 
-      function renderPilotStepper(targetId, activeIndex = oneTapStepIndex()) {
+      function oneTapUnlockedStepIndex(run = oneTapLastRun) {
+        const status = oneTapFlowStatusForRun(run);
+        if (!status.found) return 0;
+        if (!status.interestSent) return 1;
+        if (!status.interestConfirmed) return 2;
+        if (!status.internalComplete) return 3;
+        if (!status.externalComplete) return 4;
+        return 5;
+      }
+
+      function renderPilotStepper(targetId, activeIndex = oneTapStepIndex(), run = oneTapLastRun) {
         const target = document.getElementById(targetId);
         if (!target) return;
+        const unlockedIndex = oneTapUnlockedStepIndex(run);
         target.innerHTML = ONE_TAP_WORKFLOW_STEPS.map((label, index) => {
-          const state = index < activeIndex ? "complete" : index === activeIndex ? "current" : "";
-          const status = index < activeIndex ? "Done" : index === activeIndex ? "Now" : "Next";
+          const locked = index > unlockedIndex;
+          const state = `${index < activeIndex ? "complete" : index === activeIndex ? "current" : ""}${locked ? " locked" : ""}`.trim();
+          const status = locked ? "Locked until prior step is complete" : index < activeIndex ? "Done" : index === activeIndex ? "Current step" : "Ready";
           return `
-            <button class="pilot-stepper-item ${state}" type="button" data-pilot-step="${index}" aria-current="${index === activeIndex ? "step" : "false"}">
+            <button class="pilot-stepper-item ${state}" type="button" data-pilot-step="${index}" aria-current="${index === activeIndex ? "step" : "false"}"${locked ? " disabled aria-disabled=\"true\"" : ""}>
               <strong>${index + 1}. ${escapeHtml(label)}</strong>
               <span>${escapeHtml(status)} - ${escapeHtml(ONE_TAP_STEP_DETAILS[index] || "")}</span>
             </button>
@@ -1457,8 +1490,8 @@
 
       function refreshPilotSteppers(run = oneTapLastRun) {
         const index = oneTapStepIndex(run);
-        renderPilotStepper("oneTapStepper", index);
-        renderPilotStepper("pilotStepper", index);
+        renderPilotStepper("oneTapStepper", index, run);
+        renderPilotStepper("pilotStepper", index, run);
         renderOneTapProcess();
       }
 
@@ -1472,7 +1505,11 @@
       }
 
       function openPilotStep(index) {
-        const ctx = egeriaContext();
+        if (index > oneTapUnlockedStepIndex()) {
+          setStatus("oneTapStatus", "Finish the current One-Tap step before opening the next one.");
+          renderOneTapProcess();
+          return;
+        }
         openOneTapPanel();
         if (index === 0) {
           focusPilotZone("oneTapJobSelect");
@@ -1491,7 +1528,11 @@
           return;
         }
         if (index === 3) {
-          renderOneTapInlineCard("client-interview");
+          focusPilotZone("oneTapFlow");
+          return;
+        }
+        if (index === 4) {
+          focusPilotZone("oneTapFlow");
           return;
         }
         renderOneTapInlineCard("status");
@@ -2047,8 +2088,7 @@
         renderOneTapProcess();
       }
 
-      function oneTapFlowStatus() {
-        const run = currentOneTapRun();
+      function oneTapFlowStatusForRun(run = currentOneTapRun()) {
         const state = readOneTapFlow(run);
         const feedback = run?.event_type === "candidate_role_feedback_submitted" || Boolean(run?.feedback || egeriaContext().candidateInterestReceived);
         return {
@@ -2066,6 +2106,10 @@
           externalSchedulerHref: state.externalSchedulerHref || egeriaAppHref("schedule-interview.html", { interview: "client" }),
           meetingHref: state.meetingHref || egeriaAppHref("meet.html"),
         };
+      }
+
+      function oneTapFlowStatus() {
+        return oneTapFlowStatusForRun(currentOneTapRun());
       }
 
       function oneTapStepClass(done, current) {
