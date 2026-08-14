@@ -2053,9 +2053,7 @@
       }
 
       function currentOneTapRun() {
-        if (oneTapLastRun) return oneTapLastRun;
-        const rows = readOneTapHistory();
-        return rows[0] || null;
+        return oneTapLastRun || null;
       }
 
       function oneTapFlowKey(run = currentOneTapRun()) {
@@ -2064,6 +2062,7 @@
       }
 
       function readOneTapFlow(run = currentOneTapRun()) {
+        if (!run) return { activity: [] };
         try {
           const parsed = JSON.parse(localStorage.getItem(oneTapFlowKey(run)) || "{}");
           return parsed && typeof parsed === "object" ? { activity: [], ...parsed } : { activity: [] };
@@ -2073,6 +2072,7 @@
       }
 
       function writeOneTapFlow(state, run = currentOneTapRun()) {
+        if (!run) return;
         localStorage.setItem(oneTapFlowKey(run), JSON.stringify({ activity: [], ...(state || {}) }));
       }
 
@@ -2090,7 +2090,7 @@
 
       function oneTapFlowStatusForRun(run = currentOneTapRun()) {
         const state = readOneTapFlow(run);
-        const feedback = run?.event_type === "candidate_role_feedback_submitted" || Boolean(run?.feedback || egeriaContext().candidateInterestReceived);
+        const feedback = Boolean(run) && (run?.event_type === "candidate_role_feedback_submitted" || Boolean(run?.feedback));
         return {
           run,
           state,
@@ -2227,6 +2227,18 @@
             </div>
           `).join("") : `<div class="one-tap-activity-line"><strong>No activity yet</strong><span>Run One-Tap to start the visible trail.</span></div>`;
         }
+      }
+
+      function resetOneTapStart(clearSelection = true) {
+        oneTapLastRun = null;
+        activeOneTapFeedback = null;
+        const select = document.getElementById("oneTapJobSelect");
+        if (clearSelection && select) select.value = "";
+        const result = document.getElementById("oneTapResult");
+        if (result) result.innerHTML = "";
+        setStatus("oneTapStatus", "Choose a job, then run One-Tap.");
+        renderOneTapProcess();
+        refreshPilotSteppers(null);
       }
 
       async function handleOneTapFlowAction(action) {
@@ -2832,9 +2844,11 @@
       document.getElementById("oneTapOpenBtn").addEventListener("click", openOneTapPanel);
       document.getElementById("oneTapBarOpenBtn").addEventListener("click", openOneTapPanel);
       document.getElementById("oneTapRefreshJobsBtn").addEventListener("click", () => {
+        resetOneTapStart(true);
         hydrateOneTapJobs();
         hydrateCandidateFeedback();
       });
+      document.getElementById("oneTapJobSelect").addEventListener("change", () => resetOneTapStart(false));
       document.getElementById("oneTapCloseBtn").addEventListener("click", closeOneTapPanel);
       document.getElementById("oneTapExpandBtn").addEventListener("click", () => {
         const dialog = document.getElementById("oneTapPilotDialog");
