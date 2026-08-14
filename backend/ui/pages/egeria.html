@@ -112,7 +112,7 @@
       }
 
       .one-tap-window {
-        width: min(1120px, calc(100vw - 28px));
+        width: min(820px, calc(100vw - 28px));
         max-width: calc(100vw - 28px);
         max-height: calc(100vh - 34px);
         border: 1px solid rgba(184, 135, 39, 0.36);
@@ -138,7 +138,7 @@
         grid-template-columns: minmax(0, 1fr) auto;
         gap: 12px;
         align-items: center;
-        padding: 14px 16px;
+        padding: 12px 14px;
         border-bottom: 1px solid rgba(184, 135, 39, 0.2);
         background:
           linear-gradient(115deg, rgba(255, 250, 232, 0.98), rgba(255, 255, 255, 0.98) 56%, rgba(var(--primary-rgb, 47, 125, 75), 0.09)),
@@ -147,7 +147,7 @@
 
       .one-tap-window-head h2 {
         margin: 0;
-        font-size: 22px;
+        font-size: 20px;
       }
 
       .one-tap-window-head p {
@@ -166,9 +166,9 @@
 
       .one-tap-window-body {
         display: grid;
-        gap: 12px;
+        gap: 10px;
         overflow: auto;
-        padding: 14px 16px 16px;
+        padding: 12px 14px 14px;
         background:
           linear-gradient(180deg, rgba(255, 250, 232, 0.44), rgba(255, 255, 255, 0.98) 34%),
           #fff;
@@ -268,12 +268,12 @@
 
       .one-tap-panel {
         display: grid;
-        grid-template-columns: minmax(260px, 0.75fr) minmax(0, 1fr);
-        gap: 12px;
+        grid-template-columns: 1fr;
+        gap: 10px;
         align-items: start;
         border: 1px solid rgba(184, 135, 39, 0.22);
-        border-radius: 12px;
-        padding: 12px;
+        border-radius: 10px;
+        padding: 10px;
         background: rgba(255, 255, 255, 0.82);
       }
 
@@ -285,6 +285,35 @@
         display: grid;
         gap: 6px;
         font-weight: 900;
+      }
+
+      .one-tap-command-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 9px;
+        align-items: end;
+      }
+
+      .one-tap-panel .pilot-stepper {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 0;
+      }
+
+      .one-tap-panel .pilot-stepper-item {
+        min-height: 34px;
+        flex: 1 1 120px;
+        padding: 6px 8px;
+        border-radius: 8px;
+      }
+
+      .one-tap-panel .pilot-stepper-item strong {
+        font-size: 11px;
+      }
+
+      .one-tap-panel .pilot-stepper-item span {
+        display: none;
       }
 
       .one-tap-panel select {
@@ -299,7 +328,24 @@
       .one-tap-result {
         display: grid;
         gap: 8px;
-        grid-column: 1 / -1;
+      }
+
+      .one-tap-history-shell {
+        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.14);
+        border-radius: 10px;
+        background: rgba(var(--primary-rgb, 47, 125, 75), 0.035);
+      }
+
+      .one-tap-history-shell summary {
+        cursor: pointer;
+        padding: 9px 10px;
+        color: var(--primary-2);
+        font-size: 12px;
+        font-weight: 1000;
+      }
+
+      .one-tap-history-shell .one-tap-history {
+        padding: 0 10px 10px;
       }
 
       .one-tap-result .egeria-card {
@@ -909,17 +955,17 @@
             <span id="oneTapFeedbackBadge" class="one-tap-feedback-badge" aria-label="Unread candidate feedback" hidden></span>
           </button>
           <div class="one-tap-copy">
-            <strong>Fast asset path from job to candidate interest.</strong>
-            <span>Launch a contained Egeria workflow window that uses the same jobs, candidates, feedback, shortlist, calendar, and status code as the main app.</span>
+            <strong>Pick a job. Run the next step.</strong>
+            <span>A simple Egeria control point for candidate interest, review, interview handoff, and status.</span>
           </div>
-          <button id="oneTapBarOpenBtn" class="btn secondary" type="button">Open pilot window</button>
+          <button id="oneTapBarOpenBtn" class="btn secondary" type="button">Open</button>
         </section>
 
         <dialog id="oneTapPilotDialog" class="one-tap-window" aria-labelledby="oneTapPilotTitle">
           <header class="one-tap-window-head">
             <div>
               <h2 id="oneTapPilotTitle">One-Tap Pilot</h2>
-              <p>Self-contained Egeria path: select one job, generate the candidate interest package, review feedback, prepare interview handoff, and move to status without leaving this window.</p>
+              <p>Pick one job. Egeria gives you the next action.</p>
             </div>
             <div class="one-tap-window-actions">
               <button id="oneTapRefreshJobsBtn" class="btn secondary" type="button">Refresh jobs</button>
@@ -929,21 +975,24 @@
           <div class="one-tap-window-body">
           <div id="oneTapFeedbackAlert" class="one-tap-feedback-alert" role="status" hidden></div>
           <div id="oneTapPanel" class="one-tap-panel open">
-            <label>
-              Job to fill
-              <select id="oneTapJobSelect">
-                <option value="">Loading jobs...</option>
-              </select>
-            </label>
+            <div class="one-tap-command-row">
+              <label>
+                Job
+                <select id="oneTapJobSelect">
+                  <option value="">Loading jobs...</option>
+                </select>
+              </label>
+              <button id="oneTapStartBtn" class="btn primary" type="button">Run</button>
+            </div>
             <div>
-              <div id="oneTapStatus" class="egeria-notice">Press One-Tap Pilot, choose a job, then let Egeria prepare the first candidate interest email.</div>
+              <div id="oneTapStatus" class="egeria-notice">Choose a job, then run One-Tap.</div>
               <div id="oneTapStepper" class="pilot-stepper" aria-label="One-Tap Pilot steps"></div>
-              <div class="egeria-link-row" style="margin-top: 8px">
-                <button id="oneTapStartBtn" class="btn primary" type="button">Start one-tap pilot</button>
-              </div>
             </div>
             <div id="oneTapResult" class="one-tap-result"></div>
-            <div id="oneTapHistory" class="one-tap-history"></div>
+            <details class="one-tap-history-shell">
+              <summary>History and resume</summary>
+              <div id="oneTapHistory" class="one-tap-history"></div>
+            </details>
           </div>
           </div>
         </dialog>
@@ -1679,7 +1728,6 @@
         const job = data.job || {};
         const match = data.match || {};
         const interest = data.interest || {};
-        const nextSteps = Array.isArray(data.next_steps) ? data.next_steps : [];
         const feedbackReceived = data.event_type === "candidate_role_feedback_submitted" || Boolean(data.feedback);
         if (feedbackReceived) {
           const feedback = data.feedback || {};
@@ -1693,14 +1741,10 @@
               <span>${escapeHtml(feedback.interest || interest.feedback || "Response received")}${feedback.availability ? " - " + escapeHtml(feedback.availability) : ""}</span>
               <p>${escapeHtml(feedback.thoughts || "Open the response to review the candidate's full comments, skills, availability, and questions.")}</p>
               <div class="egeria-link-row">
-                <button class="btn secondary" type="button" id="oneTapResultFeedbackBtn">View private response</button>
-                <button class="btn primary" type="button" id="oneTapResultContinueBtn">Continue to internal review</button>
+                <button class="btn primary" type="button" id="oneTapResultContinueBtn">Next: internal review</button>
+                <button class="btn secondary" type="button" id="oneTapResultFeedbackBtn">View response</button>
                 ${candidate.profile_id ? `<button class="btn secondary" type="button" data-one-tap-action="profile">Review profile</button>` : ""}
               </div>
-            </article>
-            <article class="egeria-card">
-              <strong>Next governed steps</strong>
-              <span>${ONE_TAP_WORKFLOW_STEPS.map((step, index) => `${index + 1}. ${escapeHtml(step)}`).join("<br>")}</span>
             </article>
           `;
           document.getElementById("oneTapResultFeedbackBtn")?.addEventListener("click", () => openCandidateFeedback(data));
@@ -1722,15 +1766,10 @@
             <span>${escapeHtml(job.company || "Client")} - ${escapeHtml(candidate.email || "No email captured")}</span>
             <p>${escapeHtml(match.reason || "Egeria found the strongest internal candidate for this role.")}</p>
             <div class="egeria-link-row">
-              <button class="btn secondary" type="button" data-one-tap-action="profile">Review profile</button>
-              <button class="btn secondary" type="button" data-one-tap-action="job">Review JD</button>
-              <a class="btn secondary" href="${escapeHtml(interest.url || "#")}" target="_blank" rel="noopener">Open interest link</a>
               <a class="btn primary" href="${escapeHtml(oneTapMailto(interest))}">Send interest email</a>
+              <button class="btn secondary" type="button" data-one-tap-action="profile">Review profile</button>
+              <a class="btn secondary" href="${escapeHtml(interest.url || "#")}" target="_blank" rel="noopener">Interest link</a>
             </div>
-          </article>
-          <article class="egeria-card">
-            <strong>What happens next</strong>
-              <span>${(nextSteps.length ? nextSteps : ONE_TAP_WORKFLOW_STEPS).map((step, index) => `${index + 1}. ${escapeHtml(step)}`).join("<br>")}</span>
           </article>
         `;
         bindOneTapActionButtons(target);
