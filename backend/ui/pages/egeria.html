@@ -655,35 +655,6 @@
         box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 47, 125, 75), 0.1);
       }
 
-      .pilot-inline-preview {
-        display: none;
-        border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.24);
-        border-radius: 13px;
-        background: #fff;
-        overflow: hidden;
-      }
-
-      .pilot-inline-preview.open {
-        display: grid;
-      }
-
-      .pilot-inline-preview header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        padding: 10px 12px;
-        border-bottom: 1px solid var(--line);
-        background: rgba(var(--primary-rgb, 47, 125, 75), 0.06);
-      }
-
-      .pilot-inline-preview iframe {
-        width: 100%;
-        height: min(72vh, 760px);
-        border: 0;
-        background: #fff;
-      }
-
       .pilot-step-card {
         border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.24);
         border-radius: 13px;
@@ -970,13 +941,6 @@
               </div>
               <div id="pilotStatus" class="egeria-notice">Egeria will read selected candidate, job, shortlist, review, and schedule state.</div>
               <div id="pilotStepper" class="pilot-stepper" aria-label="Egeria Pilot steps"></div>
-              <section id="pilotInlinePreview" class="pilot-inline-preview" aria-label="Pilot inline preview">
-                <header>
-                  <strong id="pilotInlinePreviewTitle">Preview</strong>
-                  <button id="pilotInlinePreviewClose" class="btn secondary" type="button">Back to Pilot</button>
-                </header>
-                <iframe id="pilotInlinePreviewFrame" title="Pilot preview"></iframe>
-              </section>
               <div id="pilotWorkspace" class="pilot-workspace"></div>
               <div id="pilotResults" class="pilot-grid"></div>
             </div>
@@ -1166,7 +1130,6 @@
 
       function focusPilotZone(targetId) {
         openOneTapPanel();
-        closePilotPreview();
         const target = document.getElementById(targetId) || document.getElementById("oneTapPanel");
         target?.scrollIntoView({ behavior: "smooth", block: "start" });
         if (typeof target?.focus === "function") {
@@ -1190,18 +1153,14 @@
             openCandidateFeedback(activeOneTapFeedback);
             return;
           }
-          if (ctx.candidateId) {
-            openPilotPreview(`profile-preview.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(ctx.candidateId)}`, ctx.candidateName || "Candidate profile");
-            return;
-          }
-          focusPilotZone("oneTapHistory");
+          renderOneTapInlineCard("profile");
           return;
         }
         if (index === 3) {
-          openPilotPreview(`schedule-interview.html?domain=${encodeURIComponent(currentDomain())}&interview=client`, "Client interview scheduling");
+          renderOneTapInlineCard("client-interview");
           return;
         }
-        openPilotPreview(`status-tracker.html?domain=${encodeURIComponent(currentDomain())}`, "Status tracker");
+        renderOneTapInlineCard("status");
       }
 
       function oneTapHistoryKey() {
@@ -1529,7 +1488,7 @@
                 </div>
                 <div class="egeria-link-row" style="margin-top:0">
                   <button class="btn secondary" type="button" data-one-tap-resume="${index}">Resume</button>
-                  ${candidate.profile_id ? `<button class="btn secondary" type="button" data-pilot-preview="profile-preview.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(candidate.profile_id)}" data-pilot-preview-title="${escapeHtml(candidate.name || "Profile")}">Profile</button>` : ""}
+                  ${candidate.profile_id ? `<button class="btn secondary" type="button" data-one-tap-profile="${index}">Profile</button>` : ""}
                   ${feedbackReceived ? `<button class="btn primary" type="button" data-one-tap-feedback="${index}">View response</button>` : run.interest?.url ? `<a class="btn secondary" href="${escapeHtml(run.interest.url)}" target="_blank" rel="noopener">Open interest link</a>` : ""}
                 </div>
               </div>
@@ -1552,7 +1511,15 @@
             openCandidateFeedback(run);
           });
         });
-        bindPilotPreviewButtons(target);
+        target.querySelectorAll("[data-one-tap-profile]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const run = rows[Number(button.getAttribute("data-one-tap-profile") || 0)];
+            oneTapLastRun = run;
+            restoreOneTapRun(run);
+            renderOneTapInlineCard("profile");
+          });
+        });
+        bindOneTapActionButtons(target);
       }
 
       async function hydrateOneTapHistory() {
@@ -1632,7 +1599,7 @@
               <div class="egeria-link-row">
                 <button class="btn secondary" type="button" id="oneTapResultFeedbackBtn">View private response</button>
                 <button class="btn primary" type="button" id="oneTapResultContinueBtn">Continue to internal review</button>
-                ${candidate.profile_id ? `<button class="btn secondary" type="button" data-pilot-preview="profile-preview.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(candidate.profile_id)}" data-pilot-preview-title="${escapeHtml(candidate.name || "Profile")}">Preview profile</button>` : ""}
+                ${candidate.profile_id ? `<button class="btn secondary" type="button" data-one-tap-action="profile">Review profile</button>` : ""}
               </div>
             </article>
             <article class="egeria-card">
@@ -1645,7 +1612,7 @@
             activeOneTapFeedback = data;
             continueCandidateFeedbackWorkflow();
           });
-          bindPilotPreviewButtons(target);
+          bindOneTapActionButtons(target);
           return;
         }
         target.innerHTML = `
@@ -1659,8 +1626,8 @@
             <span>${escapeHtml(job.company || "Client")} - ${escapeHtml(candidate.email || "No email captured")}</span>
             <p>${escapeHtml(match.reason || "Egeria found the strongest internal candidate for this role.")}</p>
             <div class="egeria-link-row">
-              <button class="btn secondary" type="button" data-pilot-preview="profile-preview.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(candidate.profile_id || "")}" data-pilot-preview-title="${escapeHtml(candidate.name || "Profile")}">Preview profile</button>
-              <button class="btn secondary" type="button" data-pilot-preview="job-descriptions.html?domain=${encodeURIComponent(currentDomain())}&jdId=${encodeURIComponent(job.jd_id || "")}" data-pilot-preview-title="${escapeHtml(job.title || "Job description")}">Preview JD</button>
+              <button class="btn secondary" type="button" data-one-tap-action="profile">Review profile</button>
+              <button class="btn secondary" type="button" data-one-tap-action="job">Review JD</button>
               <a class="btn secondary" href="${escapeHtml(interest.url || "#")}" target="_blank" rel="noopener">Open interest link</a>
               <a class="btn primary" href="${escapeHtml(oneTapMailto(interest))}">Send interest email</a>
             </div>
@@ -1670,7 +1637,102 @@
               <span>${(nextSteps.length ? nextSteps : ONE_TAP_WORKFLOW_STEPS).map((step, index) => `${index + 1}. ${escapeHtml(step)}`).join("<br>")}</span>
           </article>
         `;
-        bindPilotPreviewButtons(target);
+        bindOneTapActionButtons(target);
+      }
+
+      function bindOneTapActionButtons(root = document) {
+        root.querySelectorAll("[data-one-tap-action]").forEach((button) => {
+          if (button.dataset.oneTapActionBound === "1") return;
+          button.dataset.oneTapActionBound = "1";
+          button.addEventListener("click", () => renderOneTapInlineCard(button.getAttribute("data-one-tap-action") || "profile"));
+        });
+      }
+
+      function currentOneTapRun() {
+        if (oneTapLastRun) return oneTapLastRun;
+        const rows = readOneTapHistory();
+        return rows[0] || null;
+      }
+
+      function renderOneTapInlineCard(kind) {
+        const target = document.getElementById("oneTapResult");
+        if (!target) return;
+        const run = currentOneTapRun() || {};
+        const ctx = egeriaContext();
+        const candidate = run.candidate || {};
+        const job = run.job || {};
+        const match = run.match || {};
+        const candidateName = candidate.name || ctx.candidateName || "Selected candidate";
+        const jobTitle = job.title || ctx.jobTitle || "Selected role";
+        const company = job.company || ctx.jobCompany || "Client";
+        openOneTapPanel();
+        if (kind === "job") {
+          target.innerHTML = `
+            <article class="pilot-step-card">
+              <h3>Review selected JD</h3>
+              <p>This stays inside One-Tap. Confirm the role before Egeria keeps moving.</p>
+              <div class="pilot-step-grid">
+                <div class="pilot-step-field"><span>Company</span><strong>${escapeHtml(company)}</strong></div>
+                <div class="pilot-step-field"><span>Role</span><strong>${escapeHtml(jobTitle)}</strong></div>
+                <div class="pilot-step-field"><span>JD</span><strong>${escapeHtml(job.jd_id || ctx.jobId || "Not selected")}</strong></div>
+              </div>
+              <div class="egeria-link-row">
+                <button class="btn primary" type="button" onclick="renderOneTapInlineCard('profile')">Continue to profile</button>
+                <button class="btn secondary" type="button" onclick="focusPilotZone('oneTapJobSelect')">Change job</button>
+              </div>
+            </article>
+          `;
+        } else if (kind === "profile") {
+          target.innerHTML = `
+            <article class="pilot-step-card">
+              <h3>Review profile fit</h3>
+              <p>Egeria selected one candidate. Confirm the fit here, then move to the internal review checkpoint.</p>
+              <div class="pilot-step-grid">
+                <div class="pilot-step-field"><span>Candidate</span><strong>${escapeHtml(candidateName)}</strong></div>
+                <div class="pilot-step-field"><span>Email</span><strong>${escapeHtml(candidate.email || ctx.candidateEmail || "No email captured")}</strong></div>
+                <div class="pilot-step-field"><span>Match</span><strong>${escapeHtml(match.score || "Pending")}${match.score ? "%" : ""}</strong></div>
+              </div>
+              <p>${escapeHtml(match.reason || "Use this checkpoint to confirm the selected profile before outreach or review.")}</p>
+              <div class="egeria-link-row">
+                <button class="btn primary" type="button" onclick="confirmProfileAndShortlist()">Confirm profile + shortlist</button>
+                <button class="btn secondary" type="button" onclick="renderOneTapResult(currentOneTapRun() || {})">Back to candidate summary</button>
+              </div>
+            </article>
+          `;
+        } else if (kind === "client-interview") {
+          target.innerHTML = `
+            <article class="pilot-step-card">
+              <h3>Prepare client interview</h3>
+              <p>Keep this as a controlled checkpoint before calendar tools or client outreach.</p>
+              <div class="pilot-step-grid">
+                <div class="pilot-step-field"><span>Candidate</span><strong>${escapeHtml(candidateName)}</strong></div>
+                <div class="pilot-step-field"><span>Role</span><strong>${escapeHtml(jobTitle)}</strong></div>
+              </div>
+              <label style="display:grid;gap:5px;margin-top:10px"><strong>Client interview note</strong><textarea id="clientInterviewNotes" placeholder="Client contact, meeting window, shortlist context, and what the client should evaluate."></textarea></label>
+              <div class="egeria-link-row">
+                <button class="btn primary" type="button" onclick="markClientInterviewReadyInline()">Mark client interview ready</button>
+                <button class="btn secondary" type="button" onclick="renderOneTapInlineCard('status')">Skip to status handoff</button>
+              </div>
+            </article>
+          `;
+        } else {
+          target.innerHTML = `
+            <article class="pilot-step-card">
+              <h3>Status handoff</h3>
+              <p>Finish the One-Tap path here. This records that the candidate, role, review, and client handoff are ready for tracking.</p>
+              <div class="pilot-step-grid">
+                <div class="pilot-step-field"><span>Candidate</span><strong>${escapeHtml(candidateName)}</strong></div>
+                <div class="pilot-step-field"><span>Role</span><strong>${escapeHtml(jobTitle)}</strong></div>
+              </div>
+              <div class="egeria-link-row">
+                <button class="btn primary" type="button" onclick="markWorkflowStatusInline()">Mark status ready</button>
+                <button class="btn secondary" type="button" onclick="renderOneTapHistory()">Refresh One-Tap history</button>
+              </div>
+            </article>
+          `;
+        }
+        refreshPilotSteppers(run);
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
       }
 
       async function startOneTapPilot() {
@@ -1702,12 +1764,9 @@
           sessionStorage.setItem("jobCompany", job.company || "");
           sessionStorage.setItem("currentFlowStep", "egeria");
           sessionStorage.setItem("nextFlowStep", "candidate-interest");
-          setStatus("oneTapStatus", `Egeria selected ${candidate.name || "one candidate"} and opened the interest email draft. The candidate response returns through the secure interest link.`);
+          setStatus("oneTapStatus", `Egeria selected ${candidate.name || "one candidate"} and prepared the interest email. Use the buttons below when you are ready to send or review.`);
           renderOneTapResult(data);
           renderOneTapHistory();
-          if (candidate.email) {
-            window.location.href = oneTapMailto(data.interest || {});
-          }
           runPilot();
         } catch (error) {
           setStatus("oneTapStatus", error.message || "One-Tap Pilot failed.");
@@ -1810,8 +1869,8 @@
                 <div class="pilot-step-field"><span>Job description</span><strong>${escapeHtml(jobName || "Not selected")}</strong></div>
               </div>
               <div class="egeria-link-row">
-                <button class="btn primary" type="button" onclick="openInEgeriaContext('find-candidate.html?domain=${encodeURIComponent(currentDomain())}')">Choose candidate</button>
-                <button class="btn secondary" type="button" onclick="openInEgeriaContext('job-descriptions.html?domain=${encodeURIComponent(currentDomain())}')">Choose job</button>
+                <button class="btn primary" type="button" onclick="focusPilotZone('oneTapJobSelect')">Choose job in One-Tap</button>
+                <button class="btn secondary" type="button" onclick="renderOneTapInlineCard('job')">Review selected role</button>
               </div>
             </article>
           `;
@@ -1828,7 +1887,7 @@
               </div>
               <div class="egeria-link-row">
                 <button class="btn primary" type="button" onclick="confirmProfileAndShortlist()">Confirm profile + shortlist</button>
-                <button class="btn secondary" type="button" onclick="openInEgeriaContext('profile-preview.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(ctx.candidateId)}')">Open full profile</button>
+                <button class="btn secondary" type="button" onclick="renderOneTapInlineCard('profile')">Review profile</button>
               </div>
             </article>
           `;
@@ -1846,7 +1905,7 @@
               <label style="display:grid;gap:5px;margin-top:10px"><strong>Review notes</strong><textarea id="candidateReviewNotes" placeholder="Role interest, missing skills, timing, rate, and any concerns from the candidate touch-base."></textarea></label>
               <div class="egeria-link-row">
                 <button class="btn primary" type="button" onclick="saveCandidateReviewInline()">Save review + continue</button>
-                <button class="btn secondary" type="button" onclick="openInEgeriaContext('schedule-interview.html?domain=${encodeURIComponent(currentDomain())}&interview=ready')">Open scheduling page</button>
+                <button class="btn secondary" type="button" onclick="renderOneTapInlineCard('client-interview')">Prepare interview</button>
               </div>
             </article>
           `;
@@ -1864,7 +1923,7 @@
               <label style="display:grid;gap:5px;margin-top:10px"><strong>Client interview note</strong><textarea id="clientInterviewNotes" placeholder="Client contact, meeting window, shortlist context, and what the client should evaluate."></textarea></label>
               <div class="egeria-link-row">
                 <button class="btn primary" type="button" onclick="markClientInterviewReadyInline()">Mark client interview ready</button>
-                <button class="btn secondary" type="button" onclick="openInEgeriaContext('schedule-interview.html?domain=${encodeURIComponent(currentDomain())}&interview=client')">Open client scheduling</button>
+                <button class="btn secondary" type="button" onclick="renderOneTapInlineCard('client-interview')">Prepare client interview</button>
               </div>
             </article>
           `;
@@ -1876,7 +1935,7 @@
             <p>Egeria has the workflow ready for status tracking. Use this when the candidate is moving from shortlist and interviews into active pipeline status.</p>
             <div class="egeria-link-row">
               <button class="btn primary" type="button" onclick="markWorkflowStatusInline()">Mark status ready</button>
-              <button class="btn secondary" type="button" onclick="openInEgeriaContext('status-tracker.html?domain=${encodeURIComponent(currentDomain())}')">Open status tracker</button>
+              <button class="btn secondary" type="button" onclick="renderOneTapInlineCard('status')">Review status handoff</button>
             </div>
           </article>
         `;
@@ -1884,39 +1943,27 @@
 
       function openInEgeriaContext(href) {
         if (!href) return;
-        const url = new URL(href, window.location.href);
-        url.searchParams.set("domain", currentDomain());
-        openPilotPreview(`${url.pathname.split("/").pop()}${url.search}${url.hash}`, "Workspace preview");
-      }
-
-      function openPilotPreview(href, title = "Workspace preview") {
-        if (!href) return;
-        const panel = document.getElementById("pilotInlinePreview");
-        const frame = document.getElementById("pilotInlinePreviewFrame");
-        const titleNode = document.getElementById("pilotInlinePreviewTitle");
-        if (!panel || !frame) return;
-        const url = new URL(href, window.location.href);
-        url.searchParams.set("domain", currentDomain());
-        titleNode.textContent = title || "Workspace preview";
-        frame.src = `${url.pathname.split("/").pop()}${url.search}${url.hash}`;
-        panel.classList.add("open");
-        panel.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-
-      function closePilotPreview() {
-        const panel = document.getElementById("pilotInlinePreview");
-        const frame = document.getElementById("pilotInlinePreviewFrame");
-        if (frame) frame.src = "about:blank";
-        panel?.classList.remove("open");
-        document.getElementById("pilotWorkspace")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (/job-description|find-candidate/i.test(href)) {
+          focusPilotZone("oneTapJobSelect");
+          return;
+        }
+        if (/profile/i.test(href)) {
+          renderOneTapInlineCard("profile");
+          return;
+        }
+        if (/schedule|interview/i.test(href)) {
+          renderOneTapInlineCard("client-interview");
+          return;
+        }
+        if (/status|onboarding|time/i.test(href)) {
+          renderOneTapInlineCard("status");
+          return;
+        }
+        focusPilotZone("oneTapResult");
       }
 
       function bindPilotPreviewButtons(root = document) {
-        root.querySelectorAll("[data-pilot-preview]").forEach((button) => {
-          if (button.dataset.previewBound === "1") return;
-          button.dataset.previewBound = "1";
-          button.addEventListener("click", () => openPilotPreview(button.getAttribute("data-pilot-preview") || "", button.getAttribute("data-pilot-preview-title") || "Workspace preview"));
-        });
+        bindOneTapActionButtons(root);
       }
 
       async function logPilotAction(message, after = {}) {
@@ -2115,14 +2162,13 @@
         const profileId = activeOneTapFeedback?.candidate?.profile_id || "";
         if (profileId) {
           document.getElementById("oneTapFeedbackDialog")?.close();
-          openPilotPreview(`profile-preview.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(profileId)}`, activeOneTapFeedback?.candidate?.name || "Profile");
+          renderOneTapInlineCard("profile");
         }
       });
       document.getElementById("oneTapFeedbackContinueBtn").addEventListener("click", continueCandidateFeedbackWorkflow);
       document.getElementById("runPilotBtn").addEventListener("click", runPilot);
       document.getElementById("saveCheckpointBtn").addEventListener("click", saveCheckpoint);
       document.getElementById("rollbackCheckpointBtn").addEventListener("click", rollbackCheckpoint);
-      document.getElementById("pilotInlinePreviewClose").addEventListener("click", closePilotPreview);
       document.getElementById("openPilotBtn").addEventListener("click", () => {
         if (window.DevReadyProcessFlow?.openQuickHit) window.DevReadyProcessFlow.openQuickHit();
       });
