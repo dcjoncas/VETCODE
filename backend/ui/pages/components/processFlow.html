@@ -116,7 +116,43 @@
     border-color: var(--primary, #145837);
     background: rgba(255, 255, 255, 0.96);
     color: var(--primary, #145837);
-    box-shadow: inset 0 0 0 2px var(--primary-soft, rgba(141, 202, 100, 0.18));
+    box-shadow:
+      0 0 0 3px rgba(var(--primary-2-rgb, 20, 88, 55), 0.16),
+      0 0 18px rgba(var(--primary-2-rgb, 20, 88, 55), 0.34),
+      inset 0 0 0 2px var(--primary-soft, rgba(141, 202, 100, 0.18));
+    animation: process-next-halo 2.2s ease-in-out infinite;
+  }
+
+  .process-next-action {
+    position: relative;
+    border-color: var(--primary-2, #145837) !important;
+    box-shadow:
+      0 0 0 3px rgba(var(--primary-2-rgb, 20, 88, 55), 0.16),
+      0 0 18px rgba(var(--primary-2-rgb, 20, 88, 55), 0.34) !important;
+    animation: process-next-halo 2.2s ease-in-out infinite;
+  }
+
+  @keyframes process-next-halo {
+    0%,
+    100% {
+      box-shadow:
+        0 0 0 3px rgba(var(--primary-2-rgb, 20, 88, 55), 0.14),
+        0 0 14px rgba(var(--primary-2-rgb, 20, 88, 55), 0.26);
+    }
+    50% {
+      box-shadow:
+        0 0 0 6px rgba(var(--primary-2-rgb, 20, 88, 55), 0.2),
+        0 0 24px rgba(var(--primary-2-rgb, 20, 88, 55), 0.42);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #processFlow .step.next:not(.on),
+    #processFlow .split-step-link.next:not(.on),
+    #processFlow .schedule-split-link.next:not(.on),
+    .process-next-action {
+      animation: none;
+    }
   }
 
   #processFlow .step.next:not(.on)::after,
@@ -351,6 +387,7 @@
       </button>
       <span id="candidateSelected" class="process-selection">No Candidate Selected</span>
       <span id="jobSelected" class="process-selection">No Job Selected</span>
+      <span id="clientSelected" class="process-selection">No Atlas Client Attached</span>
     </div>
     <div class="process-actions">
       <select
@@ -387,7 +424,7 @@
         class="process-clear-button"
         type="button"
         onclick="clearProcessTrail()"
-        data-hint="Reset the current workflow selections. This clears the candidate, job, shortlist, and scheduling context from the browser session but does not delete database records."
+        data-hint="Reset the active candidate, job, shortlist, Atlas client, and scheduling context. Saved TEMP records are not deleted and remain on the TEMP Profiles page."
         title="Start the workflow over"
       >
         Start over
@@ -396,28 +433,30 @@
   </div>
   <div id="processExpanded" class="process-expanded" hidden>
     <div class="flow-help">
-      Start in Talent. Use Find (Out) only when no internal candidate fits.
+      Start in Talent, save or select the job description, then run Find (In). Use Find (Out) only when internal candidates are not enough.
     </div>
     <div class="flow">
-      <a class="step" data-flow-step="talent" href="find-candidate.html" data-hint="Start a talent workflow: upload a resume, find an existing profile, choose a job description, or scan profile groups inside the current domain.">1 - Talent</a>
+      <a class="step" data-flow-step="talent" href="find-candidate.html" data-hint="Start the talent workflow: choose the domain, upload a resume, find an existing profile, or scan profile groups.">1 - Talent</a>
       <span class="flow-arrow" aria-hidden="true"></span>
-      <div class="split-step" aria-label="Step 2 candidate search">
-        <a class="split-step-link split-step-main" data-flow-step="find-in" href="match-role.html" data-hint="Run the internal match workflow. It uses the selected job description to score saved profiles and identify fit gaps before shortlisting.">2 - Find (In)</a>
-        <a class="split-step-link split-step-branch" data-flow-step="find-out" href="mine-candidate-external.html" data-hint="Use outside sourcing only after internal matches are not enough. External results stay temporary until reviewed and accepted." title="Use if no candidate found internally">2* - Find (Out)</a>
+      <a class="step" data-flow-step="job-descriptions" href="job-descriptions.html" data-hint="Create, upload, normalize, edit, or select the job description that will drive candidate matching.">2 - Job Descriptions</a>
+      <span class="flow-arrow" aria-hidden="true"></span>
+      <div class="split-step" aria-label="Step 3 candidate search">
+        <a class="split-step-link split-step-main" data-flow-step="find-in" href="match-role.html" data-hint="Run the internal match workflow. It uses the selected job description to score saved profiles and identify fit gaps before shortlisting.">3 - Find (In)</a>
+        <a class="split-step-link split-step-branch" data-flow-step="find-out" href="mine-candidate-external.html" data-hint="Use outside sourcing only after internal matches are not enough. External results stay temporary until reviewed and accepted." title="Use if no candidate found internally">3* - Find (Out)</a>
       </div>
       <span class="flow-arrow" aria-hidden="true"></span>
-      <a class="step" data-flow-step="profile" href="profile-preview.html" data-hint="Review the selected profile, fill missing resume/personality/culture pieces, edit portfolio details, and confirm it is ready to share.">3 - Profile build</a>
+      <a class="step" data-flow-step="profile" href="profile-preview.html" data-hint="Review the selected profile, fill missing resume/personality/culture pieces, edit portfolio details, and confirm it is ready to share.">4 - Profile build</a>
       <span class="flow-arrow" aria-hidden="true"></span>
-      <a class="step" data-flow-step="candidate-chat" href="candidate-chat.html" data-hint="Create or review the candidate AI chat link. Answers from the chat complete personality context and update the candidate profile.">4 - Candidate chat</a>
+      <a class="step" data-flow-step="candidate-chat" href="candidate-chat.html" data-hint="Create or review the candidate AI chat link. Answers from the chat complete personality context and update the candidate profile.">5 - Candidate chat</a>
       <span class="flow-arrow" aria-hidden="true"></span>
-      <a class="step" data-flow-step="shortlist" href="client-comm.html" data-hint="Manage the candidate shortlist for client review: first conduct the candidate review, then prepare the message, attach profile links, and send it when ready.">5 - Shortlist</a>
+      <a class="step" data-flow-step="shortlist" href="client-comm.html" data-hint="Manage the candidate shortlist for client review: first conduct the candidate review, then prepare the message, attach profile links, and send it when ready.">6 - Shortlist</a>
       <span class="flow-arrow" aria-hidden="true"></span>
-      <div class="schedule-split-step" aria-label="Step 6 interview scheduling">
-        <a class="schedule-split-link" data-flow-step="candidate-review" href="schedule-interview.html?interview=ready" data-hint="Schedule a candidate review touch base before client outreach. Confirm interest in the job, activities, gaps, pay/timing, and next steps.">6A - Candidate Review</a>
-        <a class="schedule-split-link" data-flow-step="client-interview" href="schedule-interview.html?interview=client" data-hint="Schedule the client interview using the selected candidate, job, attendees, and role context so status tracking stays connected.">6B - Client Interview</a>
+      <div class="schedule-split-step" aria-label="Step 7 interview scheduling">
+        <a class="schedule-split-link" data-flow-step="candidate-review" href="schedule-interview.html?interview=ready" data-hint="Schedule a candidate review touch base before client outreach. Confirm interest in the job, activities, gaps, pay/timing, and next steps.">7A - Candidate Review</a>
+        <a class="schedule-split-link" data-flow-step="client-interview" href="schedule-interview.html?interview=client" data-hint="Schedule the client interview using the selected candidate, job, attendees, and role context so status tracking stays connected.">7B - Client Interview</a>
       </div>
       <span class="flow-arrow" aria-hidden="true"></span>
-      <a class="step" data-flow-step="status" href="status-tracker.html" data-hint="Track where the candidate stands after outreach: messages sent, interview status, follow-ups, resends, and next action needed.">7 - Status</a>
+      <a class="step" data-flow-step="status" href="status-tracker.html" data-hint="Track where the candidate stands after outreach: messages sent, interview status, follow-ups, resends, and next action needed.">8 - Status</a>
     </div>
   </div>
 </div>
@@ -427,7 +466,7 @@
     <div class="process-map-head">
       <div>
         <div id="processMapTitle" class="process-map-title">You are here</div>
-        <div class="process-map-subtitle">Talent holds intake. Find (Out) is the fallback branch when Find (In) does not produce the right candidate.</div>
+        <div class="process-map-subtitle">Talent sets the workspace, Job Descriptions defines the role, and Find (Out) is the fallback when Find (In) does not produce the right candidate.</div>
       </div>
       <button class="process-map-close" type="button" onclick="closeProcessMap()" aria-label="Close process map">Close</button>
     </div>
@@ -435,43 +474,49 @@
       <a class="map-node" data-map-path="find-candidate.html" href="find-candidate.html">
         <span>1</span>
         <strong>Talent</strong>
-        <small>Search profiles, upload resumes, add job descriptions, and scan profile groups.</small>
+        <small>Choose the domain, search profiles, upload resumes, and scan profile groups.</small>
+      </a>
+      <div class="map-arrow"></div>
+      <a class="map-node" data-map-path="job-descriptions.html" href="job-descriptions.html">
+        <span>2</span>
+        <strong>Job Descriptions</strong>
+        <small>Create, upload, edit, or select the role requirements used by candidate matching.</small>
       </a>
       <div class="map-arrow"></div>
       <a class="map-node" data-map-path="match-role.html" href="match-role.html">
-        <span>2</span>
+        <span>3</span>
         <strong>Find (In)</strong>
         <small>Rank internal matches against a saved job description.</small>
       </a>
       <div class="map-branch">
         <div class="map-branch-line"></div>
         <a class="map-node branch" data-map-path="mine-candidate-external.html" href="mine-candidate-external.html">
-          <span>2*</span>
+          <span>3*</span>
           <strong>Find (Out)</strong>
           <small>* if no candidate found internally. Build a TEMP external profile and return to the same flow.</small>
         </a>
       </div>
       <div class="map-arrow"></div>
       <a class="map-node" data-map-path="profile-preview.html" href="profile-preview.html">
-        <span>3</span>
+        <span>4</span>
         <strong>Profiles</strong>
         <small>Review and shape the candidate profile.</small>
       </a>
       <div class="map-arrow"></div>
       <a class="map-node" data-map-path="candidate-chat.html" href="candidate-chat.html">
-        <span>4</span>
+        <span>5</span>
         <strong>Candidate Chat</strong>
         <small>Collect screening detail and candidate context.</small>
       </a>
       <div class="map-arrow"></div>
       <a class="map-node" data-map-path="client-comm.html" href="client-comm.html">
-        <span>5</span>
+        <span>6</span>
         <strong>Shortlist</strong>
         <small>Prepare the client email, attach profiles, and send the shortlist for review.</small>
       </a>
       <div class="map-arrow"></div>
       <a class="map-node schedule-map-node" data-map-path="schedule-interview.html" href="schedule-interview.html">
-        <span>6</span>
+        <span>7</span>
         <strong>Interview Scheduling</strong>
         <small>Candidate Review or Client Interview. Tracking is saved automatically.</small>
         <div class="map-split-actions" aria-hidden="true">
@@ -481,7 +526,7 @@
       </a>
       <div class="map-arrow"></div>
       <a class="map-node" data-map-path="status-tracker.html" href="status-tracker.html">
-        <span>7</span>
+        <span>8</span>
         <strong>Status</strong>
         <small>Review what was sent, follow up, resend, and track next steps.</small>
       </a>
@@ -508,7 +553,6 @@
 <script>
   const currentProcessPath = window.location.pathname.replace(/\/$/, "");
   const processParams = new URLSearchParams(window.location.search);
-  const isJobDescriptionsPage = currentProcessPath.endsWith("/job-descriptions.html");
   const activeInterview = (
     processParams.get("interview") ||
     processParams.get("purpose") ||
@@ -527,8 +571,8 @@
     "status",
   ];
   const flowNextByStep = {
-    talent: isJobDescriptionsPage ? "job-descriptions" : "find-in",
-    "job-descriptions": "",
+    talent: "job-descriptions",
+    "job-descriptions": "find-in",
     "find-in": "profile",
     "find-out": "profile",
     profile: "candidate-chat",
@@ -556,44 +600,6 @@
     return "";
   })();
 
-  function applyJobDescriptionFlowMode() {
-    if (!isJobDescriptionsPage) return;
-    const help = document.querySelector("#processExpanded .flow-help");
-    const flow = document.querySelector("#processExpanded .flow");
-    const mapSubtitle = document.querySelector("#processMapOverlay .process-map-subtitle");
-    const map = document.querySelector("#processMapOverlay .process-map");
-    if (help) {
-      help.textContent = "Use Talent to choose the domain and context, then manage job descriptions for that workspace.";
-    }
-    if (flow) {
-      flow.innerHTML = `
-        <a class="step complete" data-flow-step="talent" href="find-candidate.html" data-hint="Return to Talent to choose the domain, upload resumes, search profiles, or start a candidate workflow.">1 - Talent</a>
-        <span class="flow-arrow" aria-hidden="true"></span>
-        <a class="step on" data-flow-step="job-descriptions" href="job-descriptions.html" data-hint="Create, upload, normalize, edit, and select saved job descriptions for the active domain.">2 - Job Descriptions</a>
-      `;
-    }
-    if (mapSubtitle) {
-      mapSubtitle.textContent = "Job Descriptions is a setup step from Talent: save role requirements here, then return to matching when ready.";
-    }
-    if (map) {
-      map.innerHTML = `
-        <a class="map-node" data-map-path="find-candidate.html" href="find-candidate.html">
-          <span>1</span>
-          <strong>Talent</strong>
-          <small>Select the active domain, candidate context, or starting point.</small>
-        </a>
-        <div class="map-arrow"></div>
-        <a class="map-node here" data-map-path="job-descriptions.html" href="job-descriptions.html" aria-current="page">
-          <span>2</span>
-          <strong>Job Descriptions</strong>
-          <small>Save, edit, and select role descriptions without leaving the page margins.</small>
-        </a>
-      `;
-    }
-  }
-
-  applyJobDescriptionFlowMode();
-
   function paintProcessStep(step, className) {
     document.querySelectorAll(`#processFlow [data-flow-step="${step}"]`).forEach((link) => {
       link.classList.add(className);
@@ -613,6 +619,8 @@
     flowOrder.slice(0, Math.max(currentIndex, 0)).forEach((step) => paintProcessStep(step, "complete"));
     if (currentFlowStep === "find-out") {
       paintProcessStep("talent", "complete");
+      paintProcessStep("job-descriptions", "complete");
+      paintProcessStep("find-in", "complete");
     }
     paintProcessStep(currentFlowStep, "on");
   }
@@ -796,6 +804,7 @@
     sessionStorage.setItem("domain", quickHitDomain());
     if (typeof updateCandidate === "function") updateCandidate();
     if (typeof updateJob === "function") updateJob();
+    if (typeof updateAtlasClient === "function") updateAtlasClient();
     const context = egeriaPilotContext();
     const form = new FormData();
     form.append("domain", context.domain);
@@ -1361,6 +1370,7 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
 
   function clearProcessTrail() {
     const keepDomain = sessionStorage.getItem("domain") || "dev";
+    sessionStorage.removeItem(`atlasSourcingClient:${keepDomain}`);
     const keys = [
       "candidateId",
       "candidateName",
@@ -1369,16 +1379,27 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
       "candidateProfileType",
       "candidateTopMatches",
       "candidateResumeUrl",
+      "candidateDomain",
+      "knownProfileSelection",
+      "selectedProfileId",
       "externalCandidateSource",
       "shortlist",
+      "shortlistDetails",
       "clientEmail",
       "jobID",
+      "jobId",
+      "jdId",
+      "selectedJdId",
       "jobCompany",
       "jobTitle",
       "jobSkills",
+      "jobDomain",
+      "activeJobLoadedAt",
       "preferredCalendarProvider",
       "scheduleTracking",
       "latestScheduleTracking",
+      "scheduleInterviewType",
+      "readyPurpose",
       "temporaryProfiles",
       "totalProfiles",
       "recentProfiles",
@@ -1386,10 +1407,18 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
     ];
 
     keys.forEach((key) => sessionStorage.removeItem(key));
+    [
+      `shortlistDetails:${keepDomain}`,
+      `scheduleTracking:${keepDomain}`,
+      `latestScheduleTracking:${keepDomain}`,
+      `talentCounts:${keepDomain}`,
+      `atlasSourcingClient:${keepDomain}`,
+    ].forEach((key) => sessionStorage.removeItem(key));
     sessionStorage.setItem("domain", keepDomain);
 
     if (typeof updateCandidate === "function") updateCandidate();
     if (typeof updateJob === "function") updateJob();
+    if (typeof updateAtlasClient === "function") updateAtlasClient();
 
     window.location.href = "find-candidate.html?fresh=1";
   }
@@ -1440,6 +1469,18 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
   }
   if (typeof updateCandidate === "function") updateCandidate();
   if (typeof updateJob === "function") updateJob();
+  if (typeof updateAtlasClient === "function") {
+    updateAtlasClient();
+  } else {
+    const target = document.getElementById("clientSelected");
+    const domain = sessionStorage.getItem("domain") || "dev";
+    try {
+      const client = JSON.parse(sessionStorage.getItem(`atlasSourcingClient:${domain}`) || "null");
+      if (target) target.innerText = client && client.name ? `Atlas Client: ${client.name}` : "No Atlas Client Attached";
+    } catch {
+      if (target) target.innerText = "No Atlas Client Attached";
+    }
+  }
 </script>
 
 

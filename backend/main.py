@@ -239,10 +239,11 @@ def _crm_record_archived(record: dict) -> bool:
 
 MENU_ITEMS = [
     {"key": "talent", "label": "Talent", "href": "find-candidate.html"},
+    {"key": "job_descriptions", "label": "Job Descriptions", "href": "job-descriptions.html"},
     {"key": "find_in", "label": "Find Candidates (In)", "href": "match-role.html"},
     {"key": "find_out", "label": "Find Candidates (Out)", "href": "mine-candidate-external.html"},
+    {"key": "temp_profiles", "label": "TEMP Profiles", "href": "temp-profiles.html"},
     {"key": "profiles", "label": "Profiles", "href": "profile-preview.html"},
-    {"key": "job_descriptions", "label": "Job Descriptions", "href": "job-descriptions.html"},
     {"key": "call", "label": "Call", "href": "call.html"},
     {"key": "channels", "label": "Poolside", "href": "channels.html"},
     {"key": "meet", "label": "Meet", "href": "meet.html"},
@@ -265,10 +266,11 @@ MENU_ITEMS = [
 ]
 DEFAULT_INTERNAL_MENU = [
     "talent",
+    "job_descriptions",
     "find_in",
     "find_out",
+    "temp_profiles",
     "profiles",
-    "job_descriptions",
     "call",
     "channels",
     "meet",

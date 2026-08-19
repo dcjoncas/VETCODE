@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Form
 from openAI import emailProcessing
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 router = APIRouter(
     prefix="/api/ai",
@@ -10,11 +10,13 @@ router = APIRouter(
 class incomingCandidateScores(BaseModel):
     jobId: str
     candidateScores: list[emailProcessing.candidateScores]
+    clientContext: dict = Field(default_factory=dict)
 
 @router.post("/clientEmail/shortlist")
 async def scheduleChats(incomingCandidateScores: incomingCandidateScores):
     jobId = incomingCandidateScores.jobId
     candidateScores = incomingCandidateScores.candidateScores
+    client_context = incomingCandidateScores.clientContext
 
     print(f"Generating email for job: {jobId}")
-    return emailProcessing.shortlistClientEmail(jobId, candidateScores)
+    return emailProcessing.shortlistClientEmail(jobId, candidateScores, client_context)

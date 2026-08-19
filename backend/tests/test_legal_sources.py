@@ -39,7 +39,31 @@ class LegalSourceClientTests(unittest.TestCase):
         self.assertIn("Professional Liability", request["json"]["keyword"])
         self.assertEqual(result["total"], 24)
         self.assertEqual(result["next_page"], 3)
-        self.assertEqual(result["credits_used"], 1)
+        self.assertEqual(result["credits_used"], 10)
+
+    @patch.dict(os.environ, {"CORESIGNAL_API_KEY": "core-test-key"}, clear=False)
+    @patch("legalSources.coreSignal.requests.get")
+    def test_coresignal_collect_is_keyed_and_accepts_profile_url(self, get):
+        response = Mock(status_code=200)
+        response.json.return_value = {
+            "id": 101,
+            "full_name": "Sample Attorney",
+            "profile_url": "https://www.linkedin.com/in/sample-attorney",
+            "experience": [],
+        }
+        get.return_value = response
+
+        result = coreSignal.collect_person(
+            profile_url="https://www.linkedin.com/in/sample-attorney",
+        )
+
+        request = get.call_args
+        self.assertEqual(request.kwargs["headers"]["apikey"], "core-test-key")
+        self.assertIn("https%3A%2F%2Fwww.linkedin.com%2Fin%2Fsample-attorney", request.args[0])
+        self.assertEqual(result["data"]["id"], 101)
+        self.assertEqual(result["dataset"], "base")
+        self.assertEqual(result["matched_input"], "profile_url")
+        self.assertEqual(result["credits_used"], 10)
 
     @patch.dict(os.environ, {"BRAVE_SEARCH_API_KEY": "brave-test-key"}, clear=False)
     @patch("legalSources.braveSearch.requests.get")
@@ -177,6 +201,7 @@ class LegalSourceRouteTests(unittest.TestCase):
         {
             "PDL_API_KEY": "pdl-key",
             "CORESIGNAL_API_KEY": "core-key",
+            "CORESIGNAL_EMPLOYEE_DATASET": "multi_source",
             "BRAVE_SEARCH_API_KEY": "brave-key",
             "COURTLISTENER_API_TOKEN": "court-key",
         },
@@ -186,6 +211,9 @@ class LegalSourceRouteTests(unittest.TestCase):
         result = azureJobEndpoints.external_provider_status()
 
         self.assertTrue(result["providers"]["coresignal"]["ready"])
+        self.assertEqual(result["providers"]["coresignal"]["employeeDataset"], "multi_source")
+        self.assertEqual(result["providers"]["coresignal"]["searchCreditsPerRequest"], 10)
+        self.assertEqual(result["providers"]["coresignal"]["collectionCreditsPerRequest"], 20)
         self.assertTrue(result["providers"]["brave"]["ready"])
         self.assertTrue(result["providers"]["courtlistener"]["ready"])
         self.assertNotIn("core-key", str(result))
@@ -218,7 +246,7 @@ class LegalSourceRouteTests(unittest.TestCase):
             "page_size": 5,
             "has_more": True,
             "next_page": 2,
-            "credits_used": 1,
+            "credits_used": 10,
         }
 
         result = azureJobEndpoints.external_candidate_search(
@@ -237,9 +265,9 @@ class LegalSourceRouteTests(unittest.TestCase):
 
         self.assertEqual(result["source"], "coresignal")
         self.assertEqual(result["results"][0]["source"], "coresignal")
-        self.assertEqual(result["sourceAudit"]["estimatedCreditsUsed"], 1)
+        self.assertEqual(result["sourceAudit"]["estimatedCreditsUsed"], 10)
         self.assertEqual(result["pagination"]["nextScrollToken"], "2")
-        self.assertEqual(result["pagination"]["costLabel"], "1 search credit")
+        self.assertEqual(result["pagination"]["costLabel"], "10 search credits")
 
     @patch.dict(os.environ, {"PDL_API_KEY": "pdl-key"}, clear=True)
     @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.searchLawyers")
@@ -824,6 +852,370 @@ class LegalSourceRouteTests(unittest.TestCase):
 
         self.assertEqual(error.exception.status_code, 404)
         upload.assert_not_called()
+
+    @patch.dict(os.environ, {"CORESIGNAL_API_KEY": ""}, clear=False)
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.applyTemporaryExternalProfileEnrichment")
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.getTemporaryExternalProfileForEnrichment")
+    def test_existing_temp_profile_is_enriched_from_stored_linkedin_url(
+        self,
+        get_temp,
+        enrich,
+        apply_enrichment,
+    ):
+        get_temp.return_value = {
+            "personid": 2389,
+            "name": "Anne Podraza",
+            "profileUrl": "https://www.linkedin.com/in/anne-podraza",
+            "location": {"locality": "Trenton", "region": "New Jersey", "country": "United States"},
+            "externalProfile": {
+                "source": "Coresignal Preview",
+                "enrichment": {"status": "not_requested", "provider": "Coresignal Preview"},
+            },
+        }
+        enrich.return_value = {
+            "status": 200,
+            "likelihood": 9,
+            "data": {
+                "id": "pdl-anne",
+                "first_name": "Anne",
+                "last_name": "Podraza",
+                "linkedin_url": "linkedin.com/in/anne-podraza",
+                "job_title": "Healthcare Consultant",
+                "location_locality": "Trenton",
+                "location_region": "New Jersey",
+                "location_country": "United States",
+                "summary": "Healthcare and leadership consultant.",
+                "work_email": "anne@example.org",
+                "recommended_personal_email": "anne.personal@example.net",
+                "mobile_phone": "+1 609 555 0100",
+                "phone_numbers": ["+1 609 555 0101"],
+                "skills": ["Healthcare", "Leadership Coaching"],
+                "experience": [
+                    {
+                        "title": {"name": "Consultant", "raw": ["consultant"]},
+                        "company": {"name": "Example Health"},
+                        "start_date": "2022-01",
+                        "is_primary": True,
+                    }
+                ],
+            },
+        }
+        apply_enrichment.return_value = {
+            "status": "success",
+            "personid": 2389,
+            "name": "Anne Podraza",
+            "profileUrl": "https://www.linkedin.com/in/anne-podraza",
+        }
+
+        result = azureJobEndpoints.external_candidate_enrich_temp_profile(
+            "2389",
+            {"domain": "dental"},
+        )
+
+        enrich.assert_called_once_with(
+            profile="https://www.linkedin.com/in/anne-podraza",
+            name="",
+            locality="",
+            region="",
+            country="",
+            min_likelihood=8,
+            required="linkedin_url",
+        )
+        saved_candidate = apply_enrichment.call_args.args[2]
+        saved_metadata = apply_enrichment.call_args.args[3]
+        self.assertEqual(saved_candidate["title"], "Healthcare Consultant")
+        self.assertEqual(saved_candidate["email"], "anne@example.org")
+        self.assertEqual(len(saved_candidate["portfolio"]), 1)
+        self.assertEqual(saved_candidate["portfolio"][0]["mainRole"], "Consultant")
+        self.assertEqual(saved_metadata["source"], "Coresignal Preview")
+        self.assertEqual(saved_metadata["enrichment"]["status"], "completed")
+        self.assertEqual(saved_metadata["enrichment"]["profileVersion"], 2)
+        self.assertEqual(saved_metadata["contact"]["primaryEmail"], "anne@example.org")
+        self.assertEqual(saved_metadata["contact"]["mobilePhone"], "+1 609 555 0100")
+        self.assertIn("+1 609 555 0101", saved_metadata["contact"]["phoneNumbers"])
+        self.assertFalse(result["reused"])
+        self.assertEqual(result["creditsUsed"], 1)
+        self.assertFalse(result["linkedinScraped"])
+
+    @patch.dict(
+        os.environ,
+        {
+            "CORESIGNAL_API_KEY": "core-key",
+            "CORESIGNAL_EMPLOYEE_DATASET": "multi_source",
+        },
+        clear=False,
+    )
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.applyTemporaryExternalProfileEnrichment")
+    @patch("azureUtils.routes.azureJobEndpoints.coreSignal.collect_person")
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.getTemporaryExternalProfileForEnrichment")
+    def test_coresignal_temp_profile_collects_full_professional_record(
+        self,
+        get_temp,
+        pdl_enrich,
+        collect,
+        apply_enrichment,
+    ):
+        get_temp.return_value = {
+            "personid": 2390,
+            "name": "Anne Podraza",
+            "profileUrl": "https://www.linkedin.com/in/anne-podraza",
+            "location": {"locality": "Trenton", "region": "New Jersey", "country": "United States"},
+            "externalProfile": {
+                "source": "Coresignal profile preview",
+                "sourceId": "core-anne",
+                "enrichment": {"status": "not_requested", "provider": "Coresignal Preview"},
+            },
+        }
+        collect.return_value = {
+            "status": 200,
+            "credits_used": 20,
+            "dataset": "multi_source",
+            "matched_input": "profile_url",
+            "data": {
+                "id": "core-anne",
+                "first_name": "Anne",
+                "last_name": "Podraza",
+                "full_name": "Anne Podraza",
+                "headline": "Healthcare and leadership consultant",
+                "professional_network_url": "https://www.linkedin.com/in/anne-podraza",
+                "picture_url": "https://cdn.example.org/anne.jpg",
+                "summary": "Healthcare consulting and leadership coaching.",
+                "location_full": "Trenton, New Jersey, United States",
+                "location_city": "Trenton",
+                "location_state": "New Jersey",
+                "location_country": "United States",
+                "checked_at": "2026-08-17T10:00:00Z",
+                "connections_count": 350,
+                "primary_professional_email": "anne@examplehealth.org",
+                "primary_professional_email_status": "verified",
+                "professional_emails_collection": [
+                    {
+                        "professional_email": "anne@examplehealth.org",
+                        "professional_email_status": "verified",
+                        "order_of_priority": 1,
+                    }
+                ],
+                "active_experience_department": "Consulting",
+                "active_experience_management_level": "Senior",
+                "is_decision_maker": 1,
+                "total_experience_duration_months": 96,
+                "experience": [
+                    {
+                        "position_title": "Healthcare Consultant",
+                        "company_name": "Example Health",
+                        "company_industry": "Healthcare",
+                        "company_size_range": "51-200 employees",
+                        "company_website": "https://example.org",
+                        "location": "Trenton, New Jersey",
+                        "date_from": "2022-01-01",
+                        "active_experience": 1,
+                        "description": "Advises healthcare teams and coaches leaders.",
+                    }
+                ],
+                "education": [
+                    {
+                        "institution": "Example University",
+                        "program": "Master of Health Administration",
+                        "date_from": "2012-01-01",
+                        "date_to": "2014-06-01",
+                    }
+                ],
+                "certifications": [
+                    {"title": "Leadership Coach", "issuer": "Example Institute", "certificate_url": "https://example.org/certificate"},
+                    {"title": "Old Deleted Credential", "deleted": 1},
+                ],
+                "languages": [{"name": "English", "proficiency": "Native"}],
+                "services": ["Leadership Coaching", "Healthcare Consulting"],
+                "projects": [{"title": "Clinical Team Program", "description": "Improved onboarding."}],
+                "awards": [{"title": "Healthcare Leadership Award", "issuer": "Example Association"}],
+                "websites": [{"name": "Portfolio", "url": "https://anne.example.org"}],
+            },
+        }
+        apply_enrichment.return_value = {
+            "status": "success",
+            "personid": 2390,
+            "name": "Anne Podraza",
+            "profileUrl": "https://www.linkedin.com/in/anne-podraza",
+        }
+
+        result = azureJobEndpoints.external_candidate_enrich_temp_profile(
+            "2390",
+            {"domain": "dental"},
+        )
+
+        collect.assert_called_once_with(
+            employee_id="",
+            profile_url="https://www.linkedin.com/in/anne-podraza",
+            dataset="multi_source",
+        )
+        pdl_enrich.assert_not_called()
+        saved_candidate = apply_enrichment.call_args.args[2]
+        saved_metadata = apply_enrichment.call_args.args[3]
+        self.assertEqual(saved_candidate["title"], "Healthcare Consultant")
+        self.assertEqual(saved_candidate["email"], "anne@examplehealth.org")
+        self.assertEqual(saved_candidate["portfolio"][0]["companyName"], "Example Health")
+        self.assertEqual(saved_metadata["source"], "Coresignal Multi-source Employee")
+        self.assertEqual(saved_metadata["enrichment"]["provider"], "Coresignal Multi-source Employee Collect")
+        self.assertTrue(saved_metadata["enrichment"]["contactFieldsRequested"])
+        self.assertEqual(saved_metadata["contact"]["primaryEmail"], "anne@examplehealth.org")
+        self.assertEqual(saved_metadata["contact"]["primaryProfessionalEmailStatus"], "verified")
+        self.assertEqual(saved_metadata["education"][0]["school"], "Example University")
+        self.assertEqual(saved_metadata["education"][0]["startYear"], 2012)
+        self.assertIn("Leadership Coach", saved_metadata["certifications"])
+        self.assertNotIn("Old Deleted Credential", saved_metadata["certifications"])
+        self.assertEqual(saved_metadata["professionalDetails"]["languages"][0]["name"], "English")
+        self.assertEqual(saved_metadata["professionalDetails"]["projects"][0]["title"], "Clinical Team Program")
+        self.assertEqual(saved_metadata["professionalDetails"]["connectionsCount"], 350)
+        self.assertEqual(saved_metadata["professionalDetails"]["currentDepartment"], "Consulting")
+        self.assertEqual(saved_metadata["professionalDetails"]["currentManagementLevel"], "Senior")
+        self.assertTrue(saved_metadata["professionalDetails"]["decisionMaker"])
+        self.assertTrue(result["contactDataIncluded"])
+        self.assertEqual(result["creditsUsed"], 20)
+        self.assertFalse(result["linkedinScraped"])
+
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.applyTemporaryExternalProfileEnrichment")
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.getTemporaryExternalProfileForEnrichment")
+    def test_completed_pdl_temp_enrichment_is_reused_without_credit(
+        self,
+        get_temp,
+        enrich,
+        apply_enrichment,
+    ):
+        get_temp.return_value = {
+            "personid": 2381,
+            "name": "Demetria Keith",
+            "profileUrl": "https://www.linkedin.com/in/demetria-keith",
+            "location": {},
+            "externalProfile": {
+                "enrichment": {
+                    "status": "completed",
+                    "provider": "People Data Labs Person Enrichment",
+                    "creditsUsed": 1,
+                    "profileVersion": 2,
+                }
+            },
+        }
+
+        result = azureJobEndpoints.external_candidate_enrich_temp_profile(
+            "2381",
+            {"domain": "dental"},
+        )
+
+        enrich.assert_not_called()
+        apply_enrichment.assert_not_called()
+        self.assertTrue(result["reused"])
+        self.assertEqual(result["creditsUsed"], 0)
+
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.applyTemporaryExternalProfileEnrichment")
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
+    @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.getTemporaryExternalProfileForEnrichment")
+    def test_rich_pdl_temp_profile_is_rematched_to_selected_jd_without_credit(
+        self,
+        get_temp,
+        get_job_skills,
+        enrich,
+        apply_enrichment,
+    ):
+        get_temp.return_value = {
+            "personid": 2381,
+            "name": "Demetria Keith",
+            "title": "Dental Assistant",
+            "description": "Temporary external profile with patient-care experience.",
+            "profileUrl": "https://www.linkedin.com/in/demetria-keith",
+            "location": {"locality": "Denver", "region": "Colorado", "country": "United States"},
+            "externalProfile": {
+                "providerSkills": ["Dental Assisting", "Patient Care"],
+                "professionalEvidence": ["Digital radiography and endodontic chairside support"],
+                "certifications": ["Certified Dental Assistant"],
+                "enrichment": {
+                    "status": "completed",
+                    "provider": "People Data Labs Person Enrichment",
+                    "creditsUsed": 1,
+                    "profileVersion": 2,
+                },
+            },
+        }
+        get_job_skills.return_value = (
+            {"job_title": "Dental Assistant"},
+            ["Digital Radiography", "Endodontic Chairside", "Patient Care"],
+        )
+        apply_enrichment.return_value = {
+            "status": "success",
+            "personid": 2381,
+            "name": "Demetria Keith",
+            "profileUrl": "https://www.linkedin.com/in/demetria-keith",
+        }
+
+        result = azureJobEndpoints.external_candidate_enrich_temp_profile(
+            "2381",
+            {"domain": "dental", "jd_id": "jd-dental-1"},
+        )
+
+        enrich.assert_not_called()
+        apply_enrichment.assert_called_once()
+        saved_metadata = apply_enrichment.call_args.args[3]
+        self.assertEqual(saved_metadata["match"]["jobId"], "jd-dental-1")
+        self.assertGreater(saved_metadata["match"]["score"], 0)
+        self.assertIn("Digital Radiography", saved_metadata["match"]["matched"])
+        self.assertTrue(result["reused"])
+        self.assertTrue(result["rematched"])
+        self.assertEqual(result["creditsUsed"], 0)
+
+    @patch("azureUtils.routes.azureJobEndpoints.linkedinResultsExport.build_linkedin_results_xlsx")
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.listLinkedInEnrichedTemporaryProfiles")
+    def test_linkedin_results_export_is_scoped_to_requested_workspace(self, list_profiles, build_workbook):
+        rows = [{"personid": 2381, "linkedInEnriched": True}]
+        list_profiles.return_value = rows
+        build_workbook.return_value = b"xlsx-bytes"
+
+        response = azureJobEndpoints.external_candidate_linkedin_results_export("dental")
+
+        list_profiles.assert_called_once_with("dental", 500)
+        build_workbook.assert_called_once_with(rows, "dental")
+        self.assertEqual(
+            response.media_type,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        self.assertIn("dental-linkedin-enriched-temp-profiles-", response.headers["content-disposition"])
+
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.applyTemporaryExternalProfileEnrichment")
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.getTemporaryExternalProfileForEnrichment")
+    def test_temp_enrichment_name_mismatch_does_not_update_profile(
+        self,
+        get_temp,
+        enrich,
+        apply_enrichment,
+    ):
+        get_temp.return_value = {
+            "personid": 2389,
+            "name": "Anne Podraza",
+            "profileUrl": "https://www.linkedin.com/in/anne-podraza",
+            "location": {},
+            "externalProfile": {"enrichment": {"status": "not_requested"}},
+        }
+        enrich.return_value = {
+            "status": 200,
+            "likelihood": 10,
+            "data": {
+                "id": "pdl-other",
+                "full_name": "Different Person",
+                "linkedin_url": "linkedin.com/in/different-person",
+            },
+        }
+
+        with self.assertRaises(HTTPException) as error:
+            azureJobEndpoints.external_candidate_enrich_temp_profile(
+                "2389",
+                {"domain": "dental"},
+            )
+
+        self.assertEqual(error.exception.status_code, 409)
+        apply_enrichment.assert_not_called()
 
 
 if __name__ == "__main__":

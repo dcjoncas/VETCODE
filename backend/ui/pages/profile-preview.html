@@ -514,8 +514,8 @@
     </style>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html?v=20260522-egeria-pilot");
-        $("#processFlow").load("components/processFlow.html");
+        $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow");
+        $("#processFlow").load("components/processFlow.html?v=20260818-talent-jd-flow");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -1572,6 +1572,15 @@
           .replace(/'/g, "&#039;");
       }
 
+      function safeProfileHttpUrl(value) {
+        try {
+          const url = new URL(String(value || ""));
+          return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+        } catch (_error) {
+          return "";
+        }
+      }
+
       function tempSkillGroup(skill) {
         const value = String(skill || "").toLowerCase();
         if (/professional liability|professional negligence|insurance|malpractice|tort|construction|real estate|accounting/.test(value)) return "Practice areas";
@@ -1596,6 +1605,7 @@
         const profile = profileData.profile || {};
         const enrichment = metadata.enrichment || {};
         const match = metadata.match || {};
+        const contact = metadata.contact && typeof metadata.contact === "object" ? metadata.contact : {};
         const isCourtLead = metadata.recordType === "court_attorney_lead";
         const domain = profileData.domain || profileDomain();
         const isLawProfile = domain === "law";
@@ -1612,6 +1622,9 @@
         const missing = Array.isArray(match.missing) ? match.missing : [];
         const education = Array.isArray(metadata.education) ? metadata.education : [];
         const certifications = Array.isArray(metadata.certifications) ? metadata.certifications : [];
+        const professionalDetails = metadata.professionalDetails && typeof metadata.professionalDetails === "object"
+          ? metadata.professionalDetails
+          : {};
         const experience = Array.isArray(profileData.portfolioExperience) ? profileData.portfolioExperience : [];
         const summary = String(profile.description || "")
           .split(/\n+/)
@@ -1632,14 +1645,26 @@
           const group = tempSkillGroup(skill);
           (groupedSkills[group] ||= []).push(skill);
         });
-        const profileUrl = /^https?:\/\//i.test(String(profileValidation.profileUrl || profile.linkedinUrl || ""))
-          ? (profileValidation.profileUrl || profile.linkedinUrl)
-          : "";
+        const profileUrl = safeProfileHttpUrl(profileValidation.profileUrl || profile.linkedinUrl || "");
         const supportingRecordUrl = isCourtLead && /^https?:\/\//i.test(String(metadata.profileUrl || ""))
           ? metadata.profileUrl
           : "";
         const matchScore = Number(match.score);
         const likelihood = Number(enrichment.likelihood);
+        const contactEmails = [
+          contact.workEmail,
+          contact.recommendedPersonalEmail,
+          profile.email,
+          ...(Array.isArray(contact.personalEmails) ? contact.personalEmails : []),
+          ...(Array.isArray(contact.professionalEmails)
+            ? contact.professionalEmails.map((item) => typeof item === "string" ? item : item?.email)
+            : []),
+        ].filter((value, index, values) => value && values.findIndex((item) => String(item).toLowerCase() === String(value).toLowerCase()) === index);
+        const contactPhones = [
+          contact.mobilePhone,
+          contact.primaryPhone,
+          ...(Array.isArray(contact.phoneNumbers) ? contact.phoneNumbers : []),
+        ].filter((value, index, values) => value && values.indexOf(value) === index);
         const source = metadata.source || sessionStorage.getItem("externalCandidateSource") || "External provider";
         const evidenceHeading = isTemporaryProfile
           ? "Temporary profile evidence"
@@ -1657,8 +1682,12 @@
           : "";
         const sourceAssurance = isCourtLead
           ? "CourtListener docket evidence was saved as research. It is not proof that this is the intended person or that the person meets the job requirements."
-          : /people data labs|pdl/i.test(String(source))
+          : /people data labs|pdl/i.test(String(source)) || /people data labs|pdl/i.test(String(enrichment.provider || ""))
           ? "Enrichment used licensed PDL data linked to the selected professional profile. VETCODE did not scrape LinkedIn."
+          : /coresignal.*multi-source|multi-source.*coresignal/i.test(`${source} ${enrichment.provider || ""}`)
+          ? "Enrichment used licensed Coresignal Multi-source Employee data. VETCODE did not scrape LinkedIn. This dataset may include professional email, but it does not include phone data."
+          : /coresignal/i.test(String(source)) || /coresignal/i.test(String(enrichment.provider || ""))
+          ? "Enrichment used licensed Coresignal Base Employee data. VETCODE did not scrape LinkedIn, and Base Employee does not include email or phone data."
           : `Evidence was imported from ${profileEscapeHtml(source)}. VETCODE did not scrape LinkedIn.`;
 
         const courtRecords = Array.isArray(courtEvidence.records) ? courtEvidence.records : [];
@@ -1694,6 +1723,20 @@
         const fallbackImage = document.getElementById("noImageFound");
         fallbackImage.textContent = initials;
         fallbackImage.classList.add("temp-profile-avatar");
+        const providerPhotoUrl = safeProfileHttpUrl(professionalDetails.photoUrl || "");
+        const candidateImage = document.getElementById("candidateImage");
+        if (providerPhotoUrl) {
+          candidateImage.src = providerPhotoUrl;
+          candidateImage.style.display = "block";
+          fallbackImage.style.display = "none";
+          candidateImage.onerror = () => {
+            candidateImage.style.display = "none";
+            fallbackImage.style.display = "flex";
+          };
+        } else {
+          candidateImage.style.display = "none";
+          fallbackImage.style.display = "flex";
+        }
         panel.hidden = false;
         document.getElementById("topMatches").innerHTML = matched.length
           ? matched.slice(0, 6).map((item) => `<span class="pill">${profileEscapeHtml(item)}</span>`).join("")
@@ -1730,6 +1773,60 @@
           </div>`;
         }).join("") || '<p class="muted">No education records were returned.</p>';
 
+        const services = Array.isArray(professionalDetails.services) ? professionalDetails.services : [];
+        const languages = Array.isArray(professionalDetails.languages) ? professionalDetails.languages : [];
+        const projects = Array.isArray(professionalDetails.projects) ? professionalDetails.projects : [];
+        const awards = Array.isArray(professionalDetails.awards) ? professionalDetails.awards : [];
+        const organizations = Array.isArray(professionalDetails.organizations) ? professionalDetails.organizations : [];
+        const courses = Array.isArray(professionalDetails.courses) ? professionalDetails.courses : [];
+        const patents = Array.isArray(professionalDetails.patents) ? professionalDetails.patents : [];
+        const publications = Array.isArray(professionalDetails.publications) ? professionalDetails.publications : [];
+        const volunteering = Array.isArray(professionalDetails.volunteering) ? professionalDetails.volunteering : [];
+        const websites = Array.isArray(professionalDetails.websites) ? professionalDetails.websites : [];
+        const companyWebsite = safeProfileHttpUrl(professionalDetails.currentCompanyWebsite || "");
+        const hasCoresignalDetails = [services, languages, projects, awards, organizations, courses, patents, publications, volunteering, websites]
+          .some((items) => items.length)
+          || companyWebsite
+          || professionalDetails.currentCompanyIndustry
+          || professionalDetails.currentCompanySize
+          || professionalDetails.checkedAt
+          || professionalDetails.updatedAt;
+        const professionalDetailsHtml = hasCoresignalDetails ? `
+          <section class="temp-evidence-section">
+            <h3>Additional professional details</h3>
+            <p>Provider-reported context for review. Audience counts are displayed as source context and are not used in the role-match score.</p>
+            <div class="temp-chip-row">
+              ${professionalDetails.currentCompanyIndustry ? `<span class="temp-chip">Industry: ${profileEscapeHtml(professionalDetails.currentCompanyIndustry)}</span>` : ""}
+              ${professionalDetails.currentCompanySize ? `<span class="temp-chip">Company size: ${profileEscapeHtml(professionalDetails.currentCompanySize)}</span>` : ""}
+              ${professionalDetails.currentDepartment ? `<span class="temp-chip">Department: ${profileEscapeHtml(professionalDetails.currentDepartment)}</span>` : ""}
+              ${professionalDetails.currentManagementLevel ? `<span class="temp-chip">Level: ${profileEscapeHtml(professionalDetails.currentManagementLevel)}</span>` : ""}
+              ${professionalDetails.decisionMaker ? '<span class="temp-chip">Provider-inferred decision maker</span>' : ""}
+              ${companyWebsite ? `<a class="temp-chip" href="${profileEscapeHtml(companyWebsite)}" target="_blank" rel="noopener">Company website</a>` : ""}
+              ${Number(professionalDetails.connectionsCount || 0) ? `<span class="temp-chip">${profileEscapeHtml(professionalDetails.connectionsCount)} connections</span>` : ""}
+              ${Number(professionalDetails.followersCount || 0) ? `<span class="temp-chip">${profileEscapeHtml(professionalDetails.followersCount)} followers</span>` : ""}
+              ${Number(professionalDetails.recommendationsCount || 0) ? `<span class="temp-chip">${profileEscapeHtml(professionalDetails.recommendationsCount)} recommendations</span>` : ""}
+              ${professionalDetails.checkedAt ? `<span class="temp-chip">Checked ${profileEscapeHtml(professionalDetails.checkedAt)}</span>` : ""}
+              ${professionalDetails.updatedAt ? `<span class="temp-chip">Updated ${profileEscapeHtml(professionalDetails.updatedAt)}</span>` : ""}
+            </div>
+            ${services.length ? `<h4 style="margin-top:14px">Services</h4><div class="temp-chip-row">${services.map((item) => `<span class="temp-chip">${profileEscapeHtml(item)}</span>`).join("")}</div>` : ""}
+            ${languages.length ? `<h4 style="margin-top:14px">Languages</h4><div class="temp-chip-row">${languages.map((item) => `<span class="temp-chip">${profileEscapeHtml(item.name)}${item.proficiency ? ` - ${profileEscapeHtml(item.proficiency)}` : ""}</span>`).join("")}</div>` : ""}
+            ${projects.length ? `<h4 style="margin-top:14px">Projects</h4><div class="temp-work-list">${projects.map((item) => {
+              const projectUrl = safeProfileHttpUrl(item.url || "");
+              return `<article class="temp-work-item"><div><strong>${profileEscapeHtml(item.title || "Project")}</strong></div><div><p>${profileEscapeHtml(item.description || "No description reported.")}</p>${projectUrl ? `<a href="${profileEscapeHtml(projectUrl)}" target="_blank" rel="noopener">Open project</a>` : ""}</div></article>`;
+            }).join("")}</div>` : ""}
+            ${awards.length ? `<h4 style="margin-top:14px">Awards</h4><div class="temp-chip-row">${awards.map((item) => `<span class="temp-chip">${profileEscapeHtml(item.title)}${item.issuer ? ` - ${profileEscapeHtml(item.issuer)}` : ""}${item.date ? ` (${profileEscapeHtml(item.date)})` : ""}</span>`).join("")}</div>` : ""}
+            ${organizations.length ? `<h4 style="margin-top:14px">Organizations</h4><div class="temp-chip-row">${organizations.map((item) => `<span class="temp-chip">${profileEscapeHtml(item)}</span>`).join("")}</div>` : ""}
+            ${courses.length ? `<h4 style="margin-top:14px">Courses</h4><div class="temp-chip-row">${courses.map((item) => `<span class="temp-chip">${profileEscapeHtml(item)}</span>`).join("")}</div>` : ""}
+            ${patents.length ? `<h4 style="margin-top:14px">Patents</h4><div class="temp-chip-row">${patents.map((item) => `<span class="temp-chip">${profileEscapeHtml(item)}</span>`).join("")}</div>` : ""}
+            ${publications.length ? `<h4 style="margin-top:14px">Publications</h4><div class="temp-chip-row">${publications.map((item) => `<span class="temp-chip">${profileEscapeHtml(item)}</span>`).join("")}</div>` : ""}
+            ${volunteering.length ? `<h4 style="margin-top:14px">Volunteering</h4><div class="temp-chip-row">${volunteering.map((item) => `<span class="temp-chip">${profileEscapeHtml(item)}</span>`).join("")}</div>` : ""}
+            ${websites.length ? `<h4 style="margin-top:14px">Websites</h4><div class="temp-chip-row">${websites.map((item) => {
+              const websiteUrl = safeProfileHttpUrl(item.url || "");
+              return websiteUrl ? `<a class="temp-chip" href="${profileEscapeHtml(websiteUrl)}" target="_blank" rel="noopener">${profileEscapeHtml(item.label || "Website")}</a>` : "";
+            }).join("")}</div>` : ""}
+          </section>
+        ` : "";
+
         panel.innerHTML = `
           <div class="temp-evidence-head">
             <div>
@@ -1748,12 +1845,21 @@
             <div class="temp-fact"><span>Experience</span><strong>${metadata.yearsExperience ? `${profileEscapeHtml(metadata.yearsExperience)} years` : "Not reported"}</strong></div>
             <div class="temp-fact"><span>${isCourtLead ? "Court records" : "Enrichment"}</span><strong>${isCourtLead ? profileEscapeHtml(courtEvidence.evidenceCount || courtRecords.length || 0) : enrichment.status === "completed" ? `Completed${Number.isFinite(likelihood) && likelihood ? ` ${likelihood}/10` : ""}` : profileEscapeHtml(enrichment.status || "Not run")}</strong></div>
           </div>
+          ${!isCourtLead ? `<section class="temp-evidence-section">
+            <h3>Provider-reported contact information</h3>
+            <p>Verify every contact before outreach. Current work or recommended contact fields are preferred; historical provider emails are not treated as outreach-ready.</p>
+            <div class="temp-chip-row">
+              ${contactEmails.length ? contactEmails.map((email) => `<a class="temp-chip" href="mailto:${encodeURIComponent(email)}">${profileEscapeHtml(email)}</a>`).join("") : '<span class="muted">No email was returned by the licensed provider.</span>'}
+              ${contact.primaryProfessionalEmailStatus ? `<span class="temp-chip">Primary professional email: ${profileEscapeHtml(String(contact.primaryProfessionalEmailStatus).replaceAll("_", " "))}</span>` : ""}
+              ${contactPhones.length ? contactPhones.map((phone) => `<a class="temp-chip" href="tel:${encodeURIComponent(phone)}">${profileEscapeHtml(phone)}</a>`).join("") : '<span class="muted">No phone was returned by the licensed provider.</span>'}
+            </div>
+          </section>` : ""}
           <div class="temp-evidence-columns">
             <section class="temp-evidence-section">
               <h3>Professional summary</h3>
               <p>${profileEscapeHtml(summary)}</p>
               <div class="temp-chip-row">
-                <span class="temp-chip">${isCourtLead ? "Court-record research lead" : "Provider-linked profile"}</span>
+                <span class="temp-chip">${isCourtLead ? "Court-record research lead" : enrichment.status === "completed" ? "✓ LinkedIn-enriched profile" : "Provider-linked profile"}</span>
                 ${barVerificationChip}
                 ${metadata.lastVerified ? `<span class="temp-chip">Job data verified ${profileEscapeHtml(metadata.lastVerified)}</span>` : ""}
               </div>
@@ -1775,6 +1881,7 @@
             <h3>Work history</h3>
             <div class="temp-work-list">${workHtml}</div>
           </section>
+          ${professionalDetailsHtml}
           <div class="temp-evidence-columns">
             <section class="temp-evidence-section">
               <h3>Education</h3>

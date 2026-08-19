@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, StreamingResponse
 from datetime import datetime, timezone
+from html import unescape
 import traceback
 import os
 import re
@@ -9,6 +10,7 @@ import requests
 from urllib.parse import quote_plus, urlparse
 from openai import OpenAI
 from azureUtils.storage import jobs, candidates
+from azureUtils import linkedinResultsExport
 from jd_match import normalize_jd, azureJobMatch, normalize_all_skills
 from openAI import externalPeopleSearch
 import peopleDataLabs.peopleSearch as peopleDataLabs
@@ -828,6 +830,391 @@ def _coresignal_row(
     return result
 
 
+def _coresignal_text(value, limit: int = 1600) -> str:
+    text = re.sub(r"<[^>]+>", " ", unescape(str(value or "")))
+    return _external_text(re.sub(r"\s+", " ", text), limit)
+
+
+def _coresignal_items(value, limit: int = 8) -> list[dict]:
+    rows = []
+    for item in value if isinstance(value, list) else []:
+        deleted = item.get("deleted") if isinstance(item, dict) else None
+        if (
+            not isinstance(item, dict)
+            or deleted is True
+            or str(deleted or "").strip() == "1"
+            or item.get("deleted_at")
+        ):
+            continue
+        rows.append(item)
+        if len(rows) >= limit:
+            break
+    return rows
+
+
+def _coresignal_date(value) -> str:
+    if isinstance(value, dict):
+        parts = []
+        for key, width in (("year", 4), ("month", 2), ("day", 2)):
+            try:
+                number = int(value.get(key) or 0)
+            except (TypeError, ValueError):
+                number = 0
+            if number:
+                parts.append(str(number).zfill(width))
+        return "-".join(parts)
+    return _external_text(value, 40)
+
+
+def _coresignal_record_date(item: dict, field: str) -> str:
+    alternate = {"start_date": "date_from", "end_date": "date_to"}.get(field, field)
+    direct = item.get(field) or item.get(alternate)
+    if direct:
+        return _coresignal_date(direct)
+    parts = []
+    for suffix, width in (("year", 4), ("month", 2), ("day", 2)):
+        try:
+            number = int(item.get(f"{alternate}_{suffix}") or 0)
+        except (TypeError, ValueError):
+            number = 0
+        if number:
+            parts.append(str(number).zfill(width))
+    return "-".join(parts)
+
+
+def _coresignal_true(value) -> bool:
+    return value is True or value == 1 or str(value or "").strip().lower() in {"1", "true", "yes"}
+
+
+def _coresignal_labels(value, limit: int = 30) -> list[str]:
+    labels = []
+    seen = set()
+    if isinstance(value, list):
+        items = value
+    elif isinstance(value, str):
+        items = re.split(r"[,;|\n]+", value)
+    elif isinstance(value, dict):
+        items = [value]
+    else:
+        items = []
+    for item in items:
+        if isinstance(item, dict):
+            label = next(
+                (
+                    item.get(key)
+                    for key in (
+                        "name",
+                        "title",
+                        "skill",
+                        "language",
+                        "program",
+                        "organization",
+                        "organization_name",
+                        "position",
+                        "company_name",
+                        "institution_name",
+                        "value",
+                    )
+                    if item.get(key)
+                ),
+                "",
+            )
+        else:
+            label = item
+        clean = _coresignal_text(label, 120)
+        key = clean.lower()
+        if clean and key not in seen:
+            seen.add(key)
+            labels.append(clean)
+        if len(labels) >= limit:
+            break
+    return labels
+
+
+def _coresignal_collected_row(
+    row: dict,
+    job_skills: list[str],
+    scoring_skills: list[str],
+    criteria: dict | None = None,
+) -> dict:
+    is_multi_source = bool(
+        row.get("professional_network_url")
+        or row.get("active_experience_title")
+        or row.get("primary_professional_email")
+    )
+    experiences = _coresignal_items(row.get("experience"), 10)
+    if not experiences and (row.get("active_experience_title") or row.get("company_name")):
+        experiences = [
+            {
+                "position_title": row.get("active_experience_title"),
+                "company_name": row.get("company_name"),
+                "company_website": row.get("company_website"),
+                "company_industry": row.get("company_industry"),
+                "company_size_range": row.get("company_size_range"),
+                "description": row.get("active_experience_description"),
+                "active_experience": 1,
+            }
+        ]
+    current_experience = next(
+        (
+            item
+            for item in experiences
+            if _coresignal_true(item.get("is_current"))
+            or _coresignal_true(item.get("active_experience"))
+        ),
+        None,
+    )
+    if current_experience is None:
+        current_experience = next(
+            (item for item in experiences if str(item.get("order_in_profile") or "") == "1"),
+            experiences[0] if experiences else {},
+        )
+
+    normalized_experience = []
+    for experience in experiences:
+        location = _coresignal_text(experience.get("location"), 160)
+        normalized_experience.append(
+            {
+                "title": _coresignal_text(
+                    experience.get("position_title") or experience.get("title"),
+                    180,
+                ),
+                "company": {
+                    "name": _coresignal_text(
+                        experience.get("company_name") or experience.get("company"),
+                        180,
+                    )
+                },
+                "company_name": _coresignal_text(experience.get("company_name"), 180),
+                "summary": _coresignal_text(experience.get("description"), 1600),
+                "start_date": _coresignal_record_date(experience, "start_date"),
+                "end_date": _coresignal_record_date(experience, "end_date"),
+                "is_primary": _coresignal_true(experience.get("is_current"))
+                or _coresignal_true(experience.get("active_experience")),
+                "location_names": [location] if location else [],
+            }
+        )
+
+    normalized_education = []
+    for education in _coresignal_items(row.get("education"), 6):
+        institution = education.get("institution")
+        if isinstance(institution, dict):
+            institution = institution.get("name")
+        degree = education.get("degree_name") or education.get("degree") or education.get("program_name") or education.get("program")
+        program = education.get("field_of_study")
+        normalized_education.append(
+            {
+                "school": {
+                    "name": _coresignal_text(
+                        education.get("institution_name") or education.get("school_name") or institution,
+                        180,
+                    )
+                },
+                "degrees": [_coresignal_text(degree, 120)] if degree else [],
+                "majors": [_coresignal_text(program, 120)] if program else [],
+                "start_date": _coresignal_record_date(education, "start_date"),
+                "end_date": _coresignal_record_date(education, "end_date"),
+            }
+        )
+
+    certifications = []
+    for certification in _coresignal_items(row.get("certifications"), 10):
+        title = _coresignal_text(certification.get("title") or certification.get("name"), 180)
+        if title:
+            certifications.append(
+                {
+                    "name": title,
+                    "issuer": _coresignal_text(certification.get("issuer"), 180),
+                    "credential_url": _external_text(
+                        certification.get("certificate_url") or certification.get("credential_url"),
+                        500,
+                    ),
+                }
+            )
+
+    skills = _coresignal_labels(row.get("inferred_skills"), 30)
+    for skill in _coresignal_labels(row.get("skills"), 30):
+        if skill.lower() not in {value.lower() for value in skills}:
+            skills.append(skill)
+        if len(skills) >= 30:
+            break
+
+    city = _coresignal_text(row.get("location_city") or row.get("city"), 120)
+    state = _coresignal_text(row.get("location_state") or row.get("state"), 120)
+    country = _coresignal_text(
+        row.get("location_country") or row.get("country") or row.get("country_full_name"),
+        120,
+    )
+    location = _coresignal_text(row.get("location_full") or row.get("location"), 240) or ", ".join(
+        value for value in (city, state, country) if value
+    )
+    summary = _coresignal_text(row.get("summary"), 1600)
+    headline = _coresignal_text(row.get("headline"), 300)
+
+    websites = [
+        {
+            "label": _coresignal_text(item.get("name") or item.get("label") or "Website", 100),
+            "url": _external_text(item.get("url"), 500),
+        }
+        for item in _coresignal_items(row.get("websites"), 8)
+        if item.get("url")
+    ]
+    for label, url in (
+        ("Professional website", row.get("website")),
+        ("GitHub", row.get("github_url")),
+        ("X / Twitter", row.get("twitter_url")),
+    ):
+        clean_url = _external_text(url, 500)
+        if clean_url and clean_url.lower() not in {
+            str(item.get("url") or "").lower() for item in websites
+        }:
+            websites.append({"label": label, "url": clean_url})
+
+    professional_details = {
+        "photoUrl": _external_text(row.get("picture_url") or row.get("photo_url"), 500),
+        "services": _coresignal_labels(row.get("services"), 12),
+        "languages": [
+            {
+                "name": _coresignal_text(item.get("name") or item.get("language"), 100),
+                "proficiency": _coresignal_text(item.get("proficiency"), 100),
+            }
+            for item in _coresignal_items(row.get("languages"), 12)
+            if _coresignal_text(item.get("name") or item.get("language"), 100)
+        ],
+        "projects": [
+            {
+                "title": _coresignal_text(item.get("title") or item.get("name"), 180),
+                "description": _coresignal_text(item.get("description"), 600),
+                "url": _external_text(item.get("url") or item.get("project_url"), 500),
+            }
+            for item in _coresignal_items(row.get("projects"), 6)
+            if item.get("title") or item.get("name")
+        ],
+        "awards": [
+            {
+                "title": _coresignal_text(item.get("title") or item.get("name"), 180),
+                "issuer": _coresignal_text(item.get("issuer"), 180),
+                "date": _coresignal_record_date(item, "date"),
+            }
+            for item in _coresignal_items(row.get("awards"), 6)
+            if item.get("title") or item.get("name")
+        ],
+        "organizations": _coresignal_labels(row.get("organizations"), 8),
+        "courses": _coresignal_labels(row.get("courses"), 8),
+        "patents": _coresignal_labels(row.get("patents"), 8),
+        "publications": _coresignal_labels(row.get("publications"), 8),
+        "volunteering": _coresignal_labels(row.get("volunteering_positions") or row.get("volunteering"), 8),
+        "websites": websites[:8],
+        "connectionsCount": row.get("connections_count") or 0,
+        "followersCount": row.get("follower_count") or 0,
+        "experienceCount": row.get("experience_count") or len(experiences),
+        "recommendationsCount": row.get("recommendations_count") or len(_coresignal_items(row.get("recommendations"), 100)),
+        "checkedAt": _external_text(row.get("checked_at"), 80),
+        "updatedAt": _external_text(row.get("updated_at"), 80),
+        "currentCompanyWebsite": _external_text(current_experience.get("company_website"), 500),
+        "currentCompanyIndustry": _coresignal_text(current_experience.get("company_industry"), 180),
+        "currentCompanySize": _coresignal_text(
+            current_experience.get("company_size_range") or current_experience.get("company_size"),
+            80,
+        ),
+        "currentDepartment": _coresignal_text(
+            row.get("active_experience_department") or current_experience.get("department"),
+            120,
+        ),
+        "currentManagementLevel": _coresignal_text(
+            row.get("active_experience_management_level") or current_experience.get("management_level"),
+            120,
+        ),
+        "decisionMaker": _coresignal_true(row.get("is_decision_maker")),
+    }
+
+    professional_emails = []
+    for item in row.get("professional_emails_collection", [])[:8] if isinstance(row.get("professional_emails_collection"), list) else []:
+        if not isinstance(item, dict):
+            continue
+        email = _external_text(item.get("professional_email"), 320)
+        status = _external_text(item.get("professional_email_status"), 80)
+        if email and email.lower() not in {entry["email"].lower() for entry in professional_emails}:
+            professional_emails.append({"email": email, "status": status})
+    primary_professional_email = _external_text(row.get("primary_professional_email"), 320)
+    primary_professional_email_status = _external_text(
+        row.get("primary_professional_email_status"),
+        80,
+    )
+    if primary_professional_email and primary_professional_email.lower() not in {
+        entry["email"].lower() for entry in professional_emails
+    }:
+        professional_emails.insert(
+            0,
+            {
+                "email": primary_professional_email,
+                "status": primary_professional_email_status,
+            },
+        )
+
+    try:
+        years_experience = round(max(0, int(row.get("total_experience_duration_months") or 0)) / 12, 1)
+    except (TypeError, ValueError):
+        years_experience = 0
+
+    mapped = {
+        "id": row.get("id"),
+        "first_name": row.get("first_name") or "",
+        "last_name": row.get("last_name") or "",
+        "full_name": row.get("full_name") or "",
+        "job_title": current_experience.get("position_title") or current_experience.get("title") or headline,
+        "job_company_name": current_experience.get("company_name") or "",
+        "location_name": location,
+        "location_locality": city,
+        "location_region": state,
+        "location_country": country,
+        "summary": summary or headline,
+        "headline": headline,
+        "skills": skills,
+        "linkedin_url": row.get("professional_network_url") or row.get("profile_url") or "",
+        "work_email": primary_professional_email,
+        "inferred_years_experience": years_experience,
+        "experience": normalized_experience,
+        "education": normalized_education,
+        "certifications": certifications,
+    }
+    result = _people_data_row(mapped, job_skills, scoring_skills, criteria)
+    result.update(
+        {
+            "source": "coresignal",
+            "source_label": (
+                "Coresignal Multi-source Employee"
+                if is_multi_source
+                else "Coresignal Base Employee"
+            ),
+            "result_type": "licensed_professional_profile",
+            "avatar_url": professional_details["photoUrl"],
+            "summary": summary or headline,
+            "job_last_verified": professional_details["checkedAt"] or professional_details["updatedAt"],
+        }
+    )
+    result["contact"] = {
+        "primaryEmail": primary_professional_email,
+        "workEmail": primary_professional_email,
+        "recommendedPersonalEmail": "",
+        "personalEmails": [],
+        "professionalEmails": professional_emails,
+        "primaryProfessionalEmailStatus": primary_professional_email_status,
+        "primaryPhone": "",
+        "mobilePhone": "",
+        "phoneNumbers": [],
+        "provider": result["source_label"],
+        "verificationRequired": True,
+        "contactDataAvailable": bool(primary_professional_email or professional_emails),
+        "contactScope": "professional_email_only" if is_multi_source else "none",
+    }
+    result["profile_data"]["professional_details"] = professional_details
+    result["verification"].pop("pdl_job_last_verified", None)
+    result["verification"]["coresignal_collect"] = "licensed_provider_data_requires_human_verification"
+    result["verification"]["coresignal_checked_at"] = professional_details["checkedAt"]
+    return result
+
+
 def _brave_law_query(criteria: dict) -> str:
     def phrase(value) -> str:
         return str(value or "").replace('"', " ").strip()[:45]
@@ -1086,6 +1473,23 @@ def _person_names_align(searched_name: str, returned_name: str) -> bool:
     return not searched_middle or not returned_middle or searched_middle == returned_middle
 
 
+def _professional_profile_urls_align(expected_url: str, returned_url: str) -> bool:
+    def normalized(value: str) -> tuple[str, str]:
+        text = str(value or "").strip()
+        if text and not text.startswith(("http://", "https://")):
+            text = "https://" + text.lstrip("/")
+        parsed = urlparse(text)
+        host = parsed.netloc.lower().removeprefix("www.")
+        path = parsed.path.rstrip("/").lower()
+        return host, path
+
+    returned = normalized(returned_url)
+    if not all(returned):
+        return False
+    expected = normalized(expected_url)
+    return not all(expected) or expected == returned
+
+
 def _people_data_row(
     row: dict,
     job_skills: list[str],
@@ -1093,19 +1497,68 @@ def _people_data_row(
     lawyer_criteria: dict | None = None,
 ):
     skills = _safe_list(row.get("skills"))
+    evidence = list(skills)
+    evidence.extend(
+        value
+        for value in [
+            row.get("job_title"),
+            row.get("headline"),
+            row.get("job_summary"),
+            row.get("summary"),
+        ]
+        if isinstance(value, str) and value.strip()
+    )
+    for experience in row.get("experience", [])[:8] if isinstance(row.get("experience"), list) else []:
+        if isinstance(experience, dict):
+            evidence.extend(
+                value
+                for value in [_external_position_title(experience.get("title")), experience.get("summary")]
+                if isinstance(value, str) and value.strip()
+            )
+    for certification in row.get("certifications", [])[:10] if isinstance(row.get("certifications"), list) else []:
+        value = certification.get("name") or certification.get("title") if isinstance(certification, dict) else certification
+        if isinstance(value, str) and value.strip():
+            evidence.append(value)
     if lawyer_criteria:
         score, top_matches, score_details = _lawyer_match_score(row, lawyer_criteria)
     else:
-        score, top_matches, score_details = _rank_external_skill_match(skills, job_skills, scoring_skills)
+        score, top_matches, score_details = _rank_external_skill_match(evidence, job_skills, scoring_skills)
+        score_details["evidence_count"] = len(_safe_list(evidence))
     first = row.get("first_name") or ""
     last = row.get("last_name") or ""
     name = (first + " " + last).strip() or row.get("full_name") or "Unknown candidate"
     linkedin_url = row.get("linkedin_url") or ""
     if linkedin_url and not linkedin_url.startswith("http"):
         linkedin_url = "https://www." + linkedin_url.lstrip("/")
-    email = row.get("work_email") or ""
-    if not isinstance(email, str):
-        email = ""
+    def contact_string(value) -> str:
+        return value.strip() if isinstance(value, str) else ""
+
+    def contact_list(value, limit: int = 5) -> list[str]:
+        clean = []
+        for item in value if isinstance(value, list) else []:
+            item_value = item.get("address") if isinstance(item, dict) else item
+            item_text = contact_string(item_value)
+            if item_text and item_text.lower() not in {existing.lower() for existing in clean}:
+                clean.append(item_text)
+            if len(clean) >= limit:
+                break
+        return clean
+
+    work_email = contact_string(row.get("work_email"))
+    recommended_personal_email = contact_string(row.get("recommended_personal_email"))
+    personal_emails = contact_list(row.get("personal_emails"))
+    if not personal_emails:
+        personal_emails = contact_list(row.get("emails"))
+    email = work_email or recommended_personal_email or (personal_emails[0] if personal_emails else "")
+    mobile_phone = contact_string(row.get("mobile_phone"))
+    phone_numbers = contact_list(row.get("phone_numbers"))
+    if not phone_numbers:
+        phone_numbers = contact_list(
+            [item.get("number") for item in row.get("phones", []) if isinstance(item, dict)]
+            if isinstance(row.get("phones"), list)
+            else []
+        )
+    primary_phone = mobile_phone or (phone_numbers[0] if phone_numbers else "")
     location = row.get("location_name") or ", ".join([v for v in [row.get("location_locality"), row.get("location_region"), row.get("location_country")] if isinstance(v, str) and v])
     if not isinstance(location, str):
         location = ""
@@ -1116,7 +1569,8 @@ def _people_data_row(
         "source_id": row.get("id") or "",
         "name": name,
         "email": email,
-        "title": row.get("job_title") or row.get("title") or "",
+        "phone": primary_phone,
+        "title": _external_position_title(row.get("job_title") or row.get("title")),
         "company": row.get("job_company_name") or "",
         "location": location,
         "profile_url": linkedin_url,
@@ -1139,6 +1593,17 @@ def _people_data_row(
             ),
             "pdl_job_last_verified": row.get("job_last_verified") or "",
             "linkedin_scan": "not_performed",
+        },
+        "contact": {
+            "primaryEmail": email,
+            "workEmail": work_email,
+            "recommendedPersonalEmail": recommended_personal_email,
+            "personalEmails": personal_emails,
+            "primaryPhone": primary_phone,
+            "mobilePhone": mobile_phone,
+            "phoneNumbers": phone_numbers,
+            "provider": "People Data Labs",
+            "verificationRequired": True,
         },
         "profile_data": {
             "experience": row.get("experience", [])[:5] if isinstance(row.get("experience"), list) else [],
@@ -1834,6 +2299,14 @@ def external_provider_status():
                 "role": "professional_discovery_comparison",
                 "environmentVariable": "CORESIGNAL_API_KEY",
                 "signupUrl": "https://dashboard.coresignal.com/sign-up",
+                "employeeDataset": coreSignal.enrichment_dataset(),
+                "searchCreditsPerRequest": coreSignal.credit_cost("base"),
+                "collectionCreditsPerRequest": coreSignal.credit_cost(coreSignal.enrichment_dataset()),
+                "contactData": (
+                    "professional_email_only"
+                    if coreSignal.enrichment_dataset() == "multi_source"
+                    else "none"
+                ),
             },
             "brave": {
                 "label": "Brave Search",
@@ -2170,7 +2643,11 @@ def external_candidate_search(
                 "search credits",
                 domain,
             )
-            pagination = _provider_pagination(core_response, top_k, "1 search credit")
+            pagination = _provider_pagination(
+                core_response,
+                top_k,
+                f"{coreSignal.credit_cost('base')} search credits",
+            )
         elif selected_source == "brave":
             page = _provider_page(scroll_token, 0, 9)
             search_query = (
@@ -2345,7 +2822,11 @@ def external_candidate_search_direct(
                 "search credits",
                 domain,
             )
-            pagination = _provider_pagination(core_response, top_k, "1 search credit")
+            pagination = _provider_pagination(
+                core_response,
+                top_k,
+                f"{coreSignal.credit_cost('base')} search credits",
+            )
         elif selected_source == "brave":
             page = _provider_page(scroll_token, 0, 9)
             brave_query = _brave_direct_query(clean_query)
@@ -2446,6 +2927,19 @@ def _external_text(value, limit: int = 1200) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()[:limit]
 
 
+def _external_position_title(value, limit: int = 180) -> str:
+    if isinstance(value, dict):
+        for key in ("name", "title", "display_name", "role"):
+            text = _external_text(value.get(key), limit)
+            if text:
+                return text
+        raw = value.get("raw")
+        if isinstance(raw, list) and raw:
+            return _external_text(raw[0], limit)
+        return ""
+    return _external_text(value, limit)
+
+
 def _external_year(value):
     match = re.search(r"\b(19\d{2}|20\d{2})\b", str(value or ""))
     return int(match.group(1)) if match else None
@@ -2478,7 +2972,7 @@ def _external_portfolio(candidate: dict) -> list[dict]:
             continue
         company = experience.get("company") if isinstance(experience.get("company"), dict) else {}
         company_name = _external_text(company.get("name") or experience.get("company_name"), 180)
-        role = _external_text(experience.get("title") or experience.get("job_title"), 180)
+        role = _external_position_title(experience.get("title") or experience.get("job_title"), 180)
         summary = _external_text(experience.get("summary"), 1600)
         start_year = _external_year(experience.get("start_date"))
         finish_year = _external_year(experience.get("end_date"))
@@ -2535,6 +3029,92 @@ def _external_certifications(candidate: dict) -> list[str]:
         title = _external_text(value, 180)
         if title and title.lower() not in {row.lower() for row in clean}:
             clean.append(title)
+    return clean
+
+
+def _external_professional_details(candidate: dict) -> dict:
+    profile_data = candidate.get("profile_data") if isinstance(candidate.get("profile_data"), dict) else {}
+    details = profile_data.get("professional_details") if isinstance(profile_data.get("professional_details"), dict) else {}
+
+    def labels(key: str, limit: int = 12) -> list[str]:
+        return [
+            _external_text(value, 180)
+            for value in _safe_list(details.get(key))[:limit]
+            if _external_text(value, 180)
+        ]
+
+    def records(key: str, fields: tuple[str, ...], limit: int = 8) -> list[dict]:
+        clean = []
+        for item in details.get(key, [])[:limit] if isinstance(details.get(key), list) else []:
+            if not isinstance(item, dict):
+                continue
+            row = {
+                field: _external_text(item.get(field), 600 if field == "description" else 500)
+                for field in fields
+            }
+            if any(row.values()):
+                clean.append(row)
+        return clean
+
+    counts = {}
+    for source_key, target_key in (
+        ("connectionsCount", "connectionsCount"),
+        ("followersCount", "followersCount"),
+        ("experienceCount", "experienceCount"),
+        ("recommendationsCount", "recommendationsCount"),
+    ):
+        try:
+            counts[target_key] = max(0, int(details.get(source_key) or 0))
+        except (TypeError, ValueError):
+            counts[target_key] = 0
+
+    return {
+        "photoUrl": _external_text(details.get("photoUrl"), 500),
+        "services": labels("services"),
+        "languages": records("languages", ("name", "proficiency"), 12),
+        "projects": records("projects", ("title", "description", "url"), 6),
+        "awards": records("awards", ("title", "issuer", "date"), 6),
+        "organizations": labels("organizations", 8),
+        "courses": labels("courses", 8),
+        "patents": labels("patents", 8),
+        "publications": labels("publications", 8),
+        "volunteering": labels("volunteering", 8),
+        "websites": records("websites", ("label", "url"), 8),
+        **counts,
+        "checkedAt": _external_text(details.get("checkedAt"), 80),
+        "updatedAt": _external_text(details.get("updatedAt"), 80),
+        "currentCompanyWebsite": _external_text(details.get("currentCompanyWebsite"), 500),
+        "currentCompanyIndustry": _external_text(details.get("currentCompanyIndustry"), 180),
+        "currentCompanySize": _external_text(details.get("currentCompanySize"), 80),
+        "currentDepartment": _external_text(details.get("currentDepartment"), 120),
+        "currentManagementLevel": _external_text(details.get("currentManagementLevel"), 120),
+        "decisionMaker": details.get("decisionMaker") is True,
+    }
+
+
+def _external_professional_evidence(candidate: dict) -> list[str]:
+    profile_data = candidate.get("profile_data") if isinstance(candidate.get("profile_data"), dict) else {}
+    evidence = [
+        candidate.get("title"),
+        candidate.get("summary"),
+        profile_data.get("headline"),
+        profile_data.get("job_summary"),
+        *_external_certifications(candidate),
+    ]
+    for experience in profile_data.get("experience", [])[:8] if isinstance(profile_data.get("experience"), list) else []:
+        if isinstance(experience, dict):
+            evidence.extend([_external_position_title(experience.get("title")), experience.get("summary")])
+    clean = []
+    seen = set()
+    for value in evidence:
+        text = _external_text(value, 600)
+        key = text.lower()
+        if not text or key in seen:
+            continue
+        seen.add(key)
+        clean.append(text)
+        if len(clean) >= 20:
+            break
     return clean
 
 
@@ -2596,11 +3176,16 @@ def _external_profile_metadata(candidate: dict, source: str, enrichment: dict) -
             "formula": _external_text(score_details.get("formula"), 300),
             "matched": [] if is_court_lead else _safe_list(candidate.get("top_matches"))[:12],
             "missing": _safe_list(score_details.get("missing"))[:10],
+            "matchedCount": score_details.get("matched_count") or len(_safe_list(candidate.get("top_matches"))),
+            "requiredCount": score_details.get("required_count") or len(_safe_list(score_details.get("scoring_skills"))),
             "components": score_details.get("components") if isinstance(score_details.get("components"), dict) else {},
         },
         "education": _external_education(candidate),
         "certifications": _external_certifications(candidate),
+        "contact": candidate.get("contact") if isinstance(candidate.get("contact"), dict) else {},
         "providerSkills": _safe_list(candidate.get("skills"))[:30] if is_court_lead else _external_candidate_skills(candidate),
+        "professionalEvidence": [] if is_court_lead else _external_professional_evidence(candidate),
+        "professionalDetails": {} if is_court_lead else _external_professional_details(candidate),
         "yearsExperience": candidate.get("years_experience") or 0,
         "lastVerified": _external_text(candidate.get("job_last_verified"), 80),
     }
@@ -2733,7 +3318,10 @@ def external_candidate_import(payload: dict = Body(...)):
                     "status": "completed",
                     "likelihood": int(response.get("likelihood") or 0),
                     "creditsUsed": 1,
+                    "profileVersion": 2,
+                    "contactFieldsRequested": True,
                     "matchedInput": "pdl_id" if source_id else "profile_url",
+                    "linkedinMode": "Provider dataset lookup only; LinkedIn was not scraped.",
                 }
             )
         else:
@@ -2833,6 +3421,355 @@ def external_candidate_import(payload: dict = Body(...)):
 def external_candidate_temp_profiles(domain: str = "dev", limit: int = 50):
     domain = _domain_key(domain)
     return candidates.listTemporaryExternalProfiles(domain, limit)
+
+
+@router.get("/external/temp/linkedin-results/export")
+def external_candidate_linkedin_results_export(domain: str = "dev"):
+    domain = _domain_key(domain)
+    rows = candidates.listLinkedInEnrichedTemporaryProfiles(domain, 500)
+    workbook = linkedinResultsExport.build_linkedin_results_xlsx(rows, domain)
+    date_stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    filename = f"{domain}-linkedin-enriched-temp-profiles-{date_stamp}.xlsx"
+    return StreamingResponse(
+        iter([workbook]),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/external/temp/{person_id}/enrich-professional")
+def external_candidate_enrich_temp_profile(person_id: str, payload: dict = Body(default={})):
+    domain = _domain_key(payload.get("domain") or "dev")
+    stored = candidates.getTemporaryExternalProfileForEnrichment(person_id, domain)
+    current_metadata = (
+        stored.get("externalProfile") if isinstance(stored.get("externalProfile"), dict) else {}
+    )
+    current_enrichment = (
+        current_metadata.get("enrichment")
+        if isinstance(current_metadata.get("enrichment"), dict)
+        else {}
+    )
+    jd_id = _external_text(payload.get("jd_id"), 80)
+    job_skills = []
+    scoring_skills = []
+    criteria = None
+    if jd_id:
+        jd, job_skills = _get_job_skills(jd_id, domain)
+        scoring_skills = _searchable_job_skills(job_skills, 12)
+        supplied_criteria = payload.get("criteria") if isinstance(payload.get("criteria"), dict) else {}
+        if domain == "law":
+            criteria = _lawyer_search_criteria(
+                jd,
+                titles=",".join(_safe_list(supplied_criteria.get("titles"))),
+                practice_areas=",".join(_safe_list(supplied_criteria.get("practiceAreas"))),
+                locations=",".join(_safe_list(supplied_criteria.get("locations"))),
+                region=_external_text(supplied_criteria.get("region"), 100),
+                min_years=supplied_criteria.get("minYears") or 0,
+                strict_locations=supplied_criteria.get("strictLocations"),
+            )
+
+    try:
+        enrichment_version = int(current_enrichment.get("profileVersion") or 1)
+    except (TypeError, ValueError):
+        enrichment_version = 1
+    current_provider = str(current_enrichment.get("provider") or "").lower()
+    source_is_coresignal = "coresignal" in " ".join(
+        [
+            str(current_metadata.get("source") or ""),
+            str(current_enrichment.get("provider") or ""),
+        ]
+    ).lower()
+    reusable_enrichment = (
+        current_enrichment.get("status") == "completed"
+        and ("people data labs" in current_provider or "coresignal" in current_provider)
+        and enrichment_version >= 2
+    )
+    if reusable_enrichment and not jd_id:
+        return {
+            "status": "success",
+            "personid": stored.get("personid"),
+            "name": stored.get("name"),
+            "profileUrl": stored.get("profileUrl") or current_metadata.get("profileUrl") or "",
+            "enrichment": current_enrichment,
+            "reused": True,
+            "creditsUsed": 0,
+            "linkedinScraped": False,
+        }
+
+    if reusable_enrichment and jd_id:
+        stored_skills = _safe_list(current_metadata.get("providerSkills"))
+        stored_evidence = stored_skills + [
+            _external_text(stored.get("title"), 200),
+            _external_text(stored.get("description"), 2400),
+            *(_safe_list(current_metadata.get("certifications"))),
+            *(_safe_list(current_metadata.get("professionalEvidence"))),
+        ]
+        if criteria:
+            score, matched, score_details = _lawyer_match_score(
+                {
+                    "job_title": stored.get("title") or "",
+                    "skills": stored_skills,
+                    "summary": stored.get("description") or "",
+                    "location_name": ", ".join(value for value in (stored.get("location") or {}).values() if value),
+                    "inferred_years_experience": current_metadata.get("yearsExperience") or 0,
+                },
+                criteria,
+            )
+        else:
+            score, matched, score_details = _rank_external_skill_match(
+                stored_evidence,
+                job_skills,
+                scoring_skills,
+            )
+        rematch = {
+            "score": score,
+            "band": score_details.get("band") or _score_band(score),
+            "formula": score_details.get("formula") or "weighted matched JD signals / weighted searchable JD signals",
+            "matched": matched,
+            "missing": _safe_list(score_details.get("missing"))[:10],
+            "matchedCount": score_details.get("matched_count") or len(matched),
+            "requiredCount": score_details.get("required_count") or len(scoring_skills),
+            "components": score_details.get("components") if isinstance(score_details.get("components"), dict) else {},
+            "jobId": jd_id,
+            "rematchedAt": datetime.now(timezone.utc).isoformat(),
+        }
+        reused_candidate = {
+            "title": stored.get("title") or "",
+            "email": stored.get("email") or (current_metadata.get("contact") or {}).get("primaryEmail") or "",
+            "profile_url": stored.get("profileUrl") or "",
+            "skills": stored_skills,
+            "profile_data": {"location": stored.get("location") or {}},
+            "portfolio": [],
+        }
+        result = candidates.applyTemporaryExternalProfileEnrichment(
+            person_id,
+            domain,
+            reused_candidate,
+            {**current_metadata, "match": rematch},
+        )
+        result.update(
+            {
+                "reused": True,
+                "rematched": True,
+                "creditsUsed": 0,
+                "match": rematch,
+                "linkedinScraped": False,
+            }
+        )
+        return result
+
+    name = _external_text(stored.get("name"), 160)
+    if len(_person_name_tokens(name)) < 2:
+        raise HTTPException(status_code=400, detail="A complete name is required for profile enrichment.")
+    profile_url = _external_text(stored.get("profileUrl"), 500)
+    location = stored.get("location") if isinstance(stored.get("location"), dict) else {}
+
+    if source_is_coresignal and coreSignal.configured():
+        source_id = _external_text(current_metadata.get("sourceId"), 180)
+        coresignal_dataset = coreSignal.enrichment_dataset()
+        collect_by_profile = coresignal_dataset == "multi_source" and bool(profile_url)
+        try:
+            response = coreSignal.collect_person(
+                employee_id="" if collect_by_profile else source_id,
+                profile_url=profile_url if collect_by_profile or not source_id else "",
+                dataset=coresignal_dataset,
+            )
+        except coreSignal.CoreSignalError as exc:
+            provider_status = int(exc.status_code or 502)
+            status_code = provider_status if provider_status in {400, 401, 402, 403, 404, 429, 503} else 502
+            raise HTTPException(status_code=status_code, detail=f"TEMP profile enrichment failed: {str(exc)}") from exc
+
+        if response.get("status") != 200 or not isinstance(response.get("data"), dict):
+            raise HTTPException(
+                status_code=404,
+                detail="Coresignal could not collect the full professional profile for this TEMP record.",
+            )
+
+        mapped = _coresignal_collected_row(response["data"], job_skills, scoring_skills, criteria)
+        returned_name = _external_text(mapped.get("name"), 160)
+        matched_profile_url = _external_text(mapped.get("profile_url") or profile_url, 500)
+        if not (
+            _person_names_align(name, returned_name)
+            and _professional_profile_urls_align(profile_url, matched_profile_url)
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Coresignal returned a possible record, but its name and professional-profile link "
+                    "did not safely align with the selected TEMP profile. The profile was not changed."
+                ),
+            )
+
+        enriched_at = datetime.now(timezone.utc).isoformat()
+        collected_dataset = str(response.get("dataset") or coresignal_dataset).lower()
+        is_multi_source = collected_dataset == "multi_source"
+        provider_label = (
+            "Coresignal Multi-source Employee Collect"
+            if is_multi_source
+            else "Coresignal Base Employee Collect"
+        )
+        enrichment = {
+            "status": "completed",
+            "provider": provider_label,
+            "enrichedAt": enriched_at,
+            "creditsUsed": int(
+                response.get("credits_used")
+                or coreSignal.credit_cost(coresignal_dataset)
+            ),
+            "profileVersion": 2,
+            "contactFieldsRequested": is_multi_source,
+            "matchedInput": response.get("matched_input") or ("profile_url" if collect_by_profile else "employee_id"),
+            "employeeDataset": collected_dataset,
+            "linkedinMode": "Licensed provider dataset lookup only; LinkedIn was not scraped.",
+            "contactNotice": (
+                "Coresignal Multi-source can include provider-reported professional email, but not phone data."
+                if is_multi_source
+                else "Coresignal Base Employee does not include email or phone data."
+            ),
+        }
+        updated_metadata = {
+            **current_metadata,
+            "source": (
+                "Coresignal Multi-source Employee"
+                if is_multi_source
+                else "Coresignal Base Employee"
+            ),
+            "sourceId": _external_text(mapped.get("source_id") or source_id, 180),
+            "profileUrl": matched_profile_url,
+            "enrichment": enrichment,
+            "contact": mapped.get("contact") if isinstance(mapped.get("contact"), dict) else {},
+            "providerSkills": _external_candidate_skills(mapped),
+            "yearsExperience": mapped.get("years_experience") or 0,
+            "lastVerified": _external_text(mapped.get("job_last_verified"), 80),
+            "education": _external_education(mapped),
+            "certifications": _external_certifications(mapped),
+            "professionalEvidence": _external_professional_evidence(mapped),
+            "professionalDetails": _external_professional_details(mapped),
+        }
+        if jd_id:
+            updated_metadata["match"] = {
+                "score": mapped.get("score") or 0,
+                "band": _external_text(mapped.get("match_band"), 80),
+                "formula": _external_text((mapped.get("score_details") or {}).get("formula"), 300),
+                "matched": _safe_list(mapped.get("top_matches"))[:12],
+                "missing": _safe_list((mapped.get("score_details") or {}).get("missing"))[:10],
+                "matchedCount": (mapped.get("score_details") or {}).get("matched_count") or len(_safe_list(mapped.get("top_matches"))),
+                "requiredCount": (mapped.get("score_details") or {}).get("required_count") or len(scoring_skills),
+                "components": (mapped.get("score_details") or {}).get("components") if isinstance((mapped.get("score_details") or {}).get("components"), dict) else {},
+                "jobId": jd_id,
+                "rematchedAt": enriched_at,
+            }
+        mapped["profile_url"] = matched_profile_url
+        mapped["portfolio"] = _external_portfolio(mapped)
+        result = candidates.applyTemporaryExternalProfileEnrichment(
+            person_id,
+            domain,
+            mapped,
+            updated_metadata,
+        )
+        result.update(
+            {
+                "reused": False,
+                "creditsUsed": enrichment["creditsUsed"],
+                "match": updated_metadata.get("match") or {},
+                "linkedinScraped": False,
+                "contactDataIncluded": bool((mapped.get("contact") or {}).get("primaryEmail")),
+            }
+        )
+        return result
+
+    try:
+        response = peopleDataLabs.enrichPerson(
+            profile=profile_url,
+            name=name if not profile_url else "",
+            locality=_external_text(location.get("locality"), 100) if not profile_url else "",
+            region=_external_text(location.get("region"), 100) if not profile_url else "",
+            country=_external_text(location.get("country"), 100) if not profile_url else "",
+            min_likelihood=8,
+            required="linkedin_url",
+        )
+    except peopleDataLabs.PeopleDataLabsError as exc:
+        provider_status = int(exc.status_code or 502)
+        status_code = provider_status if provider_status in {400, 401, 402, 403, 429, 503} else 502
+        raise HTTPException(status_code=status_code, detail=f"TEMP profile enrichment failed: {str(exc)}") from exc
+
+    if response.get("status") != 200 or not isinstance(response.get("data"), dict):
+        raise HTTPException(
+            status_code=404,
+            detail="People Data Labs could not find a LinkedIn-linked professional profile for this TEMP record.",
+        )
+
+    mapped = _people_data_row(response["data"], job_skills, scoring_skills, criteria)
+    returned_name = _external_text(mapped.get("name"), 160)
+    try:
+        likelihood = max(0, min(int(response.get("likelihood") or 0), 10))
+    except (TypeError, ValueError):
+        likelihood = 0
+    matched_profile_url = _external_text(mapped.get("profile_url"), 500)
+    if not (_person_names_align(name, returned_name) and likelihood >= 8 and matched_profile_url):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "PDL returned a possible record, but it did not meet the exact-name, LinkedIn-link, "
+                "and identity-likelihood threshold. The TEMP profile was not changed."
+            ),
+        )
+
+    enriched_at = datetime.now(timezone.utc).isoformat()
+    enrichment = {
+        "status": "completed",
+        "provider": "People Data Labs Person Enrichment",
+        "enrichedAt": enriched_at,
+        "likelihood": likelihood,
+        "creditsUsed": 1,
+        "profileVersion": 2,
+        "contactFieldsRequested": True,
+        "matchedInput": "profile_url" if profile_url else "name_location",
+        "linkedinMode": "Provider dataset lookup only; LinkedIn was not scraped.",
+    }
+    updated_metadata = {
+        **current_metadata,
+        "profileUrl": matched_profile_url,
+        "enrichment": enrichment,
+        "contact": mapped.get("contact") if isinstance(mapped.get("contact"), dict) else {},
+        "providerSkills": _external_candidate_skills(mapped),
+        "yearsExperience": mapped.get("years_experience") or 0,
+        "lastVerified": _external_text(mapped.get("job_last_verified"), 80),
+        "education": _external_education(mapped),
+        "certifications": _external_certifications(mapped),
+        "professionalEvidence": _external_professional_evidence(mapped),
+        "professionalDetails": _external_professional_details(mapped),
+    }
+    if jd_id:
+        updated_metadata["match"] = {
+            "score": mapped.get("score") or 0,
+            "band": _external_text(mapped.get("match_band"), 80),
+            "formula": _external_text((mapped.get("score_details") or {}).get("formula"), 300),
+            "matched": _safe_list(mapped.get("top_matches"))[:12],
+            "missing": _safe_list((mapped.get("score_details") or {}).get("missing"))[:10],
+            "matchedCount": (mapped.get("score_details") or {}).get("matched_count") or len(_safe_list(mapped.get("top_matches"))),
+            "requiredCount": (mapped.get("score_details") or {}).get("required_count") or len(scoring_skills),
+            "components": (mapped.get("score_details") or {}).get("components") if isinstance((mapped.get("score_details") or {}).get("components"), dict) else {},
+            "jobId": jd_id,
+            "rematchedAt": enriched_at,
+        }
+    mapped["portfolio"] = _external_portfolio(mapped)
+    result = candidates.applyTemporaryExternalProfileEnrichment(
+        person_id,
+        domain,
+        mapped,
+        updated_metadata,
+    )
+    result.update(
+        {
+            "reused": False,
+            "creditsUsed": 1,
+            "match": updated_metadata.get("match") or {},
+            "linkedinScraped": False,
+        }
+    )
+    return result
+
 
 @router.post("/external/temp/{person_id}/make-permanent")
 def external_candidate_make_permanent(person_id: str):

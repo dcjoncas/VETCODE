@@ -7,10 +7,20 @@ import azureUtils.storage.processingFunctions as processing
 from azureUtils.storage.jobs import getJob
 from jd_match import azureJobMatch
 from openAI import engineeringSurvey
+from urllib.parse import urlparse
 
 _COUNT_CACHE_TTL_SECONDS = 30
 _count_candidates_all_cache = {}
 _EXTERNAL_PROFILE_META_MARKER = "\nVETCODE_EXTERNAL_PROFILE_META:"
+
+
+def _is_linkedin_profile_url(value) -> bool:
+    raw = str(value or "").strip()
+    if not raw:
+        return False
+    parsed = urlparse(raw if "://" in raw else f"https://{raw}")
+    host = str(parsed.hostname or "").lower()
+    return host == "linkedin.com" or host.endswith(".linkedin.com")
 
 
 def attachExternalProfileMetadata(description: str, metadata: dict | None = None) -> str:
@@ -1738,7 +1748,7 @@ def findTemporaryExternalProfile(domain: str = "dev", source_id: str = "", profi
 
 def listTemporaryExternalProfiles(domain: str = "dev", limit: int = 50):
     try:
-        safe_limit = max(1, min(int(limit), 200))
+        safe_limit = max(1, min(int(limit), 500))
     except Exception:
         safe_limit = 50
 
@@ -1763,6 +1773,7 @@ def listTemporaryExternalProfiles(domain: str = "dev", limit: int = 50):
                 address.city,
                 address.state,
                 address.country,
+                prof.linkedinurl,
                 prof.modifieddate
             FROM person
             JOIN professional prof ON person.id = prof.personid
@@ -1785,18 +1796,255 @@ def listTemporaryExternalProfiles(domain: str = "dev", limit: int = 50):
             elif marker in description:
                 source = description.split(marker, 1)[1].split(".", 1)[0].strip() or source
             location = ", ".join([part for part in [row[6], row[7], row[8]] if part])
+            stored_profile_url = str(external_profile.get("profileUrl") or row[9] or "").strip()
+            if stored_profile_url.lower() == "n/a":
+                stored_profile_url = ""
+            enrichment = external_profile.get("enrichment") or {}
+            contact = external_profile.get("contact") or {}
+            stored_email = str(row[3] or contact.get("primaryEmail") or "").strip()
+            stored_phone = str(contact.get("primaryPhone") or "").strip()
+            enrichment_provider = str(enrichment.get("provider") or "")
+            linked_in_enriched = (
+                enrichment.get("status") == "completed"
+                and (
+                    "people data labs" in enrichment_provider.lower()
+                    or "coresignal" in enrichment_provider.lower()
+                )
+                and _is_linkedin_profile_url(stored_profile_url)
+            )
+            match = external_profile.get("match") or {}
             profiles.append({
                 "personid": row[0],
                 "name": f"{row[1] or ''} {row[2] or ''}".strip() or "Temporary Profile",
-                "email": row[3] or "",
+                "email": stored_email,
+                "phone": stored_phone,
                 "title": row[4] or "",
                 "source": source,
                 "location": location,
-                "updated": row[9].isoformat() if row[9] else "",
-                "enrichmentStatus": (external_profile.get("enrichment") or {}).get("status", ""),
-                "matchScore": (external_profile.get("match") or {}).get("score"),
+                "profileUrl": stored_profile_url,
+                "hasProfessionalProfile": bool(stored_profile_url),
+                "updated": row[10].isoformat() if row[10] else "",
+                "enrichmentStatus": enrichment.get("status", ""),
+                "enrichmentProvider": enrichment_provider,
+                "enrichmentVersion": enrichment.get("profileVersion") or 1,
+                "enrichmentLikelihood": enrichment.get("likelihood"),
+                "linkedInEnriched": linked_in_enriched,
+                "matchScore": match.get("score"),
+                "matchBand": match.get("band", ""),
+                "matchJobId": match.get("jobId", ""),
+                "matchMatched": match.get("matched") or [],
+                "matchMissing": match.get("missing") or [],
+                "matchRequiredCount": match.get("requiredCount") or (match.get("components") or {}).get("required_count"),
             })
         return {"status": "success", "profiles": profiles}
+    finally:
+        conn.close()
+
+
+def listLinkedInEnrichedTemporaryProfiles(domain: str = "dev", limit: int = 500):
+    profiles = listTemporaryExternalProfiles(domain, limit).get("profiles") or []
+    return [profile for profile in profiles if profile.get("linkedInEnriched") is True]
+
+
+def getTemporaryExternalProfileForEnrichment(personId: str, domain: str = "dev"):
+    try:
+        person_id = int(personId)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid profile id.")
+
+    conn = client.getConnection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            SELECT
+                person.id,
+                person.firstname,
+                person.lastname,
+                prof.id,
+                prof.title,
+                prof.email,
+                prof.linkedinurl,
+                prof.maindescription,
+                address.city,
+                address.state,
+                address.country
+            FROM person
+            JOIN professional prof ON person.id = prof.personid
+            LEFT JOIN address ON person.id = address.personid
+            WHERE person.id = %s AND person.domain = %s
+            ORDER BY prof.modifieddate DESC NULLS LAST, prof.id DESC, address.id DESC NULLS LAST
+            LIMIT 1
+            """,
+            (person_id, domain),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Temporary profile not found in this environment.")
+        clean_description, metadata = splitExternalProfileDescription(row[7])
+        if "Temporary external profile" not in clean_description:
+            raise HTTPException(status_code=400, detail="Profile is already permanent.")
+        profile_url = str(metadata.get("profileUrl") or row[6] or "").strip()
+        if profile_url.lower() == "n/a":
+            profile_url = ""
+        return {
+            "personid": row[0],
+            "name": f"{row[1] or ''} {row[2] or ''}".strip() or "Temporary Profile",
+            "title": row[4] or "",
+            "email": row[5] or "",
+            "profileUrl": profile_url,
+            "description": clean_description,
+            "location": {
+                "locality": row[8] or "",
+                "region": row[9] or "",
+                "country": row[10] or "",
+            },
+            "externalProfile": metadata,
+        }
+    finally:
+        conn.close()
+
+
+def applyTemporaryExternalProfileEnrichment(
+    personId: str,
+    domain: str,
+    candidate: dict,
+    metadata: dict,
+):
+    try:
+        person_id = int(personId)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid profile id.")
+
+    candidate = candidate if isinstance(candidate, dict) else {}
+    conn = client.getConnection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            SELECT
+                person.firstname,
+                person.lastname,
+                prof.id,
+                prof.title,
+                prof.linkedinurl,
+                prof.maindescription,
+                profper.id
+            FROM person
+            JOIN professional prof ON person.id = prof.personid
+            LEFT JOIN professionalprofile profper ON prof.id = profper.professionalid
+            WHERE person.id = %s AND person.domain = %s
+            ORDER BY prof.modifieddate DESC NULLS LAST, prof.id DESC, profper.id DESC NULLS LAST
+            LIMIT 1
+            """,
+            (person_id, domain),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Temporary profile not found in this environment.")
+        clean_description, current_metadata = splitExternalProfileDescription(row[5])
+        if "Temporary external profile" not in clean_description:
+            raise HTTPException(status_code=400, detail="Profile is already permanent.")
+
+        merged_metadata = {**current_metadata, **(metadata if isinstance(metadata, dict) else {})}
+        summary = str(candidate.get("summary") or "").strip()[:1600]
+        enriched_description = clean_description
+        if summary and summary.lower() not in clean_description.lower():
+            enrichment_provider = str((merged_metadata.get("enrichment") or {}).get("provider") or "Provider")
+            enriched_description = f"{clean_description}\n\n{enrichment_provider} summary: {summary}"
+        enriched_description = attachExternalProfileMetadata(enriched_description, merged_metadata)
+        title = str(candidate.get("title") or row[3] or "").strip()[:200]
+        profile_url = str(candidate.get("profile_url") or row[4] or "").strip()[:500]
+        email = str(candidate.get("email") or "").strip()[:320]
+        cur.execute(
+            """
+            UPDATE professional
+            SET title = %s,
+                email = COALESCE(NULLIF(%s, ''), email),
+                linkedinurl = %s,
+                maindescription = %s,
+                modifieddate = NOW()
+            WHERE id = %s
+            """,
+            (title, email, profile_url or None, enriched_description, row[2]),
+        )
+
+        location_data = (
+            candidate.get("profile_data", {}).get("location", {})
+            if isinstance(candidate.get("profile_data"), dict)
+            and isinstance(candidate.get("profile_data", {}).get("location"), dict)
+            else {}
+        )
+        if any(str(location_data.get(key) or "").strip() for key in ("locality", "region", "country")):
+            cur.execute(
+                """
+                UPDATE address
+                SET city = COALESCE(NULLIF(%s, ''), city),
+                    state = COALESCE(NULLIF(%s, ''), state),
+                    country = COALESCE(NULLIF(%s, ''), country)
+                WHERE personid = %s
+                """,
+                (
+                    str(location_data.get("locality") or "").strip()[:120],
+                    str(location_data.get("region") or "").strip()[:120],
+                    str(location_data.get("country") or "").strip()[:120],
+                    person_id,
+                ),
+            )
+
+        profile_id = row[6]
+        if profile_id:
+            skills = candidate.get("skills") if isinstance(candidate.get("skills"), list) else []
+            if skills:
+                cur.execute("DELETE FROM resumeskill WHERE profileid = %s", (profile_id,))
+                cur.execute("DELETE FROM professionalskill WHERE profileid = %s", (profile_id,))
+                seen_skills = set()
+                for value in skills[:30]:
+                    skill_title = str(value or "").strip()[:100]
+                    skill_key = skill_title.lower()
+                    if not skill_title or skill_key in seen_skills:
+                        continue
+                    seen_skills.add(skill_key)
+                    skill_id = _resolve_skill_id(cur, skill_title)
+                    if not skill_id:
+                        continue
+                    _sync_identity_sequence(cur, "resumeskill")
+                    cur.execute(
+                        "INSERT INTO resumeskill (profileid, skillid) VALUES (%s, %s)",
+                        (profile_id, skill_id),
+                    )
+                    _sync_identity_sequence(cur, "professionalskill")
+                    cur.execute(
+                        "INSERT INTO professionalskill (profileid, skillid, years) VALUES (%s, %s, %s)",
+                        (profile_id, skill_id, 1),
+                    )
+
+            portfolio = candidate.get("portfolio") if isinstance(candidate.get("portfolio"), list) else []
+            if portfolio:
+                cur.execute("SELECT id FROM professionalexperience WHERE profileid = %s", (profile_id,))
+                experience_ids = [item[0] for item in cur.fetchall()]
+                if experience_ids:
+                    cur.execute("DELETE FROM portfolioskill WHERE professionalexperienceid = ANY(%s)", (experience_ids,))
+                    cur.execute("DELETE FROM portfoliofeature WHERE professionalexperienceid = ANY(%s)", (experience_ids,))
+                    cur.execute("DELETE FROM professionalexperience WHERE id = ANY(%s)", (experience_ids,))
+                for experience in portfolio[:8]:
+                    if isinstance(experience, dict):
+                        _insert_portfolio_experience(cur, profile_id, experience)
+
+        conn.commit()
+        return {
+            "status": "success",
+            "personid": person_id,
+            "name": f"{row[0] or ''} {row[1] or ''}".strip() or "Temporary Profile",
+            "profileUrl": profile_url,
+            "enrichment": merged_metadata.get("enrichment") or {},
+        }
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to enrich temporary profile: {e}")
     finally:
         conn.close()
 

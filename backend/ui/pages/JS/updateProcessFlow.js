@@ -23,3 +23,17 @@ function updateJob() {
         document.getElementById("jobSelected").innerText = "No Job Selected";
     }
 }
+
+function updateAtlasClient() {
+    const domain = sessionStorage.getItem("domain") || "dev";
+    const target = document.getElementById("clientSelected");
+    if (!target) return;
+    try {
+        const client = JSON.parse(sessionStorage.getItem(`atlasSourcingClient:${domain}`) || "null");
+        target.innerText = client && client.name
+            ? `Atlas Client: ${client.name}`
+            : "No Atlas Client Attached";
+    } catch {
+        target.innerText = "No Atlas Client Attached";
+    }
+}

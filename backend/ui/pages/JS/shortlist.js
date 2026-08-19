@@ -154,33 +154,43 @@
       target.innerHTML = `<div class="notice">No candidates selected yet. Check 2-3 matches, then add them to the shortlist.</div>`;
       return;
     }
+    const activeId = String(sessionStorage.getItem("candidateId") || "");
     target.innerHTML = `
       <div class="shortlist-tray-head">
         <div>
           <h2>Selected candidate shortlist</h2>
-          <p>These candidates now move together through profile review, chat, client comms, interviews, and status.</p>
+          <p>These candidates move together through review. Select one as active to load that person into the header and the next profile, chat, and workflow actions.</p>
         </div>
         <span class="pill">${rows.length} selected</span>
       </div>
       <div class="shortlist-sections">
         ${rows
           .map(
-            (item, index) => `
+            (item, index) => {
+              const isActive = String(item.id) === activeId;
+              const statusLabel = item.status || item.stage || "Selected";
+              const profileTypeLabel =
+                item.profileType && String(item.profileType).toLowerCase() !== String(statusLabel).toLowerCase()
+                  ? item.profileType
+                  : "";
+              return `
               <div class="shortlist-section">
-                <div class="shortlist-section-title">Section ${index + 1}</div>
+                <div class="shortlist-section-title">Candidate ${index + 1}</div>
                 <strong>${escapeHtml(item.name)}</strong>
                 <div class="muted">${escapeHtml(item.email || item.title || "No email listed")}</div>
                 <div class="pills">
                   ${item.score !== "" && item.score !== undefined ? `<span class="pill">${escapeHtml(item.score)}% match</span>` : ""}
-                  <span class="pill">${escapeHtml(item.status || item.stage || "Selected")}</span>
-                  ${item.profileType ? `<span class="pill">${escapeHtml(item.profileType)}</span>` : ""}
+                  <span class="pill">${escapeHtml(statusLabel)}</span>
+                  ${profileTypeLabel ? `<span class="pill">${escapeHtml(profileTypeLabel)}</span>` : ""}
+                  ${isActive ? '<span class="pill">Active candidate</span>' : ""}
                 </div>
                 <div class="row-actions" style="margin-top:8px">
-                  <button class="btn secondary" type="button" onclick="DevReadyShortlist.activate('${escapeHtml(item.id)}')">Use</button>
+                  <button class="btn secondary" type="button" onclick="DevReadyShortlist.activate('${escapeHtml(item.id)}')" ${isActive ? "disabled" : ""} aria-label="${isActive ? "Active candidate" : `Select ${escapeHtml(item.name)} as active candidate`}">${isActive ? "Active" : "Set active"}</button>
                   <button class="btn secondary" type="button" onclick="DevReadyShortlist.remove('${escapeHtml(item.id)}')">Remove</button>
                 </div>
               </div>
-            `,
+            `;
+            },
           )
           .join("")}
       </div>
@@ -190,7 +200,14 @@
   function activate(id) {
     const details = readDetails();
     const item = details[String(id)];
-    if (item) setActive(item);
+    if (!item) return;
+    const approved = confirm(
+      `Set ${item.name || "this candidate"} as the active candidate? This updates the workspace header and makes this profile the candidate used by the next review, chat, and workflow actions.`,
+    );
+    if (!approved) return;
+    setActive(item);
+    render();
+    alert(`${item.name || "Candidate"} is now active.`);
   }
 
   window.DevReadyShortlist = {

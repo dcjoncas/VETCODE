@@ -23,6 +23,7 @@ PDL_SEARCH_FIELDS = ",".join(
         "job_title",
         "job_company_name",
         "job_last_verified",
+        "job_start_date",
         "job_summary",
         "location_name",
         "location_locality",
@@ -33,13 +34,34 @@ PDL_SEARCH_FIELDS = ",".join(
         "skills",
         "experience.title",
         "experience.company.name",
+        "experience.company.linkedin_url",
+        "experience.location_names",
+        "experience.is_primary",
         "experience.start_date",
         "experience.end_date",
         "experience.summary",
         "education.school.name",
         "education.degrees",
+        "education.majors",
+        "education.start_date",
+        "education.end_date",
         "certifications",
         "github_url",
+    ]
+)
+PDL_ENRICH_FIELDS = ",".join(
+    [
+        PDL_SEARCH_FIELDS,
+        "work_email",
+        "recommended_personal_email",
+        "personal_emails",
+        "emails.address",
+        "emails.type",
+        "emails.last_seen",
+        "mobile_phone",
+        "phone_numbers",
+        "phones.number",
+        "phones.last_seen",
     ]
 )
 
@@ -182,7 +204,7 @@ def enrichPerson(
     params: dict[str, Any] = {
         "titlecase": True,
         "include_if_matched": True,
-        "data_include": PDL_SEARCH_FIELDS,
+        "data_include": PDL_ENRICH_FIELDS,
     }
     if clean_id:
         params["pdl_id"] = clean_id

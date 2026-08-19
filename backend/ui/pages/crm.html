@@ -1490,8 +1490,8 @@
     </style>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html?v=20260522-egeria-pilot");
-        $("#processFlow").load("components/processFlow.html");
+        $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow");
+        $("#processFlow").load("components/processFlow.html?v=20260818-talent-jd-flow");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -2951,6 +2951,32 @@
         document.getElementById("crmStrengthValue").textContent = fields.strength.value;
       }
 
+      function focusRequestedAtlasClient() {
+        const params = new URLSearchParams(window.location.search);
+        const requestedId = String(params.get("atlasClientId") || "").trim().toLowerCase();
+        const requestedName = String(params.get("client") || "").trim().toLowerCase();
+        if (!requestedId && !requestedName) return;
+        const record = crmRecords().find((item) => {
+          const id = String(item.id || "").trim().toLowerCase();
+          const name = String(item.customer || "").trim().toLowerCase();
+          return (requestedId && id === requestedId) || (requestedName && name === requestedName);
+        });
+        if (!record) {
+          document.getElementById("crmStatus").textContent = "The attached Atlas client was not found in this domain.";
+          return;
+        }
+        const search = document.getElementById("crmCardSearchInput");
+        crmCardSearchQuery = record.customer || "";
+        if (search) search.value = crmCardSearchQuery;
+        renderCrm();
+        const briefing = document.getElementById("briefingCustomerSelect");
+        if (briefing && [...briefing.options].some((option) => option.value === record.customer)) {
+          briefing.value = record.customer;
+        }
+        document.getElementById("crmStatus").textContent = `${record.customer || "Atlas client"} opened from the sourcing process.`;
+        window.setTimeout(() => openDealDetail(record.id), 0);
+      }
+
       function useCrmRecord(id) {
         const record = crmRecords().find((item) => item.id === id);
         if (!record) return;
@@ -3942,6 +3968,7 @@
         hydrateFromUrl();
         renderCrm();
         hydrateBriefingCustomerOptions();
+        focusRequestedAtlasClient();
         document.getElementById("saveCrmBtn").addEventListener("click", saveCrmRecord);
         document.getElementById("scanCrmBtn").addEventListener("click", scanCurrentForm);
         document.getElementById("touchCrmBtn").addEventListener("click", touchCurrentForm);

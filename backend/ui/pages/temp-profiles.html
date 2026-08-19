@@ -1,0 +1,585 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - TEMP Profiles</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law", "dental"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        document.getElementById("domainCss").href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <style>
+      .section-head,
+      .temp-toolbar,
+      .row-actions,
+      .context-line {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .section-head h2,
+      .section-head h3 {
+        margin: 0 0 4px;
+      }
+
+      .section-head p {
+        margin: 0;
+      }
+
+      .temp-toolbar {
+        align-items: center;
+        justify-content: flex-start;
+        margin-top: 14px;
+      }
+
+      .workflow-context {
+        margin: 12px 0;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface, #f7f8fa);
+      }
+
+      .temp-profile-list {
+        margin-top: 10px;
+      }
+
+      .temp-profile-row {
+        display: grid;
+        grid-template-columns: 28px minmax(220px, 1.35fr) minmax(190px, 0.9fr) minmax(300px, auto);
+        gap: 14px;
+        align-items: center;
+        padding: 14px 0;
+        border-top: 1px solid var(--border);
+      }
+
+      .temp-profile-row:first-child {
+        border-top: 0;
+      }
+
+      .temp-profile-check {
+        width: 18px;
+        height: 18px;
+      }
+
+      .temp-profile-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .profile-contact,
+      .profile-source {
+        display: grid;
+        gap: 5px;
+      }
+
+      .linkedin-enriched-pill {
+        background: #eaf7ef;
+        border-color: #8ec7a3;
+        color: #146b37;
+      }
+
+      .linkedin-results-panel {
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+      }
+
+      .linkedin-results-table-wrap {
+        margin-top: 10px;
+        overflow-x: auto;
+      }
+
+      .linkedin-results-table {
+        width: 100%;
+        min-width: 920px;
+        border-collapse: collapse;
+      }
+
+      .linkedin-results-table th,
+      .linkedin-results-table td {
+        padding: 9px 10px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .linkedin-results-table th {
+        background: var(--primary-2);
+        color: #fff;
+      }
+
+      @media (max-width: 1080px) {
+        .temp-profile-row {
+          grid-template-columns: 28px minmax(0, 1fr);
+        }
+
+        .profile-source,
+        .temp-profile-actions {
+          grid-column: 2;
+          justify-content: flex-start;
+        }
+      }
+    </style>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow");
+        $("#processFlow").load("components/processFlow.html?v=20260818-talent-jd-flow");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title" id="pageTitle">TEMP Profiles</div>
+            <div class="breadcrumb">Vetting Process - Saved external profiles</div>
+          </div>
+          <div id="searchBar"></div>
+        </div>
+
+        <div id="processFlow"></div>
+        <div id="atlasClientContext" data-atlas-client-context></div>
+
+        <section class="card" aria-labelledby="tempProfilesTitle">
+          <div class="section-head">
+            <div>
+              <h2 id="tempProfilesTitle">TEMP Profiles</h2>
+              <p class="muted">
+                This is the persistent review library for the current domain. Starting over clears the active workflow, but it does not delete these saved records.
+              </p>
+            </div>
+            <a class="btn secondary" href="mine-candidate-external.html">Back to Find Candidates (Out)</a>
+          </div>
+
+          <div class="workflow-context" id="workflowContext"></div>
+
+          <div class="temp-toolbar">
+            <button class="btn primary" id="btnEnrichTempSelected" type="button" disabled>Enrich checked TEMP profiles</button>
+            <span id="selectedTempProfileCount" class="pill">0 / 5 selected</span>
+            <button class="btn secondary" id="btnViewLinkedInResults" type="button">View LinkedIn results</button>
+            <button class="btn secondary" id="btnRefreshTempProfiles" type="button">Refresh TEMP Profiles</button>
+          </div>
+
+          <div id="providerStatus" class="muted" style="margin-top: 10px"></div>
+          <div id="tempProfileStatus" class="notice" style="margin-top: 10px" aria-live="polite">
+            Loading TEMP profiles...
+          </div>
+          <div id="tempProfileList" class="temp-profile-list"></div>
+
+          <section id="linkedinResultsPanel" class="linkedin-results-panel" aria-labelledby="linkedinResultsTitle" hidden>
+            <div class="section-head">
+              <div>
+                <h3 id="linkedinResultsTitle">LinkedIn-enriched TEMP results</h3>
+                <p class="muted">Provider-reported contact details require verification before outreach.</p>
+              </div>
+              <button class="btn primary" id="btnExportLinkedInResults" type="button" disabled>Export to Excel</button>
+            </div>
+            <div id="linkedinResultsStatus" class="notice"></div>
+            <div class="linkedin-results-table-wrap">
+              <table class="linkedin-results-table">
+                <thead>
+                  <tr>
+                    <th>Name</th><th>Title</th><th>Email</th><th>Phone</th><th>Current match</th><th>Source</th><th>LinkedIn</th>
+                  </tr>
+                </thead>
+                <tbody id="linkedinResultsBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="JS/apiScripts.js"></script>
+    <script src="JS/updateProcessFlow.js"></script>
+    <script src="JS/shortlist.js"></script>
+    <script src="JS/atlasClientContext.js"></script>
+    <script>
+      let latestTempProfiles = [];
+      let externalProviderStatus = {};
+
+      function currentDomain() {
+        return sessionStorage.getItem("domain") || "dev";
+      }
+
+      function currentJobId() {
+        return sessionStorage.getItem("jobID")
+          || sessionStorage.getItem("jobId")
+          || sessionStorage.getItem("jdId")
+          || sessionStorage.getItem("selectedJdId")
+          || "";
+      }
+
+      function currentJobLabel() {
+        return [sessionStorage.getItem("jobCompany"), sessionStorage.getItem("jobTitle")]
+          .filter(Boolean)
+          .join(" - ") || currentJobId();
+      }
+
+      function isLawDomain() {
+        return currentDomain() === "law";
+      }
+
+      function safeHttpUrl(value) {
+        try {
+          const url = new URL(String(value || ""));
+          return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+        } catch (_error) {
+          return "";
+        }
+      }
+
+      function profileById(personId) {
+        return latestTempProfiles.find((profile) => String(profile.personid) === String(personId));
+      }
+
+      function profileMatchesCurrentJob(profile = {}) {
+        const jobId = currentJobId();
+        return Boolean(jobId && profile.matchJobId && String(profile.matchJobId) === String(jobId));
+      }
+
+      function matchLabel(profile = {}) {
+        const score = profile.matchScore === null || profile.matchScore === "" ? Number.NaN : Number(profile.matchScore);
+        const matchedCount = Array.isArray(profile.matchMatched) ? profile.matchMatched.length : 0;
+        const requiredCount = Number(profile.matchRequiredCount || 0);
+        if (!currentJobId()) return "No active JD - enrich now or choose a JD before rematching";
+        if (!profileMatchesCurrentJob(profile)) return "Not matched to the current JD";
+        return Number.isFinite(score)
+          ? `${Math.round(score)}% current-job match${requiredCount ? ` (${matchedCount}/${requiredCount} JD signals)` : ""}`
+          : "Current JD saved - not yet scored";
+      }
+
+      function renderWorkflowContext() {
+        const jobId = currentJobId();
+        const context = document.getElementById("workflowContext");
+        context.innerHTML = jobId
+          ? `<div class="context-line"><div><strong>Active sourcing job:</strong> ${escapeHtml(currentJobLabel())}</div><span class="pill">JD ${escapeHtml(jobId)}</span></div><div class="muted" style="margin-top:5px">Only scores tied to this JD are shown as current. Check profiles and enrich them to rematch against this job.</div>`
+          : `<strong>No active sourcing job.</strong><div class="muted" style="margin-top:5px">The TEMP library is still available, but no old match score will be treated as current. Select a JD in Talent or Find Out before rematching.</div>`;
+        const button = document.getElementById("btnEnrichTempSelected");
+        button.textContent = jobId ? "Enrich checked and rematch to current JD" : "Enrich checked TEMP profiles";
+      }
+
+      async function loadProviderStatus() {
+        try {
+          const response = await api("/api/azureJobs/external/providers");
+          externalProviderStatus = response.providers || {};
+          const ready = [externalProviderStatus.coresignal, externalProviderStatus.pdl]
+            .filter((provider) => provider?.ready)
+            .map((provider) => provider.label);
+          document.getElementById("providerStatus").textContent = ready.length
+            ? `Professional enrichment available through ${ready.join(" and ")}. VETCODE uses licensed provider data and does not scrape LinkedIn.`
+            : "Professional enrichment needs a configured Coresignal or People Data Labs key.";
+        } catch (error) {
+          document.getElementById("providerStatus").textContent = `Provider status unavailable: ${error.message || error}`;
+        }
+        updateTempProfileSelection();
+      }
+
+      function isRichTempProfile(profile = {}) {
+        const provider = String(profile.enrichmentProvider || "").toLowerCase();
+        return profile.enrichmentStatus === "completed"
+          && Number(profile.enrichmentVersion || 1) >= 2
+          && (provider.includes("people data labs") || provider.includes("coresignal"));
+      }
+
+      function tempEnrichmentProvider(profile = {}) {
+        if (isRichTempProfile(profile)) return "reused";
+        const isCoresignal = String(profile.source || "").toLowerCase().includes("coresignal");
+        if (isCoresignal && externalProviderStatus.coresignal?.ready === true) return "coresignal";
+        if (externalProviderStatus.pdl?.ready === true) return "pdl";
+        return "";
+      }
+
+      function renderTempProfiles(profiles) {
+        latestTempProfiles = Array.isArray(profiles) ? profiles : [];
+        const list = document.getElementById("tempProfileList");
+        document.getElementById("tempProfileStatus").textContent = latestTempProfiles.length
+          ? `${latestTempProfiles.length} saved TEMP profile${latestTempProfiles.length === 1 ? "" : "s"} in the ${currentDomain()} domain.`
+          : `No saved TEMP profiles were found in the ${currentDomain()} domain.`;
+        list.innerHTML = latestTempProfiles.map((profile) => {
+          const personId = String(profile.personid || "").replace(/[^0-9-]/g, "");
+          const profileUrl = safeHttpUrl(profile.profileUrl);
+          const profileHost = profileUrl ? new URL(profileUrl).hostname.toLowerCase() : "";
+          const isLinkedIn = profileHost === "linkedin.com" || profileHost.endsWith(".linkedin.com");
+          const indicator = profile.linkedInEnriched
+            ? '<span class="pill linkedin-enriched-pill">✓ LinkedIn-enriched</span>'
+            : profileUrl
+              ? '<span class="pill">Professional link stored</span>'
+              : '<span class="pill">Professional link not stored</span>';
+          return `<article class="temp-profile-row" data-person-id="${escapeHtml(personId)}">
+            <input class="temp-profile-check" type="checkbox" data-person-id="${escapeHtml(personId)}" aria-label="Select ${escapeHtml(profile.name || "Temporary Profile")} for enrichment" />
+            <div class="profile-contact">
+              <strong>${escapeHtml(profile.name || "Temporary Profile")}</strong>
+              <span class="muted">${escapeHtml(profile.title || "External candidate")}${profile.location ? ` - ${escapeHtml(profile.location)}` : ""}</span>
+              <span class="muted">Email: ${escapeHtml(profile.email || "Not returned")}</span>
+              <span class="muted">Phone: ${escapeHtml(profile.phone || "Not returned")}</span>
+            </div>
+            <div class="profile-source muted">
+              <span>${escapeHtml(profile.source || "External")}</span>
+              <strong>${escapeHtml(matchLabel(profile))}</strong>
+              <span>${indicator}</span>
+            </div>
+            <div class="temp-profile-actions">
+              <button class="btn primary" type="button" onclick="useTempProfile('${escapeHtml(personId)}')">Use in current process</button>
+              <button class="btn secondary" type="button" onclick="reviewTempProfile('${escapeHtml(personId)}')">Review profile</button>
+              ${profileUrl ? `<a class="btn secondary" href="${escapeHtml(profileUrl)}" target="_blank" rel="noopener">${isLinkedIn ? "Open LinkedIn" : "Open professional profile"}</a>` : ""}
+              <button class="btn secondary" type="button" onclick="makeTempPermanent('${escapeHtml(personId)}')">Make permanent</button>
+              <button class="btn danger" type="button" onclick="deleteTempProfile('${escapeHtml(personId)}')">Delete</button>
+            </div>
+          </article>`;
+        }).join("");
+        document.querySelectorAll(".temp-profile-check").forEach((input) => {
+          input.addEventListener("change", () => updateTempProfileSelection(input));
+        });
+        updateTempProfileSelection();
+        renderLinkedInResults();
+      }
+
+      function selectedTempProfileIds() {
+        return [...document.querySelectorAll(".temp-profile-check:checked")]
+          .map((input) => String(input.dataset.personId || ""))
+          .filter((personId) => Boolean(profileById(personId)));
+      }
+
+      function updateTempProfileSelection(changedInput) {
+        let selected = selectedTempProfileIds();
+        if (selected.length > 5 && changedInput) {
+          changedInput.checked = false;
+          alert("Select no more than five TEMP profiles for enrichment.");
+          selected = selectedTempProfileIds();
+        }
+        document.getElementById("selectedTempProfileCount").textContent = `${selected.length} / 5 selected`;
+        const selectedProfiles = selected.map(profileById).filter(Boolean);
+        const allSupported = selectedProfiles.every((profile) => Boolean(tempEnrichmentProvider(profile)));
+        const button = document.getElementById("btnEnrichTempSelected");
+        button.disabled = !selected.length || !allSupported;
+        button.title = allSupported
+          ? "Enrich selected records and rematch them when a job description is active"
+          : "A Coresignal or People Data Labs key is required for one or more selected records";
+      }
+
+      async function loadTempProfiles() {
+        document.getElementById("tempProfileStatus").textContent = `Loading TEMP profiles for ${currentDomain()}...`;
+        try {
+          const response = await api(`/api/azureJobs/external/temp?domain=${encodeURIComponent(currentDomain())}&limit=500`);
+          renderTempProfiles(response.profiles || []);
+        } catch (error) {
+          document.getElementById("tempProfileStatus").textContent = error.message || String(error);
+        }
+      }
+
+      function setActiveTempProfile(profile) {
+        const personId = String(profile.personid);
+        sessionStorage.setItem("candidateId", personId);
+        sessionStorage.setItem("candidateName", profile.name || "Temporary Profile");
+        sessionStorage.setItem("candidateEmail", profile.email || "");
+        sessionStorage.setItem("candidateStatus", "Temporary Profile");
+        sessionStorage.setItem("candidateProfileType", "Temporary Profile");
+        sessionStorage.setItem("candidateDomain", currentDomain());
+        sessionStorage.setItem("externalCandidateSource", profile.source || "External");
+        if (profileMatchesCurrentJob(profile) && Array.isArray(profile.matchMatched)) {
+          sessionStorage.setItem("candidateTopMatches", profile.matchMatched.join(", "));
+        } else {
+          sessionStorage.removeItem("candidateTopMatches");
+        }
+        const temporaryProfiles = JSON.parse(sessionStorage.getItem("temporaryProfiles") || "{}");
+        temporaryProfiles[personId] = {
+          source: profile.source || "External",
+          name: profile.name || "Temporary Profile",
+          selectedAt: new Date().toISOString(),
+        };
+        sessionStorage.setItem("temporaryProfiles", JSON.stringify(temporaryProfiles));
+      }
+
+      function reviewTempProfile(personId) {
+        const profile = profileById(personId);
+        if (!profile) return alert("That TEMP profile is no longer available. Refresh the list.");
+        setActiveTempProfile(profile);
+        window.location.href = `profile-preview.html?domain=${encodeURIComponent(currentDomain())}`;
+      }
+
+      function useTempProfile(personId) {
+        const profile = profileById(personId);
+        if (!profile) return alert("That TEMP profile is no longer available. Refresh the list.");
+        const matchWarning = currentJobId() && !profileMatchesCurrentJob(profile)
+          ? " This profile has not been matched to the current JD yet."
+          : "";
+        if (!confirm(`Use ${profile.name || "this TEMP profile"} in the current process? This makes the person active and adds them to the shortlist.${matchWarning}`)) return;
+        setActiveTempProfile(profile);
+        window.DevReadyShortlist.add({
+          id: profile.personid,
+          name: profile.name,
+          title: profile.title,
+          email: profile.email,
+          status: "Temporary Profile",
+          profileType: "Temporary Profile",
+          source: profile.source || "External",
+          score: profileMatchesCurrentJob(profile) ? profile.matchScore : "",
+          top_matches: profileMatchesCurrentJob(profile) ? (profile.matchMatched || []) : [],
+        }, { stage: "2* - Find (Out)", source: profile.source || "External" });
+        window.location.href = `profile-preview.html?domain=${encodeURIComponent(currentDomain())}`;
+      }
+
+      async function enrichSelectedTempProfiles() {
+        const selectedIds = selectedTempProfileIds();
+        if (!selectedIds.length) return alert("Check at least one TEMP profile first.");
+        const selectedProfiles = selectedIds.map(profileById).filter(Boolean);
+        if (selectedProfiles.some((profile) => !tempEnrichmentProvider(profile))) {
+          return alert("One or more checked profiles need a configured Coresignal or People Data Labs key.");
+        }
+        const jobText = currentJobId() ? ` and rematch them to ${currentJobLabel()}` : "";
+        if (!confirm(`Enrich ${selectedIds.length} checked TEMP profile${selectedIds.length === 1 ? "" : "s"}${jobText}? Licensed provider requests may use credits. Already-enriched records are reused without another collection credit. VETCODE does not scrape LinkedIn.`)) return;
+        const button = document.getElementById("btnEnrichTempSelected");
+        const status = document.getElementById("tempProfileStatus");
+        button.disabled = true;
+        let enriched = 0;
+        let reused = 0;
+        const failures = [];
+        for (const personId of selectedIds) {
+          const profile = profileById(personId);
+          status.textContent = `Enriching ${profile?.name || "TEMP profile"}...`;
+          try {
+            const response = await api(`/api/azureJobs/external/temp/${encodeURIComponent(personId)}/enrich-professional`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ domain: currentDomain(), jd_id: currentJobId() }),
+            });
+            if (response.reused) reused++;
+            else enriched++;
+          } catch (error) {
+            failures.push(`${profile?.name || personId}: ${error.message || error}`);
+          }
+        }
+        await loadTempProfiles();
+        const summary = [];
+        if (enriched) summary.push(`Enriched ${enriched}.`);
+        if (reused) summary.push(`Reused ${reused} without another collection credit.`);
+        if (currentJobId() && (enriched || reused)) summary.push("Current-JD match information was refreshed.");
+        if (failures.length) summary.push(`${failures.length} failed: ${failures[0]}`);
+        status.textContent = summary.join(" ") || "No TEMP profiles were changed.";
+      }
+
+      function linkedInEnrichedProfiles() {
+        return latestTempProfiles.filter((profile) => profile.linkedInEnriched === true && safeHttpUrl(profile.profileUrl));
+      }
+
+      function renderLinkedInResults() {
+        const profiles = linkedInEnrichedProfiles();
+        const panel = document.getElementById("linkedinResultsPanel");
+        document.getElementById("linkedinResultsStatus").textContent = profiles.length
+          ? `${profiles.length} LinkedIn-enriched TEMP profile${profiles.length === 1 ? "" : "s"} can be reviewed or exported.`
+          : `No LinkedIn-enriched TEMP profiles are available in ${currentDomain()} yet.`;
+        document.getElementById("btnExportLinkedInResults").disabled = !profiles.length;
+        document.getElementById("btnViewLinkedInResults").textContent = `${panel.hidden ? "View" : "Hide"} LinkedIn results (${profiles.length})`;
+        document.getElementById("linkedinResultsBody").innerHTML = profiles.map((profile) => {
+          const personId = String(profile.personid || "").replace(/[^0-9-]/g, "");
+          return `<tr>
+            <td><button class="btn secondary" type="button" onclick="reviewTempProfile('${escapeHtml(personId)}')">${escapeHtml(profile.name || "Temporary Profile")}</button></td>
+            <td>${escapeHtml(profile.title || "")}</td>
+            <td>${escapeHtml(profile.email || "Not returned")}</td>
+            <td>${escapeHtml(profile.phone || "Not returned")}</td>
+            <td>${escapeHtml(matchLabel(profile))}</td>
+            <td>${escapeHtml(profile.source || "External")}</td>
+            <td><a class="btn secondary" href="${escapeHtml(safeHttpUrl(profile.profileUrl))}" target="_blank" rel="noopener">Open LinkedIn</a></td>
+          </tr>`;
+        }).join("");
+      }
+
+      function toggleLinkedInResults() {
+        const panel = document.getElementById("linkedinResultsPanel");
+        panel.hidden = !panel.hidden;
+        renderLinkedInResults();
+        if (!panel.hidden) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function exportLinkedInResults() {
+        const profiles = linkedInEnrichedProfiles();
+        if (!profiles.length) return alert("There are no LinkedIn-enriched TEMP profiles to export.");
+        if (!confirm(`Export ${profiles.length} LinkedIn-enriched TEMP profile${profiles.length === 1 ? "" : "s"} to Excel? The workbook can contain provider-reported email and phone details, so keep it access-controlled and verify contacts before outreach.`)) return;
+        const link = document.createElement("a");
+        link.href = `${API_BASE}/api/azureJobs/external/temp/linkedin-results/export?domain=${encodeURIComponent(currentDomain())}`;
+        link.download = `${currentDomain()}-linkedin-enriched-temp-profiles.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+
+      function removeTemporarySessionReference(personId) {
+        const temporaryProfiles = JSON.parse(sessionStorage.getItem("temporaryProfiles") || "{}");
+        delete temporaryProfiles[String(personId)];
+        sessionStorage.setItem("temporaryProfiles", JSON.stringify(temporaryProfiles));
+      }
+
+      async function makeTempPermanent(personId) {
+        const profile = profileById(personId);
+        const confirmation = isLawDomain()
+          ? `Make ${profile?.name || "this lawyer profile"} permanent? Confirm first that the attorney's license and standing were verified with the official California Bar search.`
+          : `Make ${profile?.name || "this TEMP profile"} permanent? It will leave the TEMP library but remain in the candidate database.`;
+        if (!confirm(confirmation)) return;
+        try {
+          await api(`/api/azureJobs/external/temp/${encodeURIComponent(personId)}/make-permanent`, { method: "POST" });
+          removeTemporarySessionReference(personId);
+          const details = window.DevReadyShortlist.readDetails();
+          if (details[String(personId)]) {
+            details[String(personId)].profileType = "Permanent Profile";
+            details[String(personId)].status = "Permanent Profile";
+            window.DevReadyShortlist.writeDetails(details);
+          }
+          if (String(sessionStorage.getItem("candidateId")) === String(personId)) {
+            sessionStorage.removeItem("candidateProfileType");
+            sessionStorage.setItem("candidateStatus", "Permanent Profile");
+          }
+          await loadTempProfiles();
+          document.getElementById("tempProfileStatus").textContent = `${profile?.name || "Profile"} is now permanent.`;
+        } catch (error) {
+          alert(error.message || error);
+        }
+      }
+
+      async function deleteTempProfile(personId) {
+        const profile = profileById(personId);
+        if (!confirm(`Delete ${profile?.name || "this TEMP profile"}? This permanently removes the temporary external record and cannot be undone.`)) return;
+        try {
+          await api(`/api/azureJobs/external/temp/${encodeURIComponent(personId)}`, { method: "DELETE" });
+          removeTemporarySessionReference(personId);
+          window.DevReadyShortlist.remove(personId);
+          if (String(sessionStorage.getItem("candidateId")) === String(personId)) {
+            ["candidateId", "candidateName", "candidateEmail", "candidateStatus", "candidateProfileType", "candidateTopMatches", "externalCandidateSource"].forEach((key) => sessionStorage.removeItem(key));
+          }
+          await loadTempProfiles();
+          document.getElementById("tempProfileStatus").textContent = `${profile?.name || "TEMP profile"} was deleted.`;
+        } catch (error) {
+          alert(error.message || error);
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const label = currentDomain() === "law" ? "LawReady" : currentDomain() === "dental" ? "DentalReady" : currentDomain() === "engineer" ? "EngineerReady" : "DevReady";
+        document.getElementById("pageTitle").textContent = `${label} TEMP Profiles`;
+        renderWorkflowContext();
+        document.getElementById("btnRefreshTempProfiles").addEventListener("click", loadTempProfiles);
+        document.getElementById("btnEnrichTempSelected").addEventListener("click", enrichSelectedTempProfiles);
+        document.getElementById("btnViewLinkedInResults").addEventListener("click", toggleLinkedInResults);
+        document.getElementById("btnExportLinkedInResults").addEventListener("click", exportLinkedInResults);
+        Promise.all([loadTempProfiles(), loadProviderStatus()]);
+      });
+    </script>
+  </body>
+</html>

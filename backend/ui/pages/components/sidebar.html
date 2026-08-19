@@ -590,7 +590,7 @@
     }
     if (typeof window.startQuickHitFlow !== "function") {
       if (!host.innerHTML.trim()) {
-        const response = await fetch("components/processFlow.html");
+        const response = await fetch("components/processFlow.html?v=20260818-talent-jd-flow");
         host.innerHTML = await response.text();
       }
       window.DevReadyProcessFlow.activateScripts(host);
@@ -616,7 +616,7 @@
     syncDomainSelect(activeDomain);
     domainUpdate(activeDomain);
     loadPageAgentRuntime(renderActivePageAgent);
-    $("#pageNav").load("components/sideNav.html?v=20260620-channels", function () {
+    $("#pageNav").load("components/sideNav.html?v=20260818-talent-jd-flow", function () {
       applyMenuAccess();
       applyDomainToLocalLinks(sessionStorage.getItem("domain") || "dev");
       window.DevReadyPageAgents?.mountWidget?.();
@@ -676,6 +676,7 @@
     const allowed = new Set(user.allowed_menu || []);
     domainHiddenKeys.forEach((key) => allowed.delete(key));
     allowed.add("channels");
+    if (allowed.has("find_out")) allowed.add("temp_profiles");
     if (isAdministrator) {
       allowed.add("admin");
       allowed.add("agents");
@@ -1194,6 +1195,8 @@
   }
 
   function clearDomainProcessTrail() {
+    const activeDomain = sessionStorage.getItem("domain") || "dev";
+    sessionStorage.removeItem(`atlasSourcingClient:${activeDomain}`);
     const keys = [
       "candidateId",
       "candidateName",
@@ -1202,8 +1205,12 @@
       "candidateProfileType",
       "candidateTopMatches",
       "candidateResumeUrl",
+      "candidateDomain",
+      "knownProfileSelection",
+      "selectedProfileId",
       "externalCandidateSource",
       "shortlist",
+      "shortlistDetails",
       "clientEmail",
       "jobID",
       "jobId",
@@ -1212,13 +1219,26 @@
       "jobCompany",
       "jobTitle",
       "jobSkills",
+      "jobDomain",
+      "activeJobLoadedAt",
+      "preferredCalendarProvider",
+      "scheduleTracking",
       "temporaryProfiles",
       "totalProfiles",
       "recentProfiles",
       "pipelineProfiles",
       "latestScheduleTracking",
+      "scheduleInterviewType",
+      "readyPurpose",
     ];
     keys.forEach((key) => sessionStorage.removeItem(key));
+    [
+      `shortlistDetails:${activeDomain}`,
+      `scheduleTracking:${activeDomain}`,
+      `latestScheduleTracking:${activeDomain}`,
+      `talentCounts:${activeDomain}`,
+      `atlasSourcingClient:${activeDomain}`,
+    ].forEach((key) => sessionStorage.removeItem(key));
   }
 
   async function environmentUpdate() {

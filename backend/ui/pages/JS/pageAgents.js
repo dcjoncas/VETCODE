@@ -469,6 +469,15 @@
     );
   }
 
+  function selectedAtlasClient() {
+    try {
+      const parsed = JSON.parse(sessionStorage.getItem(`atlasSourcingClient:${currentDomain()}`) || "null");
+      return parsed && parsed.id && parsed.name ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
   function chatMemoryKey() {
     return `devreadyNumaChat:${pageName() || "page"}:${activeAgent()?.key || "agent"}`;
   }
@@ -597,6 +606,7 @@
       candidateEmail: selectedCandidateEmail(),
       jobId: sessionStorage.getItem("jobId") || sessionStorage.getItem("jobID") || sessionStorage.getItem("selectedJdId") || "",
       jobTitle: sessionStorage.getItem("jobTitle") || "",
+      atlasClient: selectedAtlasClient(),
       shortlistCount,
       pageSnapshot,
       recentChat: readChatMemory(),

@@ -31,8 +31,8 @@
     </script>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html?v=20260522-egeria-pilot");
-        $("#processFlow").load("components/processFlow.html");
+        $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow");
+        $("#processFlow").load("components/processFlow.html?v=20260818-talent-jd-flow");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -77,6 +77,39 @@
         color: var(--muted);
         font-size: 11px;
       }
+      .ranked-selection-tools {
+        align-items: center;
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+        margin: 12px 0 8px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface, #f7f8fa);
+      }
+      .ranked-selection-tools[hidden],
+      #resultsTableInternal[hidden] {
+        display: none;
+      }
+      .ranked-selection-copy {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+      .ranked-selection-copy strong {
+        display: block;
+        color: var(--text);
+        font-size: 13px;
+      }
+      .match-evidence-skills {
+        margin-top: 5px;
+        color: var(--primary-2);
+        font-weight: 800;
+      }
+      .match-results-table-wrap {
+        overflow-x: auto;
+      }
     </style>
   </head>
   <body>
@@ -94,77 +127,29 @@
 
         <div id="processFlow"></div>
 
-        <!-- <div class="grid"> -->
+        <div id="atlasClientContext" data-atlas-client-context></div>
+
         <section class="card" style="width: 100%">
-          <h2>Match candidate(s) to a saved job description</h2>
+          <h2>Match candidates to a saved job description</h2>
           <p>
             Select a job description created from Job Descriptions, then rank stored
             profiles and choose candidates for deeper vetting.
           </p>
 
-          <div>
-            <div class="field" hidden>
-              <label>Job description input</label>
-              <textarea
-                id="jdText"
-                placeholder="Paste job description here..."
-              ></textarea>
-              <div class="row-actions">
-                <button class="btn" type="button" id="btnSaveJd">
-                  Normalize &amp; Save
-                </button>
-                <!--<button
-                  class="btn secondary"
-                  type="button"
-                  id="btnJdHtml"
-                  disabled
-                >
-                  View Description (HTML)
-                </button>
-                <button
-                  class="btn secondary"
-                  type="button"
-                  id="btnJdDocx"
-                  disabled
-                >
-                  Download Description (DOCX)
-                </button>-->
-              </div>
-              <small
-                >Tip: keep requirements crisp — must-have vs
-                nice-to-have.</small
-              >
-            </div>
-
-            <div>
-              <div class="field" hidden>
-                <label>JD metadata</label>
-                <div class="split">
-                  <div class="field">
-                    <label>Company</label
-                    ><input id="jdCompany" placeholder="Company Name..." />
-                  </div>
-                  <div class="field">
-                    <label>Job title</label
-                    ><input id="jdTitle" placeholder="Job Title..." />
-                  </div>
-                </div>
-              </div>
-
-              <div class="field" style="margin-top: 10px">
+          <div class="field" style="margin-top: 10px">
                 <label>Rank stored profiles</label>
                 <div class="split">
                   <div class="field">
                     <label>Select saved JD</label>
                     <select id="jdSelect">
                       <option value="" selected disabled hidden>
-                        Select Description
+                        Select job description
                       </option>
                     </select>
                     <small>Create and review job descriptions from Job Descriptions.</small>
                   </div>
                   <div class="field">
-                    <label>Return</label>
+                    <label>Results to show</label>
                     <select id="topK">
                       <option value="10">Top 10</option>
                       <option value="20">Top 20</option>
@@ -176,114 +161,60 @@
                   <button class="btn" type="button" id="btnRank">
                     Rank Profiles
                   </button>
-                  <button class="btn" type="button" id="btnAddRankedSelected">
-                    Add checked to shortlist
-                  </button>
-                  <a class="btn secondary" href="find-candidate.html" style="text-decoration: none">
-                    Add JD in Talent
+                  <a class="btn secondary" href="job-descriptions.html" style="text-decoration: none">
+                    Manage job descriptions
                   </a>
-                  <!--<button
-                    class="btn secondary"
-                    type="button"
-                    onclick="alert('Mock: show rationale')"
-                  >
-                    Show rationale
-                  </button>-->
                 </div>
-              </div>
-            </div>
           </div>
 
           <h2 style="margin-top: 18px" id="rankHeader">
-            Ranked Results (Top 10)
+            Ranked candidates
           </h2>
           <div class="muted" style="margin-top: 8px" id="matchStatus">
-            No match run yet.
+            Select a saved JD, then click Rank Profiles.
           </div>
-          <table class="table" id="resultsTableInternal">
-            <thead>
-              <tr>
-                <th class="candidate-select-cell"></th>
-                <th>#</th>
-                <th>Candidate</th>
-                <th>Email</th>
-                <th>Score</th>
-                <th>Reason / Fit</th>
-                <th>Top Matches</th>
-                <th>Culture Match</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- Dynamically filled with ranked results -->
-            </tbody>
-          </table>
-
-          <div class="notice" style="margin-top: 12px">
-            Next: open a candidate and start the guided AI chat to produce
-            private + public profile.
+          <div id="rankedSelectionTools" class="ranked-selection-tools" hidden>
+            <div class="ranked-selection-copy">
+              <strong>Build the shortlist without leaving this page</strong>
+              Check candidates in the Shortlist column. Clicking anywhere else on a row opens that candidate now.
+            </div>
+            <button class="btn" type="button" id="btnAddRankedSelected" disabled>
+              Add selected to shortlist (0)
+            </button>
+          </div>
+          <div class="match-results-table-wrap">
+            <table class="table" id="resultsTableInternal" hidden>
+              <thead>
+                <tr>
+                  <th class="candidate-select-cell">Shortlist</th>
+                  <th>#</th>
+                  <th>Candidate</th>
+                  <th>Email</th>
+                  <th>Score</th>
+                  <th>Match evidence</th>
+                  <th>Culture</th>
+                  <th>Profile</th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+            </table>
           </div>
         </section>
         <section class="card" style="margin-top: 18px">
           <div id="shortlistTray"></div>
         </section>
-        <!-- TODO: REMOVE LATER
-      <aside class="card">
-          
-        <h2>What happens on this screen</h2>
-        <p>Role matching workflow guidance.</p>
-        <ul style="margin:0 0 14px 18px;color:var(--muted);line-height:1.4"><li>Save / normalize a JD (structured requirements).</li><li>Rank stored candidates and pick the Top 10.</li><li>Outcome: open a candidate into the guided chat.</li></ul>
-        <div class="row-actions"><a class="btn " href="candidate-chat.html" style="text-decoration:none;display:inline-block">Next: Candidate chat →</a><a class="btn secondary" href="find-candidate.html" style="text-decoration:none;display:inline-block">Back: Find candidate</a></div>
-        <div class="notice" style="margin-top:14px">Role matching uses saved job descriptions and profile data from the connected backend.</div>
-    
-      </aside> -->
-        <!-- </div> -->
       </main>
     </div>
 
     <script src="JS/apiScripts.js"></script>
     <script src="JS/updateProcessFlow.js"></script>
     <script src="JS/profileCompletion.js"></script>
-    <script src="JS/shortlist.js"></script>
+    <script src="JS/shortlist.js?v=20260818-shortlist-actions"></script>
+    <script src="JS/atlasClientContext.js"></script>
     <script>
       let matchLatestRank = [];
-      document
-        .querySelectorAll("a.step")
-        .forEach((a) => a.addEventListener("click", () => {}));
-
-      // TODO: Need to add JD Picker
-      async function refreshExistingDescriptions() {
-        try {
-          let domain = sessionStorage.getItem("domain");
-          if (!domain) domain = "dev";
-          // const ps = await api("/api/profile/list");
-
-          const jds = await api(`/api/azureJobs/list/${domain}/5`);
-
-          // TODO: Update this code
-          // renderProfilesList(profiles);
-          // renderJdsList(jdsList);
-
-          const matchPicker = document.getElementById("jdSelect");
-
-          matchPicker.innerHTML =
-            `<option value="" selected disabled hidden>Select Description</option>` +
-            jds
-              .map(
-                (j) =>
-                  `<option value="${escapeHtml(j.jd_id)}">${escapeHtml((j.company || "") + (j.company ? " — " : "") + (j.title || j.jd_id))}</option>`,
-              )
-              .join("");
-        } catch (e) {
-          console.log("Failed to get job descriptions: " + e);
-        }
-      }
-
-      // TODO: Overhaul this code
-      async function selectRow(r) {
-        // selectedRow = r;
-        // selectedProfileId = r.profile_id;
-
+      function selectRow(r) {
         const candidateId = sessionStorage.getItem("candidateId");
         if (
           candidateId &&
@@ -305,23 +236,6 @@
         sessionStorage.removeItem("candidateProfileType");
         sessionStorage.removeItem("externalCandidateSource");
 
-        document
-          .getElementById(`resultRow-${r.profile_id}`)
-          .classList.add("active-candidate-row");
-        // document.getElementById(`resultRow-${r.profile_id}`)
-        /*setText("selectedRowLabel", `Selected: ${r.name || ""} (${r.email || ""})`);
-
-            // Enable ReadyIT buttons
-            setDisabled("btnReadyIT", false);
-            setDisabled("btnReadyIT2", false);
-            setDisabled("btnReportHtml", false);
-            setDisabled("btnReportDocx", false);
-
-            clearRec();
-            await loadProfileIntoLeft(selectedProfileId);
-
-            log(`Selected row: ${r.name} score=${r.score}`);*/
-
         updateCandidate();
         window.location.href = "profile-preview.html";
       }
@@ -340,34 +254,59 @@
         };
       }
 
-      function addCheckedRankedCandidates() {
-        const selected = [...document.querySelectorAll(".ranked-candidate-check:checked")]
+      function checkedRankedCandidates() {
+        return [...document.querySelectorAll(".ranked-candidate-check:checked")]
           .map((input) => matchLatestRank[Number(input.dataset.index)])
-          .filter(Boolean)
-          .map(rankedCandidateForShortlist);
+          .filter(Boolean);
+      }
+
+      function updateRankedSelection() {
+        const count = checkedRankedCandidates().length;
+        const button = document.getElementById("btnAddRankedSelected");
+        if (!button) return;
+        button.disabled = count === 0;
+        button.textContent = `Add selected to shortlist (${count})`;
+      }
+
+      function addCheckedRankedCandidates() {
+        const selected = checkedRankedCandidates().map(rankedCandidateForShortlist);
         if (!selected.length) return alert("Check at least one ranked candidate first.");
+        const existingIds = new Set(
+          window.DevReadyShortlist.list().map((candidate) => String(candidate.id)),
+        );
+        const newCount = selected.filter((candidate) => !existingIds.has(String(candidate.id))).length;
         const added = window.DevReadyShortlist.addMany(selected, {
           stage: "2 - Find (In)",
           source: "Role match",
+          makeActive: false,
         });
+        document.querySelectorAll(".ranked-candidate-check:checked").forEach((input) => {
+          input.checked = false;
+        });
+        updateRankedSelection();
+        const existingCount = added.length - newCount;
         document.getElementById("matchStatus").textContent =
-          `Added ${added.length} candidate${added.length === 1 ? "" : "s"} to the shortlist.`;
+          `${newCount ? `Added ${newCount} candidate${newCount === 1 ? "" : "s"} to the shortlist.` : "No new candidates were added."}${existingCount ? ` ${existingCount} selected candidate${existingCount === 1 ? " was" : "s were"} already shortlisted.` : ""} Set a candidate active from the shortlist when you are ready to work on that person.`;
       }
 
       // Rank profiles based on job description
       async function rank() {
         const jd_id = document.getElementById("jdSelect").value;
-        // Currently unused
-        selectedJdId = jd_id;
-        // setText("activeJdLabel", jd_id ? ("Active JD: " + jd_id) : "Active JD: (none)");
-
         const top_k = parseInt(document.getElementById("topK").value, 10) || 10;
         if (!jd_id || jd_id.length < 1)
           return alert("Select a job description to rank against.");
-        // document.getElementById("matchStatus").textContent = "Ranking...";
-
-        document.getElementById("rankHeader").textContent =
-          `Ranked Results (Top ${top_k})`;
+        const rankButton = document.getElementById("btnRank");
+        const resultsTable = document.getElementById("resultsTableInternal");
+        const selectionTools = document.getElementById("rankedSelectionTools");
+        const tbody = document.querySelector("#resultsTableInternal tbody");
+        rankButton.disabled = true;
+        rankButton.textContent = "Ranking...";
+        document.getElementById("matchStatus").textContent = "Ranking stored profiles against the selected JD...";
+        matchLatestRank = [];
+        tbody.innerHTML = "";
+        resultsTable.hidden = true;
+        selectionTools.hidden = true;
+        updateRankedSelection();
 
         const fd = new FormData();
 
@@ -399,9 +338,6 @@
           }));
           matchLatestRank.sort((a, b) => (b._score100 || 0) - (a._score100 || 0));
 
-          const tbody = document.querySelector("#resultsTableInternal tbody");
-          tbody.innerHTML = "";
-
           const candidateId = sessionStorage.getItem("candidateId");
 
           matchLatestRank.forEach((r, i) => {
@@ -423,11 +359,13 @@
             const formula =
               r.score_formula ||
               "Score = weighted matched JD signals / weighted searchable JD signals.";
+            const topMatches = escapeHtml((r.top_matches || []).slice(0, 6).join(", "));
 
             tr.id = `resultRow-${r.profile_id}`;
             tr.style.cursor = "pointer";
-            tr.innerHTML = `<td class="candidate-select-cell"><input class="ranked-candidate-check" type="checkbox" data-index="${i}" aria-label="Select ${escapeHtml(r.name || "candidate")}"></td><td>${i + 1}</td><td>${escapeHtml(r.name || "")}</td><td>${escapeHtml(r.email || "")}</td><td class="match-score-cell"><span class="match-percent">${scoreValue}%</span><span class="score-band ${belowThreshold ? "below" : ""}">${belowThreshold ? "Below 50% mark" : escapeHtml(r.match_band || "Qualified")}</span></td><td><div class="fit-reason"><span class="fit-decision ${belowThreshold ? "below" : ""}">${escapeHtml(fitDecision)}</span><div>${escapeHtml(fitReason)}</div><div class="formula-note">${escapeHtml(formula)} ${r.fit_reason_source === "ai" ? "AI reviewed." : "Deterministic fallback."}</div></div></td><td>${escapeHtml((r.top_matches || []).slice(0, 6).join(", ")) || "-"}</td><td>${escapeHtml(matchPercentage)}</td><td id="matchCompletion-${escapeHtml(r.profile_id)}"></td>`;
+            tr.innerHTML = `<td class="candidate-select-cell"><input class="ranked-candidate-check" type="checkbox" data-index="${i}" aria-label="Add ${escapeHtml(r.name || "candidate")} to shortlist"></td><td>${i + 1}</td><td>${escapeHtml(r.name || "")}</td><td>${escapeHtml(r.email || "")}</td><td class="match-score-cell"><span class="match-percent">${scoreValue}%</span><span class="score-band ${belowThreshold ? "below" : ""}">${belowThreshold ? "Below 50% mark" : escapeHtml(r.match_band || "Qualified")}</span></td><td><div class="fit-reason"><span class="fit-decision ${belowThreshold ? "below" : ""}">${escapeHtml(fitDecision)}</span><div>${escapeHtml(fitReason)}</div>${topMatches ? `<div class="match-evidence-skills">Matched: ${topMatches}</div>` : ""}<div class="formula-note">${escapeHtml(formula)} ${r.fit_reason_source === "ai" ? "AI reviewed." : "Deterministic fallback."}</div></div></td><td>${escapeHtml(matchPercentage)}</td><td id="matchCompletion-${escapeHtml(r.profile_id)}"></td>`;
             tr.querySelector("input").addEventListener("click", (event) => event.stopPropagation());
+            tr.querySelector("input").addEventListener("change", updateRankedSelection);
             tr.addEventListener("click", () => selectRow(r));
             tbody.appendChild(tr);
             if (window.profileCompletion) {
@@ -439,31 +377,22 @@
             }
           });
 
-          document.getElementById("matchStatus").textContent =
-            `Returned ${matchLatestRank.length} results (Top ${top_k}). Check 2-3 candidates and add them to the shortlist, or click a row to open one profile.`;
-          // setDisabled("btnReadyIT", true);
-          // setDisabled("btnReadyIT2", true);
-          // setDisabled("btnReportHtml", true);
-          // setDisabled("btnReportDocx", true);
-          // setText("explainBox", "Select a result row after ranking.");
-          // clearRec();
+          if (matchLatestRank.length) {
+            resultsTable.hidden = false;
+            selectionTools.hidden = false;
+            document.getElementById("matchStatus").textContent =
+              `Returned ${matchLatestRank.length} ranked candidate${matchLatestRank.length === 1 ? "" : "s"} (up to ${top_k}). Checkbox = shortlist. Row click = open that candidate now.`;
+          } else {
+            document.getElementById("matchStatus").textContent =
+              "No stored profiles were returned for this JD. Add or complete profiles in Talent, then rank again.";
+          }
+          updateRankedSelection();
         } catch (e) {
           document.getElementById("matchStatus").textContent =
             `Rank failed: ${e.message}`;
-        }
-      }
-
-      function enableJDButtons() {
-        const value = $("#jdSelect").val();
-
-        if (!document.getElementById("jdSelect").value) {
-          //document.getElementById("btnJdHtml").disabled = true;
-          //document.getElementById("btnJdDocx").disabled = true;
-          return;
-        } else {
-          selectedJdId = document.getElementById("jdSelect").value;
-          //document.getElementById("btnJdHtml").disabled = false;
-          //document.getElementById("btnJdDocx").disabled = false;
+        } finally {
+          rankButton.disabled = false;
+          rankButton.textContent = "Rank Profiles";
         }
       }
 
@@ -485,6 +414,7 @@
         if (skills.length) sessionStorage.setItem("jobSkills", skills.filter(Boolean).join(", "));
         sessionStorage.setItem("jobDomain", sessionStorage.getItem("domain") || "dev");
         sessionStorage.setItem("activeJobLoadedAt", new Date().toISOString());
+        if (window.DevReadyAtlasClient) window.DevReadyAtlasClient.refresh();
         if (typeof updateJob === "function") updateJob();
       }
 
@@ -505,9 +435,8 @@
           const option = new Option(label, savedJdId, true, true);
           $("#jdSelect").append(option).trigger("change");
           rememberLoadedJob(savedJdId, jd);
-          selectedJdId = savedJdId;
           const status = document.getElementById("matchStatus");
-          if (status) status.textContent = `JD loaded: ${label}. Click Search Profiles to rank candidates.`;
+          if (status) status.textContent = `JD loaded: ${label}. Click Rank Profiles to compare stored candidates.`;
         } catch (error) {
           console.log("Could not auto-load selected JD: " + (error.message || error));
         }
@@ -542,30 +471,9 @@
           },
         });
 
-        $("#jdSelect").on("change", function () {
-          enableJDButtons();
-        });
-
         document.getElementById("btnRank").addEventListener("click", rank);
         document.getElementById("btnAddRankedSelected").addEventListener("click", addCheckedRankedCandidates);
-        document
-          .getElementById("jdSelect")
-          .addEventListener("change", enableJDButtons);
         hydrateSavedJobSelection();
-        //refreshExistingDescriptions();
-
-        /*document
-          .getElementById("btnJdHtml")
-          .addEventListener("click", () =>
-            window.open(`${API_BASE}/api/jd/${selectedJdId}/html`, "_blank"),
-          );
-        document
-          .getElementById("btnJdDocx")
-          .addEventListener(
-            "click",
-            () =>
-              (window.location.href = `${API_BASE}/api/jd/${selectedJdId}/docx`),
-          );*/
       });
     </script>
   </body>

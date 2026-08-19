@@ -177,7 +177,7 @@ class PeopleSearchTests(unittest.TestCase):
 
     @patch.dict(os.environ, {"PDL_API_KEY": "test-key"}, clear=False)
     @patch("peopleDataLabs.peopleSearch.requests.get")
-    def test_selected_person_enrichment_uses_exact_pdl_id_and_minimized_fields(self, get):
+    def test_selected_person_enrichment_uses_exact_pdl_id_and_rich_contact_fields(self, get):
         response = Mock(status_code=200)
         response.json.return_value = {
             "status": 200,
@@ -200,7 +200,11 @@ class PeopleSearchTests(unittest.TestCase):
         included = set(request.kwargs["params"]["data_include"].split(","))
         self.assertIn("experience.summary", included)
         self.assertIn("education.school.name", included)
-        self.assertNotIn("phone_numbers", included)
+        self.assertIn("work_email", included)
+        self.assertIn("recommended_personal_email", included)
+        self.assertIn("personal_emails", included)
+        self.assertIn("mobile_phone", included)
+        self.assertIn("phone_numbers", included)
         self.assertNotIn("street_addresses", included)
 
     @patch.dict(os.environ, {"PDL_API_KEY": "test-key"}, clear=False)

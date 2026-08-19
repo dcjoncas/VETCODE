@@ -26,8 +26,8 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html?v=20260522-egeria-pilot");
-        $("#processFlow").load("components/processFlow.html");
+        $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow");
+        $("#processFlow").load("components/processFlow.html?v=20260818-talent-jd-flow");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -118,6 +118,8 @@
 
         <div id="processFlow"></div>
 
+        <div id="atlasClientContext" data-atlas-client-context></div>
+
         <section class="card">
           <h2>Shortlist for client review</h2>
           <p>
@@ -198,6 +200,7 @@
     <script src="JS/apiScripts.js"></script>
     <script src="JS/shortlist.js"></script>
     <script src="JS/profileCompletion.js"></script>
+    <script src="JS/atlasClientContext.js"></script>
     <script>
       let shortlistArray = [];
       // Used to store an array of JSON objects containing candidate scores
@@ -310,6 +313,7 @@
 
       async function generateEmail() {
         const jobId = sessionStorage.getItem("jobID");
+        const atlasClient = window.DevReadyAtlasClient?.getAttachedClient() || null;
 
         const result = await fetch(`/api/ai/clientEmail/shortlist`, {
           method: "POST",
@@ -319,6 +323,7 @@
           body: JSON.stringify({
             jobId: jobId,
             candidateScores: shortlistScores,
+            clientContext: atlasClient,
           }),
         });
 
@@ -326,7 +331,7 @@
 
         const emailData = await result.json();
 
-        document.getElementById("emailArea").innerHTML = emailData.email;
+        document.getElementById("emailArea").value = emailData.email;
         sessionStorage.setItem("clientEmail", emailData.email);
       }
 
@@ -351,23 +356,30 @@
             `/api/azure/getProfile/short/${candidateId}?domain=${encodeURIComponent(sessionStorage.getItem("domain") || "dev")}`,
           );
 
-          document.getElementById("emailArea").innerHTML +=
+          document.getElementById("emailArea").value +=
             `\n\nProfile for candidate ${profileData.firstName} ${profileData.lastName}: ${fullUrl}`;
         }
       }
 
       async function sendEmail() {
         const emailContent = document.getElementById("emailArea").value;
+        const atlasClient = window.DevReadyAtlasClient?.getAttachedClient() || null;
+        const recipient = atlasClient?.contactEmail || "";
+        if (!recipient) {
+          alert("Attach an Atlas client with a primary contact email before sending this shortlist.");
+          return;
+        }
         if (emailContent && emailContent.length > 0) {
-          window.location.href = `mailto:INSERT_EMAIL?subject=DevReady Candidates - ${sessionStorage.getItem("jobTitle")}&body=${encodeURIComponent(emailContent)}`;
+          const subject = `DevReady Candidates - ${sessionStorage.getItem("jobTitle") || "Shortlist"}`;
+          window.location.href = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailContent)}`;
         }
       }
 
       document.addEventListener("DOMContentLoaded", async () => {
         const shortlist = sessionStorage.getItem("shortlist");
         const jobId = sessionStorage.getItem("jobID");
-        document.getElementById("emailArea").innerHTML =
-          sessionStorage.getItem("clientEmail");
+        document.getElementById("emailArea").value =
+          sessionStorage.getItem("clientEmail") || "";
 
         if (shortlist && shortlist.length > 0) {
           shortlistArray = shortlist.split(",");
@@ -444,7 +456,7 @@
             profileData.forEach((candidate) => {
               shortlistScores.push({
                 id: candidate.id,
-                name: candidate.firstName + candidate.lastName,
+                name: `${candidate.firstName || ""} ${candidate.lastName || ""}`.trim(),
                 score: candidate.score + "%",
                 skills: candidate.skills || [],
                 missingSkills: candidate.missingSkills || [],

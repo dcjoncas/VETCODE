@@ -26,8 +26,8 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html?v=20260522-egeria-pilot");
-        $("#processFlow").load("components/processFlow.html");
+        $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow");
+        $("#processFlow").load("components/processFlow.html?v=20260818-talent-jd-flow");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -287,6 +287,15 @@
         return date.toLocaleString();
       }
 
+      function safeHttpUrl(value) {
+        try {
+          const url = new URL(String(value || ""), window.location.origin);
+          return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+        } catch {
+          return "";
+        }
+      }
+
       async function loadRecords() {
         const domain = sessionStorage.getItem("domain") || "dev";
         const storageKey = `scheduleTracking:${domain}`;
@@ -321,13 +330,14 @@
       }
 
       function recordCompany(record) {
-        return record.clientCompany || record.company || "-";
+        return record.atlasClientName || record.clientCompany || record.company || "-";
       }
 
       function recordContact(record) {
         return [
           record.clientContactName,
           record.clientContactEmail,
+          record.clientContactPhone,
         ].filter(Boolean).join(" - ");
       }
 
@@ -397,6 +407,7 @@
           selectedRecord.eventLink ||
           selectedRecord.meetingLink ||
           "";
+        const atlasLink = safeHttpUrl(selectedRecord.atlasClientUrl);
 
         detailList.innerHTML = `
           <dt>Candidate</dt><dd>${escapeHtml(candidateLabel(selectedRecord) || "-")}</dd>
@@ -405,6 +416,9 @@
           <dt>Role</dt><dd>${escapeHtml(selectedRecord.role || "-")}</dd>
           <dt>Company</dt><dd>${escapeHtml(recordCompany(selectedRecord))}</dd>
           <dt>Client contact</dt><dd>${escapeHtml(recordContact(selectedRecord) || "-")}</dd>
+          <dt>Atlas owner / stage</dt><dd>${escapeHtml([selectedRecord.clientOwner, selectedRecord.clientDealStage].filter(Boolean).join(" - ") || "-")}</dd>
+          <dt>Client address</dt><dd>${escapeHtml(selectedRecord.clientAddress || "-")}</dd>
+          ${atlasLink ? `<dt>Atlas client</dt><dd><a href="${escapeHtml(atlasLink)}">Open attached Atlas record</a></dd>` : ""}
           <dt>Interviewer</dt><dd>${escapeHtml([selectedRecord.candidateInterviewerName, selectedRecord.candidateInterviewerEmail].filter(Boolean).join(" - ") || "-")}</dd>
           <dt>Sent / opened</dt><dd>${escapeHtml(formatDate(selectedRecord.createdAt))}</dd>
           <dt>Archived</dt><dd>${escapeHtml(formatDate(selectedRecord.archivedAt || selectedRecord.updatedAt))}</dd>

@@ -26,11 +26,11 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html?v=20260522-egeria-pilot", function () {
+        $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow", function () {
           const domainSelect = document.getElementById("domainSelect");
           if (domainSelect) domainSelect.addEventListener("change", loadJobDescriptions);
         });
-        $("#processFlow").load("components/processFlow.html?v=20260515-jd-flow");
+        $("#processFlow").load("components/processFlow.html?v=20260818-talent-jd-flow");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -532,7 +532,7 @@
         <div class="topbar">
           <div>
             <div class="page-title">Job Descriptions</div>
-            <div class="breadcrumb">Saved roles by client and domain</div>
+            <div class="breadcrumb">Step 2 • Saved roles by client and domain</div>
           </div>
           <div id="searchBar"></div>
         </div>
@@ -544,8 +544,9 @@
             <div>
               <h2 id="jdFormTitle">Create job description</h2>
               <p>
-                Add a new role reference here first. Talent, Find Candidates
-                (In), and Find Candidates (Out) only load saved job descriptions.
+                After setting the workspace in Talent, save or select the role
+                here. Find Candidates (In) and Find Candidates (Out) use the
+                active saved job description.
               </p>
             </div>
           </div>
@@ -773,7 +774,7 @@
             renderRecentCallAsks();
             status.className = "empty-state";
             status.textContent =
-              "No job descriptions are saved for this domain yet. Add one from Talent.";
+              "No job descriptions are saved for this domain yet. Create one above, then continue to Find Candidates (In).";
             return;
           }
 
@@ -1176,7 +1177,7 @@
         const status = document.getElementById("jdStatus");
         status.className = "notice";
         status.style.display = "block";
-        status.textContent = `Loaded ${title || "job description"} for ${client || "client"}. It will auto-load on Find Candidates (In) and Find Candidates (Out).`;
+        status.textContent = `Loaded ${title || "job description"} for ${client || "client"}. Continue to Find Candidates (In), or use Find Candidates (Out) if internal matches are not enough.`;
       }
 
       function currentAgentUser() {

@@ -129,6 +129,18 @@
         gap: 8px;
       }
 
+      .source-directory-body[hidden] {
+        display: none;
+      }
+
+      .source-directory.collapsed {
+        padding: 8px 12px;
+      }
+
+      .source-directory.collapsed .source-directory-head p {
+        display: none;
+      }
+
       .source-directory-card {
         display: grid;
         gap: 7px;
@@ -162,6 +174,14 @@
         color: var(--muted);
         font-size: 13px;
         line-height: 1.35;
+      }
+
+      .selection-status-bar {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        flex-wrap: wrap;
+        margin: 12px 0 8px;
       }
 
       .law-criteria {
@@ -371,39 +391,6 @@
         font-size: 12px;
       }
 
-      .temp-profile-panel {
-        margin-top: 18px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 14px;
-        background: var(--card);
-      }
-
-      .temp-profile-row {
-        display: grid;
-        grid-template-columns: minmax(180px, 1.4fr) minmax(120px, 0.8fr) minmax(220px, auto);
-        gap: 12px;
-        align-items: center;
-        border-top: 1px solid var(--border);
-        padding: 12px 0;
-      }
-
-      .temp-profile-row:first-child {
-        border-top: 0;
-      }
-
-      .temp-profile-actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-      }
-
-      .temp-profile-panel:target {
-        border-color: var(--primary-2);
-        box-shadow: 0 0 0 3px rgba(34, 113, 177, 0.12);
-      }
-
       @media (max-width: 760px) {
         .criteria-grid,
         .source-audit {
@@ -482,19 +469,12 @@
           justify-content: center;
         }
 
-        .temp-profile-row {
-          grid-template-columns: 1fr;
-        }
-
-        .temp-profile-actions {
-          justify-content: flex-start;
-        }
       }
     </style>
     <script>
       $(function () {
-        $("#siteSidebar").load("components/sidebar.html?v=20260522-egeria-pilot");
-        $("#processFlow").load("components/processFlow.html");
+        $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow");
+        $("#processFlow").load("components/processFlow.html?v=20260818-talent-jd-flow");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -513,6 +493,8 @@
         </div>
 
         <div id="processFlow"></div>
+
+        <div id="atlasClientContext" data-atlas-client-context></div>
 
         <section class="card">
           <h2 id="pageHeading">Find external candidates</h2>
@@ -628,9 +610,16 @@
                     partner path, or research channel, then keep imported leads as TEMP until reviewed.
                   </p>
                 </div>
-                <span class="pill">Dental-only</span>
+                <div class="row-actions" style="margin:0">
+                  <span class="pill">Dental-only</span>
+                  <button class="btn secondary" id="dentalSourceDirectoryToggle" type="button" onclick="toggleDentalSourceDirectory()" aria-expanded="true">
+                    Hide source directory
+                  </button>
+                </div>
               </div>
-              <div id="dentalSourceDirectoryGrid" class="source-directory-grid"></div>
+              <div id="dentalSourceDirectoryBody" class="source-directory-body">
+                <div id="dentalSourceDirectoryGrid" class="source-directory-grid"></div>
+              </div>
             </section>
           </div>
 
@@ -641,17 +630,16 @@
             <button class="btn" type="button" id="btnImportSelected">
               Enrich selected and create TEMP profiles
             </button>
-            <span id="selectedEnrichmentCount" class="pill">0 / 5 selected</span>
-            <button class="btn secondary" type="button" id="btnViewTempProfiles">
-              View TEMP Profiles
-            </button>
-            <a class="btn secondary" href="find-candidate.html">Add JD in Talent</a>
-            <a class="btn secondary" href="match-role.html">Continue to Role & Match</a>
+            <a class="btn secondary" href="temp-profiles.html" id="btnViewTempProfiles">
+              Open TEMP Profiles
+            </a>
+            <a class="btn secondary process-next-action" data-process-next-action href="match-role.html">Continue to Role & Match</a>
           </div>
 
           <div class="notice" style="margin-top: 12px" id="mineStatus">
             Select a JD and source to begin.
           </div>
+          <div id="latestTempProfilePanel" class="notice" style="margin-top: 10px; display: none"></div>
 
           <div id="sourceAudit" class="source-audit" aria-label="Source audit" hidden>
             <div class="source-audit-item"><span>Provider</span><strong id="auditProvider">Not run</strong></div>
@@ -664,6 +652,11 @@
           </div>
           <div id="sourceAuditNote" class="verification-note" hidden></div>
 
+          <div id="enrichmentSelectionStatus" class="selection-status-bar">
+            <span id="selectedEnrichmentCount" class="pill">0 / 5 selected</span>
+            <span class="muted">Check up to five results below, then use Enrich selected and create TEMP profiles.</span>
+          </div>
+
           <div id="jobSkillPanel" class="muted" style="margin-top: 12px"></div>
           <nav id="resultPagerTop" class="result-pager" data-result-pager aria-label="Candidate result pages" hidden></nav>
           <div id="results"></div>
@@ -673,22 +666,6 @@
             <div id="shortlistTray"></div>
           </section>
 
-          <section id="tempProfiles" class="temp-profile-panel" aria-labelledby="tempProfilesTitle">
-            <div class="section-head">
-              <div>
-                <h2 id="tempProfilesTitle">TEMP Profiles</h2>
-                <p class="muted">
-                  Review externally mined profiles, delete records you do not need, or make reviewed profiles permanent.
-                </p>
-              </div>
-              <button class="btn secondary" type="button" onclick="loadTempProfiles({ scroll: true })">Refresh TEMP Profiles</button>
-            </div>
-            <div id="tempProfileStatus" class="notice" style="margin-top: 10px">
-              TEMP profiles are kept separate for PII review.
-            </div>
-            <div id="latestTempProfilePanel" class="notice" style="margin-top: 10px; display: none"></div>
-            <div id="tempProfileList"></div>
-          </section>
         </section>
       </main>
     </div>
@@ -696,6 +673,7 @@
     <script src="JS/apiScripts.js"></script>
     <script src="JS/updateProcessFlow.js"></script>
     <script src="JS/shortlist.js"></script>
+    <script src="JS/atlasClientContext.js"></script>
     <script>
       let selectedSource = "pdl";
       let latestExternalResults = [];
@@ -837,6 +815,24 @@
         }[source] || "External provider";
       }
 
+      function applyDentalSourceDirectoryVisibility() {
+        const panel = document.getElementById("dentalSourceDirectory");
+        const body = document.getElementById("dentalSourceDirectoryBody");
+        const button = document.getElementById("dentalSourceDirectoryToggle");
+        if (!panel || !body || !button) return;
+        const hidden = sessionStorage.getItem("dentalSourceDirectoryHidden") === "true";
+        body.hidden = hidden;
+        panel.classList.toggle("collapsed", hidden);
+        button.textContent = hidden ? "Show source directory" : "Hide source directory";
+        button.setAttribute("aria-expanded", hidden ? "false" : "true");
+      }
+
+      function toggleDentalSourceDirectory() {
+        const body = document.getElementById("dentalSourceDirectoryBody");
+        sessionStorage.setItem("dentalSourceDirectoryHidden", body?.hidden ? "false" : "true");
+        applyDentalSourceDirectoryVisibility();
+      }
+
       function renderDentalSourceDirectory(sources = []) {
         const panel = document.getElementById("dentalSourceDirectory");
         const grid = document.getElementById("dentalSourceDirectoryGrid");
@@ -847,6 +843,7 @@
           return;
         }
         panel.hidden = false;
+        applyDentalSourceDirectoryVisibility();
         if (!sources.length) {
           grid.innerHTML = `<div class="notice">Dental source directory is not available from the provider status API yet.</div>`;
           return;
@@ -889,13 +886,18 @@
         const missing = statusKeys
           .map((key) => externalProviderStatus[key])
           .filter((provider) => provider && !provider.ready);
-        readiness.innerHTML = missing.length
+        const baseReadinessHtml = missing.length
           ? missing.map((provider) =>
               `<span>${escapeHtml(provider.label)}: <a href="${escapeHtml(provider.signupUrl)}" target="_blank" rel="noopener">get account key</a></span>`,
             ).join("")
           : isDentalDomain()
             ? "<span>Configured API options are ready. Dental boards below are portal, partner, or manual-import channels.</span>"
             : "<span>Professional discovery and court-evidence providers are configured.</span>";
+        const coresignalStatus = externalProviderStatus.coresignal;
+        const coresignalCostHtml = coresignalStatus?.ready
+          ? `<span>Coresignal ${escapeHtml(coresignalStatus.employeeDataset === "base" ? "Base" : "Multi-source")}: ${Number(coresignalStatus.searchCreditsPerRequest || 10)} credits per discovery request and ${Number(coresignalStatus.collectionCreditsPerRequest || 20)} credits per full-profile enrichment.</span>`
+          : "";
+        readiness.innerHTML = `${baseReadinessHtml}${coresignalCostHtml}`;
       }
 
       function renderSourceAudit(audit = {}) {
@@ -1112,7 +1114,7 @@
         document.getElementById("btnMine").textContent = source === "courtlistener"
           ? "Find Lawyers in Court Records"
           : "Find Candidates (Out)";
-        document.getElementById("selectedEnrichmentCount").hidden = researchOnly;
+        document.getElementById("enrichmentSelectionStatus").hidden = researchOnly;
         document.getElementById("shortlistSection").hidden = researchOnly;
         const guides = {
           pdl: "Professional discovery using PDL record credits. Returned profiles still require identity and California Bar verification.",
@@ -1149,6 +1151,7 @@
         if (skills.length) sessionStorage.setItem("jobSkills", skills.filter(Boolean).join(", "));
         sessionStorage.setItem("jobDomain", currentDomain());
         sessionStorage.setItem("activeJobLoadedAt", new Date().toISOString());
+        if (window.DevReadyAtlasClient) window.DevReadyAtlasClient.refresh();
         updateJob();
       }
 
@@ -1573,8 +1576,6 @@
         } catch (e) {
           document.getElementById("mineStatus").textContent =
             `TEMP profile was not created: ${e.message}`;
-          document.getElementById("tempProfileStatus").textContent =
-            "Create TEMP profile failed. Check the message above before refreshing.";
           return null;
         }
 
@@ -1642,9 +1643,8 @@
           : response.identityUnverified
             ? `TEMP research profile created for ${response.name}. Identity and qualifications remain unverified; open the profile to review ${Number(response.courtEvidence?.evidenceCount || 0)} supporting court records and continue verification.`
           : Number.isFinite(score)
-            ? `TEMP profile enriched and rematched at ${Math.round(score)}%. Open it below to review the evidence.`
-            : "TEMP profile created. Use the link below to review it, make it permanent, or delete it.";
-        await loadTempProfiles({ scroll: true });
+            ? `TEMP profile enriched and rematched at ${Math.round(score)}%. Open the TEMP Profiles page to review the evidence.`
+            : "TEMP profile created. Open the TEMP Profiles page to use it, make it permanent, or delete it.";
         return response;
       }
 
@@ -1687,16 +1687,9 @@
         }
       }
 
-      function tempProfileActionHtml(personId, linkLabel = "Link to TEMP profile") {
-        return `
-          <a class="btn secondary" href="profile-preview.html" onclick="openTempProfile('${personId}'); return false;">${linkLabel}</a>
-          <button class="btn primary" type="button" onclick="makeTempPermanent('${personId}')">Make permanent</button>
-          <button class="btn danger" type="button" onclick="deleteTempProfile('${personId}')">Delete</button>
-        `;
-      }
-
       function renderLatestTempProfile(profile) {
         const panel = document.getElementById("latestTempProfilePanel");
+        if (!panel) return;
         if (!profile || !profile.personid) {
           panel.style.display = "none";
           panel.innerHTML = "";
@@ -1707,94 +1700,12 @@
           <strong>${profile.duplicate ? "Existing TEMP profile:" : "TEMP profile ready:"}</strong> ${escapeHtml(profile.name || "Temporary Profile")}
           ${profile.title ? `<span class="muted"> - ${escapeHtml(profile.title)}</span>` : ""}
           ${profile.identityUnverified ? `<div class="muted">Identity unverified - ${Number(profile.courtEvidence?.evidenceCount || 0)} supporting court record${Number(profile.courtEvidence?.evidenceCount || 0) === 1 ? "" : "s"} saved for review. No fit score assigned.</div>` : Number.isFinite(Number(profile.match?.score)) ? `<div class="muted">Rematched ${Math.round(Number(profile.match.score))}% - ${escapeHtml(profile.match.band || "Review evidence")}</div>` : ""}
-          ${profile.enrichment?.status === "completed" ? `<div class="muted">PDL selected-profile enrichment completed${profile.enrichment.likelihood ? ` at ${escapeHtml(profile.enrichment.likelihood)}/10 identity likelihood` : ""}. No LinkedIn scraping.</div>` : ""}
-          <div class="temp-profile-actions" style="margin-top: 8px">
-            ${tempProfileActionHtml(profile.personid)}
+          ${profile.enrichment?.status === "completed" ? `<div class="muted">${escapeHtml(profile.enrichment.provider || "Selected-profile provider")} enrichment completed${profile.enrichment.likelihood ? ` at ${escapeHtml(profile.enrichment.likelihood)}/10 identity likelihood` : ""}. ${profile.enrichment.contactNotice ? escapeHtml(profile.enrichment.contactNotice) + " " : ""}No LinkedIn scraping.</div>` : ""}
+          <div class="row-actions" style="margin-top: 8px">
+            <a class="btn primary" href="temp-profiles.html?domain=${encodeURIComponent(currentDomain())}">Open TEMP Profiles</a>
+            <span class="muted">Saved TEMP records now live in their own domain library and are not automatically carried into a new sourcing session.</span>
           </div>
         `;
-      }
-
-      function renderTempProfiles(profiles) {
-        const list = document.getElementById("tempProfileList");
-        if (!profiles.length) {
-          list.innerHTML = "";
-          document.getElementById("tempProfileStatus").textContent =
-            "No TEMP profiles found for this environment.";
-          return;
-        }
-        document.getElementById("tempProfileStatus").textContent =
-          `${profiles.length} TEMP profile${profiles.length === 1 ? "" : "s"} ready for review.`;
-        list.innerHTML = profiles
-          .map((profile) => {
-            const safeName = escapeHtml(profile.name || "Temporary Profile");
-            const safeTitle = escapeHtml(profile.title || "External candidate");
-            const safeSource = escapeHtml(profile.source || "External");
-            const safeLocation = escapeHtml(profile.location || "");
-            const matchScore = Number(profile.matchScore);
-            const sourceDetail = profile.enrichmentStatus === "completed"
-              ? `${safeSource} - enriched${Number.isFinite(matchScore) ? ` - ${Math.round(matchScore)}% rematch` : ""}`
-              : safeSource;
-            return `<div class="temp-profile-row">
-              <div>
-                <strong>${safeName}</strong>
-                <div class="muted">${safeTitle}${safeLocation ? " - " + safeLocation : ""}</div>
-              </div>
-              <div class="muted">${sourceDetail}</div>
-              <div class="temp-profile-actions">${tempProfileActionHtml(profile.personid)}</div>
-            </div>`;
-          })
-          .join("");
-      }
-
-      function scrollToTempProfiles() {
-        const panel = document.getElementById("tempProfiles");
-        if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-
-      async function loadTempProfiles(options = {}) {
-        document.getElementById("tempProfileStatus").textContent =
-          `Loading TEMP profiles for ${currentDomain()}...`;
-        if (options.scroll) scrollToTempProfiles();
-        try {
-          const response = await api(`/api/azureJobs/external/temp?domain=${encodeURIComponent(currentDomain())}&limit=100`);
-          renderTempProfiles(response.profiles || []);
-        } catch (e) {
-          document.getElementById("tempProfileStatus").textContent = e.message;
-        }
-      }
-
-      function openTempProfile(personId) {
-        sessionStorage.setItem("candidateId", personId);
-        sessionStorage.setItem("candidateStatus", "Temporary Profile");
-        sessionStorage.setItem("candidateProfileType", "Temporary Profile");
-        window.location.href = "profile-preview.html";
-      }
-
-      async function makeTempPermanent(personId) {
-        const confirmation = isLawDomain()
-          ? "Before making this lawyer profile permanent, confirm that you verified the attorney's license and standing with the official California Bar search. Continue?"
-          : "Make this TEMP profile permanent?";
-        if (!confirm(confirmation)) return;
-        await api(`/api/azureJobs/external/temp/${personId}/make-permanent`, { method: "POST" });
-        const temporaryProfiles = JSON.parse(sessionStorage.getItem("temporaryProfiles") || "{}");
-        delete temporaryProfiles[String(personId)];
-        sessionStorage.setItem("temporaryProfiles", JSON.stringify(temporaryProfiles));
-        if (String(sessionStorage.getItem("candidateId")) === String(personId)) {
-          sessionStorage.removeItem("candidateProfileType");
-          sessionStorage.removeItem("externalCandidateSource");
-          sessionStorage.setItem("candidateStatus", "Permanent Profile");
-        }
-        renderLatestTempProfile(null);
-        await loadTempProfiles();
-      }
-
-      async function deleteTempProfile(personId) {
-        if (!confirm("Delete this TEMP profile? This removes the temporary external record.")) return;
-        await api(`/api/azureJobs/external/temp/${personId}`, { method: "DELETE" });
-        const temporaryProfiles = JSON.parse(sessionStorage.getItem("temporaryProfiles") || "{}");
-        delete temporaryProfiles[String(personId)];
-        sessionStorage.setItem("temporaryProfiles", JSON.stringify(temporaryProfiles));
-        await loadTempProfiles();
       }
 
       document.addEventListener("DOMContentLoaded", () => {
@@ -1847,18 +1758,12 @@
         });
         document.getElementById("btnMine").addEventListener("click", mineCandidates);
         document.getElementById("btnImportSelected").addEventListener("click", importSelectedExternalCandidates);
-        document.getElementById("btnViewTempProfiles").addEventListener("click", () => loadTempProfiles({ scroll: true }));
         document.getElementById("externalSearchInput").addEventListener("keydown", (event) => {
           if (event.key === "Enter") {
             event.preventDefault();
             mineCandidates();
           }
         });
-        if (window.location.hash === "#tempProfiles") {
-          loadTempProfiles({ scroll: true });
-        } else {
-          loadTempProfiles();
-        }
         hydrateSavedJobSelection();
       });
     </script>
