@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 from fastapi import HTTPException
 
 from azureUtils.routes import azureJobEndpoints
-from legalSources import braveSearch, coreSignal, courtListener
+from legalSources import coreSignal, courtListener
 
 
 class LegalSourceClientTests(unittest.TestCase):
@@ -64,25 +64,6 @@ class LegalSourceClientTests(unittest.TestCase):
         self.assertEqual(result["dataset"], "base")
         self.assertEqual(result["matched_input"], "profile_url")
         self.assertEqual(result["credits_used"], 10)
-
-    @patch.dict(os.environ, {"BRAVE_SEARCH_API_KEY": "brave-test-key"}, clear=False)
-    @patch("legalSources.braveSearch.requests.get")
-    def test_brave_search_uses_subscription_header_and_more_results_flag(self, get):
-        response = Mock(status_code=200)
-        response.json.return_value = {
-            "query": {"more_results_available": True},
-            "web": {"results": [{"title": "Attorney Bio", "url": "https://example.com/bio"}]},
-        }
-        get.return_value = response
-
-        result = braveSearch.search_web("professional liability attorney", size=5, page=1)
-
-        request = get.call_args.kwargs
-        self.assertEqual(request["headers"]["X-Subscription-Token"], "brave-test-key")
-        self.assertEqual(request["params"]["offset"], 1)
-        self.assertFalse(request["params"]["text_decorations"] == "true")
-        self.assertEqual(result["next_page"], 2)
-        self.assertEqual(result["requests_used"], 1)
 
     @patch.dict(os.environ, {"COURTLISTENER_API_TOKEN": "court-test-token"}, clear=False)
     @patch("legalSources.courtListener.requests.get")
@@ -181,8 +162,6 @@ class LegalSourceClientTests(unittest.TestCase):
     def test_missing_provider_keys_are_explicit(self):
         with self.assertRaisesRegex(coreSignal.CoreSignalError, "not configured"):
             coreSignal.search_people([], [], [])
-        with self.assertRaisesRegex(braveSearch.BraveSearchError, "not configured"):
-            braveSearch.search_web("attorney")
         with self.assertRaisesRegex(courtListener.CourtListenerError, "not configured"):
             courtListener.search_evidence("Sample Attorney")
 
@@ -202,7 +181,6 @@ class LegalSourceRouteTests(unittest.TestCase):
             "PDL_API_KEY": "pdl-key",
             "CORESIGNAL_API_KEY": "core-key",
             "CORESIGNAL_EMPLOYEE_DATASET": "multi_source",
-            "BRAVE_SEARCH_API_KEY": "brave-key",
             "COURTLISTENER_API_TOKEN": "court-key",
         },
         clear=False,
@@ -214,7 +192,7 @@ class LegalSourceRouteTests(unittest.TestCase):
         self.assertEqual(result["providers"]["coresignal"]["employeeDataset"], "multi_source")
         self.assertEqual(result["providers"]["coresignal"]["searchCreditsPerRequest"], 10)
         self.assertEqual(result["providers"]["coresignal"]["collectionCreditsPerRequest"], 20)
-        self.assertTrue(result["providers"]["brave"]["ready"])
+        self.assertNotIn("brave", result["providers"])
         self.assertTrue(result["providers"]["courtlistener"]["ready"])
         self.assertNotIn("core-key", str(result))
         self.assertFalse(result["secretsExposed"])
@@ -555,23 +533,12 @@ class LegalSourceRouteTests(unittest.TestCase):
         self.assertEqual(result["candidate"]["profile_validation"], validation)
         self.assertEqual(result["candidate"]["score"], 0)
 
-    def test_brave_query_excludes_linkedin_and_import_is_blocked(self):
-        query = azureJobEndpoints._brave_law_query(
-            {
-                "titles": ["Associate Attorney"],
-                "requiredPracticeAreas": ["Professional Liability"],
-                "locations": ["Los Angeles"],
-                "region": "California",
-            }
-        )
-
-        self.assertIn("-site:linkedin.com", query)
-        direct_query = azureJobEndpoints._brave_direct_query(
-            "Jane Attorney site:linkedin.com professional liability"
-        )
-        self.assertEqual(direct_query.lower().count("site:linkedin.com"), 1)
-        self.assertIn("-site:linkedin.com", direct_query.lower())
-        with self.assertRaisesRegex(Exception, "research-only"):
+    def test_removed_public_web_source_is_rejected_and_public_evidence_import_is_blocked(self):
+        for domain in ("dev", "engineer", "law", "dental"):
+            self.assertFalse(
+                azureJobEndpoints._external_source_allowed_for_domain("brave", domain)
+            )
+        with self.assertRaisesRegex(Exception, "not available"):
             azureJobEndpoints.external_candidate_import(
                 {"domain": "law", "source": "brave", "candidate": {"source": "brave"}}
             )

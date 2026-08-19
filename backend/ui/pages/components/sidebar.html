@@ -590,7 +590,7 @@
     }
     if (typeof window.startQuickHitFlow !== "function") {
       if (!host.innerHTML.trim()) {
-        const response = await fetch("components/processFlow.html?v=20260818-talent-jd-flow");
+        const response = await fetch("components/processFlow.html?v=20260819-workflow-guide");
         host.innerHTML = await response.text();
       }
       window.DevReadyProcessFlow.activateScripts(host);
@@ -1199,6 +1199,10 @@
     sessionStorage.removeItem(`atlasSourcingClient:${activeDomain}`);
     const keys = [
       "candidateId",
+      "activeCandidateId",
+      "activeCandidate",
+      "activeCandidateName",
+      "activeCandidateEmail",
       "candidateName",
       "candidateEmail",
       "candidateStatus",
@@ -1234,11 +1238,21 @@
     keys.forEach((key) => sessionStorage.removeItem(key));
     [
       `shortlistDetails:${activeDomain}`,
+      `shortlist:${activeDomain}`,
+      `activeCandidateId:${activeDomain}`,
+      `activeCandidate:${activeDomain}`,
       `scheduleTracking:${activeDomain}`,
       `latestScheduleTracking:${activeDomain}`,
       `talentCounts:${activeDomain}`,
       `atlasSourcingClient:${activeDomain}`,
     ].forEach((key) => sessionStorage.removeItem(key));
+    const workflowPrefixes = [
+      `interviewSchedulingProgress:${activeDomain}:`,
+      `candidateInterest:${activeDomain}:`,
+    ];
+    const workflowKeys = Array.from({ length: sessionStorage.length }, (_, index) => sessionStorage.key(index))
+      .filter((key) => key && workflowPrefixes.some((prefix) => key.startsWith(prefix)));
+    workflowKeys.forEach((key) => sessionStorage.removeItem(key));
   }
 
   async function environmentUpdate() {

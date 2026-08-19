@@ -8,7 +8,6 @@ DentalReady is the VETCODE tenant for dental assistants, registered dental hygie
 - Use the existing external sourcing providers for early discovery:
   - People Data Labs for professional discovery when `PDL_API_KEY` is configured.
   - Coresignal for professional-profile comparison when `CORESIGNAL_API_KEY` is configured.
-  - Brave Search for public-web research only when `BRAVE_SEARCH_API_KEY` is configured.
 - Do not use CourtListener for DentalReady. CourtListener remains LegalReady-only.
 - Do not use GitHub as a DentalReady source signal. Public code footprint is not meaningful for dental staffing.
 
@@ -28,7 +27,6 @@ DentalReady is the VETCODE tenant for dental assistants, registered dental hygie
 - Available API-style integrations now surfaced in DentalReady:
   - People Data Labs: candidate/professional discovery when `PDL_API_KEY` is configured.
   - Coresignal: professional-profile comparison when `CORESIGNAL_API_KEY` is configured.
-  - Brave Search: public-web research when `BRAVE_SEARCH_API_KEY` is configured; results remain research-only.
 - Dental-specific boards currently added to the DentalReady source directory as portal/partner/manual channels:
   - ADA CareerCenter
   - DentalPost

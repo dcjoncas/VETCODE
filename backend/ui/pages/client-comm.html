@@ -27,7 +27,7 @@
     <script>
       $(function () {
         $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow");
-        $("#processFlow").load("components/processFlow.html?v=20260818-talent-jd-flow");
+        $("#processFlow").load("components/processFlow.html?v=20260819-workflow-guide");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -198,8 +198,8 @@
     </div>
 
     <script src="JS/apiScripts.js"></script>
-    <script src="JS/shortlist.js"></script>
-    <script src="JS/profileCompletion.js"></script>
+    <script src="JS/shortlist.js?v=20260819-active-candidate"></script>
+    <script src="JS/profileCompletion.js?v=20260819-ai-profile-link"></script>
     <script src="JS/atlasClientContext.js"></script>
     <script>
       let shortlistArray = [];
@@ -254,14 +254,21 @@
         }
 
         shortlistArray = shortlistArray.filter(
-          (candidate) => candidate !== profileId,
+          (candidate) => String(candidate) !== String(profileId),
         );
 
         shortlistScores = shortlistScores.filter(
-          (candidate) => candidate.id !== profileId,
+          (candidate) => String(candidate.id) !== String(profileId),
         );
 
-        sessionStorage.setItem("shortlist", shortlistArray);
+        if (window.DevReadyShortlist) {
+          window.DevReadyShortlist.remove(profileId);
+          shortlistArray = window.DevReadyShortlist.list().map((candidate) => String(candidate.id));
+        } else {
+          const serialized = shortlistArray.join(",");
+          sessionStorage.setItem(`shortlist:${sessionStorage.getItem("domain") || "dev"}`, serialized);
+          sessionStorage.setItem("shortlist", serialized);
+        }
 
         document.getElementById("candidate" + profileId).remove();
         renderCandidateReviewSummary();

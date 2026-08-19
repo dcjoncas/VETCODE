@@ -370,22 +370,377 @@
     flex-wrap: wrap;
     border-top: 1px solid var(--line, #dfe7e2);
   }
+
+  #processFlow #candidateSelected.has-active-candidate {
+    border: 1px solid rgba(var(--primary-rgb, 20, 88, 55), 0.34);
+    border-radius: 999px;
+    padding: 5px 10px;
+    background: var(--primary-soft, rgba(var(--primary-rgb, 20, 88, 55), 0.12));
+    color: var(--primary, #145837);
+    font-weight: 950;
+  }
+
+  #processFlow .process-next-candidate {
+    min-height: 30px;
+    border: 1px solid rgba(var(--primary-rgb, 20, 88, 55), 0.3);
+    border-radius: 999px;
+    padding: 5px 10px;
+    background: #fff;
+    color: var(--primary, #145837);
+    font-size: 11px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  #processFlow .process-next-candidate:hover,
+  #processFlow .process-next-candidate:focus-visible {
+    border-color: var(--primary, #145837);
+    background: var(--primary-soft, rgba(var(--primary-rgb, 20, 88, 55), 0.12));
+  }
+
+  /* Clear workflow language: solid = complete, outline = current, gray = remaining. */
+  #processFlow .process-flow-card {
+    border: 1px solid var(--line, #dfe7e2);
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 7px 20px rgba(16, 32, 24, 0.06);
+    padding: 12px 14px;
+  }
+
+  #processFlow .process-compact {
+    align-items: flex-start;
+  }
+
+  #processFlow .process-title-line {
+    align-items: center;
+    gap: 7px;
+  }
+
+  #processFlow .process-link-button {
+    min-height: 28px;
+    border: 1px solid var(--line, #dfe7e2);
+    border-radius: 8px;
+    background: #fff;
+    padding: 5px 9px;
+    color: var(--text, #102018);
+    text-decoration: none;
+  }
+
+  #processFlow .process-link-button:hover,
+  #processFlow .process-link-button:focus-visible {
+    border-color: var(--primary-2, #2f7d4b);
+    background: rgba(var(--primary-rgb, 127, 191, 63), 0.08);
+    text-decoration: none;
+  }
+
+  #processFlow .process-workflow-heading {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    color: var(--text, #102018);
+    font-size: 12px;
+    font-weight: 950;
+  }
+
+  #processFlow .process-selection {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 4px 7px;
+    color: var(--muted, #5b6b62);
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  #processFlow .process-selection + .process-selection::before {
+    content: none;
+  }
+
+  #processFlow #candidateSelected.has-active-candidate {
+    border-radius: 8px;
+    padding: 4px 8px;
+    background: rgba(var(--primary-rgb, 127, 191, 63), 0.1);
+  }
+
+  #processFlow .process-expanded {
+    margin-top: 12px;
+    border-top: 1px solid var(--line, #dfe7e2);
+    padding-top: 12px;
+  }
+
+  #processFlow .workflow-status-head,
+  #processFlow .workflow-status-foot {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  #processFlow .workflow-status-eyebrow {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--muted, #5b6b62);
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  #processFlow .workflow-status-title {
+    display: block;
+    color: var(--text, #102018);
+    font-size: 15px;
+    font-weight: 950;
+  }
+
+  #processFlow .workflow-status-detail,
+  #processFlow .workflow-progress-copy {
+    color: var(--muted, #5b6b62);
+    font-size: 11px;
+  }
+
+  #processFlow .workflow-progress-copy {
+    flex: 0 0 auto;
+    font-weight: 850;
+  }
+
+  #processFlow .workflow-progress-track {
+    height: 7px;
+    margin: 10px 0 12px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e9eeeb;
+  }
+
+  #processFlow .workflow-progress-fill {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--primary-2, #2f7d4b);
+    transition: width 180ms ease;
+  }
+
+  #processFlow .flow-help {
+    display: none;
+  }
+
+  #processFlow .flow {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(122px, 1fr)) minmax(210px, 1.35fr) minmax(90px, 0.72fr);
+    gap: 7px;
+    min-width: 1120px;
+    overflow: visible;
+  }
+
+  #processFlow .process-flow-scroll {
+    overflow-x: auto;
+    padding: 2px 1px 8px;
+    scrollbar-width: thin;
+  }
+
+  #processFlow .flow-arrow {
+    display: none;
+  }
+
+  #processFlow .step,
+  #processFlow .split-step,
+  #processFlow .schedule-split-step {
+    min-width: 0;
+    min-height: 48px;
+    border: 1px solid var(--line, #dfe7e2);
+    border-radius: 10px;
+    background: #f6f8f7;
+    box-shadow: none;
+  }
+
+  #processFlow .step {
+    justify-content: flex-start;
+    padding: 8px 10px;
+    color: var(--muted, #5b6b62);
+    line-height: 1.15;
+    white-space: normal;
+  }
+
+  #processFlow .split-step,
+  #processFlow .schedule-split-step {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    overflow: hidden;
+  }
+
+  #processFlow .split-step-link,
+  #processFlow .schedule-split-link {
+    min-height: 46px;
+    padding: 7px 8px;
+    background: transparent;
+    color: var(--muted, #5b6b62);
+    font-size: 11px;
+    line-height: 1.15;
+    text-align: center;
+    white-space: normal;
+  }
+
+  #processFlow .split-step-link + .split-step-link,
+  #processFlow .schedule-split-link + .schedule-split-link {
+    border-left: 1px solid var(--line, #dfe7e2);
+  }
+
+  #processFlow .step.complete,
+  #processFlow .split-step-link.complete,
+  #processFlow .schedule-split-link.complete {
+    border-color: var(--primary-2, #2f7d4b);
+    background: var(--primary-2, #2f7d4b);
+    color: #fff;
+  }
+
+  #processFlow .step.complete::before,
+  #processFlow .split-step-link.complete::before,
+  #processFlow .schedule-split-link.complete::before {
+    content: "✓";
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-size: 10px;
+  }
+
+  #processFlow .step.on,
+  #processFlow .split-step-link.on,
+  #processFlow .schedule-split-link.on,
+  #processFlow .split-step-branch.on {
+    border: 2px solid var(--primary-2, #2f7d4b);
+    background: #fff;
+    color: var(--text, #102018);
+    box-shadow: none;
+  }
+
+  #processFlow .step.on::after,
+  #processFlow .split-step-link.on::after,
+  #processFlow .schedule-split-link.on::after {
+    content: "Current";
+    margin-left: 6px;
+    background: var(--primary-2, #2f7d4b);
+    color: #fff;
+  }
+
+  #processFlow .step.next:not(.on),
+  #processFlow .split-step-link.next:not(.on),
+  #processFlow .schedule-split-link.next:not(.on) {
+    border-color: var(--line, #dfe7e2);
+    background: #f6f8f7;
+    color: var(--text, #102018);
+    box-shadow: none;
+    animation: none;
+  }
+
+  #processFlow .step.next:not(.on)::after,
+  #processFlow .split-step-link.next:not(.on)::after,
+  #processFlow .schedule-split-link.next:not(.on)::after {
+    content: none;
+  }
+
+  #processFlow .split-step:has(.complete),
+  #processFlow .schedule-split-step:has(.complete),
+  #processFlow .split-step:has(.on),
+  #processFlow .schedule-split-step:has(.on) {
+    border-color: var(--line, #dfe7e2);
+    box-shadow: none;
+  }
+
+  #processFlow .workflow-status-foot {
+    align-items: center;
+    margin-top: 2px;
+  }
+
+  #processFlow .workflow-status-legend {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    color: var(--muted, #5b6b62);
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  #processFlow .workflow-status-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  #processFlow .workflow-status-legend i {
+    width: 9px;
+    height: 9px;
+    border: 1px solid var(--line, #dfe7e2);
+    border-radius: 3px;
+    background: #f6f8f7;
+  }
+
+  #processFlow .workflow-status-legend .is-complete i {
+    border-color: var(--primary-2, #2f7d4b);
+    background: var(--primary-2, #2f7d4b);
+  }
+
+  #processFlow .workflow-status-legend .is-current i {
+    border: 2px solid var(--primary-2, #2f7d4b);
+    background: #fff;
+  }
+
+  #processFlow .workflow-next-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    border-radius: 8px;
+    padding: 6px 10px;
+    background: var(--text, #102018);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+    text-decoration: none;
+  }
+
+  #processFlow .workflow-next-link:hover,
+  #processFlow .workflow-next-link:focus-visible {
+    background: var(--primary-2, #2f7d4b);
+    text-decoration: none;
+  }
+
+  @media (max-width: 760px) {
+    #processFlow .workflow-status-head,
+    #processFlow .workflow-status-foot {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    #processFlow .process-actions {
+      width: 100%;
+    }
+  }
 </style>
 
 <div class="card process-flow-card">
   <div class="process-compact">
     <div class="process-title-line">
+      <span class="process-workflow-heading">Workflow guide</span>
+      <span id="candidateSelected" class="process-selection">No Active Candidate</span>
       <button
-        id="processExpandButton"
-        class="process-link-button"
+        id="processNextCandidate"
+        class="process-next-candidate"
         type="button"
-        onclick="toggleProcessFlow()"
-        data-hint="Show or hide the full workflow map. Collapse it when you need more screen space; expand it when you want to jump between steps."
-        title="Show or hide the workflow steps"
+        onclick="activateNextProcessCandidate()"
+        title="Move to the next candidate in shortlist order"
+        hidden
       >
-        Process Flow
+        Next candidate
       </button>
-      <span id="candidateSelected" class="process-selection">No Candidate Selected</span>
       <span id="jobSelected" class="process-selection">No Job Selected</span>
       <span id="clientSelected" class="process-selection">No Atlas Client Attached</span>
     </div>
@@ -431,11 +786,31 @@
       </button>
     </div>
   </div>
-  <div id="processExpanded" class="process-expanded" hidden>
+  <div id="processExpanded" class="process-expanded">
+    <div class="workflow-status-head">
+      <div>
+        <span class="workflow-status-eyebrow">Hiring workflow</span>
+        <strong id="processStatusTitle" class="workflow-status-title">Current step</strong>
+        <span id="processStatusDetail" class="workflow-status-detail">Complete the current step to keep the candidate moving.</span>
+      </div>
+      <span id="processProgressCopy" class="workflow-progress-copy">0 of 9 steps complete</span>
+    </div>
+    <div
+      id="processProgressTrack"
+      class="workflow-progress-track"
+      role="progressbar"
+      aria-label="Workflow completion"
+      aria-valuemin="0"
+      aria-valuemax="9"
+      aria-valuenow="0"
+    >
+      <span id="processProgressFill" class="workflow-progress-fill"></span>
+    </div>
     <div class="flow-help">
       Start in Talent, save or select the job description, then run Find (In). Use Find (Out) only when internal candidates are not enough.
     </div>
-    <div class="flow">
+    <div class="process-flow-scroll">
+    <div class="flow" aria-label="Workflow steps">
       <a class="step" data-flow-step="talent" href="find-candidate.html" data-hint="Start the talent workflow: choose the domain, upload a resume, find an existing profile, or scan profile groups.">1 - Talent</a>
       <span class="flow-arrow" aria-hidden="true"></span>
       <a class="step" data-flow-step="job-descriptions" href="job-descriptions.html" data-hint="Create, upload, normalize, edit, or select the job description that will drive candidate matching.">2 - Job Descriptions</a>
@@ -449,14 +824,23 @@
       <span class="flow-arrow" aria-hidden="true"></span>
       <a class="step" data-flow-step="candidate-chat" href="candidate-chat.html" data-hint="Create or review the candidate AI chat link. Answers from the chat complete personality context and update the candidate profile.">5 - Candidate chat</a>
       <span class="flow-arrow" aria-hidden="true"></span>
-      <a class="step" data-flow-step="shortlist" href="client-comm.html" data-hint="Manage the candidate shortlist for client review: first conduct the candidate review, then prepare the message, attach profile links, and send it when ready.">6 - Shortlist</a>
+      <a class="step" data-flow-step="shortlist" href="client-comm.html" data-hint="Manage the shortlist, then schedule the internal DevReady Candidate Review before any client-facing interview.">6 - Shortlist</a>
       <span class="flow-arrow" aria-hidden="true"></span>
       <div class="schedule-split-step" aria-label="Step 7 interview scheduling">
-        <a class="schedule-split-link" data-flow-step="candidate-review" href="schedule-interview.html?interview=ready" data-hint="Schedule a candidate review touch base before client outreach. Confirm interest in the job, activities, gaps, pay/timing, and next steps.">7A - Candidate Review</a>
-        <a class="schedule-split-link" data-flow-step="client-interview" href="schedule-interview.html?interview=client" data-hint="Schedule the client interview using the selected candidate, job, attendees, and role context so status tracking stays connected.">7B - Client Interview</a>
+        <a class="schedule-split-link" data-flow-step="candidate-review" href="schedule-interview.html?interview=ready" data-hint="Internal DevReady staff meet with the candidate before client outreach. Confirm interest, activities, gaps, pay/timing, and next steps.">7A - Candidate Review (DevReady)</a>
+        <a class="schedule-split-link" data-flow-step="client-interview" href="schedule-interview.html?interview=client" data-hint="Only after the candidate is confirmed interested, schedule the client-facing interview with the client and candidate.">7B - Client Interview</a>
       </div>
       <span class="flow-arrow" aria-hidden="true"></span>
       <a class="step" data-flow-step="status" href="status-tracker.html" data-hint="Track where the candidate stands after outreach: messages sent, interview status, follow-ups, resends, and next action needed.">8 - Status</a>
+    </div>
+    </div>
+    <div class="workflow-status-foot">
+      <div class="workflow-status-legend" aria-label="Workflow status legend">
+        <span class="is-complete"><i aria-hidden="true"></i>Complete</span>
+        <span class="is-current"><i aria-hidden="true"></i>Current</span>
+        <span><i aria-hidden="true"></i>Remaining</span>
+      </div>
+      <a id="processNextStepLink" class="workflow-next-link" href="#">Next step</a>
     </div>
   </div>
 </div>
@@ -548,7 +932,7 @@
   </div>
 </div>
 
-<script src="JS/updateProcessFlow.js"></script>
+<script src="JS/updateProcessFlow.js?v=20260819-active-candidate"></script>
 
 <script>
   const currentProcessPath = window.location.pathname.replace(/\/$/, "");
@@ -559,6 +943,18 @@
     sessionStorage.getItem("scheduleInterviewType") ||
     ""
   ).toLowerCase();
+  const latestInterviewFlowRecord = (() => {
+    const domain = sessionStorage.getItem("domain") || "dev";
+    try {
+      return JSON.parse(
+        sessionStorage.getItem(`latestScheduleTracking:${domain}`) ||
+        sessionStorage.getItem("latestScheduleTracking") ||
+        "null",
+      );
+    } catch {
+      return null;
+    }
+  })();
   const flowOrder = [
     "talent",
     "job-descriptions",
@@ -594,9 +990,13 @@
     if (currentProcessPath.endsWith("/external-chat.html")) return "candidate-chat";
     if (currentProcessPath.endsWith("/client-comm.html")) return "shortlist";
     if (currentProcessPath.endsWith("/schedule-interview.html")) {
-      return activeInterview === "client" || activeInterview === "role" ? "client-interview" : "candidate-review";
+      return activeInterview === "client" ? "client-interview" : "candidate-review";
     }
-    if (currentProcessPath.endsWith("/status-tracker.html")) return "status";
+    if (currentProcessPath.endsWith("/status-tracker.html")) {
+      const trackingInternalReview = latestInterviewFlowRecord && String(latestInterviewFlowRecord.interviewType || "ready").toLowerCase() !== "client";
+      if (trackingInternalReview && !latestInterviewFlowRecord.candidateInterest) return "candidate-review";
+      return "status";
+    }
     return "";
   })();
 
@@ -620,17 +1020,84 @@
     if (currentFlowStep === "find-out") {
       paintProcessStep("talent", "complete");
       paintProcessStep("job-descriptions", "complete");
-      paintProcessStep("find-in", "complete");
     }
     paintProcessStep(currentFlowStep, "on");
   }
 
-  const nextFlowStep = flowNextByStep[currentFlowStep] || "";
+  const waitingForCandidateDecision =
+    currentProcessPath.endsWith("/status-tracker.html") &&
+    currentFlowStep === "candidate-review" &&
+    !latestInterviewFlowRecord?.candidateInterest;
+  const nextFlowStep = waitingForCandidateDecision ? "" : (flowNextByStep[currentFlowStep] || "");
   if (nextFlowStep) {
     paintProcessStep(nextFlowStep, "next");
   }
 
+  const flowLabels = {
+    talent: "1 - Talent",
+    "job-descriptions": "2 - Job descriptions",
+    "find-in": "3 - Find candidates (internal)",
+    "find-out": "3 - Find candidates (external option)",
+    profile: "4 - Build and review profile",
+    "candidate-chat": "5 - Candidate AI chat",
+    shortlist: "6 - Shortlist",
+    "candidate-review": "7A - DevReady candidate review",
+    "client-interview": "7B - Client interview",
+    status: "8 - Status and follow-up",
+  };
+  const flowDetails = {
+    talent: "Select the domain and the candidate records you want to work with.",
+    "job-descriptions": "Create or select the role that will drive search and matching.",
+    "find-in": "Review internal matches first; use external sourcing only if needed.",
+    "find-out": "Review external results and create a DevReady TEMP profile for the right candidate.",
+    profile: "Confirm the profile details and complete any missing public-profile sections.",
+    "candidate-chat": "Send the secure AI chat so the candidate can complete personality and culture details.",
+    shortlist: "Confirm the candidate shortlist before the internal DevReady review.",
+    "candidate-review": "DevReady reviews the candidate and confirms interest before client outreach.",
+    "client-interview": "Schedule the candidate, client, and DevReady agent together.",
+    status: "Record the outcome, follow-up, and next action for this candidate.",
+  };
+
+  function renderWorkflowStatus() {
+    const statusTitle = document.getElementById("processStatusTitle");
+    const statusDetail = document.getElementById("processStatusDetail");
+    const progressCopy = document.getElementById("processProgressCopy");
+    const progressTrack = document.getElementById("processProgressTrack");
+    const progressFill = document.getElementById("processProgressFill");
+    const nextLink = document.getElementById("processNextStepLink");
+    if (!statusTitle || !statusDetail || !progressCopy || !progressTrack || !progressFill || !nextLink) return;
+
+    const currentIndex = currentFlowStep === "find-out" ? 2 : flowOrder.indexOf(currentFlowStep);
+    const completedCount = currentIndex < 0 ? 0 : currentIndex;
+    const totalSteps = flowOrder.length;
+    const completionPercent = Math.round((completedCount / totalSteps) * 100);
+    const currentLabel = flowLabels[currentFlowStep] || "Choose a workflow step";
+
+    statusTitle.textContent = currentFlowStep ? `Current: ${currentLabel}` : "Choose where to begin";
+    statusDetail.textContent = waitingForCandidateDecision
+      ? "Record whether the candidate is interested before the client interview can be scheduled."
+      : (flowDetails[currentFlowStep] || "Start with Talent to select the candidate and domain.");
+    progressCopy.textContent = `${completedCount} of ${totalSteps} steps complete`;
+    progressTrack.setAttribute("aria-valuenow", String(completedCount));
+    progressFill.style.width = `${completionPercent}%`;
+
+    if (!nextFlowStep) {
+      nextLink.hidden = true;
+      return;
+    }
+    const nextNode = document.querySelector(`#processFlow [data-flow-step="${nextFlowStep}"]`);
+    nextLink.hidden = false;
+    nextLink.href = nextNode?.href || "#";
+    nextLink.textContent = `Next: ${flowLabels[nextFlowStep] || nextFlowStep} →`;
+  }
+
+  renderWorkflowStatus();
+
   const egeriaPilotKeys = [
+    "activeCandidateId",
+    "activeCandidate",
+    "activeCandidateName",
+    "activeCandidateEmail",
     "candidateId",
     "selectedProfileId",
     "candidateName",
@@ -671,11 +1138,14 @@
 
   function egeriaPilotContext() {
     const shortlistRaw = sessionStorage.getItem(`shortlistDetails:${quickHitDomain()}`) || sessionStorage.getItem("shortlistDetails") || "";
-    let shortlistCount = sessionStorage.getItem("shortlist") ? 1 : 0;
+    const shortlistIds = (sessionStorage.getItem(`shortlist:${quickHitDomain()}`) || sessionStorage.getItem("shortlist") || "")
+      .split(",")
+      .filter(Boolean);
+    let shortlistCount = shortlistIds.length;
     try {
       const parsed = JSON.parse(shortlistRaw || "[]");
       if (Array.isArray(parsed)) shortlistCount = parsed.length;
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) shortlistCount = 1;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) shortlistCount = Object.keys(parsed).length;
     } catch {}
     const scheduleRaw = sessionStorage.getItem(`scheduleTracking:${quickHitDomain()}`) || sessionStorage.getItem("scheduleTracking") || "";
     let scheduleSaved = false;
@@ -693,10 +1163,10 @@
       activeUrl: window.location.href,
       currentStep: currentFlowStep || "",
       nextStep: nextFlowStep || "",
-      candidateId: sessionStorage.getItem("candidateId") || sessionStorage.getItem("selectedProfileId") || "",
+      candidateId: sessionStorage.getItem(`activeCandidateId:${quickHitDomain()}`) || sessionStorage.getItem("activeCandidateId") || sessionStorage.getItem("candidateId") || sessionStorage.getItem("selectedProfileId") || "",
       selectedProfileId: sessionStorage.getItem("selectedProfileId") || "",
-      candidateName: sessionStorage.getItem("candidateName") || "",
-      candidateEmail: sessionStorage.getItem("candidateEmail") || "",
+      candidateName: sessionStorage.getItem("activeCandidateName") || sessionStorage.getItem("candidateName") || "",
+      candidateEmail: sessionStorage.getItem("activeCandidateEmail") || sessionStorage.getItem("candidateEmail") || "",
       candidateStatus: sessionStorage.getItem("candidateStatus") || "",
       jobId: sessionStorage.getItem("selectedJdId") || sessionStorage.getItem("jdId") || sessionStorage.getItem("jobId") || sessionStorage.getItem("jobID") || "",
       selectedJdId: sessionStorage.getItem("selectedJdId") || "",
@@ -1359,20 +1829,15 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
     );
   }
 
-  function toggleProcessFlow() {
-    const expanded = document.getElementById("processExpanded");
-    const button = document.getElementById("processExpandButton");
-    const nextHidden = !expanded.hidden ? true : false;
-    expanded.hidden = nextHidden;
-    button.textContent = nextHidden ? "Process Flow" : "Hide Process Flow";
-    localStorage.setItem("devreadyProcessExpanded", nextHidden ? "0" : "1");
-  }
-
   function clearProcessTrail() {
     const keepDomain = sessionStorage.getItem("domain") || "dev";
     sessionStorage.removeItem(`atlasSourcingClient:${keepDomain}`);
     const keys = [
       "candidateId",
+      "activeCandidateId",
+      "activeCandidate",
+      "activeCandidateName",
+      "activeCandidateEmail",
       "candidateName",
       "candidateEmail",
       "candidateStatus",
@@ -1409,11 +1874,21 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
     keys.forEach((key) => sessionStorage.removeItem(key));
     [
       `shortlistDetails:${keepDomain}`,
+      `shortlist:${keepDomain}`,
+      `activeCandidateId:${keepDomain}`,
+      `activeCandidate:${keepDomain}`,
       `scheduleTracking:${keepDomain}`,
       `latestScheduleTracking:${keepDomain}`,
       `talentCounts:${keepDomain}`,
       `atlasSourcingClient:${keepDomain}`,
     ].forEach((key) => sessionStorage.removeItem(key));
+    const workflowPrefixes = [
+      `interviewSchedulingProgress:${keepDomain}:`,
+      `candidateInterest:${keepDomain}:`,
+    ];
+    const workflowKeys = Array.from({ length: sessionStorage.length }, (_, index) => sessionStorage.key(index))
+      .filter((key) => key && workflowPrefixes.some((prefix) => key.startsWith(prefix)));
+    workflowKeys.forEach((key) => sessionStorage.removeItem(key));
     sessionStorage.setItem("domain", keepDomain);
 
     if (typeof updateCandidate === "function") updateCandidate();
@@ -1424,7 +1899,6 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
   }
 
   Object.assign(window, {
-    toggleProcessFlow,
     openProcessMap,
     closeProcessMap,
     clearProcessTrail,
@@ -1452,11 +1926,6 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
   document.getElementById("processMapOverlay").addEventListener("click", (event) => {
     if (event.target.id === "processMapOverlay") closeProcessMap();
   });
-
-  if (localStorage.getItem("devreadyProcessExpanded") === "1") {
-    document.getElementById("processExpanded").hidden = false;
-    document.getElementById("processExpandButton").textContent = "Hide Process Flow";
-  }
 
   if (typeof syncDomainSelect === "function") {
     syncDomainSelect(sessionStorage.getItem("domain") || "dev");

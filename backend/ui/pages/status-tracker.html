@@ -27,7 +27,7 @@
     <script>
       $(function () {
         $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow");
-        $("#processFlow").load("components/processFlow.html?v=20260818-talent-jd-flow");
+        $("#processFlow").load("components/processFlow.html?v=20260819-workflow-guide");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -139,6 +139,31 @@
         display: block;
       }
 
+      .candidate-review-outcome {
+        margin-top: 14px;
+        border: 2px solid var(--primary);
+        border-radius: 14px;
+        padding: 13px;
+        background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.1), #fff);
+      }
+
+      .candidate-review-outcome strong {
+        display: block;
+      }
+
+      .candidate-review-outcome p {
+        margin: 5px 0 10px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .tracking-view-help {
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
       @media (max-width: 1320px) {
         .tracking-grid,
         .detail-list {
@@ -224,10 +249,16 @@
               <div class="row-actions">
                 <a class="btn secondary" href="schedule-interview.html?interview=ready">Candidate Review</a>
                 <a class="btn secondary" href="schedule-interview.html?interview=client">Client Interview</a>
-                <button class="btn secondary" type="button" onclick="clearTracking()">
-                  Clear local tracking
+                <button id="clearLocalViewButton" class="btn secondary" type="button" onclick="clearLocalTrackingView()">
+                  Clear local view
+                </button>
+                <button id="undoClearLocalViewButton" class="btn secondary" type="button" onclick="undoClearLocalTrackingView()" hidden>
+                  Undo clear
                 </button>
               </div>
+              <p class="tracking-view-help">
+                Archive closes and saves one candidate record. Clear local view only hides the records shown in this browser session; it does not delete saved interview history.
+              </p>
             </div>
 
             <aside class="tracking-panel">
@@ -242,6 +273,22 @@
                 Generate or send a scheduling action to see the message here.
               </div>
 
+              <div id="candidateReviewOutcomePanel" class="candidate-review-outcome" hidden>
+                <strong>Internal DevReady Candidate Review outcome</strong>
+                <p id="candidateReviewOutcomeHelp">After the internal conversation, confirm whether the candidate wants to move forward to a client interview.</p>
+                <div class="row-actions">
+                  <button id="candidateInterestedButton" class="btn" type="button" onclick="recordCandidateInterest('interested')">
+                    Interested — set up Client Interview
+                  </button>
+                  <button id="candidateNotInterestedButton" class="btn danger" type="button" onclick="recordCandidateInterest('not-interested')">
+                    Not interested
+                  </button>
+                  <button id="nextCandidateReviewButton" class="btn secondary" type="button" onclick="moveToNextReviewCandidate()" hidden>
+                    Move to next candidate
+                  </button>
+                </div>
+              </div>
+
               <div class="row-actions">
                 <button class="btn" type="button" onclick="resendLatest()">
                   Resend
@@ -249,8 +296,8 @@
                 <button class="btn secondary" type="button" onclick="followUpLatest()">
                   Follow up
                 </button>
-                <button class="btn danger" type="button" onclick="closeArchiveLatest()">
-                  Close and archive status
+                <button class="btn secondary" type="button" onclick="archiveSelectedRecord()">
+                  Archive selected record
                 </button>
                 <button class="btn hire-button" type="button" onclick="startHireOnboarding()">
                   Hire / On-boarded
@@ -266,10 +313,52 @@
       </main>
     </div>
 
-    <script src="JS/shortlist.js"></script>
+    <script src="JS/apiScripts.js"></script>
+    <script src="JS/profileCompletion.js?v=20260819-ai-profile-link"></script>
+    <script src="JS/shortlist.js?v=20260819-active-candidate"></script>
     <script>
       let records = [];
       let selectedRecord = null;
+
+      function trackingRecordKey(record) {
+        if (!record) return "";
+        return String(
+          record.id ||
+          record.archiveId ||
+          [record.candidateId, record.candidateEmail, record.createdAt, record.interviewType]
+            .filter(Boolean)
+            .join("|"),
+        );
+      }
+
+      function trackingHiddenIdsKey(domain) {
+        return `trackingHiddenIds:${domain}`;
+      }
+
+      function trackingClearUndoKey(domain) {
+        return `trackingClearUndo:${domain}`;
+      }
+
+      function readHiddenTrackingIds(domain) {
+        try {
+          const stored = JSON.parse(sessionStorage.getItem(trackingHiddenIdsKey(domain)) || "[]");
+          return new Set(Array.isArray(stored) ? stored.map(String) : []);
+        } catch {
+          return new Set();
+        }
+      }
+
+      function writeHiddenTrackingIds(domain, ids) {
+        sessionStorage.setItem(trackingHiddenIdsKey(domain), JSON.stringify(Array.from(ids)));
+      }
+
+      function updateTrackingViewControls() {
+        const domain = sessionStorage.getItem("domain") || "dev";
+        const clearButton = document.getElementById("clearLocalViewButton");
+        const undoButton = document.getElementById("undoClearLocalViewButton");
+        if (clearButton) clearButton.disabled = records.length === 0;
+        if (undoButton) undoButton.hidden = !sessionStorage.getItem(trackingClearUndoKey(domain));
+      }
 
       function escapeHtml(value) {
         return String(value || "")
@@ -312,10 +401,14 @@
           const byId = new Map([...archived, ...localRecords].map((record) => [String(record.id), record]));
           records = Array.from(byId.values());
         } catch {}
-        selectedRecord =
-          JSON.parse(sessionStorage.getItem(latestKey) || sessionStorage.getItem("latestScheduleTracking") || "null") ||
-          records[0] ||
-          null;
+        const hiddenIds = readHiddenTrackingIds(domain);
+        records = records.filter((record) => !hiddenIds.has(trackingRecordKey(record)));
+        const lastSelected = JSON.parse(
+          sessionStorage.getItem(latestKey) || sessionStorage.getItem("latestScheduleTracking") || "null",
+        );
+        selectedRecord = lastSelected
+          ? records.find((record) => trackingRecordKey(record) === trackingRecordKey(lastSelected)) || records[0] || null
+          : records[0] || null;
         const requested = new URLSearchParams(window.location.search).get("record");
         if (requested) {
           selectedRecord = records.find((record) => String(record.id) === String(requested)) || selectedRecord;
@@ -341,14 +434,59 @@
         ].filter(Boolean).join(" - ");
       }
 
+      function isInternalCandidateReview(record) {
+        return Boolean(record) && String(record.interviewType || "ready").toLowerCase() !== "client";
+      }
+
+      function candidateReviewIsScheduled(record) {
+        const status = String(record?.status || "").toLowerCase();
+        return Boolean(
+          record?.calendlyConfirmed ||
+          record?.inviteConfirmedAt ||
+          status.includes("review scheduled") ||
+          status.includes("calendar invite sent") ||
+          status.includes("candidate interested") ||
+          status.includes("candidate not interested"),
+        );
+      }
+
+      function renderCandidateReviewOutcome() {
+        const panel = document.getElementById("candidateReviewOutcomePanel");
+        if (!panel) return;
+        const show = isInternalCandidateReview(selectedRecord);
+        panel.hidden = !show;
+        if (!show) return;
+        const scheduled = candidateReviewIsScheduled(selectedRecord);
+        const decision = String(selectedRecord.candidateInterest || "").toLowerCase();
+        const help = document.getElementById("candidateReviewOutcomeHelp");
+        const interestedButton = document.getElementById("candidateInterestedButton");
+        const notInterestedButton = document.getElementById("candidateNotInterestedButton");
+        const nextButton = document.getElementById("nextCandidateReviewButton");
+        interestedButton.disabled = !scheduled;
+        notInterestedButton.disabled = !scheduled;
+        nextButton.hidden = decision !== "not-interested";
+        if (!scheduled) {
+          help.textContent = "Finish sending the Candidate Review invite first. After the internal DevReady conversation, these decision buttons become available.";
+        } else if (decision === "interested") {
+          help.textContent = "Candidate confirmed interested. Client Interview is now the required next step.";
+        } else if (decision === "not-interested") {
+          help.textContent = "Candidate is not interested. Keep this result in history and move to the next shortlisted candidate.";
+        } else {
+          help.textContent = "After the internal DevReady conversation, confirm whether the candidate wants to move forward to a client interview.";
+        }
+      }
+
       function renderRows() {
         const tbody = document.getElementById("trackingBody");
         tbody.innerHTML = "";
         const domain = sessionStorage.getItem("domain") || "dev";
+        updateTrackingViewControls();
 
         if (!records.length) {
-          tbody.innerHTML =
-            '<tr><td colspan="6">No scheduling activity recorded yet.</td></tr>';
+          const wasCleared = Boolean(sessionStorage.getItem(trackingClearUndoKey(domain)));
+          tbody.innerHTML = wasCleared
+            ? '<tr><td colspan="6">Tracking records are hidden from this browser view. Use Undo clear to restore them.</td></tr>'
+            : '<tr><td colspan="6">No scheduling activity recorded yet.</td></tr>';
           return;
         }
 
@@ -396,6 +534,7 @@
           eventLink.hidden = true;
           handoffPanel.classList.remove("show");
           handoffPanel.innerHTML = "";
+          document.getElementById("candidateReviewOutcomePanel").hidden = true;
           return;
         }
 
@@ -412,7 +551,9 @@
         detailList.innerHTML = `
           <dt>Candidate</dt><dd>${escapeHtml(candidateLabel(selectedRecord) || "-")}</dd>
           <dt>Candidate ID</dt><dd>${escapeHtml(selectedRecord.candidateId || selectedRecord.profile_id || "-")}</dd>
-          <dt>Type</dt><dd>${escapeHtml(selectedRecord.interviewType || selectedRecord.readyPurpose || "-")}</dd>
+          <dt>Shortlist position</dt><dd>${selectedRecord.shortlistPosition && selectedRecord.shortlistTotal ? escapeHtml(`${selectedRecord.shortlistPosition} of ${selectedRecord.shortlistTotal}`) : "-"}</dd>
+          <dt>Type</dt><dd>${escapeHtml(isInternalCandidateReview(selectedRecord) ? "Internal DevReady Candidate Review" : "Client Interview")}</dd>
+          <dt>Candidate interest</dt><dd>${escapeHtml(selectedRecord.candidateInterest || "Not recorded")}</dd>
           <dt>Role</dt><dd>${escapeHtml(selectedRecord.role || "-")}</dd>
           <dt>Company</dt><dd>${escapeHtml(recordCompany(selectedRecord))}</dd>
           <dt>Client contact</dt><dd>${escapeHtml(recordContact(selectedRecord) || "-")}</dd>
@@ -420,6 +561,7 @@
           <dt>Client address</dt><dd>${escapeHtml(selectedRecord.clientAddress || "-")}</dd>
           ${atlasLink ? `<dt>Atlas client</dt><dd><a href="${escapeHtml(atlasLink)}">Open attached Atlas record</a></dd>` : ""}
           <dt>Interviewer</dt><dd>${escapeHtml([selectedRecord.candidateInterviewerName, selectedRecord.candidateInterviewerEmail].filter(Boolean).join(" - ") || "-")}</dd>
+          <dt>DevReady agent</dt><dd>${escapeHtml([selectedRecord.meetingAgentName, selectedRecord.meetingAgentEmail].filter(Boolean).join(" - ") || "Egeria - egeria@devready.ai")}</dd>
           <dt>Sent / opened</dt><dd>${escapeHtml(formatDate(selectedRecord.createdAt))}</dd>
           <dt>Archived</dt><dd>${escapeHtml(formatDate(selectedRecord.archivedAt || selectedRecord.updatedAt))}</dd>
           <dt>Provider</dt><dd>${escapeHtml(selectedRecord.provider || "-")}</dd>
@@ -443,6 +585,7 @@
         } else {
           eventLink.hidden = true;
         }
+        renderCandidateReviewOutcome();
 
         if (selectedRecord.onboardingLink) {
           handoffPanel.classList.add("show");
@@ -460,6 +603,111 @@
           handoffPanel.classList.remove("show");
           handoffPanel.innerHTML = "";
         }
+      }
+
+      function activateSelectedRecordCandidate() {
+        const candidateId = String(selectedRecord?.candidateId || selectedRecord?.profile_id || "");
+        if (!candidateId || !window.DevReadyShortlist) return;
+        const details = window.DevReadyShortlist.readDetails();
+        const candidate = details[candidateId] || {
+          id: candidateId,
+          name: selectedRecord.candidateName || "Candidate",
+          email: selectedRecord.candidateEmail || "",
+        };
+        window.DevReadyShortlist.setActive(candidate);
+      }
+
+      async function persistSelectedRecord() {
+        if (!selectedRecord) return;
+        const domain = sessionStorage.getItem("domain") || "dev";
+        records = [
+          selectedRecord,
+          ...records.filter((record) => String(record.id) !== String(selectedRecord.id)),
+        ];
+        sessionStorage.setItem(`scheduleTracking:${domain}`, JSON.stringify(records.slice(0, 100)));
+        sessionStorage.setItem(`latestScheduleTracking:${domain}`, JSON.stringify(selectedRecord));
+        sessionStorage.setItem("scheduleTracking", JSON.stringify(records.slice(0, 100)));
+        sessionStorage.setItem("latestScheduleTracking", JSON.stringify(selectedRecord));
+        try {
+          const response = await fetch("/api/interviews/archive", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              domain,
+              record_json: JSON.stringify(selectedRecord),
+            }).toString(),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || "Could not save the interview status.");
+          selectedRecord = data.record || selectedRecord;
+          records = [
+            selectedRecord,
+            ...records.filter((record) => String(record.id) !== String(selectedRecord.id)),
+          ];
+          sessionStorage.setItem(`scheduleTracking:${domain}`, JSON.stringify(records.slice(0, 100)));
+          sessionStorage.setItem(`latestScheduleTracking:${domain}`, JSON.stringify(selectedRecord));
+          sessionStorage.setItem("scheduleTracking", JSON.stringify(records.slice(0, 100)));
+          sessionStorage.setItem("latestScheduleTracking", JSON.stringify(selectedRecord));
+        } catch (error) {
+          alert(error.message || "The result was saved locally, but the interview archive could not be updated.");
+        }
+        renderRows();
+        renderDetail();
+      }
+
+      async function recordCandidateInterest(decision) {
+        if (!selectedRecord || !isInternalCandidateReview(selectedRecord)) return;
+        if (!candidateReviewIsScheduled(selectedRecord)) {
+          alert("Confirm that the Candidate Review invite was sent before recording the review outcome.");
+          return;
+        }
+        const interested = decision === "interested";
+        const approved = confirm(
+          interested
+            ? "Confirm that the candidate completed the internal DevReady review and wants to proceed to a client interview?"
+            : "Confirm that the candidate is not interested in moving forward for this role?",
+        );
+        if (!approved) return;
+        const domain = sessionStorage.getItem("domain") || "dev";
+        const candidateId = String(selectedRecord.candidateId || selectedRecord.profile_id || "");
+        const decidedAt = new Date().toISOString();
+        selectedRecord = {
+          ...selectedRecord,
+          candidateInterest: interested ? "interested" : "not-interested",
+          candidateInterestRecordedAt: decidedAt,
+          status: interested ? "Candidate interested" : "Candidate not interested",
+          nextAction: interested
+            ? "Set up the Client Interview with the client and candidate"
+            : "Move to the next shortlisted candidate",
+          updatedAt: decidedAt,
+        };
+        if (candidateId) {
+          sessionStorage.setItem(`candidateInterest:${domain}:${candidateId}`, selectedRecord.candidateInterest);
+          activateSelectedRecordCandidate();
+          window.DevReadyShortlist?.update(candidateId, {
+            candidateInterest: selectedRecord.candidateInterest,
+            candidateInterestRecordedAt: decidedAt,
+            workflowStatus: interested ? "Interested — Client Interview next" : "Not interested",
+          });
+        }
+        await persistSelectedRecord();
+        if (interested) {
+          sessionStorage.setItem("scheduleInterviewType", "client");
+          window.location.href = `schedule-interview.html?domain=${encodeURIComponent(domain)}&interview=client`;
+        }
+      }
+
+      function moveToNextReviewCandidate() {
+        if (!selectedRecord || selectedRecord.candidateInterest !== "not-interested") return;
+        activateSelectedRecordCandidate();
+        const result = window.DevReadyShortlist?.advance();
+        if (!result) {
+          alert("This was the last candidate in the shortlist.");
+          return;
+        }
+        const domain = sessionStorage.getItem("domain") || "dev";
+        sessionStorage.setItem("scheduleInterviewType", "ready");
+        window.location.href = `schedule-interview.html?domain=${encodeURIComponent(domain)}&interview=ready`;
       }
 
       function mailtoFor(record, followUp = false) {
@@ -491,24 +739,60 @@
         renderDetail();
       }
 
-      function closeArchiveLatest() {
+      async function archiveSelectedRecord() {
         if (!selectedRecord) return;
-        selectedRecord.status = "Closed / archived";
-        selectedRecord.nextAction = "Closed";
-        selectedRecord.archivedAt = new Date().toISOString();
-        const domain = sessionStorage.getItem("domain") || "dev";
-        records = records.map((record) =>
-          record.id === selectedRecord.id ? selectedRecord : record,
+        const candidate = selectedRecord.candidateName || selectedRecord.candidateEmail || "this candidate";
+        const approved = confirm(
+          `Archive ${candidate}? This will close the tracking record and keep it in saved interview history.`,
         );
-        sessionStorage.setItem(`scheduleTracking:${domain}`, JSON.stringify(records));
-        sessionStorage.setItem(`latestScheduleTracking:${domain}`, JSON.stringify(selectedRecord));
-        sessionStorage.setItem("scheduleTracking", JSON.stringify(records));
-        sessionStorage.setItem("latestScheduleTracking", JSON.stringify(selectedRecord));
+        if (!approved) return;
+        const archivedAt = new Date().toISOString();
+        selectedRecord = {
+          ...selectedRecord,
+          status: "Closed / archived",
+          nextAction: "Archived — no further action",
+          archivedAt,
+          updatedAt: archivedAt,
+        };
         if (selectedRecord.candidateId && window.DevReadyShortlist) {
           window.DevReadyShortlist.archive(selectedRecord.candidateId);
         }
-        renderRows();
-        renderDetail();
+        await persistSelectedRecord();
+      }
+
+      function onboardingMissingPieces(message) {
+        const match = String(message || "").match(/Missing:\s*(.+?)(?:\.|$)/i);
+        if (!match) return ["profile completion"];
+        return match[1]
+          .split(",")
+          .map((piece) => piece.trim().toLowerCase())
+          .filter(Boolean);
+      }
+
+      async function showOnboardingProfileCompletionBlock(message, payload) {
+        const profileId = payload.profile_id || sessionStorage.getItem("candidateId") || "";
+        if (!profileId || !window.profileCompletion) {
+          alert(message || "Profile completion is required before onboarding.");
+          return;
+        }
+        const profileData = {
+          state: "partial",
+          missing: onboardingMissingPieces(message),
+          profile: {
+            id: profileId,
+            name: payload.candidate_name || selectedRecord?.candidateName || "Candidate",
+            email: payload.email || selectedRecord?.candidateEmail || "",
+            title: payload.title || selectedRecord?.role || "",
+          },
+        };
+        await window.profileCompletion.showProfileCompletionLinks(
+          profileId,
+          profileData,
+          {
+            title: "Complete profile before onboarding",
+            message: message || "This profile must be completed before onboarding can begin.",
+          },
+        );
       }
 
       async function startHireOnboarding() {
@@ -555,7 +839,12 @@
           renderRows();
           renderDetail();
         } catch (error) {
-          alert(error.message || "Could not start onboarding.");
+          const message = error.message || "Could not start onboarding.";
+          if (/Profile must be complete before onboarding/i.test(message)) {
+            await showOnboardingProfileCompletionBlock(message, payload);
+          } else {
+            alert(message);
+          }
         }
       }
 
@@ -582,13 +871,49 @@
         window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
       }
 
-      function clearTracking() {
+      function clearLocalTrackingView() {
         const domain = sessionStorage.getItem("domain") || "dev";
-        sessionStorage.removeItem(`scheduleTracking:${domain}`);
-        sessionStorage.removeItem(`latestScheduleTracking:${domain}`);
-        sessionStorage.removeItem("scheduleTracking");
-        sessionStorage.removeItem("latestScheduleTracking");
-        loadRecords();
+        if (!records.length) return;
+        const approved = confirm(
+          `Hide ${records.length} tracking record${records.length === 1 ? "" : "s"} from this browser view? Saved interview history will not be deleted.`,
+        );
+        if (!approved) return;
+        const hiddenIds = readHiddenTrackingIds(domain);
+        sessionStorage.setItem(
+          trackingClearUndoKey(domain),
+          JSON.stringify({
+            hiddenIdsBefore: Array.from(hiddenIds),
+            selectedRecordKey: trackingRecordKey(selectedRecord),
+            clearedAt: new Date().toISOString(),
+          }),
+        );
+        records.forEach((record) => {
+          const key = trackingRecordKey(record);
+          if (key) hiddenIds.add(key);
+        });
+        writeHiddenTrackingIds(domain, hiddenIds);
+        records = [];
+        selectedRecord = null;
+        renderRows();
+        renderDetail();
+      }
+
+      async function undoClearLocalTrackingView() {
+        const domain = sessionStorage.getItem("domain") || "dev";
+        const undoKey = trackingClearUndoKey(domain);
+        let undoState = null;
+        try {
+          undoState = JSON.parse(sessionStorage.getItem(undoKey) || "null");
+        } catch {}
+        if (!undoState) return;
+        writeHiddenTrackingIds(domain, new Set(undoState.hiddenIdsBefore || []));
+        sessionStorage.removeItem(undoKey);
+        await loadRecords();
+        if (undoState.selectedRecordKey) {
+          selectedRecord =
+            records.find((record) => trackingRecordKey(record) === undoState.selectedRecordKey) ||
+            selectedRecord;
+        }
         renderRows();
         renderDetail();
       }

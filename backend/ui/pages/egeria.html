@@ -40,7 +40,7 @@
       $(function () {
         $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow");
         $("#searchBar").load("components/searchBar.html?v=20260523-one-tap");
-        $("#processFlow").load("components/processFlow.html?v=20260818-talent-jd-flow", function () {
+        $("#processFlow").load("components/processFlow.html?v=20260819-workflow-guide", function () {
           activateEgeriaProcessScripts(this);
         });
       });
@@ -1324,7 +1324,7 @@
       }
 
       function readShortlistIds() {
-        const ids = (sessionStorage.getItem("shortlist") || "")
+        const ids = (sessionStorage.getItem(`shortlist:${currentDomain()}`) || sessionStorage.getItem("shortlist") || "")
           .split(",")
           .map((id) => id.trim())
           .filter(Boolean);
@@ -1352,7 +1352,9 @@
       }
 
       function writeShortlistIds(ids) {
-        sessionStorage.setItem("shortlist", [...new Set((ids || []).map((id) => String(id)).filter(Boolean))].join(","));
+        const serialized = [...new Set((ids || []).map((id) => String(id)).filter(Boolean))].join(",");
+        sessionStorage.setItem(`shortlist:${currentDomain()}`, serialized);
+        sessionStorage.setItem("shortlist", serialized);
       }
 
       function egeriaContext() {
@@ -1363,9 +1365,9 @@
           currentStep: "egeria",
           observedStep: sessionStorage.getItem("currentFlowStep") || "",
           nextStep: sessionStorage.getItem("nextFlowStep") || "",
-          candidateId: sessionStorage.getItem("candidateId") || sessionStorage.getItem("selectedProfileId") || "",
-          candidateName: sessionStorage.getItem("candidateName") || "",
-          candidateEmail: sessionStorage.getItem("candidateEmail") || "",
+          candidateId: sessionStorage.getItem(`activeCandidateId:${currentDomain()}`) || sessionStorage.getItem("activeCandidateId") || sessionStorage.getItem("candidateId") || sessionStorage.getItem("selectedProfileId") || "",
+          candidateName: sessionStorage.getItem("activeCandidateName") || sessionStorage.getItem("candidateName") || "",
+          candidateEmail: sessionStorage.getItem("activeCandidateEmail") || sessionStorage.getItem("candidateEmail") || "",
           candidateInterestReceived: Boolean(sessionStorage.getItem("candidateInterestStatus")),
           jobId: sessionStorage.getItem("jobId") || sessionStorage.getItem("jobID") || sessionStorage.getItem("selectedJdId") || "",
           jobTitle: sessionStorage.getItem("jobTitle") || "",

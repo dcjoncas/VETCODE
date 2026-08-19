@@ -14,6 +14,46 @@
     min-width: 0;
   }
 
+  .voyager-brand {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 7px;
+    min-height: 38px;
+    color: var(--primary-2, #245c3b);
+    white-space: nowrap;
+  }
+
+  .voyager-brand-mark {
+    display: grid;
+    place-items: center;
+    width: 31px;
+    height: 31px;
+    border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), 0.28);
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 33% 25%, rgba(255, 255, 255, 0.98), rgba(var(--primary-rgb, 47, 125, 75), 0.1) 56%, rgba(var(--primary-rgb, 47, 125, 75), 0.2)),
+      #fff;
+    box-shadow:
+      0 0 0 3px rgba(var(--primary-rgb, 47, 125, 75), 0.07),
+      0 7px 16px rgba(16, 32, 24, 0.1);
+  }
+
+  .voyager-brand-mark svg {
+    display: block;
+    width: 23px;
+    height: 23px;
+    overflow: visible;
+  }
+
+  .voyager-brand-name {
+    color: var(--ink, #17211b);
+    font-size: 17px;
+    font-weight: 950;
+    line-height: 1;
+    letter-spacing: -0.025em;
+  }
+
   .topbar {
     flex-wrap: nowrap;
     align-items: center;
@@ -641,17 +681,17 @@
 
   @media (max-width: 700px) {
     .topbar-tools {
-      grid-template-columns: minmax(104px, auto) minmax(112px, 1fr);
+      grid-template-columns: auto minmax(112px, 1fr) auto;
       align-items: center;
       gap: 6px;
     }
 
     .topbar-tools.radar-visible {
-      grid-template-columns: minmax(145px, 1fr) minmax(112px, auto);
+      grid-template-columns: auto minmax(112px, 1fr) auto;
     }
 
     .topbar-tools.radar-expanded {
-      grid-template-columns: minmax(104px, auto) minmax(112px, 1fr);
+      grid-template-columns: auto minmax(112px, 1fr) auto;
     }
 
     .topbar-tools.radar-expanded .ai-radar-band {
@@ -728,9 +768,31 @@
       display: none;
     }
   }
+
+  @media (max-width: 350px) {
+    .voyager-brand-name {
+      display: none;
+    }
+
+    .voyager-brand {
+      gap: 0;
+    }
+  }
 </style>
 
 <div class="topbar-tools">
+  <div class="voyager-brand" aria-label="Voyager">
+    <span class="voyager-brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="16" cy="16" rx="13" ry="6.5" transform="rotate(-29 16 16)" stroke="currentColor" stroke-width="1.35" opacity="0.56" />
+        <path d="M6.8 24.4C11.4 22.4 17.9 17.2 24.7 8.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        <path d="M20.4 9.1L25.2 7.6L24.5 12.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M12.2 8.6L13.15 11.05L15.6 12L13.15 12.95L12.2 15.4L11.25 12.95L8.8 12L11.25 11.05L12.2 8.6Z" fill="currentColor" />
+        <circle cx="22.9" cy="21.8" r="1.45" fill="currentColor" opacity="0.72" />
+      </svg>
+    </span>
+    <span class="voyager-brand-name">Voyager</span>
+  </div>
   <div class="search-container">
     <div class="search">
       <input
@@ -1012,7 +1074,7 @@
     if (window.profileCompletionHelperLoading) return window.profileCompletionHelperLoading;
     window.profileCompletionHelperLoading = new Promise((resolve) => {
       const script = document.createElement("script");
-      script.src = "JS/profileCompletion.js";
+      script.src = "JS/profileCompletion.js?v=20260819-ai-profile-link";
       script.onload = resolve;
       script.onerror = resolve;
       document.head.appendChild(script);

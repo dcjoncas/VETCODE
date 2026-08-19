@@ -3,554 +3,292 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title id="profilePageTitle">DevReady • Candidate Profile</title>
-    <link
-      class="domainLogo"
-      rel="icon"
-      href="../assets/logo.svg"
-      sizes="any"
-      type="image/svg+xml"
-    />
+    <title id="profilePageTitle">Voyager • Candidate Profile</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
     <script>
       (function () {
         const params = new URLSearchParams(window.location.search);
-        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
-        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law", "dental"].includes(requested) ? requested : "dev");
-        sessionStorage.setItem("domain", domain);
+        const requested = params.get("domain") || "dev";
+        const domain = requested === "technology"
+          ? "dev"
+          : (["dev", "engineer", "law", "dental"].includes(requested) ? requested : "dev");
         const css = document.getElementById("domainCss");
         if (css) css.href = `../assets/${domain}Styles.css`;
         document.documentElement.dataset.domain = domain;
       })();
     </script>
-    <script src="JS/pageAgents.js?v=20260515-agent-workflows"></script>
+    <style>
+      :root { --public-ink:#102018; --public-muted:#5b6b62; --public-line:#dfe7e2; --public-soft:#f5f8f6; }
+      * { box-sizing: border-box; }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        background: radial-gradient(circle at top right, rgba(var(--primary-rgb,127,191,63),.14), transparent 34rem), #eef3f0;
+        color: var(--public-ink);
+      }
+      .public-shell { width:min(1120px,calc(100% - 32px)); margin:0 auto; padding:22px 0 40px; }
+      .public-brandbar { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:14px; }
+      .public-brand { display:inline-flex; align-items:center; gap:9px; font-size:17px; font-weight:950; }
+      .public-brand-mark {
+        display:inline-grid; width:34px; height:34px; place-items:center; border:1px solid rgba(var(--primary-2-rgb,47,125,75),.22);
+        border-radius:50%; background:#fff; color:var(--primary-2,#2f7d4b); box-shadow:0 5px 14px rgba(16,32,24,.09);
+      }
+      .public-brand-mark svg { width:22px; height:22px; }
+      .public-domain { border:1px solid var(--public-line); border-radius:999px; padding:6px 10px; background:rgba(255,255,255,.82); color:var(--public-muted); font-size:11px; font-weight:850; }
+      .public-card { border:1px solid var(--public-line); border-radius:18px; background:#fff; box-shadow:0 18px 46px rgba(16,32,24,.08); }
+      .public-hero {
+        display:grid; grid-template-columns:auto minmax(0,1fr); gap:22px; align-items:center; padding:28px; overflow:hidden;
+        background:linear-gradient(118deg,rgba(var(--primary-rgb,127,191,63),.13),transparent 58%),#fff;
+      }
+      .public-avatar {
+        display:grid; width:122px; height:122px; place-items:center; overflow:hidden; border:1px solid rgba(var(--primary-2-rgb,47,125,75),.24);
+        border-radius:22px; background:rgba(var(--primary-rgb,127,191,63),.12); color:var(--primary-2,#2f7d4b); font-size:32px; font-weight:950;
+      }
+      .public-avatar img { width:100%; height:100%; object-fit:cover; }
+      .public-eyebrow { display:block; margin-bottom:7px; color:var(--primary-2,#2f7d4b); font-size:10px; font-weight:950; letter-spacing:.1em; text-transform:uppercase; }
+      .public-hero h1 { margin:0; font-size:clamp(27px,4vw,42px); line-height:1.04; letter-spacing:-.03em; }
+      .public-role { margin:8px 0 0; color:var(--public-muted); font-size:16px; font-weight:750; }
+      .public-location { margin:5px 0 0; color:var(--public-muted); font-size:13px; }
+      .public-source-link { display:inline-flex; margin-top:10px; border-bottom:1px solid currentColor; color:var(--primary-2,#2f7d4b); font-size:11px; font-weight:900; text-decoration:none; }
+      .public-pills { display:flex; gap:7px; flex-wrap:wrap; margin-top:14px; }
+      .public-pill { border:1px solid rgba(var(--primary-2-rgb,47,125,75),.22); border-radius:999px; padding:5px 9px; background:rgba(var(--primary-rgb,127,191,63),.09); color:var(--primary-2,#2f7d4b); font-size:11px; font-weight:850; }
+      .public-content { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr); gap:14px; margin-top:14px; }
+      .public-content:has(> section[hidden]) { grid-template-columns:1fr; }
+      .public-section { padding:22px; }
+      .public-section h2 { margin:0; font-size:18px; letter-spacing:-.015em; }
+      .public-section-intro { margin:5px 0 0; color:var(--public-muted); font-size:12px; line-height:1.5; }
+      .public-summary { margin:14px 0 0; color:#263d31; font-size:14px; line-height:1.75; white-space:pre-line; }
+      .public-skills { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; margin-top:14px; }
+      .public-skill { border:1px solid var(--public-line); border-radius:12px; padding:10px 11px; background:var(--public-soft); }
+      .public-skill-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+      .public-skill strong { font-size:12px; }
+      .public-skill span { color:var(--public-muted); font-size:10px; font-weight:800; }
+      .public-skill-track,.public-style-track { height:4px; margin-top:8px; overflow:hidden; border-radius:999px; background:#dde6e1; }
+      .public-skill-track i,.public-style-track i { display:block; height:100%; border-radius:inherit; background:var(--primary-2,#2f7d4b); }
+      .public-evidence-list,.public-style-list { display:grid; gap:8px; margin-top:14px; }
+      .public-evidence-item,.public-style-item { border-bottom:1px solid var(--public-line); padding-bottom:9px; }
+      .public-evidence-item:last-child,.public-style-item:last-child { border-bottom:0; padding-bottom:0; }
+      .public-evidence-item strong,.public-style-item strong { display:block; font-size:12px; }
+      .public-evidence-item span,.public-style-item span { color:var(--public-muted); font-size:11px; }
+      .public-style-track { height:5px; margin-top:7px; background:#e5ebe7; }
+      .public-style-track i { background:var(--primary,#7fbf3f); }
+      .public-career { margin-top:14px; }
+      .public-role-list { display:grid; gap:11px; margin-top:14px; }
+      .public-role-card { display:grid; grid-template-columns:minmax(180px,.38fr) minmax(0,.62fr); gap:18px; border:1px solid var(--public-line); border-radius:14px; padding:15px; background:#fff; }
+      .public-role-company { font-size:13px; font-weight:950; }
+      .public-role-title { margin-top:3px; color:var(--public-muted); font-size:12px; font-weight:750; }
+      .public-role-dates { margin-top:6px; color:var(--public-muted); font-size:10px; }
+      .public-role-description { margin:0; color:#33493d; font-size:12px; line-height:1.6; }
+      .public-error { margin-top:14px; border:1px dashed var(--public-line); border-radius:12px; padding:16px; background:#fff; color:var(--public-muted); font-size:12px; text-align:center; }
+      .public-footer { margin-top:16px; color:var(--public-muted); font-size:10px; text-align:center; }
+      [hidden] { display:none !important; }
+      @media (max-width:780px) {
+        .public-shell { width:min(100% - 20px,1120px); padding-top:12px; }
+        .public-brandbar { align-items:flex-start; }
+        .public-hero { grid-template-columns:1fr; padding:20px; }
+        .public-avatar { width:92px; height:92px; border-radius:18px; }
+        .public-content,.public-skills,.public-role-card { grid-template-columns:1fr; }
+        .public-role-card { gap:10px; }
+      }
+    </style>
   </head>
   <body>
-    <main class="main" style="padding: 0%">
-      <section class="card" style="border-radius: 0%">
-        <div
-          style="
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            align-items: center;
-            flex-wrap: wrap;
-          "
-        >
-          <div id="noImageFound" class="imageBoxPublic">No Image</div>
-          <img
-            id="candidateImage"
-            class="imageBoxPublic"
-            style="display: none"
-          />
-          <div style="min-width: 260px">
-            <div
-              id="profileHeader"
-              style="font-size: 22px; font-weight: 900; line-height: 1"
-            >
-              No Candidate Loaded
-            </div>
-            <div
-              id="profileSubHeader"
-              style="color: var(--muted); margin-top: 6px"
-            >
-              <div id="candidateAddress" style="display: inline">
-                <p id="candidateCity" style="display: inline">
-                  No Location Listed
-                </p>
-                <p id="candidateState" style="display: inline"></p>
-                <p id="candidateCountry" style="display: inline"></p>
-              </div>
-              •
-              <div id="candidateJobTitle" style="display: inline">
-                No Job Title Listed
-              </div>
-              <!-- • <div id="candidateAvailability" style="display: inline;">No Availability Listed</div>-->
-            </div>
-            <div id="topMatches" class="pills"></div>
-          </div>
+    <main class="public-shell">
+      <header class="public-brandbar">
+        <div class="public-brand" aria-label="Voyager">
+          <span class="public-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="16" cy="16" rx="13" ry="6.5" transform="rotate(-29 16 16)" stroke="currentColor" stroke-width="1.35" opacity="0.56" />
+              <path d="M6.8 24.4C11.4 22.4 17.9 17.2 24.7 8.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <path d="M20.4 9.1L25.2 7.6L24.5 12.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M12.2 8.6L13.15 11.05L15.6 12L13.15 12.95L12.2 15.4L11.25 12.95L8.8 12L11.25 11.05L12.2 8.6Z" fill="currentColor" />
+              <circle cx="22.9" cy="21.8" r="1.45" fill="currentColor" opacity="0.72" />
+            </svg>
+          </span>
+          Voyager
         </div>
+        <span id="domainLabel" class="public-domain">Candidate profile</span>
+      </header>
 
-        <div
-          class="split"
-          style="margin: 10px; grid-template-columns: 1fr 2fr 1fr 1fr"
-        >
-          <div style="grid-column: 1; grid-row: 1"></div>
-          <div
-            id="descriptionDiv"
-            style="grid-column: 2; grid-row: 1; text-align: left"
-            hidden
-          >
-            <h2 id="descriptionHeader" style="margin-top: 5px"></h2>
-            <p id="descriptionText"></p>
-          </div>
-          <div
-            id="mapDiv"
-            style="
-              text-align: center;
-              width: 300px;
-              grid-column: 3;
-              grid-row: 1;
-            "
-            hidden
-          >
-            <iframe
-              id="mapIFrame"
-              width="300px"
-              height="300px"
-              style="border: 0; border-radius: 20%"
-              allowfullscreen
-              referrerpolicy="no-referrer-when-downgrade"
-            >
-            </iframe>
-          </div>
-          <div style="grid-column: 4; grid-row: 1"></div>
+      <section class="public-card public-hero" aria-labelledby="profileHeader">
+        <div id="candidateAvatar" class="public-avatar" aria-hidden="true">DR</div>
+        <div>
+          <span class="public-eyebrow">Candidate profile prepared by DevReady</span>
+          <h1 id="profileHeader">Loading candidate…</h1>
+          <p id="candidateRole" class="public-role"></p>
+          <p id="candidateLocation" class="public-location"></p>
+          <a id="externalProfileLink" class="public-source-link" href="#" target="_blank" rel="noopener" hidden></a>
+          <div id="topSkills" class="public-pills"></div>
         </div>
-
-        <div class="split" style="margin-top: 16px">
-          <div class="flexCard" style="grid-column: 1; grid-row: 1">
-            <h2>Skills</h2>
-            <div id="skillsChart" class="skillChart">
-              <div
-                id="introColumn"
-                class="skillChartColumnEmpty"
-                style="grid-column: 1"
-              >
-                <div class="bottom-chart-alignment">
-                  <span class="skillChartCell">Years</span>
-                </div>
-              </div>
-              <div id="level1" class="skillChartColumn" style="grid-column: 2">
-                <div class="bottom-chart-alignment">
-                  <span class="skillChartCell">&nbsp;</span>
-                  <span class="skillChartCell">1</span>
-                </div>
-              </div>
-              <div id="level2" class="skillChartColumn" style="grid-column: 3">
-                <div class="bottom-chart-alignment">
-                  <span class="skillChartCell">&nbsp;</span>
-                  <span class="skillChartCell">2</span>
-                </div>
-              </div>
-              <div id="level3" class="skillChartColumn" style="grid-column: 4">
-                <div class="bottom-chart-alignment">
-                  <span class="skillChartCell">&nbsp;</span>
-                  <span class="skillChartCell">3</span>
-                </div>
-              </div>
-              <div id="level4" class="skillChartColumn" style="grid-column: 5">
-                <div class="bottom-chart-alignment">
-                  <span class="skillChartCell">&nbsp;</span>
-                  <span class="skillChartCell">4</span>
-                </div>
-              </div>
-              <div id="level5" class="skillChartColumn" style="grid-column: 6">
-                <div class="bottom-chart-alignment">
-                  <span class="skillChartCell">&nbsp;</span>
-                  <span class="skillChartCell">5</span>
-                </div>
-              </div>
-              <div id="level6" class="skillChartColumn" style="grid-column: 7">
-                <div class="bottom-chart-alignment">
-                  <span class="skillChartCell">&nbsp;</span>
-                  <span class="skillChartCell">6</span>
-                </div>
-              </div>
-              <div id="level7" class="skillChartColumn" style="grid-column: 8">
-                <div class="bottom-chart-alignment">
-                  <span class="skillChartCell">&nbsp;</span>
-                  <span class="skillChartCell">7</span>
-                </div>
-              </div>
-              <div id="level8" class="skillChartColumn" style="grid-column: 9">
-                <div class="bottom-chart-alignment">
-                  <span class="skillChartCell">&nbsp;</span>
-                  <span class="skillChartCell">8</span>
-                </div>
-              </div>
-              <div id="level9" class="skillChartColumn" style="grid-column: 10">
-                <div class="bottom-chart-alignment">
-                  <span class="skillChartCell">&nbsp;</span>
-                  <span class="skillChartCell">9</span>
-                </div>
-              </div>
-              <div
-                id="level10"
-                class="skillChartColumn"
-                style="grid-column: 11"
-              >
-                <div class="bottom-chart-alignment">
-                  <span class="skillChartCell">&nbsp;</span>
-                  <span class="skillChartCell">10+</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div
-            class="flexCard"
-            style="
-              padding: 14px;
-              border-radius: 18px;
-              box-shadow: none;
-              grid-column: 2;
-              grid-row: 1/4;
-            "
-          >
-            <div>
-              <div style="margin-top: 14px">
-                <h2>Overall Experience</h2>
-                <div style="display: flex; justify-content: space-between">
-                  <small>Moderate</small><small>Extensive</small
-                  ><small>Expert</small>
-                </div>
-                <div class="progress" style="margin-top: 6px">
-                  <div id="overallBar" style="width: 0%"></div>
-                </div>
-              </div>
-              <div id="featureSkillDiv" style="margin-top: 12px" hidden>
-                <h2>Feature Experience</h2>
-              </div>
-              <div id="culturalSkillDiv" style="margin-top: 12px" hidden>
-                <h2>Cultural Experience</h2>
-              </div>
-            </div>
-          </div>
-
-          <div
-            class="flexCard"
-            style="
-              padding: 14px;
-              border-radius: 18px;
-              box-shadow: none;
-              grid-column: 1;
-              grid-row: 2;
-            "
-          >
-            <div id="personalityBarDiv">
-              <div style="margin-top: 14px">
-                <h2>Developer Personality</h2>
-                <div class="split">
-                  <div style="grid-column: 1; grid-row: 1">
-                    <div style="display: flex; justify-content: space-between">
-                      <small>Independent</small>
-                    </div>
-                    <div class="progressLeft" style="margin-top: 6px">
-                      <div id="IndependentBar" style="width: 0%"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between">
-                      <small>Trailblazer</small>
-                    </div>
-                    <div class="progressLeft" style="margin-top: 6px">
-                      <div id="TrailblazerBar" style="width: 0%"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between">
-                      <small>Generalist</small>
-                    </div>
-                    <div class="progressLeft" style="margin-top: 6px">
-                      <div id="GeneralistBar" style="width: 0%"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between">
-                      <small>Planner</small>
-                    </div>
-                    <div class="progressLeft" style="margin-top: 6px">
-                      <div id="PlannerBar" style="width: 0%"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between">
-                      <small>Idealist</small>
-                    </div>
-                    <div class="progressLeft" style="margin-top: 6px">
-                      <div id="IdealistBar" style="width: 0%"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between">
-                      <small>Abstraction</small>
-                    </div>
-                    <div class="progressLeft" style="margin-top: 6px">
-                      <div id="AbstractionBar" style="width: 0%"></div>
-                    </div>
-                  </div>
-                  <div style="grid-column: 2; grid-row: 1">
-                    <div style="display: flex; justify-content: space-between">
-                      <small>Collaborative</small>
-                    </div>
-                    <div class="progress" style="margin-top: 6px">
-                      <div id="CollaborativeBar" style="width: 0%"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between">
-                      <small>Conservative</small>
-                    </div>
-                    <div class="progress" style="margin-top: 6px">
-                      <div id="ConservativeBar" style="width: 0%"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between">
-                      <small>Specialist</small>
-                    </div>
-                    <div class="progress" style="margin-top: 6px">
-                      <div id="SpecialistBar" style="width: 0%"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between">
-                      <small>Doer</small>
-                    </div>
-                    <div class="progress" style="margin-top: 6px">
-                      <div id="DoerBar" style="width: 0%"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between">
-                      <small>Pragmatist</small>
-                    </div>
-                    <div class="progress" style="margin-top: 6px">
-                      <div id="PragmatistBar" style="width: 0%"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between">
-                      <small>Control</small>
-                    </div>
-                    <div class="progress" style="margin-top: 6px">
-                      <div id="ControlBar" style="width: 0%"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <h2 style="margin-top: 18px">Portfolio</h2>
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Company</th>
-              <th>Role</th>
-              <th>Highlights</th>
-              <th>Skills</th>
-              <th>Features</th>
-            </tr>
-          </thead>
-          <tbody id="portfolioBody"></tbody>
-        </table>
       </section>
+
+      <div id="profileError" class="public-error" hidden></div>
+      <div id="publicContent" hidden>
+        <div class="public-content">
+          <section id="summarySection" class="public-card public-section">
+            <h2>Professional summary</h2>
+            <p class="public-section-intro">A concise overview of the candidate’s professional background.</p>
+            <p id="candidateSummary" class="public-summary"></p>
+          </section>
+          <section id="evidenceSection" class="public-card public-section">
+            <h2>Experience highlights</h2>
+            <p class="public-section-intro">Capabilities and environments represented in the profile.</p>
+            <div id="evidenceList" class="public-evidence-list"></div>
+          </section>
+        </div>
+        <div class="public-content">
+          <section id="skillsSection" class="public-card public-section">
+            <h2>Skills and experience</h2>
+            <p class="public-section-intro">Skills drawn from the candidate’s professional profile and work evidence.</p>
+            <div id="skillsList" class="public-skills"></div>
+          </section>
+          <section id="styleSection" class="public-card public-section">
+            <h2>Working style</h2>
+            <p class="public-section-intro">Profile indicators collected through the DevReady candidate process.</p>
+            <div id="styleList" class="public-style-list"></div>
+          </section>
+        </div>
+        <section id="careerSection" class="public-card public-section public-career">
+          <h2>Career history</h2>
+          <p class="public-section-intro">Selected roles and evidence from the candidate’s professional experience.</p>
+          <div id="careerList" class="public-role-list"></div>
+        </section>
+      </div>
+      <footer class="public-footer">Candidate information shared through Voyager by DevReady.</footer>
     </main>
 
     <script src="JS/apiScripts.js"></script>
-
     <script>
-      document
-        .querySelectorAll("a.step")
-        .forEach((a) => a.addEventListener("click", () => {}));
-
-      document.addEventListener("DOMContentLoaded", async () => {
-        // Get session variables
-        const queryString = window.location.search;
-        const urlParams = new URLSearchParams(queryString);
-
-        const query = urlParams.get("query");
-        const candidateUrl = urlParams.get("user") || null;
-
-        let profileData = {};
-
-        if (candidateUrl) {
-          profileData = await api(`/api/azure/public/${candidateUrl}`);
-          if (profileData.domain) {
-            sessionStorage.setItem("domain", profileData.domain);
-            const css = document.getElementById("domainCss");
-            if (css) css.href = `../assets/${profileData.domain}Styles.css`;
+      function escapeHtml(value) {
+        return String(value ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+      }
+      function asArray(value) { return Array.isArray(value) ? value.filter(Boolean) : []; }
+      function cleanText(value) { return String(value ?? "").replace(/<\/?strong>/gi,"").replace(/<[^>]+>/g,"").trim(); }
+      function publicSummary(value) {
+        let text = cleanText(value)
+          .replace(/Temporary external profile\.?/gi, "")
+          .replace(/Confirm details before publishing\.?/gi, "")
+          .replace(/Imported from (GitHub|People Data Labs|Coresignal)\.?/gi, "")
+          .replace(/^\s*(GitHub|provider) evidence:\s*/i, "")
+          .replace(/\s+/g, " ")
+          .trim();
+        if (text.length <= 720) return text;
+        const shortened = text.slice(0, 720);
+        const boundary = Math.max(shortened.lastIndexOf(". "), shortened.lastIndexOf("; "));
+        return `${shortened.slice(0, boundary > 420 ? boundary + 1 : 717).trim()}…`;
+      }
+      function initials(firstName,lastName) {
+        return [firstName,lastName].filter(Boolean).map((part)=>String(part).trim().charAt(0).toUpperCase()).join("") || "DR";
+      }
+      function itemLabel(item) { return typeof item === "string" ? item : (item?.title || item?.name || item?.skill || ""); }
+      function renderPills(target,labels,limit=8) {
+        target.innerHTML = labels.filter(Boolean).slice(0,limit).map((label)=>`<span class="public-pill">${escapeHtml(label)}</span>`).join("");
+      }
+      function renderSkills(profileData) {
+        const publicEvidenceOnly = profileData.externalProfile?.source === "GitHub"
+          && profileData.externalProfile?.enrichment?.status !== "enriched";
+        const skills = asArray(profileData.skills).map((skill)=>({ label:itemLabel(skill), years:Math.max(0,Number(skill?.years || 0)) }))
+          .filter((skill)=>skill.label).sort((a,b)=>b.years-a.years);
+        const section = document.getElementById("skillsSection");
+        if (!skills.length) { section.hidden=true; return []; }
+        const maxYears = Math.max(1,...skills.map((skill)=>skill.years));
+        document.getElementById("skillsList").innerHTML = skills.slice(0,14).map((skill)=>{
+          const width = skill.years ? Math.max(10,Math.round((skill.years/maxYears)*100)) : 10;
+          const experience = publicEvidenceOnly ? "Public evidence" : (skill.years ? `${skill.years.toFixed(skill.years % 1 ? 1 : 0)} yrs` : "Profiled");
+          const track = publicEvidenceOnly ? "" : `<div class="public-skill-track" aria-hidden="true"><i style="width:${width}%"></i></div>`;
+          return `<div class="public-skill"><div class="public-skill-head"><strong>${escapeHtml(skill.label)}</strong><span>${escapeHtml(experience)}</span></div>${track}</div>`;
+        }).join("");
+        return skills.map((skill)=>skill.label);
+      }
+      function renderEvidence(profileData) {
+        const features = asArray(profileData.features).map((item)=>({ label:itemLabel(item), detail:Number(item?.level)>0 ? `Experience level ${Number(item.level)}` : "Profile evidence" }));
+        const culture = asArray(profileData.culturalExperience).map((item)=>({ label:itemLabel(item), detail:"Work environment preference" }));
+        const evidence = [...features,...culture].filter((item)=>item.label).slice(0,10);
+        const section = document.getElementById("evidenceSection");
+        if (!evidence.length) { section.hidden=true; return; }
+        document.getElementById("evidenceList").innerHTML = evidence.map((item)=>`<div class="public-evidence-item"><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.detail)}</span></div>`).join("");
+      }
+      function renderWorkingStyle(profileData) {
+        const personality = asArray(profileData.personality).map((item)=>({ label:itemLabel(item), score:Math.max(0,Math.min(100,Number(item?.score || 0))) }))
+          .filter((item)=>item.label && item.score>0).slice(0,12);
+        const section = document.getElementById("styleSection");
+        if (!personality.length) { section.hidden=true; return; }
+        document.getElementById("styleList").innerHTML = personality.map((item)=>`<div class="public-style-item"><strong>${escapeHtml(item.label)}</strong><span>${item.score}% profile indicator</span><div class="public-style-track" aria-hidden="true"><i style="width:${item.score}%"></i></div></div>`).join("");
+      }
+      function renderCareer(profileData) {
+        const roles = asArray(profileData.portfolioExperience);
+        const section = document.getElementById("careerSection");
+        if (!roles.length) { section.hidden=true; return; }
+        document.getElementById("careerList").innerHTML = roles.map((role)=>{
+          const company = role.companyname || role.company || "Professional experience";
+          const title = role.mainrole || role.title || "Role";
+          const dates = [role.startdate,role.ispresent ? "Present" : role.finishdate].filter(Boolean).join(" – ");
+          const description = cleanText(role.description) || "Role details available during candidate review.";
+          const labels = [...asArray(role.skills).map(itemLabel),...asArray(role.features).map(itemLabel)].filter(Boolean);
+          return `<article class="public-role-card"><div><div class="public-role-company">${escapeHtml(company)}</div><div class="public-role-title">${escapeHtml(title)}</div>${dates ? `<div class="public-role-dates">${escapeHtml(dates)}</div>` : ""}</div><div><p class="public-role-description">${escapeHtml(description)}</p><div class="public-pills">${labels.slice(0,8).map((label)=>`<span class="public-pill">${escapeHtml(label)}</span>`).join("")}</div></div></article>`;
+        }).join("");
+      }
+      function renderPublicProfile(profileData) {
+        const profile = profileData.profile || {};
+        const firstName = profile.firstName || "";
+        const lastName = profile.lastName || "";
+        const fullName = [firstName,lastName].filter(Boolean).join(" ") || profile.name || "Candidate";
+        const domain = profileData.domain || new URLSearchParams(window.location.search).get("domain") || "dev";
+        const labels = { dev:"Technology candidate", engineer:"Engineering candidate", law:"Legal candidate", dental:"Dental candidate" };
+        const location = [profile.city,profile.state,profile.country].filter(Boolean).join(", ");
+        document.getElementById("profilePageTitle").textContent = `Voyager • ${fullName}`;
+        document.getElementById("profileHeader").textContent = fullName;
+        const sourceName = profileData.externalProfile?.source || "";
+        document.getElementById("candidateRole").textContent = profile.title || (sourceName ? `${sourceName} professional profile` : "Professional candidate");
+        document.getElementById("candidateLocation").textContent = location;
+        document.getElementById("candidateLocation").hidden = !location;
+        document.getElementById("domainLabel").textContent = labels[domain] || "Candidate profile";
+        const avatar = document.getElementById("candidateAvatar");
+        avatar.innerHTML = profile.imageUrl ? `<img src="${escapeHtml(profile.imageUrl)}" alt="${escapeHtml(fullName)}" />` : escapeHtml(initials(firstName,lastName));
+        const externalProfileUrl = String(profileData.externalProfile?.profileUrl || "");
+        const externalProfileLink = document.getElementById("externalProfileLink");
+        if (/^https?:\/\//i.test(externalProfileUrl)) {
+          externalProfileLink.href = externalProfileUrl;
+          externalProfileLink.textContent = `View ${sourceName || "source"} profile ↗`;
+          externalProfileLink.hidden = false;
+        }
+        const skillLabels = renderSkills(profileData);
+        const featureLabels = asArray(profileData.features).map(itemLabel);
+        const matchedLabels = asArray(profileData.externalProfile?.match?.matched).map(itemLabel);
+        renderPills(document.getElementById("topSkills"),[...matchedLabels,...featureLabels,...skillLabels]);
+        const summary = publicSummary(profile.description);
+        if (summary) document.getElementById("candidateSummary").textContent = summary;
+        else document.getElementById("summarySection").hidden = true;
+        renderEvidence(profileData);
+        renderWorkingStyle(profileData);
+        renderCareer(profileData);
+        document.getElementById("publicContent").hidden = false;
+      }
+      document.addEventListener("DOMContentLoaded",async()=>{
+        const params = new URLSearchParams(window.location.search);
+        const candidateUrl = params.get("user");
+        const errorBox = document.getElementById("profileError");
+        if (!candidateUrl) {
+          errorBox.textContent = "This public profile link is incomplete. Ask DevReady for an updated candidate link.";
+          errorBox.hidden=false;
+          document.getElementById("profileHeader").textContent="Profile unavailable";
+          return;
+        }
+        try {
+          const profileData = await api(`/api/azure/public/${encodeURIComponent(candidateUrl)}`);
+          if (!profileData || !profileData.profile) throw new Error("Candidate profile not found.");
+          if (["dev","engineer","law","dental"].includes(profileData.domain)) {
+            document.getElementById("domainCss").href=`../assets/${profileData.domain}Styles.css`;
+            document.documentElement.dataset.domain=profileData.domain;
           }
-
-          const topMatchesFromSession = sessionStorage.getItem(
-            "candidateTopMatches",
-          );
-          let topMatches = [];
-          if (topMatchesFromSession && topMatchesFromSession.length > 0) {
-            topMatches = topMatchesFromSession.split(",") || [];
-          } else if (profileData.skills) {
-            // TODO: Figure out actual top skills from a profile
-            let skillCount = 0;
-            const sortedSkills = profileData.skills.sort(
-              (a, b) => b.years - a.years,
-            );
-            sortedSkills.forEach((skill) => {
-              if (skillCount >= 5) return;
-
-              topMatches.push(skill.skill);
-              skillCount++;
-            });
-          }
-
-          let featurePillHtml = "";
-          const featureSkillDiv = document.getElementById("featureSkillDiv");
-
-          if (profileData.features && profileData.features.length > 0)
-            featureSkillDiv.hidden = false;
-
-          profileData.features.forEach((feature) => {
-            if (!feature || !feature.title) return;
-
-            featurePillHtml += `<span class="pill">${feature.title}</span>`;
-
-            featureSkillDiv.insertAdjacentHTML(
-              "beforeend",
-              `
-            <div style="margin-top:8px">
-              <p>${feature.title}</p>
-              <div class="progress" style="margin-top:6px"><div style="width:${(feature.level / 3) * 100}%"></div></div>
-            </div>
-          `,
-            );
-          });
-
-          const culturalSkillDiv = document.getElementById("culturalSkillDiv");
-
-          if (
-            profileData.culturalExperience &&
-            profileData.culturalExperience.length > 0
-          )
-            culturalSkillDiv.hidden = false;
-
-          profileData.culturalExperience.forEach((feature) => {
-            culturalSkillDiv.insertAdjacentHTML(
-              "beforeend",
-              `
-            <div style="margin-top:8px">
-              <p>${feature.title}</p>
-              <div class="progress" style="margin-top:6px"><div style="width:${(feature.level / 3) * 100}%"></div></div>
-            </div>
-          `,
-            );
-          });
-
-          document.getElementById("topMatches").innerHTML = featurePillHtml;
-
-          document.getElementById("profilePageTitle").innerText =
-            `DevReady • ${profileData.profile.firstName} ${profileData.profile.lastName}`;
-          document.getElementById("profileHeader").innerText =
-            `${profileData.profile.firstName} ${profileData.profile.lastName}`;
-
-          document.getElementById("candidateCity").innerText =
-            profileData.profile.city && profileData.profile.city.length > 0
-              ? profileData.profile.city + ","
-              : "No City Listed,";
-          document.getElementById("candidateState").innerText =
-            profileData.profile.state && profileData.profile.state.length > 0
-              ? profileData.profile.state + ","
-              : "No State Listed, ";
-          document.getElementById("candidateCountry").innerText =
-            profileData.profile.country &&
-            profileData.profile.country.length > 0
-              ? profileData.profile.country
-              : "No Country Listed";
-
-          if (
-            profileData.profile.description &&
-            profileData.profile.description.length > 0
-          ) {
-            document.getElementById("descriptionHeader").innerText =
-              "About " + profileData.profile.firstName;
-            document.getElementById("descriptionText").innerText =
-              profileData.profile.description;
-            document.getElementById("descriptionDiv").removeAttribute("hidden");
-          }
-
-          if (profileData.profile.longitude && profileData.profile.latitude) {
-            document.getElementById("mapIFrame").src =
-              `https://www.google.com/maps?q=${profileData.profile.latitude},${profileData.profile.longitude}&z=5&output=embed`;
-            document.getElementById("mapDiv").removeAttribute("hidden");
-          } else {
-            document.getElementById("descriptionDiv").style.gridColumn =
-              "1 / span 2";
-          }
-
-          document.getElementById("candidateJobTitle").innerText =
-            profileData.profile.title && profileData.profile.title.length > 0
-              ? profileData.profile.title
-              : "No Job Title Listed";
-          // document.getElementById("candidateAvailability").innerText = profileData.profile.availability || "No Availability Listed";
-
-          if (
-            profileData.profile.imageUrl &&
-            profileData.profile.imageUrl.length > 0
-          ) {
-            document.getElementById("noImageFound").style.display = "none";
-            document.getElementById("candidateImage").src =
-              profileData.profile.imageUrl;
-            document.getElementById("candidateImage").style.display = "block";
-          }
-
-          let totalScore = 0;
-          let scoreCount = 0;
-          const sortedSkills = profileData.skills.sort(
-            (a, b) => b.years - a.years,
-          );
-
-          sortedSkills.forEach((skill) => {
-            totalScore += skill.years;
-            scoreCount++;
-
-            let scoreLevel = Math.floor(skill.years);
-            if (scoreLevel < 1) scoreLevel = 1;
-            else if (scoreLevel > 10) scoreLevel = 10;
-
-            // Populate skills chart (use skill rating as above for now since we don't have years of experience in the mock data)
-            document
-              .getElementById(`level${scoreLevel}`)
-              .insertAdjacentHTML(
-                "afterbegin",
-                `<div class="chartPillCell"><div class="chartPill" title="${skill.skill}" >${skill.skill}</div></div>`,
-              );
-          });
-
-          // Display average score as a percentage
-          if (scoreCount > 0) {
-            const averageScore = (totalScore / scoreCount) * 10;
-            document.getElementById("overallBar").style.width =
-              averageScore.toFixed(2) + "%";
-          }
-
-          // Personality bars
-          profileData.personality.forEach((personality) => {
-            const personalityBar = document.getElementById(personality.title + "Bar");
-            if (!personalityBar) return;
-            personalityBar.style.width = personality.score + "%";
-          });
-
-          profileData.portfolioExperience.forEach((experience) => {
-            let skillsHtml = "";
-            experience.skills.forEach((skill) => {
-              skillsHtml += `<span class="pill">${skill.skill}</span> `;
-            });
-
-            let featuresHtml = "";
-            experience.features.forEach((feature) => {
-              if (!feature || feature.length < 1) return;
-              featuresHtml += `<span class="pillFeature">${feature}</span> `;
-            });
-
-            let processedDescription =
-              experience.description.length > 0
-                ? experience.description
-                : "No description provided.";
-            processedDescription = processedDescription.replaceAll(
-              "<strong>",
-              "",
-            );
-            processedDescription = processedDescription.replaceAll(
-              "</strong>",
-              "",
-            );
-
-            document.getElementById("portfolioBody").insertAdjacentHTML(
-              "beforeend",
-              `
-            <tr>
-              <td><strong>${experience.companyname}</strong><br/><small>${experience.startdate} - ${experience.ispresent ? "Present" : experience.finishdate}</small></td>
-              <td>${experience.mainrole}</td>
-              <td>${processedDescription}</td>
-              <td>${skillsHtml}</td>
-              <td>${featuresHtml}</td>
-            </tr>
-          `,
-            );
-          });
+          renderPublicProfile(profileData);
+        } catch (error) {
+          errorBox.textContent=error?.message || "The candidate profile could not be loaded.";
+          errorBox.hidden=false;
+          document.getElementById("profileHeader").textContent="Profile unavailable";
         }
       });
     </script>
   </body>
 </html>
-

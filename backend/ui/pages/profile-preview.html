@@ -84,6 +84,105 @@
         padding: 8px 14px;
       }
 
+      .profile-overview {
+        display: grid;
+        grid-template-columns: auto minmax(320px, 1fr) minmax(280px, 0.72fr);
+        gap: 18px;
+        align-items: start;
+      }
+
+      .profile-identity {
+        min-width: 0;
+      }
+
+      .profile-record-status {
+        margin-top: 14px;
+        border-top: 1px solid var(--line);
+        padding-top: 12px;
+      }
+
+      .profile-section-label,
+      .profile-action-label {
+        display: block;
+        margin-bottom: 7px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .profile-action-panel {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 13px;
+        background: #f8faf9;
+      }
+
+      .profile-primary-actions,
+      .profile-management-actions {
+        display: grid;
+        gap: 8px;
+      }
+
+      .profile-admin-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-top: 16px;
+      }
+
+      .profile-primary-actions .btn,
+      .profile-primary-actions a,
+      .profile-management-actions .btn,
+      .profile-management-actions a {
+        width: 100%;
+        justify-content: center;
+        text-align: center;
+      }
+
+      .profile-management-actions .btn.remove {
+        margin-left: 0;
+      }
+
+      .profile-next-step {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 36px;
+        border: 1px solid var(--text);
+        border-radius: 999px;
+        padding: 8px 13px;
+        background: var(--text);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 900;
+        text-decoration: none;
+      }
+
+      .profile-next-step:hover,
+      .profile-next-step:focus-visible {
+        border-color: var(--primary-2);
+        background: var(--primary-2);
+        text-decoration: none;
+      }
+
+      .profile-more-actions {
+        margin-top: 9px;
+      }
+
+      .profile-more-actions summary {
+        cursor: pointer;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+        list-style-position: inside;
+      }
+
+      .profile-more-actions[open] summary {
+        margin-bottom: 9px;
+      }
+
       .profile-notes-modal {
         position: fixed;
         inset: 0;
@@ -488,6 +587,19 @@
           grid-template-columns: 1fr;
         }
 
+        .profile-overview {
+          grid-template-columns: 1fr;
+        }
+
+        .profile-admin-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .profile-overview .imageBox {
+          width: 84px;
+          height: 84px;
+        }
+
         .temp-facts,
         .temp-evidence-columns,
         .temp-skill-groups,
@@ -515,7 +627,7 @@
     <script>
       $(function () {
         $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow");
-        $("#processFlow").load("components/processFlow.html?v=20260818-talent-jd-flow");
+        $("#processFlow").load("components/processFlow.html?v=20260819-workflow-guide");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -537,17 +649,10 @@
 
         <!--<div class="grid">-->
         <section class="card">
-          <div
-            style="
-              display: flex;
-              gap: 16px;
-              align-items: center;
-              flex-wrap: wrap;
-            "
-          >
+          <div class="profile-overview">
             <div id="noImageFound" class="imageBox">No Image</div>
             <img id="candidateImage" class="imageBox" style="display: none" />
-            <div style="flex: 1; min-width: 260px">
+            <div class="profile-identity">
               <div class="profile-title-row">
                 <div
                   id="profileHeader"
@@ -556,25 +661,6 @@
                   No Candidate Loaded
                 </div>
                 <span id="profileIdChip" class="profile-id-chip" style="display: none"></span>
-                <button
-                  id="profileNotesBtn"
-                  class="btn secondary"
-                  type="button"
-                  onclick="openProfileNotes()"
-                  disabled
-                  data-hint="Open private recruiter notes for this candidate and create a candidate-only role feedback link. These notes are not shown on the public profile."
-                >
-                  Notes
-                </button>
-                <button
-                  id="shortlistBtn"
-                  class="btn"
-                  type="button"
-                  onclick="shortlistCandidate()"
-                  disabled
-                >
-                  Shortlist
-                </button>
               </div>
               <div
                 id="profileSubHeader"
@@ -604,10 +690,54 @@
               </div>
               <div id="topMatches" class="pills">No Skills Found</div>
               <div id="profileBadges" class="profile-badges"></div>
-              <div id="profileStageStrip"></div>
+              <div class="profile-record-status">
+                <span class="profile-section-label">Profile verification status</span>
+                <div id="profileStageStrip"></div>
+              </div>
               <div id="profileCompletionPanel" style="display: none"></div>
             </div>
-            <div class="row-actions" style="margin: 0">
+            <aside class="profile-action-panel" aria-label="Profile actions">
+              <span class="profile-action-label">Profile actions</span>
+              <div class="profile-primary-actions">
+                <a href="profile-preview-edit.html"
+                  ><button
+                    id="editBtn"
+                    class="btn secondary"
+                    type="button"
+                    disabled
+                  >
+                    Edit Profile
+                  </button></a
+                >
+                <a id="publicBtnLink" href="profile-public.html" target="_blank" rel="noopener"
+                  ><button id="publicBtn" class="btn" type="button" disabled>
+                    View Public Profile ↗
+                  </button></a
+                >
+                <a class="profile-next-step" href="candidate-chat.html">Next: Candidate Chat →</a>
+              </div>
+              <details class="profile-more-actions">
+                <summary>More profile actions</summary>
+                <div class="profile-management-actions">
+                  <button
+                    id="profileNotesBtn"
+                    class="btn secondary"
+                    type="button"
+                    onclick="openProfileNotes()"
+                    disabled
+                    data-hint="Open private recruiter notes for this candidate and create a candidate-only role feedback link. These notes are not shown on the public profile."
+                  >
+                    Private Notes
+                  </button>
+                  <button
+                    id="shortlistBtn"
+                    class="btn secondary"
+                    type="button"
+                    onclick="shortlistCandidate()"
+                    disabled
+                  >
+                    Add to Shortlist
+                  </button>
               <a href="find-candidate.html?loadKnown=1"
                 ><button
                   id="loadKnownProfileBtn"
@@ -628,11 +758,6 @@
                   View TEMP Profiles
                 </button></a
               >
-              <a id="publicBtnLink" href="profile-public.html" target="_blank"
-                ><button id="publicBtn" class="btn" type="button" disabled>
-                  Public Profile
-                </button></a
-              >
               <button
                 id="deleteTempBtn"
                 class="btn remove"
@@ -651,16 +776,6 @@
               >
                 Make TEMP Permanent
               </button>
-              <a href="profile-preview-edit.html"
-                ><button
-                  id="editBtn"
-                  class="btn secondary"
-                  type="button"
-                  disabled
-                >
-                  Edit Profile
-                </button></a
-              >
               <a id="resumeBtnLink" href="#" target="_blank"
                 ><button
                   id="resumeBtn"
@@ -679,7 +794,11 @@
               >
                 Download Private (PDF)
               </button>-->
-            </div>
+                </div>
+              </details>
+            </aside>
+          </div>
+          <div class="profile-admin-grid">
             <aside class="profile-time-panel">
               <h3>Time</h3>
               <p>Create this candidate's weekly time link, then copy or email it.</p>
@@ -1113,8 +1232,8 @@
 
     <script src="JS/apiScripts.js"></script>
     <script src="JS/profileStages.js"></script>
-    <script src="JS/profileCompletion.js"></script>
-    <script src="JS/shortlist.js"></script>
+    <script src="JS/profileCompletion.js?v=20260819-ai-profile-link"></script>
+    <script src="JS/shortlist.js?v=20260819-active-candidate"></script>
 
     <script>
       document
@@ -1426,12 +1545,18 @@
       }
 
       function clearTemporaryProfileSession(candidateId) {
-        const shortlist = sessionStorage.getItem("shortlist") || "";
-        const shortlistArray = shortlist
-          .split(",")
-          .map((item) => item.trim())
-          .filter((item) => item && item !== String(candidateId));
-        sessionStorage.setItem("shortlist", shortlistArray.join(","));
+        if (window.DevReadyShortlist) {
+          window.DevReadyShortlist.remove(candidateId);
+        } else {
+          const domain = sessionStorage.getItem("domain") || "dev";
+          const shortlist = sessionStorage.getItem(`shortlist:${domain}`) || sessionStorage.getItem("shortlist") || "";
+          const shortlistArray = shortlist
+            .split(",")
+            .map((item) => item.trim())
+            .filter((item) => item && item !== String(candidateId));
+          sessionStorage.setItem(`shortlist:${domain}`, shortlistArray.join(","));
+          sessionStorage.setItem("shortlist", shortlistArray.join(","));
+        }
 
         const temporaryProfiles = JSON.parse(
           sessionStorage.getItem("temporaryProfiles") || "{}",
@@ -1439,12 +1564,14 @@
         delete temporaryProfiles[String(candidateId)];
         sessionStorage.setItem("temporaryProfiles", JSON.stringify(temporaryProfiles));
 
-        sessionStorage.removeItem("candidateId");
-        sessionStorage.removeItem("candidateName");
-        sessionStorage.removeItem("candidateStatus");
-        sessionStorage.removeItem("candidateProfileType");
-        sessionStorage.removeItem("candidateTopMatches");
-        sessionStorage.removeItem("externalCandidateSource");
+        if (String(sessionStorage.getItem("candidateId") || "") === String(candidateId)) {
+          sessionStorage.removeItem("candidateId");
+          sessionStorage.removeItem("candidateName");
+          sessionStorage.removeItem("candidateStatus");
+          sessionStorage.removeItem("candidateProfileType");
+          sessionStorage.removeItem("candidateTopMatches");
+          sessionStorage.removeItem("externalCandidateSource");
+        }
       }
 
       async function deleteTemporaryProfile() {
@@ -1807,7 +1934,9 @@
               ${Number(professionalDetails.recommendationsCount || 0) ? `<span class="temp-chip">${profileEscapeHtml(professionalDetails.recommendationsCount)} recommendations</span>` : ""}
               ${professionalDetails.checkedAt ? `<span class="temp-chip">Checked ${profileEscapeHtml(professionalDetails.checkedAt)}</span>` : ""}
               ${professionalDetails.updatedAt ? `<span class="temp-chip">Updated ${profileEscapeHtml(professionalDetails.updatedAt)}</span>` : ""}
-            </div>
+                </div>
+              </details>
+            </aside>
             ${services.length ? `<h4 style="margin-top:14px">Services</h4><div class="temp-chip-row">${services.map((item) => `<span class="temp-chip">${profileEscapeHtml(item)}</span>`).join("")}</div>` : ""}
             ${languages.length ? `<h4 style="margin-top:14px">Languages</h4><div class="temp-chip-row">${languages.map((item) => `<span class="temp-chip">${profileEscapeHtml(item.name)}${item.proficiency ? ` - ${profileEscapeHtml(item.proficiency)}` : ""}</span>`).join("")}</div>` : ""}
             ${projects.length ? `<h4 style="margin-top:14px">Projects</h4><div class="temp-work-list">${projects.map((item) => {

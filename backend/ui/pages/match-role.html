@@ -12,11 +12,6 @@
       type="image/svg+xml"
     />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <link
-      href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
-      rel="stylesheet"
-    />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
     <script>
       (function () {
@@ -32,7 +27,7 @@
     <script>
       $(function () {
         $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow");
-        $("#processFlow").load("components/processFlow.html?v=20260818-talent-jd-flow");
+        $("#processFlow").load("components/processFlow.html?v=20260819-workflow-guide");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -208,12 +203,14 @@
     </div>
 
     <script src="JS/apiScripts.js"></script>
-    <script src="JS/updateProcessFlow.js"></script>
-    <script src="JS/profileCompletion.js"></script>
-    <script src="JS/shortlist.js?v=20260818-shortlist-actions"></script>
+    <script src="JS/jobDescriptionPicker.js?v=20260818-jd-mini-picker"></script>
+    <script src="JS/updateProcessFlow.js?v=20260819-active-candidate"></script>
+    <script src="JS/profileCompletion.js?v=20260819-ai-profile-link"></script>
+    <script src="JS/shortlist.js?v=20260819-active-candidate"></script>
     <script src="JS/atlasClientContext.js"></script>
     <script>
       let matchLatestRank = [];
+      let matchJobPicker = null;
       function selectRow(r) {
         const candidateId = sessionStorage.getItem("candidateId");
         if (
@@ -432,8 +429,13 @@
             `/api/azureJobs/getJob/${encodeURIComponent(savedJdId)}?domain=${encodeURIComponent(domain)}`,
           );
           const label = `${jd.company ? jd.company + " — " : ""}${jd.title || savedJdId}`;
-          const option = new Option(label, savedJdId, true, true);
-          $("#jdSelect").append(option).trigger("change");
+          if (matchJobPicker) {
+            matchJobPicker.setSelection(savedJdId, jd, { dispatch: false });
+          } else {
+            const option = new Option(label, savedJdId, true, true);
+            document.getElementById("jdSelect").appendChild(option);
+            document.getElementById("jdSelect").value = savedJdId;
+          }
           rememberLoadedJob(savedJdId, jd);
           const status = document.getElementById("matchStatus");
           if (status) status.textContent = `JD loaded: ${label}. Click Rank Profiles to compare stored candidates.`;
@@ -442,33 +444,31 @@
         }
       }
 
+      async function applySelectedMatchJob(jdId) {
+        if (!jdId) return;
+        const domain = sessionStorage.getItem("domain") || "dev";
+        const status = document.getElementById("matchStatus");
+        status.textContent = "Loading the selected job description...";
+        try {
+          const jd = await api(
+            `/api/azureJobs/getJob/${encodeURIComponent(jdId)}?domain=${encodeURIComponent(domain)}`,
+          );
+          rememberLoadedJob(jdId, jd);
+          matchJobPicker?.setSelection(jdId, jd, { dispatch: false });
+          const label = `${jd.company ? jd.company + " - " : ""}${jd.title || jdId}`;
+          status.textContent = `JD loaded: ${label}. Click Rank Profiles to compare stored candidates.`;
+        } catch (error) {
+          status.textContent = `Could not load the selected job description: ${error.message || error}`;
+        }
+      }
+
       document.addEventListener("DOMContentLoaded", () => {
-        let domain = sessionStorage.getItem("domain");
-        if (!domain) domain = "dev";
-
-        $("#jdSelect").select2({
-          minimumResultsForSearch: 0,
-          minimumInputLength: 0, // wait until user types
-          ajax: {
-            url: function (params) {
-              if (!params.term) return `/api/azureJobs/list/${domain}/5`;
-              return `/api/azureJobs/list/search/${domain}/${params.term}/5`;
-            },
-            dataType: "json",
-            delay: 250, // debounce
-
-            processResults: function (data) {
-              return {
-                results: data.map((item) => ({
-                  id: item.jd_id,
-                  text:
-                    (item.company || "") + " — " + (item.title || item.jd_id),
-                })),
-              };
-            },
-
-            cache: true,
-          },
+        matchJobPicker = window.DevReadyJobPicker.mount({
+          selectId: "jdSelect",
+          domain: () => sessionStorage.getItem("domain") || "dev",
+        });
+        document.getElementById("jdSelect").addEventListener("change", function () {
+          applySelectedMatchJob(this.value);
         });
 
         document.getElementById("btnRank").addEventListener("click", rank);

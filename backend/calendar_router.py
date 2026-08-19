@@ -62,6 +62,19 @@ OUTLOOK_REDIRECT_PATH = os.getenv("OUTLOOK_REDIRECT_PATH", "/auth/outlook/callba
 OUTLOOK_REDIRECT_URI = os.getenv("OUTLOOK_REDIRECT_URI", "").strip()
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5")
 SCHEDULER_PAGE = "/ui/pages/schedule-interview.html"
+DEVREADY_MEETING_AGENT_NAME = os.getenv("DEVREADY_MEETING_AGENT_NAME", "Egeria").strip() or "Egeria"
+DEVREADY_MEETING_AGENT_EMAIL = (
+    os.getenv("DEVREADY_MEETING_AGENT_EMAIL", "egeria@devready.ai").strip().lower()
+    or "egeria@devready.ai"
+)
+
+
+def _meeting_agent() -> Dict[str, str]:
+    return {
+        "name": DEVREADY_MEETING_AGENT_NAME,
+        "email": DEVREADY_MEETING_AGENT_EMAIL,
+        "role": "DevReady Meeting Agent",
+    }
 
 
 def _request_error_detail(prefix: str, exc: Exception) -> str:
@@ -404,12 +417,14 @@ DRAFT_SCHEMA = {
 
 def _fallback_email(draft: Dict[str, Any]) -> str:
     candidate = draft.get("candidate") or {}
+    is_internal_review = "candidate review" in str(draft.get("title") or "").lower()
+    meeting_label = "internal DevReady Candidate Review" if is_internal_review else "client interview"
     agenda = "\n".join([f"- {item}" for item in draft.get("agenda", [])])
     agenda_text = agenda or "- Introductions\n- Role discussion\n- Candidate questions\n- Next steps"
     attendees = ", ".join([a.get("email", "") for a in draft.get("attendees", []) if a.get("email")])
     return (
         f"Hi {candidate.get('name') or 'there'},\n\n"
-        f"We would like to schedule your interview for the {draft.get('role') or 'role'} opportunity.\n\n"
+        f"We would like to schedule your {meeting_label} for the {draft.get('role') or 'role'} opportunity.\n\n"
         f"Duration: {draft.get('duration_minutes', 60)} minutes\n"
         f"Location: {draft.get('location') or 'Calendar invite to follow'}\n"
         f"Interview team: {attendees or 'To be confirmed'}\n\n"
@@ -422,7 +437,7 @@ def _fallback_invite_draft(payload: Dict[str, Any], candidate_name: str, candida
     role = (payload.get("role") or "Interview").strip()
     company = (payload.get("company") or "DevReady").strip()
     interview_type = (payload.get("interview_type") or "ready").strip().lower()
-    title_suffix = "Client Interview" if interview_type == "client" else "Ready Interview"
+    title_suffix = "Client Interview" if interview_type == "client" else "Candidate Review"
     agenda = [
         "Introductions",
         "Role and company context",
@@ -474,6 +489,11 @@ def calendar_health(request: Request):
         },
         "openai_key_found": bool(os.getenv("OPENAI_API_KEY", "").strip()),
         "model": OPENAI_MODEL,
+        "meeting_agent": {
+            **_meeting_agent(),
+            "automatic": True,
+            "interview_types": ["ready", "client"],
+        },
     }
     return _set_calendar_session_cookie(JSONResponse(payload), session_id)
 
@@ -569,6 +589,10 @@ async def invite_draft(payload: Dict[str, Any]):
         email = (item.get("email") or "").strip()
         if email:
             attendee_emails.append(email.lower())
+    # Egeria is a required participant in both internal Candidate Reviews and
+    # client-facing interviews. Enforce this server-side so direct API callers
+    # cannot accidentally create an interview without the DevReady agent.
+    attendee_emails.append(DEVREADY_MEETING_AGENT_EMAIL)
     attendee_emails = sorted(set(attendee_emails))
 
     duration = max(15, min(180, int(payload.get("duration_minutes") or 60)))
@@ -581,7 +605,7 @@ async def invite_draft(payload: Dict[str, Any]):
 You are an interview scheduling assistant for DevReady. Return only strict JSON matching the schema.
 
 Candidate: {candidate_name} <{candidate_email}>
-Interviewers/client attendees: {attendee_emails or ["To be confirmed"]}
+Interviewers/client attendees (including the automatic DevReady Meeting Agent): {attendee_emails}
 Interview type: {payload.get("interview_type") or "ready"}
 Ready interview purpose: {payload.get("ready_purpose") or ""}
 Role: {role}
@@ -591,10 +615,12 @@ Talking points: {talking_points}
 Context from candidate chat/profile: {payload.get("ai_context") or ""}
 
 Rules:
-- title includes the role and "Ready Interview" for DevReady/community interviews or "Client Interview" for client-facing interviews.
+    - title includes the role and "Candidate Review" for the internal DevReady meeting or "Client Interview" for client-facing interviews.
+    - Candidate Review is conducted by internal DevReady staff with the candidate; do not imply the client is attending.
+    - Client Interview occurs only after the candidate has completed the internal review and confirmed interest.
 - if ready_purpose is "community", job description may be empty; use the role/title, candidate context, and talking points.
 - duration_minutes is {duration}.
-- attendees contains only interviewer/client emails, not the candidate. It can be an empty array when interviewers are not known yet.
+- attendees contains interviewer/client emails plus the automatic DevReady Meeting Agent, not the candidate.
 - email_body is a complete plain-text email ready to send.
 - location is exactly "{location}".
 """

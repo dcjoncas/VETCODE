@@ -122,6 +122,11 @@
         color: #fff;
       }
 
+      #btnExportLinkedInResults[aria-disabled="true"] {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
       @media (max-width: 1080px) {
         .temp-profile-row {
           grid-template-columns: 28px minmax(0, 1fr);
@@ -137,7 +142,7 @@
     <script>
       $(function () {
         $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow");
-        $("#processFlow").load("components/processFlow.html?v=20260818-talent-jd-flow");
+        $("#processFlow").load("components/processFlow.html?v=20260819-workflow-guide");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -189,7 +194,7 @@
                 <h3 id="linkedinResultsTitle">LinkedIn-enriched TEMP results</h3>
                 <p class="muted">Provider-reported contact details require verification before outreach.</p>
               </div>
-              <button class="btn primary" id="btnExportLinkedInResults" type="button" disabled>Export to Excel</button>
+              <a class="btn primary" id="btnExportLinkedInResults" aria-disabled="true">Export to Excel</a>
             </div>
             <div id="linkedinResultsStatus" class="notice"></div>
             <div class="linkedin-results-table-wrap">
@@ -208,8 +213,8 @@
     </div>
 
     <script src="JS/apiScripts.js"></script>
-    <script src="JS/updateProcessFlow.js"></script>
-    <script src="JS/shortlist.js"></script>
+    <script src="JS/updateProcessFlow.js?v=20260819-active-candidate"></script>
+    <script src="JS/shortlist.js?v=20260819-active-candidate"></script>
     <script src="JS/atlasClientContext.js"></script>
     <script>
       let latestTempProfiles = [];
@@ -483,10 +488,18 @@
       function renderLinkedInResults() {
         const profiles = linkedInEnrichedProfiles();
         const panel = document.getElementById("linkedinResultsPanel");
+        const exportLink = document.getElementById("btnExportLinkedInResults");
         document.getElementById("linkedinResultsStatus").textContent = profiles.length
           ? `${profiles.length} LinkedIn-enriched TEMP profile${profiles.length === 1 ? "" : "s"} can be reviewed or exported.`
           : `No LinkedIn-enriched TEMP profiles are available in ${currentDomain()} yet.`;
-        document.getElementById("btnExportLinkedInResults").disabled = !profiles.length;
+        exportLink.setAttribute("aria-disabled", profiles.length ? "false" : "true");
+        if (profiles.length) {
+          exportLink.href = `${API_BASE}/api/azureJobs/external/temp/linkedin-results/export?domain=${encodeURIComponent(currentDomain())}`;
+          exportLink.download = `${currentDomain()}-linkedin-enriched-temp-profiles.xlsx`;
+        } else {
+          exportLink.removeAttribute("href");
+          exportLink.removeAttribute("download");
+        }
         document.getElementById("btnViewLinkedInResults").textContent = `${panel.hidden ? "View" : "Hide"} LinkedIn results (${profiles.length})`;
         document.getElementById("linkedinResultsBody").innerHTML = profiles.map((profile) => {
           const personId = String(profile.personid || "").replace(/[^0-9-]/g, "");
@@ -509,16 +522,17 @@
         if (!panel.hidden) panel.scrollIntoView({ behavior: "smooth", block: "start" });
       }
 
-      function exportLinkedInResults() {
+      function exportLinkedInResults(event) {
         const profiles = linkedInEnrichedProfiles();
-        if (!profiles.length) return alert("There are no LinkedIn-enriched TEMP profiles to export.");
-        if (!confirm(`Export ${profiles.length} LinkedIn-enriched TEMP profile${profiles.length === 1 ? "" : "s"} to Excel? The workbook can contain provider-reported email and phone details, so keep it access-controlled and verify contacts before outreach.`)) return;
-        const link = document.createElement("a");
-        link.href = `${API_BASE}/api/azureJobs/external/temp/linkedin-results/export?domain=${encodeURIComponent(currentDomain())}`;
-        link.download = `${currentDomain()}-linkedin-enriched-temp-profiles.xlsx`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        if (!profiles.length) {
+          event.preventDefault();
+          return alert("There are no LinkedIn-enriched TEMP profiles to export.");
+        }
+        if (!confirm(`Export ${profiles.length} LinkedIn-enriched TEMP profile${profiles.length === 1 ? "" : "s"} to Excel? The workbook can contain provider-reported email and phone details, so keep it access-controlled and verify contacts before outreach.`)) {
+          event.preventDefault();
+          return;
+        }
+        document.getElementById("linkedinResultsStatus").textContent = `Excel download started for ${profiles.length} LinkedIn-enriched TEMP profile${profiles.length === 1 ? "" : "s"}.`;
       }
 
       function removeTemporarySessionReference(personId) {

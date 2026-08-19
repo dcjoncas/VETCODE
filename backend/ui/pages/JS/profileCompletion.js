@@ -1,4 +1,96 @@
 (function () {
+  function ensureProfileCompletionStyles() {
+    if (document.getElementById("devready-profile-completion-style")) return;
+    const style = document.createElement("style");
+    style.id = "devready-profile-completion-style";
+    style.textContent = `
+      .profile-completion-panel {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 14px;
+        border: 1px solid rgba(var(--primary-2-rgb, 47, 125, 75), 0.24) !important;
+        border-radius: 12px !important;
+        padding: 12px !important;
+        background: #f8fbf9 !important;
+        color: var(--text, #102018) !important;
+      }
+      .profile-completion-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .profile-completion-kicker {
+        color: var(--muted, #5b6b62);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .profile-completion-count {
+        border-radius: 999px;
+        padding: 3px 7px;
+        background: rgba(var(--primary-rgb, 127, 191, 63), .13);
+        color: var(--primary-2, #2f7d4b);
+        font-size: 10px;
+        font-weight: 900;
+      }
+      .profile-completion-title {
+        display: block;
+        margin-top: 2px;
+        font-size: 14px;
+      }
+      .profile-completion-checks {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .profile-completion-check {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        border: 1px solid var(--line, #dfe7e2);
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: #fff;
+        color: var(--muted, #5b6b62);
+        font-size: 10px;
+        font-weight: 850;
+      }
+      .profile-completion-check.done {
+        border-color: rgba(var(--primary-2-rgb, 47, 125, 75), .3);
+        color: var(--primary-2, #2f7d4b);
+      }
+      .profile-completion-check.missing::before { content: "○"; }
+      .profile-completion-check.done::before { content: "✓"; }
+      .profile-completion-next {
+        margin-top: 8px;
+        color: var(--muted, #5b6b62);
+        font-size: 11px;
+        line-height: 1.4;
+      }
+      .profile-completion-inline-actions {
+        display: flex;
+        gap: 7px;
+        flex-wrap: wrap;
+        margin-top: 9px;
+      }
+      .profile-completion-link-ready {
+        color: var(--primary-2, #2f7d4b);
+        font-size: 10px;
+        font-weight: 900;
+      }
+      @media (max-width: 760px) {
+        .profile-completion-panel { grid-template-columns: 1fr; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  ensureProfileCompletionStyles();
+
   function currentDomain() {
     return sessionStorage.getItem("domain") || "dev";
   }
@@ -16,6 +108,26 @@
     const profile = profileData && profileData.profile ? profileData.profile : profileData || {};
     const name = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
     return name || profile.name || fallback || "Candidate";
+  }
+
+  function candidateEmailFromProfile(profileData) {
+    const profile = profileData && profileData.profile ? profileData.profile : profileData || {};
+    return profile.email || profileData?.email || sessionStorage.getItem("candidateEmail") || "";
+  }
+
+  function candidateAiProfileMessage(name, link) {
+    return `Hi ${name || "there"},\n\nPlease kindly complete your DevReady AI profile and personality chat using this secure link:\n\n${link}\n\nYour answers help us complete your profile and represent you accurately for the right opportunities.\n\nThank you,\nDevReady Team`;
+  }
+
+  async function copyProfileCompletionText(value, successMessage) {
+    try {
+      await navigator.clipboard.writeText(String(value || ""));
+      showProfileCompletionNotice(successMessage || "Copied.");
+      return true;
+    } catch (error) {
+      showProfileCompletionNotice("Could not copy automatically. Open the link and copy it from the address bar.", true);
+      return false;
+    }
   }
 
   function isProfileCompletionDone(profileData) {
@@ -158,13 +270,10 @@
       alert(message);
       return "";
     }
-    const profile = profileData && profileData.profile ? profileData.profile : profileData || {};
-    const email = profile.email || profileData?.email || sessionStorage.getItem("candidateEmail") || "";
+    const email = candidateEmailFromProfile(profileData);
     const name = candidateNameFromProfile(profileData);
-    const subject = encodeURIComponent("Please finish your DevReady profile");
-    const body = encodeURIComponent(
-      `Hi ${name},\n\nPlease complete your DevReady profile using this secure chat link:\n\n${link}\n\nThis helps us finish your profile for the right domain and next steps.\n\nBest,\nDevReady Team`,
-    );
+    const subject = encodeURIComponent("Please complete your DevReady AI profile and personality chat");
+    const body = encodeURIComponent(candidateAiProfileMessage(name, link));
 
     try {
       await navigator.clipboard.writeText(link);
@@ -187,16 +296,26 @@
 
   async function buildProfileCompletionLinks(profileId, profileData) {
     const missing = missingProfileCompletionPieces(profileData);
-    const links = missing.map((piece) => linkForMissingPiece(profileId, piece));
-    const personality = links.find((item) => item.async);
-    if (personality) {
-      personality.url = await profileCompletionLink(profileId);
-      delete personality.async;
+    const needsAiProfileChat = missing.some((piece) =>
+      ["personality survey", "culture profile"].includes(piece),
+    );
+    const links = [];
+    if (needsAiProfileChat) {
+      links.push({
+        key: "ai-profile-personality",
+        label: "AI profile & personality chat",
+        description: "Secure candidate-facing chat for personality and culture answers.",
+        url: await profileCompletionLink(profileId),
+        candidateSafe: true,
+      });
     }
+    missing
+      .filter((piece) => !["personality survey", "culture profile"].includes(piece))
+      .forEach((piece) => links.push({ ...linkForMissingPiece(profileId, piece), candidateSafe: false }));
     return links;
   }
 
-  async function showProfileCompletionLinks(profileId, profileData) {
+  async function showProfileCompletionLinks(profileId, profileData, context = {}) {
     if (!profileId) {
       alert("No profile selected.");
       return [];
@@ -224,21 +343,13 @@
       return [];
     }
 
-    const profile = stored && stored.profile ? stored.profile : stored || {};
-    const email = profile.email || stored?.email || sessionStorage.getItem("candidateEmail") || "";
+    const email = candidateEmailFromProfile(stored);
     const name = candidateNameFromProfile(stored);
-    const linkText = links.map((item) => `${item.label}: ${item.url}`).join("\n");
-    try {
-      await navigator.clipboard.writeText(linkText);
-    } catch (error) {
-      console.warn("Could not copy completion links.", error);
-    }
-
-    showProfileCompletionLinksPanel(links, email, name);
+    showProfileCompletionLinksPanel(links, email, name, context);
     return links;
   }
 
-  function showProfileCompletionLinksPanel(links, email, name) {
+  function showProfileCompletionLinksPanel(links, email, name, context = {}) {
     let panel = document.getElementById("profileCompletionLinksPanel");
     if (!panel) {
       panel = document.createElement("div");
@@ -249,44 +360,100 @@
       panel.style.bottom = "18px";
       panel.style.zIndex = "9999";
       panel.style.maxWidth = "620px";
+      panel.style.maxHeight = "calc(100vh - 36px)";
+      panel.style.overflowY = "auto";
       panel.style.boxShadow = "0 12px 26px rgba(0,0,0,0.16)";
       document.body.appendChild(panel);
     }
 
-    const subject = encodeURIComponent("Please complete your DevReady profile");
-    const body = encodeURIComponent(
-      `Hi ${name || "Candidate"},\n\nPlease complete the missing DevReady profile sections below:\n\n${links
-        .map((item) => `${item.label}: ${item.url}`)
-        .join("\n")}\n\nBest,\nDevReady Team`,
-    );
+    const candidateLink = links.find((item) => item.candidateSafe);
+    const candidateMessage = candidateLink
+      ? candidateAiProfileMessage(name, candidateLink.url)
+      : "";
+    const subject = encodeURIComponent("Please complete your DevReady AI profile and personality chat");
+    const body = encodeURIComponent(candidateMessage);
+    const panelTitle = context.title || "Profile completion actions";
+    const panelMessage = context.message || "";
 
     panel.innerHTML = `
       <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
         <div>
-          <strong>Profile completion links copied</strong>
-          <div style="margin-top:4px; color:var(--muted);">Send only the missing sections for this candidate.</div>
+          <strong>${escapeHtml(panelTitle)}</strong>
+          <div style="margin-top:4px; color:var(--muted);">The AI chat is candidate-safe. Profile editor links remain internal to DevReady.</div>
         </div>
         <button class="btn secondary" type="button" style="padding:6px 10px;" onclick="document.getElementById('profileCompletionLinksPanel')?.remove()">Close</button>
       </div>
+      ${panelMessage ? `<div style="border:1px solid rgba(198,40,50,0.24); border-radius:12px; padding:10px; margin-top:12px; background:#fff4f5; color:#7f1d2d;">${escapeHtml(panelMessage)}</div>` : ""}
       <div style="display:grid; gap:8px; margin-top:12px;">
         ${links
           .map(
-            (item) => `
+            (item, index) => `
               <div style="border:1px solid var(--line); border-radius:12px; padding:10px; background:#fff;">
                 <div style="font-weight:900;">${escapeHtml(item.label)}</div>
                 <div style="font-size:13px; color:var(--muted);">${escapeHtml(item.description)}</div>
+                <div style="font-size:11px; font-weight:900; margin-top:6px; color:${item.candidateSafe ? "#176b3a" : "var(--muted)"};">${item.candidateSafe ? "CANDIDATE-SAFE LINK" : "DEVREADY INTERNAL LINK"}</div>
                 <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener" style="display:block; margin-top:6px; overflow-wrap:anywhere;">${escapeHtml(item.url)}</a>
+                <div class="row-actions" style="margin-top:8px;">
+                  <a class="btn secondary" href="${escapeHtml(item.url)}" target="_blank" rel="noopener" style="text-decoration:none;">${item.candidateSafe ? "Open AI profile chat" : "Open profile editor"}</a>
+                  <button class="btn secondary" type="button" data-copy-completion-link="${index}">Copy link</button>
+                </div>
               </div>
             `,
           )
           .join("")}
       </div>
-      ${
-        email
-          ? `<a class="btn" style="display:inline-flex; margin-top:12px; text-decoration:none;" href="mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}">Email ${escapeHtml(email)}</a>`
-          : `<div style="margin-top:12px; color:var(--muted);">No email found. Links are copied so you can paste them where needed.</div>`
-      }
+      ${candidateLink ? `
+        <div style="border:1px solid rgba(39,143,81,0.3); border-radius:12px; padding:10px; margin-top:12px; background:#f4fbf7;">
+          <strong>Message to candidate</strong>
+          <div style="white-space:pre-wrap; margin-top:6px; font-size:13px;">${escapeHtml(candidateMessage)}</div>
+          <div class="row-actions" style="margin-top:10px;">
+            <button class="btn secondary" type="button" data-copy-candidate-message>Copy message</button>
+            ${email
+              ? `<a class="btn" style="text-decoration:none;" href="mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}">Send link to candidate</a>`
+              : `<span style="color:var(--muted);">No candidate email found. Copy the message and send it through your preferred channel.</span>`}
+          </div>
+        </div>
+      ` : `<div style="margin-top:12px; color:var(--muted);">The AI profile/personality section is already complete. Internal DevReady profile actions are shown above.</div>`}
     `;
+
+    panel.querySelectorAll("[data-copy-completion-link]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const item = links[Number(button.dataset.copyCompletionLink)];
+        if (item?.url) copyProfileCompletionText(item.url, `${item.label} link copied.`);
+      });
+    });
+    panel.querySelector("[data-copy-candidate-message]")?.addEventListener("click", () => {
+      copyProfileCompletionText(candidateMessage, "Candidate message copied.");
+    });
+  }
+
+  async function renderInlineAiProfileActions(container, profileId, profileData) {
+    const host = container.querySelector("[data-ai-profile-actions]");
+    if (!host) return;
+    try {
+      const link = await profileCompletionLink(profileId);
+      const email = candidateEmailFromProfile(profileData);
+      const name = candidateNameFromProfile(profileData);
+      const message = candidateAiProfileMessage(name, link);
+      const subject = encodeURIComponent("Please complete your DevReady AI profile and personality chat");
+      host.innerHTML = `
+        <span class="profile-completion-link-ready">Secure candidate link ready</span>
+        <div class="profile-completion-inline-actions">
+          <a class="btn secondary" href="${escapeHtml(link)}" target="_blank" rel="noopener" style="text-decoration:none;">Open AI profile chat</a>
+          <button class="btn secondary" type="button" data-copy-inline-ai-link>Copy link</button>
+          <button class="btn secondary" type="button" data-copy-inline-ai-message>Copy message</button>
+          ${email ? `<a class="btn" href="mailto:${encodeURIComponent(email)}?subject=${subject}&body=${encodeURIComponent(message)}" style="text-decoration:none;">Send link to candidate</a>` : ""}
+        </div>
+      `;
+      host.querySelector("[data-copy-inline-ai-link]")?.addEventListener("click", () => {
+        copyProfileCompletionText(link, "AI profile chat link copied.");
+      });
+      host.querySelector("[data-copy-inline-ai-message]")?.addEventListener("click", () => {
+        copyProfileCompletionText(message, "Candidate message copied.");
+      });
+    } catch (error) {
+      host.textContent = `Could not prepare the AI profile chat link: ${error.message || error}`;
+    }
   }
 
   function showProfileCompletionNotice(message, isError = false) {
@@ -377,17 +544,38 @@
 
     const state = getProfileCompletionState(profileData);
     const isPartial = state === "partial";
+    const pieces = getProfileCompletionPieces(profileData);
+    const completedCount = Object.values(pieces).filter(Boolean).length;
     el.style.display = "block";
     const missing = missingProfileCompletionPieces(profileData);
+    const checkMarkup = [
+      ["regular", "Core profile"],
+      ["personality", "Personality"],
+      ["culture", "Culture"],
+    ].map(([key, label]) => `<span class="profile-completion-check ${pieces[key] ? "done" : "missing"}">${escapeHtml(label)}</span>`).join("");
+    const needsCandidateChat = missing.some((piece) => ["personality survey", "culture profile"].includes(piece));
     el.innerHTML = `
       <div class="profile-completion-panel ${isPartial ? "partial" : "missing"}">
         <div>
-          <strong>${isPartial ? "Profile partially complete" : "Profile needs completion"}</strong>
-          <div>Missing: ${escapeHtml(missing.join(", "))}. Create sendable links for only the pieces this person still needs.</div>
+          <div class="profile-completion-heading">
+            <span class="profile-completion-kicker">Profile completion</span>
+            <span class="profile-completion-count">${completedCount} of 3 complete</span>
+          </div>
+          <strong class="profile-completion-title">${isPartial ? "Finish the remaining profile sections" : "Complete this profile before client sharing"}</strong>
+          <div class="profile-completion-checks">${checkMarkup}</div>
+          <div class="profile-completion-next">${needsCandidateChat
+            ? "Next: send the secure AI chat so the candidate can complete the missing personality or culture sections."
+            : "Next: open the internal profile editor to add the missing core profile details."}</div>
+          ${needsCandidateChat
+            ? `<div data-ai-profile-actions style="margin-top:8px;"><span>Preparing secure AI profile/personality link...</span></div>`
+            : ""}
         </div>
-        ${completionButton(profileId, profileData, "Create completion links")}
+        ${completionButton(profileId, profileData, needsCandidateChat ? "Completion options" : "Open completion options")}
       </div>
     `;
+    if (needsCandidateChat) {
+      renderInlineAiProfileActions(el, profileId, profileData);
+    }
   }
 
   async function profileNeedsCompletion(profileId) {
@@ -412,6 +600,8 @@
     renderProfileCompletionPanel,
     profileNeedsCompletion,
     showProfileCompletionNotice,
+    candidateAiProfileMessage,
+    copyProfileCompletionText,
   };
   window.escapeHtml = window.escapeHtml || escapeHtml;
   window.sendProfileCompletionChat = sendProfileCompletionChat;

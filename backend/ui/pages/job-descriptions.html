@@ -30,7 +30,7 @@
           const domainSelect = document.getElementById("domainSelect");
           if (domainSelect) domainSelect.addEventListener("change", loadJobDescriptions);
         });
-        $("#processFlow").load("components/processFlow.html?v=20260818-talent-jd-flow");
+        $("#processFlow").load("components/processFlow.html?v=20260819-workflow-guide");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -625,7 +625,7 @@
     </div>
 
     <script src="JS/apiScripts.js"></script>
-    <script src="JS/updateProcessFlow.js"></script>
+    <script src="JS/updateProcessFlow.js?v=20260819-active-candidate"></script>
     <script>
       const expandedDetails = new Map();
       const jdById = new Map();
@@ -646,10 +646,17 @@
       }
 
       function domainLabel(domain) {
-        if (domain === "engineer") return "Engineer";
-        if (domain === "law") return "Law";
-        if (domain === "technology") return "Technology";
-        return "Technology";
+        const normalized = String(domain || "dev").trim().toLowerCase();
+        return {
+          dev: "Technology",
+          technology: "Technology",
+          engineer: "Engineering",
+          engineering: "Engineering",
+          law: "Law",
+          legal: "Law",
+          dental: "Dental",
+          dentalready: "Dental",
+        }[normalized] || "Technology";
       }
 
       function clientName(jd) {
@@ -678,7 +685,8 @@
 
       function compactDate(value) {
         if (!value) return "Not set";
-        const parsed = new Date(value);
+        const clean = String(value).trim();
+        const parsed = new Date(/^\d{4}-\d{2}-\d{2}$/.test(clean) ? `${clean}T12:00:00` : clean);
         if (Number.isNaN(parsed.getTime())) return "Saved";
         return parsed.toLocaleDateString([], { month: "short", day: "numeric" });
       }
@@ -1014,7 +1022,7 @@
               <div>
                 <h4 class="jd-title">${escapeHtml(jd.title || "Role title to be confirmed")}</h4>
                 <div class="jd-meta">
-                  ${escapeHtml(clientName(jd))} &bull; ${escapeHtml(domainLabel(jd.domain || currentDomain()))}
+                  ${escapeHtml(clientName(jd))} &bull; ${escapeHtml(domainLabel(currentDomain()))}
                 </div>
               </div>
               <span class="jd-card-id">JD ${escapeHtml(id)}</span>

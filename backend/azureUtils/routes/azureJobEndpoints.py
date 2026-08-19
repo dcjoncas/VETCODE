@@ -14,7 +14,7 @@ from azureUtils import linkedinResultsExport
 from jd_match import normalize_jd, azureJobMatch, normalize_all_skills
 from openAI import externalPeopleSearch
 import peopleDataLabs.peopleSearch as peopleDataLabs
-from legalSources import braveSearch, coreSignal, courtListener
+from legalSources import coreSignal, courtListener
 from resumeProcessing.processing import ingest
 
 def top_matches_from_parts(parts: dict, limit: int = 8):
@@ -67,10 +67,10 @@ def _external_source_allowed_for_domain(source: str, domain: str) -> bool:
     clean_source = (source or "").strip().lower()
     clean_domain = _domain_key(domain)
     allowed = {
-        "dental": {"pdl", "coresignal", "brave"},
-        "law": {"pdl", "coresignal", "brave", "courtlistener"},
-        "dev": {"pdl", "coresignal", "brave", "github"},
-        "engineer": {"pdl", "coresignal", "brave", "github"},
+        "dental": {"pdl", "coresignal"},
+        "law": {"pdl", "coresignal", "courtlistener"},
+        "dev": {"pdl", "coresignal", "github"},
+        "engineer": {"pdl", "coresignal", "github"},
     }
     return clean_source in allowed.get(clean_domain, allowed["dev"])
 
@@ -625,7 +625,6 @@ def _provider_label(source: str) -> str:
         "pdl": "People Data Labs",
         "github": "GitHub Public API",
         "coresignal": "Coresignal",
-        "brave": "Brave Search",
         "courtlistener": "CourtListener / RECAP",
     }.get(source, "External provider")
 
@@ -696,12 +695,6 @@ def _provider_search_error_response(
                     "label": "Coresignal",
                     "configured": coreSignal.configured(),
                     "role": "professional candidate discovery",
-                },
-                {
-                    "source": "brave",
-                    "label": "Brave Search",
-                    "configured": braveSearch.configured(),
-                    "role": "public web research only",
                 },
             ],
         },
@@ -1213,124 +1206,6 @@ def _coresignal_collected_row(
     result["verification"]["coresignal_collect"] = "licensed_provider_data_requires_human_verification"
     result["verification"]["coresignal_checked_at"] = professional_details["checkedAt"]
     return result
-
-
-def _brave_law_query(criteria: dict) -> str:
-    def phrase(value) -> str:
-        return str(value or "").replace('"', " ").strip()[:45]
-
-    titles = " OR ".join(f'"{phrase(term)}"' for term in criteria.get("titles", [])[:3])
-    practices = " OR ".join(
-        f'"{phrase(term)}"' for term in criteria.get("requiredPracticeAreas", [])[:3]
-    )
-    locations = " OR ".join(f'"{phrase(term)}"' for term in criteria.get("locations", [])[:3])
-    parts = [f"({titles})" if titles else '"attorney"']
-    if practices:
-        parts.append(f"({practices})")
-    if locations:
-        parts.append(f"({locations})")
-    if criteria.get("region"):
-        parts.append(f'"{phrase(criteria["region"])}"')
-    parts.extend(['("attorney bio" OR "lawyer profile")', "-jobs", "-careers", "-site:linkedin.com"])
-    return " ".join(parts)
-
-
-def _brave_dental_query(job_skills: list[str], jd: dict | None = None) -> str:
-    def phrase(value) -> str:
-        return str(value or "").replace('"', " ").strip()[:55]
-
-    title = phrase((jd or {}).get("title"))
-    skill_terms = [
-        term
-        for term in [phrase(skill) for skill in job_skills[:8]]
-        if term and len(term) > 2
-    ]
-    roles = [
-        title,
-        "dental assistant",
-        "registered dental hygienist",
-        "RDH",
-        "EFDA",
-        "dental treatment coordinator",
-        "dental front office",
-    ]
-    sources = [
-        "DentalPost",
-        "American Dental Assistants Association",
-        "DANB",
-        "Toothio",
-        "Stynt",
-        "DentistJobCafe",
-    ]
-    role_query = " OR ".join(f'"{term}"' for term in roles if term)
-    source_query = " OR ".join(f'"{term}"' for term in sources)
-    skill_query = " OR ".join(f'"{term}"' for term in skill_terms[:5])
-    parts = [f"({role_query})", f"({source_query})"]
-    if skill_query:
-        parts.append(f"({skill_query})")
-    parts.extend(["candidate OR profile OR resume OR staff", "-site:linkedin.com"])
-    return " ".join(parts)
-
-
-def _brave_direct_query(query: str) -> str:
-    without_linkedin_scope = re.sub(
-        r"(?i)(?:^|\s)[+-]?site:(?:www\.)?linkedin\.com\b",
-        " ",
-        str(query or ""),
-    )
-    return " ".join(without_linkedin_scope.split()) + " -site:linkedin.com"
-
-
-def _brave_row(
-    row: dict,
-    job_skills: list[str],
-    scoring_skills: list[str],
-    lawyer_criteria: dict | None = None,
-):
-    name = str(row.get("title") or "Public professional profile").strip()
-    description = str(row.get("description") or "").strip()
-    profile_url = str(row.get("url") or "").strip()
-    if lawyer_criteria:
-        score, matched, details = _lawyer_match_score(
-            {"job_title": name, "summary": description, "skills": []},
-            lawyer_criteria,
-        )
-    else:
-        score, matched, details = _rank_external_skill_match(
-            [name, description], job_skills, scoring_skills
-        )
-    domain = urlparse(profile_url).netloc.lower().removeprefix("www.") if profile_url else ""
-    return {
-        "source": "brave",
-        "source_label": "Brave public web result",
-        "source_id": profile_url,
-        "result_type": "public_web_evidence",
-        "name": name,
-        "email": "",
-        "title": "Public legal profile or evidence page" if lawyer_criteria else "Public professional profile or evidence page",
-        "company": domain,
-        "location": "",
-        "profile_url": profile_url,
-        "avatar_url": "",
-        "summary": description,
-        "skills": matched,
-        "score": score,
-        "match_band": details["band"],
-        "score_details": details,
-        "top_matches": matched,
-        "verification": {
-            "california_bar_status": "not_verified" if lawyer_criteria else "not_applicable",
-            "california_bar_search_url": (
-                "https://apps.calbar.ca.gov/attorney/LicenseeSearch/QuickSearch?FreeText="
-                + quote_plus(name)
-                if lawyer_criteria
-                else ""
-            ),
-            "public_page_identity": "not_verified",
-            "linkedin_scan": "not_performed",
-        },
-        "profile_data": {"web_description": description, "web_domain": domain},
-    }
 
 
 def _courtlistener_row(row: dict, searched_name: str):
@@ -2220,7 +2095,7 @@ def external_provider_status():
             "accessModel": "Employer portal / job board",
             "apiStatus": "No public candidate API found",
             "candidateAccess": "Post jobs and receive applicants through ADA's career center.",
-            "vetcodeUse": "Use Brave as research-only discovery and track ADA as a posting/channel source.",
+            "vetcodeUse": "Use as a research-only discovery and job-posting/channel source.",
         },
         {
             "key": "dentalpost",
@@ -2307,13 +2182,6 @@ def external_provider_status():
                     if coreSignal.enrichment_dataset() == "multi_source"
                     else "none"
                 ),
-            },
-            "brave": {
-                "label": "Brave Search",
-                "ready": braveSearch.configured(),
-                "role": "public_web_evidence",
-                "environmentVariable": "BRAVE_SEARCH_API_KEY",
-                "signupUrl": "https://api-dashboard.search.brave.com/app/keys",
             },
             "courtlistener": {
                 "label": "CourtListener / RECAP",
@@ -2648,30 +2516,6 @@ def external_candidate_search(
                 top_k,
                 f"{coreSignal.credit_cost('base')} search credits",
             )
-        elif selected_source == "brave":
-            page = _provider_page(scroll_token, 0, 9)
-            search_query = (
-                _brave_law_query(criteria)
-                if criteria
-                else _brave_dental_query(search_skills, jd)
-                if domain == "dental"
-                else " ".join(search_skills[:8]) + " professional profile -site:linkedin.com"
-            )
-            brave_response = braveSearch.search_web(search_query, size=top_k, page=page)
-            results = [
-                _brave_row(row, job_skills, search_skills, criteria)
-                for row in brave_response.get("data", [])
-            ]
-            source_audit = _provider_source_audit(
-                "Brave Search",
-                brave_response,
-                criteria or {"skills": search_skills},
-                "public_web_legal_evidence" if domain == "law" else "public_web_professional_evidence",
-                "API requests",
-                domain,
-            )
-            source_audit["totalIsEstimate"] = True
-            pagination = _provider_pagination(brave_response, top_k, "1 API request")
         elif selected_source == "courtlistener":
             if domain != "law" or not criteria:
                 raise HTTPException(
@@ -2733,7 +2577,7 @@ def external_candidate_search(
         else:
             raise HTTPException(
                 status_code=400,
-                detail="Select People Data Labs, Coresignal, Brave Search, CourtListener, or GitHub.",
+                detail="Select People Data Labs, Coresignal, CourtListener, or GitHub.",
             )
     except HTTPException:
         raise
@@ -2827,24 +2671,6 @@ def external_candidate_search_direct(
                 top_k,
                 f"{coreSignal.credit_cost('base')} search credits",
             )
-        elif selected_source == "brave":
-            page = _provider_page(scroll_token, 0, 9)
-            brave_query = _brave_direct_query(clean_query)
-            brave_response = braveSearch.search_web(brave_query, size=top_k, page=page)
-            results = [
-                _brave_row(row, search_terms, search_terms)
-                for row in brave_response.get("data", [])
-            ]
-            source_audit = _provider_source_audit(
-                "Brave Search",
-                brave_response,
-                {"terms": search_terms},
-                "direct_public_web",
-                "API requests",
-                domain,
-            )
-            source_audit["totalIsEstimate"] = True
-            pagination = _provider_pagination(brave_response, top_k, "1 API request")
         elif selected_source == "courtlistener":
             if domain != "law":
                 raise HTTPException(status_code=400, detail="CourtListener lawyer research is available in LegalReady.")
@@ -2896,7 +2722,7 @@ def external_candidate_search_direct(
         else:
             raise HTTPException(
                 status_code=400,
-                detail="Select People Data Labs, Coresignal, Brave Search, CourtListener, or GitHub.",
+                detail="Select People Data Labs, Coresignal, CourtListener, or GitHub.",
             )
     except HTTPException:
         raise
@@ -3217,7 +3043,7 @@ def external_candidate_import(payload: dict = Body(...)):
     _assert_external_source_allowed(source, domain)
     result_type = candidate.get("result_type")
     is_court_lead = source == "courtlistener" and result_type == "court_attorney_lead"
-    if source == "brave" or result_type in {
+    if result_type in {
         "public_web_evidence",
         "court_record_evidence",
     }:

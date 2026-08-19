@@ -28,7 +28,7 @@
     <script>
       $(function () {
         $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow");
-        $("#processFlow").load("components/processFlow.html?v=20260818-talent-jd-flow");
+        $("#processFlow").load("components/processFlow.html?v=20260819-workflow-guide");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -107,6 +107,100 @@
 
       body.schedule-client .mode-chip {
         background: #2f80ed;
+      }
+
+      .active-candidate-panel {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin: 12px 0;
+        border: 2px solid var(--primary);
+        border-radius: 14px;
+        padding: 12px 14px;
+        background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.13), #fff);
+        box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.08);
+      }
+
+      .active-candidate-copy {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .active-candidate-copy .eyebrow {
+        color: var(--primary);
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: 0.06em;
+      }
+
+      .active-candidate-copy strong {
+        font-size: 17px;
+      }
+
+      .active-candidate-copy span:last-child {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .scheduling-workflow {
+        margin: 12px 0;
+        border: 1px solid rgba(var(--primary-rgb), 0.24);
+        border-radius: 14px;
+        padding: 13px 14px;
+        background: #fff;
+      }
+
+      .scheduling-workflow h3 {
+        margin: 0;
+      }
+
+      .scheduling-workflow p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .workflow-checklist {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .workflow-check-step {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 9px 10px;
+        background: #f7f8f7;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .workflow-check-step.current {
+        border-color: var(--primary);
+        background: rgba(var(--primary-rgb), 0.08);
+        color: var(--ink);
+        box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.07);
+      }
+
+      .workflow-check-step.done {
+        border-color: rgba(39, 143, 81, 0.35);
+        background: rgba(39, 143, 81, 0.09);
+        color: #176b3a;
+      }
+
+      #shortlistBody tr.active-candidate-row {
+        background: rgba(var(--primary-rgb), 0.09);
+        box-shadow: inset 4px 0 0 var(--primary);
+      }
+
+      .queue-number {
+        color: var(--primary);
+        font-weight: 950;
+        white-space: nowrap;
       }
 
       .status-grid {
@@ -244,6 +338,15 @@
         background: rgba(47, 128, 237, 0.06);
       }
 
+      #meetingAgentPanel {
+        border-color: rgba(25, 135, 84, 0.28);
+        background: rgba(25, 135, 84, 0.07);
+      }
+
+      #meetingAgentPanel strong {
+        color: #137344;
+      }
+
       .draft-output {
         white-space: pre-wrap;
         border: 1px solid var(--line);
@@ -303,6 +406,15 @@
         .status-grid {
           grid-template-columns: 1fr;
         }
+
+        .active-candidate-panel {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .workflow-checklist {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -339,8 +451,8 @@
               type="button"
               onclick="selectInterviewType('ready')"
             >
-              <strong>Candidate Review</strong>
-              <span>Touch base with the community member before client outreach. Confirm job interest, activities, timing, and skill gaps.</span>
+              <strong>Candidate Review — Internal DevReady</strong>
+              <span>DevReady staff meet with the candidate before any client interview. Confirm job interest, activities, timing, and skill gaps.</span>
             </button>
             <button
               id="clientInterviewButton"
@@ -357,6 +469,28 @@
             <div>
               <strong id="modeTitle">Candidate Review selected</strong>
               <span id="modeHelp">Use this before client outreach. Add the DevReady interviewer who will meet with the candidate.</span>
+            </div>
+          </div>
+
+          <div id="activeCandidatePanel" class="active-candidate-panel">
+            <div class="active-candidate-copy">
+              <span class="eyebrow">ACTIVE CANDIDATE FOR THIS INTERVIEW</span>
+              <strong id="activeCandidateQueueLabel">No active candidate</strong>
+              <span id="activeCandidateQueueHelp">Choose a candidate from the ordered shortlist below.</span>
+            </div>
+            <button id="nextCandidateQueueButton" class="btn secondary" type="button" onclick="moveToNextCandidate()" hidden>
+              Next candidate
+            </button>
+          </div>
+
+          <div class="scheduling-workflow" aria-live="polite">
+            <h3 id="schedulingWorkflowTitle">Internal DevReady Candidate Review workflow</h3>
+            <p id="schedulingWorkflowHelp">The client is not part of this meeting. Complete each step in order so Status always shows what happens next.</p>
+            <div class="workflow-checklist">
+              <div id="workflowDraftStep" class="workflow-check-step">1. Create email</div>
+              <div id="workflowEmailStep" class="workflow-check-step">2. Send/open email draft</div>
+              <div id="workflowCalendlyStep" class="workflow-check-step">3. Open prefilled Calendly</div>
+              <div id="workflowInviteStep" class="workflow-check-step">4. Confirm invite sent</div>
             </div>
           </div>
 
@@ -488,6 +622,14 @@
                     </div>
                   </div>
                 </div>
+                <div id="meetingAgentPanel" class="contact-panel">
+                  <div>
+                    <h3>DevReady Meeting Agent — automatically invited</h3>
+                    <p id="meetingAgentStatus">
+                      <strong>Egeria</strong> (egeria@devready.ai) will join both the Candidate Review and Client Interview.
+                    </p>
+                  </div>
+                </div>
                 <div class="field">
                   <label id="attendeesLabel">Additional attendees</label>
                   <textarea id="attendeesInput" placeholder="Optional: one email per line"></textarea>
@@ -529,6 +671,9 @@
                 <button class="btn secondary" type="button" onclick="generateDraft()">
                   Generate email
                 </button>
+                <button id="sendDraftEmailButton" class="btn secondary" type="button" onclick="sendDraftToEmail()">
+                  Send draft to email
+                </button>
                 <button id="scheduleActionButton" class="btn" type="button" onclick="scheduleSelectedProvider()">
                   Book with Calendly
                 </button>
@@ -562,13 +707,17 @@
 
           <div id="calendlyPanel" class="schedule-panel" style="margin-top: 14px">
             <h2>Calendly booking</h2>
+            <div id="calendlyPrefillStatus" class="notice">Add the active candidate email to prefill Calendly.</div>
             <div class="row-actions">
               <button class="btn" type="button" onclick="bookWithCalendly()">
-                Open Calendly
+                Open prefilled Calendly
               </button>
-              <a id="calendlyDirectLink" class="btn secondary" href="#" target="_blank" rel="noopener">
+              <a id="calendlyDirectLink" class="btn secondary" href="#" target="_blank" rel="noopener" onclick="return openCalendlyDirect(event)">
                 Open in new tab
               </a>
+              <button id="confirmCalendlySentButton" class="btn secondary" type="button" onclick="confirmCalendlyInviteSent()">
+                Confirm Calendly invite sent
+              </button>
             </div>
             <div class="calendly-frame" style="margin-top: 12px">
               <div
@@ -584,15 +733,17 @@
             <table class="table" style="margin-top: 10px">
               <thead>
                 <tr>
+                  <th>#</th>
                   <th>Candidate</th>
-                  <th>Score</th>
+                  <th>Workflow stage</th>
+                  <th>Match</th>
                   <th>Email</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody id="shortlistBody">
                 <tr>
-                  <td colspan="4">No shortlisted candidates found for this browser session.</td>
+                  <td colspan="6">No shortlisted candidates found for this browser session.</td>
                 </tr>
               </tbody>
             </table>
@@ -602,12 +753,17 @@
     </div>
 
     <script src="JS/apiScripts.js"></script>
-    <script src="JS/profileCompletion.js"></script>
+    <script src="JS/profileCompletion.js?v=20260819-ai-profile-link"></script>
     <script src="JS/atlasClientContext.js"></script>
-    <script src="JS/shortlist.js"></script>
+    <script src="JS/shortlist.js?v=20260819-active-candidate"></script>
     <script>
       const CALENDLY_BASE_URL =
         "https://calendly.com/mitch-blake-devready/discovery-call";
+      const DEFAULT_MEETING_AGENT = Object.freeze({
+        name: "Egeria",
+        email: "egeria@devready.ai",
+        role: "DevReady Meeting Agent",
+      });
       let selectedProvider = "calendly";
       let interviewType = sessionStorage.getItem("scheduleInterviewType") || "ready";
       let latestDraft = null;
@@ -618,6 +774,108 @@
 
       function byId(id) {
         return document.getElementById(id);
+      }
+
+      function schedulingCandidateId() {
+        return window.DevReadyShortlist?.position().id || sessionStorage.getItem("candidateId") || "unselected";
+      }
+
+      function schedulingProgressKey(type = interviewType) {
+        const domain = sessionStorage.getItem("domain") || "dev";
+        return `interviewSchedulingProgress:${domain}:${schedulingCandidateId()}:${type}`;
+      }
+
+      function readSchedulingProgress(type = interviewType) {
+        try {
+          return JSON.parse(sessionStorage.getItem(schedulingProgressKey(type)) || "{}") || {};
+        } catch {
+          return {};
+        }
+      }
+
+      function updateSchedulingProgress(patch = {}, type = interviewType) {
+        const progress = { ...readSchedulingProgress(type), ...patch, updatedAt: new Date().toISOString() };
+        sessionStorage.setItem(schedulingProgressKey(type), JSON.stringify(progress));
+        renderSchedulingWorkflow();
+        return progress;
+      }
+
+      function candidateInterestKey() {
+        const domain = sessionStorage.getItem("domain") || "dev";
+        return `candidateInterest:${domain}:${schedulingCandidateId()}`;
+      }
+
+      function candidateInterestDecision() {
+        const stored = sessionStorage.getItem(candidateInterestKey()) || "";
+        if (stored) return stored;
+        const shortlistDecision = String(window.DevReadyShortlist?.active()?.candidateInterest || "").toLowerCase();
+        if (shortlistDecision) return shortlistDecision;
+        const candidateId = schedulingCandidateId();
+        const archived = interviewArchiveRecords.find(
+          (record) => String(record.candidateId || record.profile_id || "") === String(candidateId) && record.candidateInterest,
+        );
+        return String(archived?.candidateInterest || "").toLowerCase();
+      }
+
+      function renderSchedulingWorkflow() {
+        const isReady = interviewType === "ready";
+        const title = byId("schedulingWorkflowTitle");
+        const help = byId("schedulingWorkflowHelp");
+        if (!title || !help) return;
+        const progress = readSchedulingProgress();
+        title.textContent = isReady
+          ? "Internal DevReady Candidate Review workflow"
+          : "Client Interview workflow — client and candidate";
+        help.textContent = isReady
+          ? "The client is not part of this meeting. Send the candidate the draft, open Calendly with their email prefilled, then confirm the invite was sent."
+          : candidateInterestDecision() === "interested"
+            ? "The candidate is confirmed interested. Repeat the email and scheduling steps with the candidate and client contact."
+            : "Client Interview is Step 7B and stays blocked until the internal DevReady review records that the candidate is interested.";
+        const stages = [
+          ["workflowDraftStep", progress.draftGeneratedAt],
+          ["workflowEmailStep", progress.emailSubmittedAt],
+          ["workflowCalendlyStep", progress.calendlyOpenedAt],
+          ["workflowInviteStep", progress.inviteConfirmedAt],
+        ];
+        const calendarStep = byId("workflowCalendlyStep");
+        const inviteStep = byId("workflowInviteStep");
+        if (calendarStep) {
+          calendarStep.textContent = selectedProvider === "calendly"
+            ? "3. Open prefilled Calendly"
+            : "3. Create calendar invite";
+        }
+        if (inviteStep) {
+          inviteStep.textContent = selectedProvider === "calendly"
+            ? "4. Confirm invite sent"
+            : "4. Invite sent";
+        }
+        let currentAssigned = false;
+        stages.forEach(([id, complete]) => {
+          const element = byId(id);
+          if (!element) return;
+          element.classList.toggle("done", Boolean(complete));
+          const current = !complete && !currentAssigned;
+          element.classList.toggle("current", current);
+          if (current) currentAssigned = true;
+        });
+        const emailButton = byId("sendDraftEmailButton");
+        if (emailButton) {
+          emailButton.textContent = latestHealth?.outlook?.connected
+            ? "Send draft to email (Outlook)"
+            : "Send draft to email app";
+        }
+        const candidateEmail = byId("candidateEmailInput")?.value.trim() || "";
+        const guestEmails = byId("candidateInterviewerEmailInput")
+          ? allInterviewAttendees().map((attendee) => attendee.email).filter(Boolean)
+          : [];
+        const prefill = byId("calendlyPrefillStatus");
+        if (prefill) {
+          prefill.textContent = candidateEmail
+            ? `Calendly invitee: ${candidateEmail}${guestEmails.length ? `. Additional guest${guestEmails.length === 1 ? "" : "s"}: ${guestEmails.join(", ")}` : ""}`
+            : "Add the active candidate email to prefill Calendly.";
+        }
+        const confirmButton = byId("confirmCalendlySentButton");
+        if (confirmButton) confirmButton.disabled = !progress.calendlyOpenedAt;
       }
 
       function setTile(id, connected, message) {
@@ -637,6 +895,7 @@
         sessionStorage.setItem("scheduleInterviewType", interviewType);
         latestDraft = null;
         updateInterviewTypeUi();
+        renderSchedulingWorkflow();
       }
 
       function updateInterviewTypeUi() {
@@ -673,8 +932,8 @@
           ? "Candidate Review selected"
           : "Client Interview selected";
         byId("modeHelp").textContent = isReady
-          ? "Use this before client outreach. Add the DevReady interviewer who will meet with the candidate."
-          : "Use this after the candidate review. Add the client company, client person, and client email for the invite.";
+          ? "Internal DevReady staff meet with the candidate here. No client attendee belongs in this meeting."
+          : "Use this only after the internal Candidate Review records that the candidate is interested. Include both the candidate and client contact.";
         byId("scheduleBreadcrumb").textContent = `${isReady ? "Candidate Review" : "Client Interview"} - ${byId("contextNotice").textContent || "Scheduling"}`;
         if (!isReady && byId("companyInput").value && !byId("clientCompanyInput").value) {
           byId("clientCompanyInput").value = byId("companyInput").value;
@@ -685,7 +944,8 @@
             ? "Open Calendly"
             : connected
               ? `Send ${isReady ? "Candidate Review" : "Client Interview"} invite`
-              : `Connect ${selectedProvider === "outlook" ? "Outlook" : "Google"}`;
+               : `Connect ${selectedProvider === "outlook" ? "Outlook" : "Google"}`;
+        renderSchedulingWorkflow();
       }
 
       function connectGoogle() {
@@ -768,9 +1028,26 @@
         return email ? [{ email, name }] : [];
       }
 
+      function meetingAgentAttendee() {
+        const configured = latestHealth?.meeting_agent || DEFAULT_MEETING_AGENT;
+        const email = String(configured.email || DEFAULT_MEETING_AGENT.email).trim().toLowerCase();
+        return {
+          email,
+          name: String(configured.name || DEFAULT_MEETING_AGENT.name).trim(),
+          role: "DevReady Meeting Agent",
+        };
+      }
+
+      function renderMeetingAgent() {
+        const agent = meetingAgentAttendee();
+        const status = byId("meetingAgentStatus");
+        if (!status) return;
+        status.innerHTML = `<strong>${escapeHtml(agent.name)}</strong> (${escapeHtml(agent.email)}) will be added automatically to both the Candidate Review and Client Interview.`;
+      }
+
       function allInterviewAttendees() {
         const seen = new Set();
-        return [...primaryAttendees(), ...parseEmails(byId("attendeesInput").value)]
+        return [meetingAgentAttendee(), ...primaryAttendees(), ...parseEmails(byId("attendeesInput").value)]
           .filter((row) => row.email)
           .filter((row) => {
             const key = String(row.email).toLowerCase();
@@ -792,6 +1069,13 @@
           return true;
         }
 
+        if (candidateInterestDecision() !== "interested") {
+          showResult(
+            "Client Interview is Step 7B. Complete the internal DevReady Candidate Review and mark the candidate Interested in Status before scheduling the client-facing interview.",
+            true,
+          );
+          return false;
+        }
         const missing = [];
         if (!byId("clientCompanyInput").value.trim()) missing.push("client company");
         if (!byId("clientContactNameInput").value.trim()) missing.push("client contact name");
@@ -819,6 +1103,10 @@
         const params = new URLSearchParams();
         if (candidateName) params.set("name", candidateName);
         if (candidateEmail) params.set("email", candidateEmail);
+        const guests = allInterviewAttendees()
+          .map((attendee) => attendee.email)
+          .filter((email) => email && String(email).toLowerCase() !== candidateEmail.toLowerCase());
+        if (guests.length) params.set("guests", guests.join(","));
         const query = params.toString();
         return query ? `${CALENDLY_BASE_URL}?${query}` : CALENDLY_BASE_URL;
       }
@@ -826,6 +1114,13 @@
       function updateCalendlyLink() {
         const link = byId("calendlyDirectLink");
         if (link) link.href = calendlyUrl();
+        renderSchedulingWorkflow();
+      }
+
+      function openCalendlyDirect(event) {
+        event.preventDefault();
+        bookWithCalendly();
+        return false;
       }
 
       function restoreCalendlyScroll() {
@@ -837,12 +1132,25 @@
       }
 
       function bookWithCalendly() {
+        if (!validateInterviewContacts()) return;
+        const candidateEmail = byId("candidateEmailInput").value.trim();
+        if (!candidateEmail) {
+          showResult("Add the active candidate email before opening Calendly.", true);
+          return;
+        }
+        const progress = readSchedulingProgress();
+        if (!progress.emailSubmittedAt) {
+          showResult("Create the email and use Send draft to email before opening Calendly.", true);
+          return;
+        }
         const url = calendlyUrl();
         updateCalendlyLink();
+        updateSchedulingProgress({ calendlyOpenedAt: new Date().toISOString(), calendlyUrl: url });
         saveScheduleTracking({
           provider: "Calendly",
           status: "Booking link opened",
           eventLink: url,
+          nextAction: "Send the invite in Calendly, then confirm it in DevReady",
         });
         restoreCalendlyScroll();
         const opened = window.open(url, "_blank", "noopener,noreferrer");
@@ -852,6 +1160,34 @@
         }
         showResult("Calendly is ready. Use the direct link button if your browser blocked the new tab.", true);
         window.location.href = url;
+      }
+
+      async function confirmCalendlyInviteSent() {
+        const progress = readSchedulingProgress();
+        if (!progress.calendlyOpenedAt) {
+          showResult("Open the prefilled Calendly page before confirming the invite.", true);
+          return;
+        }
+        const label = interviewType === "ready" ? "internal DevReady Candidate Review" : "Client Interview";
+        const approved = confirm(
+          `Confirm that you completed the Calendly booking and sent the ${label} invite to ${byId("candidateEmailInput").value.trim() || "the candidate"}?`,
+        );
+        if (!approved) return;
+        const status = interviewType === "ready" ? "Candidate Review scheduled" : "Client Interview scheduled";
+        const record = saveScheduleTracking({
+          provider: "Calendly",
+          status,
+          eventLink: progress.calendlyUrl || calendlyUrl(),
+          calendlyConfirmed: true,
+          inviteConfirmedAt: new Date().toISOString(),
+          nextAction: interviewType === "ready"
+            ? "Conduct the internal DevReady Candidate Review, then record whether the candidate is interested"
+            : "Conduct the client interview and update the candidate status",
+        });
+        updateSchedulingProgress({ inviteConfirmedAt: record.inviteConfirmedAt, trackingRecordId: record.id });
+        await archiveInterviewRecord(record);
+        const domain = sessionStorage.getItem("domain") || "dev";
+        window.location.href = `status-tracker.html?domain=${encodeURIComponent(domain)}&record=${encodeURIComponent(record.id)}`;
       }
 
       function defaultTimeWindow() {
@@ -917,6 +1253,8 @@
             "outlook",
             latestHealth.outlook && latestHealth.outlook.connected,
           );
+          renderMeetingAgent();
+          updateCalendlyLink();
           autoSelectConnectedProvider();
         } catch (error) {
           setTile("backendTile", false, "Calendar backend unavailable");
@@ -928,6 +1266,7 @@
       }
 
       async function loadWorkflowContext() {
+        if (window.DevReadyShortlist) window.DevReadyShortlist.restoreActive();
         const candidateId = sessionStorage.getItem("candidateId");
         const candidateName = sessionStorage.getItem("candidateName") || "";
         const candidateStatus = sessionStorage.getItem("candidateStatus") || "";
@@ -1080,18 +1419,87 @@
         if (event.detail?.client) applyAttachedAtlasClient({ appendContext: true });
       });
 
-      function selectShortlistedCandidate(candidate) {
+      window.addEventListener("devready-active-candidate-changed", (event) => {
+        if (event.detail?.candidate) {
+          selectShortlistedCandidate(event.detail.candidate, { alreadyActive: true });
+        } else {
+          renderActiveCandidatePanel();
+          syncShortlistRows();
+        }
+      });
+
+      function candidateDisplayName(candidate) {
+        return (
+          candidate?.name ||
+          candidate?.fullName ||
+          [candidate?.firstName, candidate?.lastName].filter(Boolean).join(" ") ||
+          "Candidate"
+        ).trim();
+      }
+
+      function currentCandidateQueueState() {
+        if (window.DevReadyShortlist) return window.DevReadyShortlist.position();
+        const id = sessionStorage.getItem("candidateId") || "";
+        const index = shortlistArray.findIndex((candidateId) => String(candidateId) === String(id));
+        return {
+          id,
+          index,
+          number: index >= 0 ? index + 1 : 0,
+          total: shortlistArray.length,
+          candidate: index >= 0 ? shortlistDetails[index] : null,
+          next: index >= 0 && index + 1 < shortlistDetails.length ? shortlistDetails[index + 1] : null,
+        };
+      }
+
+      function renderActiveCandidatePanel() {
+        const state = currentCandidateQueueState();
+        const label = byId("activeCandidateQueueLabel");
+        const help = byId("activeCandidateQueueHelp");
+        const nextButton = byId("nextCandidateQueueButton");
+        if (!label || !help || !nextButton) return;
+        if (!state.candidate || !state.id) {
+          label.textContent = "No active candidate";
+          help.textContent = "Choose a candidate from the ordered shortlist below.";
+          nextButton.hidden = true;
+          return;
+        }
+        label.textContent = `Candidate ${state.number} of ${state.total}: ${candidateDisplayName(state.candidate)}`;
+        help.textContent = "This is the person used for the invite, interview notes, communications, and status tracking.";
+        nextButton.hidden = !state.next;
+        nextButton.textContent = state.next
+          ? `Next: ${candidateDisplayName(state.next)}`
+          : "Last candidate";
+      }
+
+      function syncShortlistRows() {
+        const state = currentCandidateQueueState();
+        document.querySelectorAll("#shortlistBody tr[data-candidate-id]").forEach((row) => {
+          const isActive = String(row.dataset.candidateId) === String(state.id);
+          row.classList.toggle("active-candidate-row", isActive);
+          const button = row.querySelector("[data-use-candidate]");
+          if (button) {
+            button.disabled = isActive;
+            button.textContent = isActive ? "Active candidate" : "Work on this candidate";
+          }
+        });
+      }
+
+      function selectShortlistedCandidate(candidate, options = {}) {
         const id = candidate.id || candidate.profile_id;
         const temporaryProfiles = JSON.parse(
           sessionStorage.getItem("temporaryProfiles") || "{}",
         );
         const tempProfile = temporaryProfiles[String(id)];
-        const firstName = candidate.firstName || "";
-        const lastName = candidate.lastName || "";
-        const name = `${firstName} ${lastName}`.trim();
+        const name = candidateDisplayName(candidate);
+
+        if (!options.alreadyActive && window.DevReadyShortlist) {
+          window.DevReadyShortlist.setActive({ ...candidate, id, name });
+          return;
+        }
 
         if (id) sessionStorage.setItem("candidateId", id);
         if (name) sessionStorage.setItem("candidateName", name);
+        sessionStorage.setItem("candidateEmail", candidate.email || "");
         if (tempProfile) {
           sessionStorage.setItem("candidateStatus", "Temporary Profile");
           sessionStorage.setItem("candidateProfileType", "Temporary Profile");
@@ -1121,40 +1529,83 @@
         );
         updateCalendlyLink();
         byId("contextNotice").textContent = [
-          name || "Selected candidate",
+          (() => {
+            const state = currentCandidateQueueState();
+            return state.total ? `Candidate ${state.number} of ${state.total}: ${name}` : name;
+          })(),
           byId("roleInput").value || "No role selected",
           byId("companyInput").value,
         ]
           .filter(Boolean)
           .join(" - ");
+        renderActiveCandidatePanel();
+        syncShortlistRows();
       }
 
-      function addShortlistRow(candidate, scoreLabel) {
+      async function chooseShortlistedCandidate(candidate) {
+        const name = candidateDisplayName(candidate);
+        const state = currentCandidateQueueState();
+        const id = candidate.id || candidate.profile_id;
+        if (String(state.id) !== String(id)) {
+          const approved = confirm(
+            `Work on ${name} now? This candidate will be used for the invite, interview, communications, and tracking until you move to the next person.`,
+          );
+          if (!approved) return;
+        }
+        selectShortlistedCandidate(candidate);
+        await loadCandidateChatContext(id);
+        showResult(`${name} is now the active candidate (${currentCandidateQueueState().number} of ${currentCandidateQueueState().total}).`);
+      }
+
+      async function moveToNextCandidate() {
+        const state = currentCandidateQueueState();
+        if (!state.next) {
+          showResult("This is the last candidate in the shortlist.");
+          return;
+        }
+        const approved = confirm(
+          `Finish working on ${candidateDisplayName(state.candidate)} and move to candidate ${state.number + 1} of ${state.total}, ${candidateDisplayName(state.next)}?`,
+        );
+        if (!approved) return;
+        const result = window.DevReadyShortlist?.advance();
+        const nextCandidate = shortlistDetails.find(
+          (candidate) => String(candidate.id || candidate.profile_id) === String(result?.candidate?.id || state.next.id),
+        ) || result?.candidate || state.next;
+        selectShortlistedCandidate(nextCandidate, { alreadyActive: true });
+        await loadCandidateChatContext(nextCandidate.id || nextCandidate.profile_id);
+        showResult(
+          `${candidateDisplayName(nextCandidate)} is now the active candidate (${currentCandidateQueueState().number} of ${currentCandidateQueueState().total}).`,
+        );
+      }
+
+      function addShortlistRow(candidate, scoreLabel, index) {
         const tbody = byId("shortlistBody");
         const id = candidate.id || candidate.profile_id;
         const temporaryProfiles = JSON.parse(
           sessionStorage.getItem("temporaryProfiles") || "{}",
         );
         const tempProfile = temporaryProfiles[String(id)];
-        const firstName = candidate.firstName || "";
-        const lastName = candidate.lastName || "";
-        const name = `${firstName} ${lastName}`.trim() || "Candidate";
-        const statusLabel = tempProfile ? "Temporary Profile" : "";
+        const name = candidateDisplayName(candidate);
+        const statusLabel = candidate.workflowStatus || (tempProfile ? "Temporary Profile" : candidate.status || candidate.stage || "Queued");
+        const queueIndex = shortlistArray.findIndex((candidateId) => String(candidateId) === String(id));
         const row = document.createElement("tr");
         row.id = `candidate${id}`;
+        row.dataset.candidateId = String(id);
         row.innerHTML = `
+          <td class="queue-number">${(queueIndex >= 0 ? queueIndex : index) + 1} of ${shortlistArray.length}</td>
           <td><strong>${escapeHtml(name)}</strong></td>
-          <td>${escapeHtml(statusLabel || scoreLabel || "N/A")}</td>
+          <td>${escapeHtml(statusLabel)}</td>
+          <td>${escapeHtml(scoreLabel || "N/A")}</td>
           <td>${escapeHtml(candidate.email || "")}</td>
           <td>
-            <button class="btn secondary" type="button" style="padding: 8px 12px">
-              Use for invite
+            <button class="btn secondary" data-use-candidate type="button" style="padding: 8px 12px">
+              Work on this candidate
             </button>
             <span id="scheduleCompletion-${id}"></span>
           </td>
         `;
         row.querySelector("button").addEventListener("click", () =>
-          selectShortlistedCandidate(candidate),
+          chooseShortlistedCandidate(candidate),
         );
         tbody.appendChild(row);
         if (window.profileCompletion) {
@@ -1211,14 +1662,22 @@
       }
 
       async function loadShortlist() {
-        const shortlist = sessionStorage.getItem("shortlist");
+        const domain = sessionStorage.getItem("domain") || "dev";
+        const queuedCandidates = window.DevReadyShortlist ? window.DevReadyShortlist.list() : [];
+        const shortlist = queuedCandidates.length
+          ? queuedCandidates.map((candidate) => candidate.id).join(",")
+          : sessionStorage.getItem(`shortlist:${domain}`) || sessionStorage.getItem("shortlist");
         const jobId = sessionStorage.getItem("jobID");
         const tbody = byId("shortlistBody");
-        if (!shortlist || shortlist.length < 1) return;
+        if (!shortlist || shortlist.length < 1) {
+          renderActiveCandidatePanel();
+          return;
+        }
 
         shortlistArray = shortlist.split(",").filter(Boolean);
-        byId("shortlistCount").innerText = `Shortlist (Top ${shortlistArray.length})`;
+        byId("shortlistCount").innerText = `Ordered shortlist (${shortlistArray.length})`;
         tbody.innerHTML = "";
+        const cachedDetails = window.DevReadyShortlist ? window.DevReadyShortlist.readDetails() : {};
 
         if (jobId && jobId.length > 0) {
           const fd = new FormData();
@@ -1228,45 +1687,53 @@
             method: "POST",
             body: fd,
           });
-          shortlistDetails = profileData;
-          profileData.forEach((candidate) =>
-            addShortlistRow(candidate, candidate.score ? `${candidate.score}%` : "N/A"),
+          const scoredById = Object.fromEntries(
+            (profileData || []).map((candidate) => [String(candidate.id || candidate.profile_id), candidate]),
           );
-          summarizeShortlistForContext();
-          syncTalkingPointsFromContext();
-          if (!byId("candidateNameInput").value && profileData[0]) {
-            selectShortlistedCandidate(profileData[0]);
-            await loadCandidateChatContext(profileData[0].id);
-          }
-          return;
-        }
-
-        shortlistDetails = [];
-        const cachedDetails = window.DevReadyShortlist ? window.DevReadyShortlist.readDetails() : {};
-        for (const candidateId of shortlistArray) {
-          try {
-            const domain = sessionStorage.getItem("domain") || "dev";
-            const profileData = await api(`/api/azure/getProfile/short/${candidateId}?domain=${encodeURIComponent(domain)}`);
-            const cached = cachedDetails[String(candidateId)] || {};
-            const candidate = { id: candidateId, ...cached, ...profileData, score: cached.score || profileData.score };
-            shortlistDetails.push(candidate);
-            addShortlistRow(candidate, candidate.score ? `${candidate.score}%` : "Job missing");
-          } catch (error) {
-            const cached = cachedDetails[String(candidateId)];
-            if (cached) {
-              shortlistDetails.push(cached);
-              addShortlistRow(cached, cached.score ? `${cached.score}%` : "Profile cached");
-            } else {
-              console.log(`Could not load candidate ${candidateId}`, error);
+          shortlistDetails = shortlistArray
+            .map((candidateId) => {
+              const cached = cachedDetails[String(candidateId)] || {};
+              const scored = scoredById[String(candidateId)] || {};
+              return Object.keys(scored).length || Object.keys(cached).length
+                ? { id: candidateId, ...cached, ...scored, score: scored.score ?? cached.score }
+                : null;
+            })
+            .filter(Boolean);
+        } else {
+          shortlistDetails = [];
+          for (const candidateId of shortlistArray) {
+            try {
+              const profileData = await api(`/api/azure/getProfile/short/${candidateId}?domain=${encodeURIComponent(domain)}`);
+              const cached = cachedDetails[String(candidateId)] || {};
+              const candidate = { id: candidateId, ...cached, ...profileData, score: cached.score ?? profileData.score };
+              shortlistDetails.push(candidate);
+            } catch (error) {
+              const cached = cachedDetails[String(candidateId)];
+              if (cached) shortlistDetails.push({ id: candidateId, ...cached });
+              else console.log(`Could not load candidate ${candidateId}`, error);
             }
           }
         }
+
+        shortlistDetails.forEach((candidate, index) =>
+          addShortlistRow(
+            candidate,
+            candidate.score !== "" && candidate.score !== undefined ? `${candidate.score}%` : jobId ? "N/A" : "Job missing",
+            index,
+          ),
+        );
         summarizeShortlistForContext();
         syncTalkingPointsFromContext();
-        if (!byId("candidateNameInput").value && shortlistDetails[0]) {
-          selectShortlistedCandidate(shortlistDetails[0]);
-          await loadCandidateChatContext(shortlistDetails[0].id);
+        const activeId = window.DevReadyShortlist?.activeId() || sessionStorage.getItem("candidateId");
+        const selectedCandidate = shortlistDetails.find(
+          (candidate) => String(candidate.id || candidate.profile_id) === String(activeId),
+        ) || shortlistDetails[0];
+        if (selectedCandidate) {
+          selectShortlistedCandidate(selectedCandidate);
+          await loadCandidateChatContext(selectedCandidate.id || selectedCandidate.profile_id);
         }
+        renderActiveCandidatePanel();
+        syncShortlistRows();
       }
 
       function autoSelectConnectedProvider() {
@@ -1299,6 +1766,7 @@
           ai_context: [contactContext, byId("aiContextInput").value.trim()].filter(Boolean).join("\n\n"),
           talking_points: byId("talkingPointsInput").value.trim(),
           interviewers: allInterviewAttendees(),
+          devready_meeting_agent: meetingAgentAttendee(),
           candidate_interviewer_name: byId("candidateInterviewerNameInput").value.trim(),
           candidate_interviewer_email: byId("candidateInterviewerEmailInput").value.trim(),
           client_company: byId("clientCompanyInput").value.trim(),
@@ -1316,6 +1784,7 @@
 
       function trackingRecordBase() {
         const atlasClient = window.DevReadyAtlasClient?.getAttachedClient() || null;
+        const candidateQueue = currentCandidateQueueState();
         const attendees = allInterviewAttendees()
           .map((row) => row.email)
           .filter(Boolean);
@@ -1324,12 +1793,18 @@
         return {
           id: `${Date.now()}`,
           domain: sessionStorage.getItem("domain") || "dev",
-          candidateId: sessionStorage.getItem("candidateId") || "",
+          candidateId: candidateQueue.id || sessionStorage.getItem("candidateId") || "",
+          activeCandidateId: candidateQueue.id || "",
+          shortlistPosition: candidateQueue.number,
+          shortlistTotal: candidateQueue.total,
+          shortlistOrder: shortlistArray.slice(),
           candidateName,
           candidateEmail,
           role: byId("roleInput").value.trim(),
           company: byId("companyInput").value.trim(),
           attendees,
+          meetingAgentName: meetingAgentAttendee().name,
+          meetingAgentEmail: meetingAgentAttendee().email,
           subject: byId("subjectInput").value.trim(),
           message: byId("emailOutput").textContent.trim(),
           provider: selectedProvider,
@@ -1379,6 +1854,9 @@
               record.role || "",
             ].filter(Boolean).join(" - ");
             const detail = [
+              record.shortlistPosition && record.shortlistTotal
+                ? `Candidate ${record.shortlistPosition} of ${record.shortlistTotal}`
+                : "",
               record.status || "Recorded",
               record.provider || "",
               formatArchiveDate(record.scheduledStart || record.createdAt || record.archivedAt),
@@ -1423,6 +1901,7 @@
             .filter((record) => !record.domain || record.domain === domain);
         }
         renderInterviewHistory();
+        renderSchedulingWorkflow();
       }
 
       async function archiveInterviewRecord(record) {
@@ -1463,6 +1942,15 @@
         sessionStorage.setItem(latestKey, JSON.stringify(record));
         sessionStorage.setItem("scheduleTracking", JSON.stringify(records.slice(0, 25)));
         sessionStorage.setItem("latestScheduleTracking", JSON.stringify(record));
+        if (record.candidateId && window.DevReadyShortlist) {
+          window.DevReadyShortlist.update(record.candidateId, {
+            workflowStatus: record.status || "Interview scheduling in progress",
+            interviewType: record.interviewType,
+            lastScheduleAt: record.createdAt,
+          });
+          renderActiveCandidatePanel();
+          syncShortlistRows();
+        }
         archiveInterviewRecord(record);
         return record;
       }
@@ -1489,7 +1977,8 @@
             message: latestDraft.email_body || "",
             nextAction: "Review and send interview invite",
           });
-          showResult("Draft ready.");
+          updateSchedulingProgress({ draftGeneratedAt: new Date().toISOString() });
+          showResult("Draft ready. Next, use Send draft to email so the workflow records the handoff.");
           return latestDraft;
         } catch (error) {
           showResult(error.message || String(error), true);
@@ -1497,9 +1986,77 @@
         }
       }
 
+      async function sendDraftToEmail() {
+        try {
+          if (!validateInterviewContacts()) return;
+          const draft = latestDraft || (await generateDraft());
+          if (!draft) return;
+          const candidateEmail = byId("candidateEmailInput").value.trim();
+          if (!candidateEmail) {
+            showResult("Add the active candidate email before sending the draft.", true);
+            return;
+          }
+          const subject = byId("subjectInput").value.trim() || draft.email_subject || draft.title || "DevReady interview scheduling";
+          const body = byId("emailOutput").textContent.trim() || draft.email_body || "";
+          const sentAt = new Date().toISOString();
+          if (latestHealth?.outlook?.connected) {
+            const approved = confirm(`Send this email now through the connected Outlook account to ${candidateEmail}?`);
+            if (!approved) return;
+            showResult(`Sending the draft to ${candidateEmail} through Outlook...`);
+            await api("/api/outlook/mail/send", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                to: [{ email: candidateEmail, name: byId("candidateNameInput").value.trim() }],
+                subject,
+                body,
+                save_to_sent_items: true,
+              }),
+            });
+            updateSchedulingProgress({
+              emailSubmittedAt: sentAt,
+              emailDeliveryStatus: "sent-by-outlook",
+              candidateEmail,
+            });
+            saveScheduleTracking({
+              provider: "Outlook Email",
+              status: "Scheduling email sent",
+              subject,
+              message: body,
+              emailSubmittedAt: sentAt,
+              nextAction: "Open Calendly with the candidate email prefilled",
+            });
+            showResult(`Email sent to ${candidateEmail}. Next, open the prefilled Calendly booking.`);
+            return;
+          }
+
+          updateSchedulingProgress({
+            emailSubmittedAt: sentAt,
+            emailDeliveryStatus: "opened-in-email-app",
+            candidateEmail,
+          });
+          saveScheduleTracking({
+            provider: "Email app",
+            status: "Scheduling email opened for sending",
+            subject,
+            message: body,
+            emailSubmittedAt: sentAt,
+            nextAction: "Send the email in the mail app, then open Calendly",
+          });
+          showResult(`The email draft was opened for ${candidateEmail}. Send it in your mail app, then return and open Calendly.`);
+          window.location.href = `mailto:${encodeURIComponent(candidateEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        } catch (error) {
+          showResult(error.message || String(error), true);
+        }
+      }
+
       async function createInvite() {
         try {
           if (!validateInterviewContacts()) return;
+          if (!readSchedulingProgress().emailSubmittedAt) {
+            showResult("Create the email and use Send draft to email before sending the calendar invite.", true);
+            return;
+          }
           const draft = latestDraft || (await generateDraft());
           if (!draft) return;
           showResult("Checking availability and creating the invite...");
@@ -1515,20 +2072,33 @@
             }),
           });
           const link = result.eventLink || result.meetingLink || "";
-          saveScheduleTracking({
+          const confirmedAt = new Date().toISOString();
+          const record = saveScheduleTracking({
             provider: result.provider || selectedProvider,
-            status: "Calendar invite sent",
+            status: interviewType === "ready" ? "Candidate Review scheduled" : "Client Interview scheduled",
             eventLink: result.eventLink || "",
             meetingLink: result.meetingLink || "",
             scheduledStart: result.start && (result.start.dateTime || result.start),
             scheduledEnd: result.end && (result.end.dateTime || result.end),
+            inviteConfirmedAt: confirmedAt,
+            nextAction: interviewType === "ready"
+              ? "Conduct the internal DevReady Candidate Review, then record whether the candidate is interested"
+              : "Conduct the client interview and update the candidate status",
+          });
+          updateSchedulingProgress({
+            calendlyOpenedAt: confirmedAt,
+            inviteConfirmedAt: confirmedAt,
+            trackingRecordId: record.id,
           });
           showResult(
             link
               ? `Invite sent through ${result.provider}. Saved to Status. Event link: ${link}`
               : `Invite sent through ${result.provider}. Saved to Status.`,
           );
+          await archiveInterviewRecord(record);
           await refreshHealth();
+          const domain = sessionStorage.getItem("domain") || "dev";
+          window.location.href = `status-tracker.html?domain=${encodeURIComponent(domain)}&record=${encodeURIComponent(record.id)}`;
         } catch (error) {
           showResult(error.message || String(error), true);
         }
@@ -1662,6 +2232,12 @@
         byId("companyInput").addEventListener("input", () => {
           if (interviewType === "client") byId("clientCompanyInput").value = byId("companyInput").value;
         });
+        [
+          "candidateEmailInput",
+          "candidateInterviewerEmailInput",
+          "clientContactEmailInput",
+          "attendeesInput",
+        ].forEach((id) => byId(id).addEventListener("input", updateCalendlyLink));
         updateCalendlyLink();
         restoreCalendlyScroll();
         window.addEventListener("focus", restoreCalendlyScroll);

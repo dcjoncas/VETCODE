@@ -27,6 +27,34 @@ class TempProfilesWorkflowTests(unittest.TestCase):
         self.assertIn('href="temp-profiles.html"', html)
         self.assertIn('id="latestTempProfilePanel"', html)
 
+    def test_imported_result_becomes_an_open_devready_profile_action(self):
+        html = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")
+
+        self.assertIn("function markCandidateDevReadyProfile", html)
+        self.assertIn("devready_profile_complete: true", html)
+        self.assertIn("DevReady TEMP profile complete", html)
+        self.assertIn("Open DevReady Profile", html)
+        self.assertIn("Profile complete", html)
+        self.assertIn("renderResults(latestExternalResults, { preserveSelection: true })", html)
+
+    def test_external_profile_actions_name_the_actual_destination(self):
+        html = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")
+
+        self.assertIn("function candidateExternalProfileLabel", html)
+        self.assertIn("Open GitHub Profile", html)
+        self.assertIn("Open LinkedIn Profile", html)
+        self.assertIn("Open CourtListener Record", html)
+        self.assertNotIn('>Open profile link<', html)
+
+    def test_legal_verification_uses_jurisdiction_and_provider_admissions(self):
+        html = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")
+
+        self.assertIn("function lawVerificationTarget", html)
+        self.assertIn("LAWYER_LICENSING_DIRECTORY_URL", html)
+        self.assertIn("Provider-reported admission or license", html)
+        self.assertIn("function candidateLegalCredentials", html)
+        self.assertIn("target jurisdiction", html)
+
     def test_stored_scores_are_only_current_for_the_active_job(self):
         html = (PAGES / "temp-profiles.html").read_text(encoding="utf-8")
         candidates = (BACKEND / "azureUtils" / "storage" / "candidates.py").read_text(encoding="utf-8")

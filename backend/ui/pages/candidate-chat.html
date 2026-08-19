@@ -27,7 +27,7 @@
     <script>
       $(function () {
         $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow");
-        $("#processFlow").load("components/processFlow.html?v=20260818-talent-jd-flow");
+        $("#processFlow").load("components/processFlow.html?v=20260819-workflow-guide");
         $("#searchBar").load("components/searchBar.html");
       });
     </script>
@@ -125,11 +125,18 @@
                 <button class="btn" type="button" id="scheduleButton">
                   Schedule AI Chat
                 </button>
+                <a class="btn secondary" id="openChatButton" href="#" target="_blank" rel="noopener" hidden>
+                  Open AI Profile Chat
+                </a>
+                <button class="btn secondary" type="button" id="copyButton" onclick="copyChatLink()" disabled>
+                  Copy Link
+                </button>
                 <button
                   class="btn"
                   type="button"
                   id="sendButton"
                   onclick="sendLink()"
+                  disabled
                 >
                   Send Link to Candidate
                 </button>
@@ -242,7 +249,7 @@
     </div>
 
     <script src="JS/apiScripts.js"></script>
-    <script src="JS/shortlist.js"></script>
+    <script src="JS/shortlist.js?v=20260819-active-candidate"></script>
     <script>
       const candidateName = sessionStorage.getItem("candidateName");
       const candidateStatus = sessionStorage.getItem("candidateStatus");
@@ -251,9 +258,32 @@
       const chatWindow = document.getElementById("chatWindow");
       const scheduleButton = document.getElementById("scheduleButton");
       const sendButton = document.getElementById("sendButton");
+      const copyButton = document.getElementById("copyButton");
+      const openChatButton = document.getElementById("openChatButton");
       let alreadyAiCertified = false;
       let chatTranscript = [];
       let chatURL = "";
+
+      function candidateChatUrl(token) {
+        const url = new URL("/ui/pages/external-chat.html", window.location.origin);
+        url.searchParams.set("candidate", token);
+        url.searchParams.set("domain", currentDomain);
+        return url.toString();
+      }
+
+      function candidateChatMessage(link) {
+        return `Hi ${candidateName || "there"},\n\nPlease kindly complete your DevReady AI profile and personality chat using this secure link:\n\n${link}\n\nYour answers help us complete your profile and represent you accurately for the right opportunities.\n\nThank you,\nDevReady Team`;
+      }
+
+      function renderCandidateChatLink(link) {
+        chatURL = link;
+        const linkElement = document.getElementById("chatUrl");
+        linkElement.innerHTML = `<strong>Candidate-facing AI profile/personality link:</strong><br><a href="${link}" target="_blank" rel="noopener">${link}</a>`;
+        openChatButton.href = link;
+        openChatButton.hidden = false;
+        copyButton.disabled = false;
+        sendButton.disabled = false;
+      }
 
       document
         .querySelectorAll("a.step")
@@ -272,12 +302,7 @@
           method: "POST",
           body: fd,
         });
-        const urlString = `${window.location.host}/ui/pages/external-chat.html?candidate=${result}&domain=${encodeURIComponent(currentDomain)}`;
-
-        console.log(urlString);
-
-        document.getElementById("chatUrl").innerHTML =
-          `AI Chat Link: <a href='http://${urlString}'>${urlString}</a>`;
+        renderCandidateChatLink(candidateChatUrl(result));
       }
 
       function appendMessage(sender, message) {
@@ -299,11 +324,7 @@
 
         if (!chatUrlCode) return;
 
-        const urlString = `${window.location.host}/ui/pages/external-chat.html?candidate=${chatUrlCode}&domain=${encodeURIComponent(currentDomain)}`;
-
-        document.getElementById("chatUrl").innerHTML =
-          `User Facing AI Chat Link: ${urlString}`;
-        chatURL = urlString;
+        renderCandidateChatLink(candidateChatUrl(chatUrlCode));
 
         const chatHistory = await api(`/api/chat/getChat/${chatUrlCode}?domain=${encodeURIComponent(currentDomain)}`, {
           method: "GET",
@@ -343,7 +364,20 @@
               method: "GET",
             },
           );
-          window.location.href = `mailto:${candidateEmail}?subject=DevReady Personality Assessment&body=Hey ${candidateName},%0D%0A%0D%0AWelcome to the DevReady Community! As the next step in our process, we'd like you to complete an AI-guided personality assessment. Please use the following link to get started: ${chatURL}%0D%0A%0D%0ABest,%0D%0AThe DevReady Team`;
+          const subject = encodeURIComponent("Please complete your DevReady AI profile and personality chat");
+          const body = encodeURIComponent(candidateChatMessage(chatURL));
+          window.location.href = `mailto:${encodeURIComponent(candidateEmail)}?subject=${subject}&body=${body}`;
+        }
+      }
+
+      async function copyChatLink() {
+        if (!chatURL) return;
+        try {
+          await navigator.clipboard.writeText(chatURL);
+          copyButton.textContent = "Copied";
+          setTimeout(() => { copyButton.textContent = "Copy Link"; }, 1800);
+        } catch (error) {
+          alert("Could not copy automatically. Open the AI profile chat and copy the address from your browser.");
         }
       }
 
@@ -365,6 +399,8 @@
           alreadyAiCertified = true;
           scheduleButton.disabled = true;
           sendButton.disabled = true;
+          copyButton.disabled = true;
+          openChatButton.hidden = true;
           scheduleButton.title = "Candidate is already AI certified.";
           sendButton.title = "Candidate is already AI certified.";
           scheduleButton.classList.add("secondary");
