@@ -126,9 +126,13 @@ class TalentNavigationTests(unittest.TestCase):
     def test_talent_workflow_uses_shared_compact_job_picker(self):
         picker = (PAGES / "JS" / "jobDescriptionPicker.js").read_text(encoding="utf-8")
 
-        self.assertIn("Compact view of the same roles grouped by client", picker)
+        self.assertIn("Compact, gap-free tiles", picker)
         self.assertIn("Recent Call Ask JDs", picker)
+        self.assertIn("jd-picker-recent-chip", picker)
+        self.assertIn("jd-picker-library", picker)
         self.assertIn("jd-picker-tile", picker)
+        self.assertNotIn("jd-picker-groups", picker)
+        self.assertNotIn("jd-picker-metrics", picker)
         self.assertIn('dental: "Dental"', picker)
         self.assertIn('law: "Law"', picker)
         self.assertIn('engineer: "Engineering"', picker)
@@ -136,7 +140,7 @@ class TalentNavigationTests(unittest.TestCase):
 
         for page_name in ("find-candidate.html", "match-role.html", "mine-candidate-external.html"):
             html = (PAGES / page_name).read_text(encoding="utf-8")
-            self.assertIn("JS/jobDescriptionPicker.js?v=20260818-jd-mini-picker", html, page_name)
+            self.assertIn("JS/jobDescriptionPicker.js?v=20260824-jd-compact-grid", html, page_name)
             self.assertIn("DevReadyJobPicker.mount", html, page_name)
             self.assertNotIn("select2", html.lower(), page_name)
 

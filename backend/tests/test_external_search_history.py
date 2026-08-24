@@ -28,6 +28,8 @@ class ExternalSearchHistoryTests(unittest.TestCase):
         self.assertIn('get("savedSearchId")', html)
         self.assertIn("downloadActiveSavedSearchReport", html)
         self.assertIn("X-VETCODE-Record-Count", html)
+        self.assertIn("compactSavedSearchLabel", html)
+        self.assertIn("CourtListener is ready - choose a search method", html)
 
     def test_saved_searches_have_a_persistent_domain_library(self):
         backend = Path(__file__).resolve().parents[1]

@@ -388,9 +388,9 @@
 
       .saved-search-panel {
         display: grid;
-        grid-template-columns: minmax(260px, 1fr) auto;
+        grid-template-columns: minmax(0, 560px) minmax(220px, 1fr);
         gap: 12px;
-        align-items: end;
+        align-items: center;
         margin: 12px 0;
         padding: 12px;
         border: 1px solid var(--border);
@@ -403,13 +403,25 @@
         margin: 0;
       }
 
+      .saved-search-control {
+        min-width: 0;
+      }
+
       .saved-search-panel select {
         width: 100%;
+        max-width: 560px;
+        min-height: 38px;
         margin-top: 8px;
+        padding: 7px 34px 7px 10px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .saved-search-actions {
         display: flex;
+        align-items: center;
+        justify-content: flex-start;
         gap: 8px;
         flex-wrap: wrap;
       }
@@ -677,7 +689,7 @@
           </p>
 
           <section class="saved-search-panel" aria-labelledby="savedSearchTitle">
-            <div>
+            <div class="saved-search-control">
               <h3 id="savedSearchTitle">Saved sourcing searches</h3>
               <p class="muted">Reopen saved results without contacting the provider or using another search credit.</p>
               <select id="savedSearchSelect" aria-label="Saved sourcing searches">
@@ -886,7 +898,7 @@
     </div>
 
     <script src="JS/apiScripts.js"></script>
-    <script src="JS/jobDescriptionPicker.js?v=20260818-jd-mini-picker"></script>
+    <script src="JS/jobDescriptionPicker.js?v=20260824-jd-compact-grid"></script>
     <script src="JS/updateProcessFlow.js?v=20260819-active-candidate"></script>
     <script src="JS/shortlist.js?v=20260819-active-candidate"></script>
     <script src="JS/atlasClientContext.js"></script>
@@ -921,6 +933,17 @@
         return window.DevReadyAtlasClient?.getAttachedClient(currentDomain())?.name || "";
       }
 
+      function compactSavedSearchLabel(search) {
+        const records = Math.max(0, Number(search?.recordCount || 0));
+        const source = sourceDisplayName(search?.source);
+        const role = String(search?.jdName || search?.queryName || "Saved search")
+          .replace(/_/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        const shortenedRole = role.length > 64 ? `${role.slice(0, 61)}...` : role;
+        return `${source} - ${records} result${records === 1 ? "" : "s"} - ${shortenedRole}`;
+      }
+
       function setActiveSavedSearch(savedSearch, resultCount = null) {
         activeSavedSearch = savedSearch && (savedSearch.rootId || savedSearch.id) ? { ...savedSearch } : null;
         if (activeSavedSearch && resultCount !== null) {
@@ -951,7 +974,7 @@
         const label = document.getElementById("activeSavedSearchName");
         if (label) {
           label.textContent = queryName
-            ? `Current saved query: ${queryName}${activeSavedSearch.cacheHit ? " - reopened with 0 provider credits" : ""}`
+            ? `Current saved query: ${compactSavedSearchLabel(activeSavedSearch)}${activeSavedSearch.cacheHit ? " - reopened with 0 provider credits" : ""}`
             : "Every completed query is saved as JD_Client_Date_QRY; missing parts use Not_Found.";
         }
       }
@@ -1002,9 +1025,7 @@
         const selectedId = String(activeSavedSearch?.rootId || activeSavedSearch?.id || select.value || "");
         select.innerHTML = savedExternalSearches.length
           ? `<option value="">Choose a saved search</option>${savedExternalSearches.map((search) => {
-              const source = sourceDisplayName(search.source);
-              const records = Number(search.recordCount || 0);
-              return `<option value="${escapeHtml(search.rootId || search.id)}">${escapeHtml(search.queryName)} - ${escapeHtml(source)} - ${records} result${records === 1 ? "" : "s"}</option>`;
+              return `<option value="${escapeHtml(search.rootId || search.id)}" title="${escapeHtml(search.queryName)}">${escapeHtml(compactSavedSearchLabel(search))}</option>`;
             }).join("")}`
           : `<option value="">No saved searches yet</option>`;
         if (selectedId && savedExternalSearches.some((search) => String(search.rootId || search.id) === selectedId)) {
@@ -1516,6 +1537,11 @@
           actionTarget = "btnContinueRoleMatch";
           currentTarget = continueButton;
           ready = true;
+        } else if (!jobId && !directSearch && selectedSource === "courtlistener") {
+          title = "CourtListener is ready - choose a search method";
+          message = "Choose a legal job description to discover lawyers from matching dockets, or enter one exact lawyer name above for a court-record check.";
+          actionLabel = "Choose a legal job description";
+          actionTarget = "job-picker";
         } else if (!jobId && !directSearch) {
           title = "Find Candidates is locked";
           message = "First choose a saved job description, or enter a direct name or profile search above.";

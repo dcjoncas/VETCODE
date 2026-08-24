@@ -64,21 +64,6 @@
     );
   }
 
-  function wordCount(jd) {
-    return String(jd?.description || jd?.jd_text || "")
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean).length;
-  }
-
-  function compactDate(value) {
-    if (!value) return "Not set";
-    const clean = String(value).trim();
-    const parsed = new Date(/^\d{4}-\d{2}-\d{2}$/.test(clean) ? `${clean}T12:00:00` : clean);
-    if (Number.isNaN(parsed.getTime())) return "Saved";
-    return parsed.toLocaleDateString([], { month: "short", day: "numeric" });
-  }
-
   function ensureStyles() {
     if (document.getElementById("devreadyJobPickerStyles")) return;
     const style = document.createElement("style");
@@ -107,7 +92,7 @@
         display: grid; place-items: center;
       }
       .jd-picker-dialog {
-        width: min(960px, 100%); max-height: min(82vh, 760px); overflow: hidden; border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), .28);
+        width: min(1040px, 100%); max-height: min(84vh, 780px); overflow: hidden; border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), .28);
         border-radius: 14px; background: #fff; box-shadow: 0 24px 70px rgba(7, 28, 17, .28); display: grid;
         grid-template-rows: auto auto auto minmax(0, 1fr);
       }
@@ -127,18 +112,23 @@
       .jd-picker-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 11px 18px; }
       .jd-picker-search { width: 100%; min-height: 38px; border: 1px solid var(--line, #d9e1dc); border-radius: 9px; padding: 8px 10px; }
       .jd-picker-manage { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; white-space: nowrap; }
-      .jd-picker-scroll { min-height: 180px; overflow-y: auto; padding: 0 18px 18px; }
+      .jd-picker-scroll { min-height: 180px; overflow-y: auto; padding: 0 18px 18px; scrollbar-gutter: stable; }
       .jd-picker-status { margin: 2px 0 10px; padding: 9px 10px; border: 1px dashed rgba(var(--primary-rgb, 47, 125, 75), .3); border-radius: 8px; color: var(--muted, #65756c); font-size: 12px; }
-      .jd-picker-recent { margin-bottom: 12px; padding: 10px; border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), .22); border-radius: 10px; background: rgba(var(--primary-rgb, 47, 125, 75), .045); }
-      .jd-picker-recent h3, .jd-picker-client-head h3 { margin: 0; font-size: 13px; }
-      .jd-picker-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); gap: 10px; align-items: start; }
-      .jd-picker-client { min-width: 0; border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), .18); border-radius: 10px; overflow: hidden; }
-      .jd-picker-client-head { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; background: rgba(var(--primary-rgb, 47, 125, 75), .065); }
-      .jd-picker-client-head span { color: var(--primary-2, #1d673a); font-size: 11px; font-weight: 850; }
-      .jd-picker-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; padding: 8px; }
+      .jd-picker-recent { margin-bottom: 10px; padding: 9px 10px; border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), .22); border-radius: 10px; background: rgba(var(--primary-rgb, 47, 125, 75), .045); }
+      .jd-picker-recent h3, .jd-picker-library-head h3 { margin: 0; font-size: 13px; }
+      .jd-picker-recent-list { display: flex; gap: 6px; margin-top: 7px; overflow-x: auto; padding-bottom: 2px; }
+      .jd-picker-recent-chip {
+        max-width: 300px; flex: 0 0 auto; border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), .2); border-radius: 999px;
+        padding: 6px 10px; background: #fff; color: var(--text, #17251d); cursor: pointer; overflow: hidden; text-overflow: ellipsis;
+        white-space: nowrap; text-align: left; font-size: 11px; font-weight: 800;
+      }
+      .jd-picker-recent-chip:hover, .jd-picker-recent-chip:focus-visible { border-color: var(--primary, #2f7d4b); outline: none; }
+      .jd-picker-library-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 0 7px; }
+      .jd-picker-library-head span { color: var(--muted, #65756c); font-size: 11px; }
+      .jd-picker-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 225px), 1fr)); gap: 6px; align-items: stretch; }
       .jd-picker-tile {
-        min-width: 0; border: 1px solid var(--line, #d9e1dc); border-radius: 9px; padding: 9px 10px; background: #fff; color: var(--text, #17251d);
-        cursor: pointer; text-align: left; display: grid; gap: 5px; transition: transform .14s ease, border-color .14s ease, box-shadow .14s ease;
+        min-width: 0; min-height: 74px; border: 1px solid var(--line, #d9e1dc); border-radius: 9px; padding: 8px 9px; background: #fff; color: var(--text, #17251d);
+        cursor: pointer; text-align: left; display: grid; align-content: start; gap: 5px; transition: transform .14s ease, border-color .14s ease, box-shadow .14s ease;
       }
       .jd-picker-tile:hover, .jd-picker-tile:focus-visible { transform: translateY(-1px); border-color: var(--primary, #2f7d4b); box-shadow: 0 5px 14px rgba(24, 69, 42, .11); outline: none; }
       .jd-picker-tile.selected { border-color: var(--primary, #2f7d4b); box-shadow: 0 0 0 2px rgba(var(--primary-rgb, 47, 125, 75), .12); }
@@ -146,10 +136,6 @@
       .jd-picker-tile-title { min-width: 0; font-size: 12px; font-weight: 900; overflow-wrap: anywhere; }
       .jd-picker-tile-id { flex: 0 0 auto; border-radius: 999px; padding: 2px 6px; background: rgba(var(--primary-rgb, 47, 125, 75), .09); color: var(--primary-2, #1d673a); font-size: 9px; font-weight: 900; }
       .jd-picker-tile-meta { color: var(--muted, #65756c); font-size: 10px; overflow-wrap: anywhere; }
-      .jd-picker-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
-      .jd-picker-metric { border: 1px solid rgba(var(--primary-rgb, 47, 125, 75), .14); border-radius: 7px; padding: 4px 5px; background: #fbfdfb; display: grid; gap: 1px; }
-      .jd-picker-metric strong { font-size: 10px; overflow-wrap: anywhere; }
-      .jd-picker-metric span { color: var(--muted, #65756c); font-size: 8px; font-weight: 850; text-transform: uppercase; }
       .jd-picker-empty { padding: 18px; border: 1px dashed var(--line, #d9e1dc); border-radius: 10px; color: var(--muted, #65756c); text-align: center; }
       @media (max-width: 640px) {
         .jd-picker-backdrop { padding: 8px; }
@@ -198,7 +184,7 @@
       this.backdrop.innerHTML = `
         <section class="jd-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="${dialogId}">
           <header class="jd-picker-head">
-            <div><h2 id="${dialogId}">Choose a saved job description</h2><p>Compact view of the same roles grouped by client on Job Descriptions.</p></div>
+            <div><h2 id="${dialogId}">Choose a saved job description</h2><p>Compact, gap-free tiles from the current domain's Job Descriptions library.</p></div>
             <button class="jd-picker-close" type="button" aria-label="Close job description picker">&times;</button>
           </header>
           <div class="jd-picker-summary"></div>
@@ -288,41 +274,38 @@
 
     render() {
       const domain = this.domain();
-      const groups = new Map();
-      this.filteredJobs().forEach((jd) => {
-        const client = clientName(jd);
-        if (!groups.has(client)) groups.set(client, []);
-        groups.get(client).push(jd);
-      });
-      const orderedGroups = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+      const filtered = this.filteredJobs().slice().sort((left, right) =>
+        clientName(left).localeCompare(clientName(right))
+          || String(left.title || "").localeCompare(String(right.title || "")),
+      );
       this.summary.innerHTML = `
         <span class="jd-picker-kpi"><strong>${this.jobs.length}</strong> Total JDs</span>
         <span class="jd-picker-kpi"><strong>${new Set(this.jobs.map(clientName)).size}</strong> Clients</span>
         <span class="jd-picker-kpi"><strong>${escapeHtml(domainLabel(domain))}</strong> Current domain</span>`;
 
-      if (!orderedGroups.length) {
+      if (!filtered.length) {
         this.results.innerHTML = `<div class="jd-picker-empty">${this.jobs.length ? "No saved roles match this search." : `No job descriptions are saved for ${escapeHtml(domainLabel(domain))}.`}</div>`;
         return;
       }
 
-      const visibleIds = new Set(this.filteredJobs().map((jd) => String(jd.jd_id)));
+      const visibleIds = new Set(filtered.map((jd) => String(jd.jd_id)));
       const recent = this.recentAsks
         .map((ask) => this.jobs.find((jd) => String(jd.jd_id) === String(ask.jd_id)))
         .filter((jd) => jd && visibleIds.has(String(jd.jd_id)));
+      const searching = Boolean(String(this.search?.value || "").trim());
+      const recentIds = new Set(recent.map((jd) => String(jd.jd_id)));
+      const libraryJobs = searching ? filtered : filtered.filter((jd) => !recentIds.has(String(jd.jd_id)));
       const recentHtml = recent.length
-        ? `<section class="jd-picker-recent"><h3>Recent Call Ask JDs</h3><div class="jd-picker-tiles">${recent.map((jd) => this.tile(jd)).join("")}</div></section>`
+        ? `<section class="jd-picker-recent"><h3>Recent Call Ask JDs</h3><div class="jd-picker-recent-list">${recent.map((jd) => this.recentChip(jd)).join("")}</div></section>`
         : "";
       this.results.innerHTML =
         recentHtml +
-        `<div class="jd-picker-groups">${orderedGroups
-          .map(
-            ([client, jobs]) => `
-              <section class="jd-picker-client">
-                <header class="jd-picker-client-head"><h3>${escapeHtml(client)}</h3><span>${jobs.length} job description${jobs.length === 1 ? "" : "s"}</span></header>
-                <div class="jd-picker-tiles">${jobs.map((jd) => this.tile(jd)).join("")}</div>
-              </section>`,
-          )
-          .join("")}</div>`;
+        `<section class="jd-picker-library"><header class="jd-picker-library-head"><h3>${searching ? "Matching roles" : "All saved roles"}</h3><span>${libraryJobs.length} role${libraryJobs.length === 1 ? "" : "s"}</span></header><div class="jd-picker-tiles">${libraryJobs.map((jd) => this.tile(jd)).join("")}</div></section>`;
+    }
+
+    recentChip(jd) {
+      const id = String(jd.jd_id || "");
+      return `<button class="jd-picker-recent-chip" type="button" data-jd-picker-id="${escapeHtml(id)}" title="${escapeHtml(`${clientName(jd)} - ${jd.title || `JD ${id}`}`)}">${escapeHtml(jd.title || `JD ${id}`)} &middot; ${escapeHtml(clientName(jd))}</button>`;
     }
 
     tile(jd) {
@@ -332,11 +315,6 @@
         <button class="jd-picker-tile${selected ? " selected" : ""}" type="button" data-jd-picker-id="${escapeHtml(id)}">
           <span class="jd-picker-tile-head"><span class="jd-picker-tile-title">${escapeHtml(jd.title || "Role title to be confirmed")}</span><span class="jd-picker-tile-id">JD ${escapeHtml(id)}</span></span>
           <span class="jd-picker-tile-meta">${escapeHtml(clientName(jd))} &bull; ${escapeHtml(domainLabel(this.domain()))}</span>
-          <span class="jd-picker-metrics">
-            <span class="jd-picker-metric"><strong>${skillsFor(jd).length}</strong><span>Skills</span></span>
-            <span class="jd-picker-metric"><strong>${wordCount(jd)}</strong><span>Words</span></span>
-            <span class="jd-picker-metric"><strong>${escapeHtml(compactDate(jd.updated_at || jd.created_at || jd.createdAt))}</strong><span>Updated</span></span>
-          </span>
         </button>`;
     }
 
