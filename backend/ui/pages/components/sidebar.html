@@ -590,7 +590,7 @@
     }
     if (typeof window.startQuickHitFlow !== "function") {
       if (!host.innerHTML.trim()) {
-        const response = await fetch("components/processFlow.html?v=20260819-workflow-guide");
+        const response = await fetch("components/processFlow.html?v=20260824-start-over-state");
         host.innerHTML = await response.text();
       }
       window.DevReadyProcessFlow.activateScripts(host);
@@ -1248,6 +1248,7 @@
       `latestScheduleTracking:${activeDomain}`,
       `talentCounts:${activeDomain}`,
       `atlasSourcingClient:${activeDomain}`,
+      `activeSourcingSearch:${activeDomain}`,
     ].forEach((key) => sessionStorage.removeItem(key));
     const workflowPrefixes = [
       `interviewSchedulingProgress:${activeDomain}:`,

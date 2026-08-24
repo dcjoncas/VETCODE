@@ -59,6 +59,7 @@ function updateCandidate() {
             ? `Next: ${next.name || `Candidate ${queue.number + 1}`}`
             : "End of shortlist";
     }
+    if (typeof window.updateProcessTrailState === "function") window.updateProcessTrailState();
 }
 
 function activateNextProcessCandidate() {
@@ -97,6 +98,7 @@ function updateJob() {
     } else {
         document.getElementById("jobSelected").innerText = "No Job Selected";
     }
+    if (typeof window.updateProcessTrailState === "function") window.updateProcessTrailState();
 }
 
 function updateAtlasClient() {
@@ -111,4 +113,5 @@ function updateAtlasClient() {
     } catch {
         target.innerText = "No Atlas Client Attached";
     }
+    if (typeof window.updateProcessTrailState === "function") window.updateProcessTrailState();
 }

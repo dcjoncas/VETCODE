@@ -117,6 +117,7 @@ class TempProfilesWorkflowTests(unittest.TestCase):
             self.assertIn("scheduleTracking:", source)
             self.assertIn("latestScheduleTracking:", source)
             self.assertIn("atlasSourcingClient:", source)
+            self.assertIn("activeSourcingSearch:", source)
         self.assertIn("Saved TEMP records were not deleted", reset_sources[0])
         for source in reset_sources:
             self.assertNotIn("/api/azureJobs/external/temp/", source)

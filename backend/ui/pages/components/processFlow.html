@@ -416,6 +416,45 @@
     gap: 7px;
   }
 
+  #processFlow .process-clear-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    border: 1px solid #101d17;
+    border-radius: 999px;
+    padding: 8px 14px;
+    background: #101d17;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 950;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(16, 29, 23, 0.18);
+    transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+  }
+
+  #processFlow .process-clear-button:hover,
+  #processFlow .process-clear-button:focus-visible {
+    border-color: #263b31;
+    background: #263b31;
+    color: #fff;
+    transform: translateY(-1px);
+  }
+
+  #processFlow .process-clear-button.is-active-search {
+    border-color: #2f7d4b;
+    background: #2f7d4b;
+    color: #fff;
+    box-shadow: 0 0 0 3px rgba(47, 125, 75, 0.14), 0 6px 16px rgba(47, 125, 75, 0.24);
+  }
+
+  #processFlow .process-clear-button.is-active-search:hover,
+  #processFlow .process-clear-button.is-active-search:focus-visible {
+    border-color: #24643c;
+    background: #24643c;
+  }
+
   #processFlow .process-link-button {
     min-height: 28px;
     border: 1px solid var(--line, #dfe7e2);
@@ -729,6 +768,17 @@
 <div class="card process-flow-card">
   <div class="process-compact">
     <div class="process-title-line">
+      <button
+        id="processStartOverButton"
+        class="process-clear-button"
+        type="button"
+        onclick="clearProcessTrail()"
+        data-process-state="idle"
+        data-hint="Reset the active candidate, job, shortlist, Atlas client, and scheduling context. Saved TEMP records are not deleted and remain on the TEMP Profiles page."
+        title="No active search - start a fresh workflow"
+      >
+        Start over
+      </button>
       <span class="process-workflow-heading">Workflow guide</span>
       <span id="candidateSelected" class="process-selection">No Active Candidate</span>
       <button
@@ -774,15 +824,6 @@
         title="Open the process map"
       >
         Map
-      </button>
-      <button
-        class="process-clear-button"
-        type="button"
-        onclick="clearProcessTrail()"
-        data-hint="Reset the active candidate, job, shortlist, Atlas client, and scheduling context. Saved TEMP records are not deleted and remain on the TEMP Profiles page."
-        title="Start the workflow over"
-      >
-        Start over
       </button>
     </div>
   </div>
@@ -1881,6 +1922,7 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
       `latestScheduleTracking:${keepDomain}`,
       `talentCounts:${keepDomain}`,
       `atlasSourcingClient:${keepDomain}`,
+      `activeSourcingSearch:${keepDomain}`,
     ].forEach((key) => sessionStorage.removeItem(key));
     const workflowPrefixes = [
       `interviewSchedulingProgress:${keepDomain}:`,
@@ -1894,14 +1936,67 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
     if (typeof updateCandidate === "function") updateCandidate();
     if (typeof updateJob === "function") updateJob();
     if (typeof updateAtlasClient === "function") updateAtlasClient();
+    updateProcessTrailState();
 
     window.location.href = "find-candidate.html?fresh=1";
+  }
+
+  function processTrailIsActive() {
+    const domain = sessionStorage.getItem("domain") || "dev";
+    const workflowKeys = [
+      "candidateId",
+      "activeCandidateId",
+      "activeCandidate",
+      "candidateName",
+      "selectedProfileId",
+      "externalCandidateSource",
+      "shortlist",
+      "shortlistDetails",
+      "jobID",
+      "jobId",
+      "jdId",
+      "selectedJdId",
+      "jobCompany",
+      "jobTitle",
+      "activeJobLoadedAt",
+      "scheduleTracking",
+      "latestScheduleTracking",
+      `shortlist:${domain}`,
+      `shortlistDetails:${domain}`,
+      `activeCandidateId:${domain}`,
+      `activeCandidate:${domain}`,
+      `scheduleTracking:${domain}`,
+      `latestScheduleTracking:${domain}`,
+      `atlasSourcingClient:${domain}`,
+      `activeSourcingSearch:${domain}`,
+    ];
+    return workflowKeys.some((key) => {
+      const value = String(sessionStorage.getItem(key) || "").trim();
+      return Boolean(value && !["null", "false", "[]", "{}"].includes(value));
+    });
+  }
+
+  function updateProcessTrailState() {
+    const button = document.getElementById("processStartOverButton");
+    if (!button) return false;
+    const active = processTrailIsActive();
+    button.classList.toggle("is-active-search", active);
+    button.dataset.processState = active ? "active" : "idle";
+    button.setAttribute(
+      "aria-label",
+      active ? "Start over - active search in progress" : "Start over - no active search",
+    );
+    button.title = active
+      ? "Active search in progress - click to clear this workflow and start over"
+      : "No active search - start a fresh workflow";
+    return active;
   }
 
   Object.assign(window, {
     openProcessMap,
     closeProcessMap,
     clearProcessTrail,
+    updateProcessTrailState,
     startQuickHitFlow,
     closeQuickHitFlow,
     quickHitDraftJob,
@@ -1938,6 +2033,7 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
   }
   if (typeof updateCandidate === "function") updateCandidate();
   if (typeof updateJob === "function") updateJob();
+  updateProcessTrailState();
   if (typeof updateAtlasClient === "function") {
     updateAtlasClient();
   } else {

@@ -4,7 +4,7 @@ from pathlib import Path
 
 PAGES = Path(__file__).resolve().parents[1] / "ui" / "pages"
 SIDEBAR_CACHE_KEY = "20260818-talent-jd-flow"
-PROCESS_FLOW_CACHE_KEY = "20260819-workflow-guide"
+PROCESS_FLOW_CACHE_KEY = "20260824-start-over-state"
 
 
 class TalentNavigationTests(unittest.TestCase):
@@ -76,6 +76,24 @@ class TalentNavigationTests(unittest.TestCase):
         self.assertNotIn('id="processExpandButton"', html)
         self.assertNotIn("function toggleProcessFlow()", html)
         self.assertNotIn("devreadyProcessExpanded", html)
+
+    def test_start_over_is_a_top_left_active_search_indicator(self):
+        html = (PAGES / "components" / "processFlow.html").read_text(encoding="utf-8")
+        updater = (PAGES / "JS" / "updateProcessFlow.js").read_text(encoding="utf-8")
+
+        title_line = html.index('<div class="process-title-line">')
+        start_over = html.index('id="processStartOverButton"', title_line)
+        workflow_heading = html.index('<span class="process-workflow-heading">', title_line)
+        actions = html.index('<div class="process-actions">', title_line)
+        self.assertLess(start_over, workflow_heading)
+        self.assertLess(workflow_heading, actions)
+        self.assertIn("min-height: 36px", html)
+        self.assertIn("background: #101d17", html)
+        self.assertIn("background: #2f7d4b", html)
+        self.assertIn(".process-clear-button.is-active-search", html)
+        self.assertIn("function updateProcessTrailState()", html)
+        self.assertIn('data-process-state="idle"', html)
+        self.assertIn("window.updateProcessTrailState", updater)
 
     def test_profile_preview_separates_workflow_and_record_actions(self):
         html = (PAGES / "profile-preview.html").read_text(encoding="utf-8")
