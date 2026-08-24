@@ -155,8 +155,8 @@ def build_ranked_search_xlsx(search: dict, rows: list[dict]) -> bytes:
     <col min="16" max="16" width="18" customWidth="1"/>
   </cols>
   <sheetData>{"".join(sheet_rows)}</sheetData>
-  <mergeCells count="1"><mergeCell ref="A1:P1"/></mergeCells>
   <autoFilter ref="A8:P{last_row}"/>
+  <mergeCells count="1"><mergeCell ref="A1:P1"/></mergeCells>
   {hyperlinks_xml}
 </worksheet>'''
 
@@ -165,9 +165,9 @@ def build_ranked_search_xlsx(search: dict, rows: list[dict]) -> bytes:
   <numFmts count="1"><numFmt numFmtId="164" formatCode="0.0&quot;%&quot;"/></numFmts>
   <fonts count="5">
     <font><sz val="11"/><name val="Aptos"/></font>
-    <font><b/><color rgb="FFFFFFFF"/><sz val="16"/><name val="Aptos Display"/></font>
-    <font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Aptos"/></font>
-    <font><u/><color rgb="FF0563C1"/><sz val="11"/><name val="Aptos"/></font>
+    <font><b/><sz val="16"/><color rgb="FFFFFFFF"/><name val="Aptos Display"/></font>
+    <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Aptos"/></font>
+    <font><u/><sz val="11"/><color rgb="FF0563C1"/><name val="Aptos"/></font>
     <font><b/><sz val="11"/><name val="Aptos"/></font>
   </fonts>
   <fills count="4">

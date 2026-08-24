@@ -4,6 +4,7 @@ from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
 from zipfile import ZipFile
+from xml.etree import ElementTree
 
 from starlette.requests import Request
 
@@ -28,6 +29,8 @@ class ExternalSearchHistoryTests(unittest.TestCase):
         self.assertIn('get("savedSearchId")', html)
         self.assertIn("downloadActiveSavedSearchReport", html)
         self.assertIn("X-VETCODE-Record-Count", html)
+        self.assertIn("X-VETCODE-Filename", html)
+        self.assertIn("rankedExportFilename", html)
         self.assertIn("compactSavedSearchLabel", html)
         self.assertIn("CourtListener is ready - choose a search method", html)
 
@@ -44,6 +47,8 @@ class ExternalSearchHistoryTests(unittest.TestCase):
         self.assertIn("downloadRankedSearch", html)
         self.assertIn("No rows to export", html)
         self.assertIn("Downloaded ranked Excel with", html)
+        self.assertIn("X-VETCODE-Filename", html)
+        self.assertIn("rankedExportFilename", html)
         self.assertIn("Export search register", html)
         self.assertIn("Load older saved searches", html)
         self.assertNotIn("Delete saved search", html)
@@ -209,6 +214,8 @@ class ExternalSearchHistoryTests(unittest.TestCase):
         with ZipFile(BytesIO(workbook)) as archive:
             sheet = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
             rels = archive.read("xl/worksheets/_rels/sheet1.xml.rels").decode("utf-8")
+            sheet_root = ElementTree.fromstring(sheet)
+            styles_root = ElementTree.fromstring(archive.read("xl/styles.xml"))
 
         self.assertIn("Search Order", sheet)
         self.assertIn("Current Rank", sheet)
@@ -219,6 +226,45 @@ class ExternalSearchHistoryTests(unittest.TestCase):
         self.assertIn('ref="N9"', sheet)
         self.assertIn('ref="O9"', sheet)
         self.assertIn("profileId=2389", rels)
+        worksheet_children = [node.tag.rsplit("}", 1)[-1] for node in sheet_root]
+        self.assertLess(worksheet_children.index("autoFilter"), worksheet_children.index("mergeCells"))
+        font_children = [
+            [node.tag.rsplit("}", 1)[-1] for node in font]
+            for font in styles_root.find("{http://schemas.openxmlformats.org/spreadsheetml/2006/main}fonts")
+        ]
+        self.assertEqual(font_children[1], ["b", "sz", "color", "name"])
+        self.assertEqual(font_children[2], ["b", "sz", "color", "name"])
+        self.assertEqual(font_children[3], ["u", "sz", "color", "name"])
+
+    @patch("azureUtils.routes.azureJobEndpoints.externalSearchHistory.get_search_group")
+    @patch("azureUtils.routes.azureJobEndpoints._saved_search_report_rows")
+    def test_ranked_export_uses_short_filename_and_reports_rows(self, report_rows, get_group):
+        get_group.return_value = {
+            "metadata": {
+                "id": 5,
+                "rootId": 5,
+                "queryName": "Very_Long_Job_Description_Client_Name_2026_08_24_QRY",
+            },
+            "pages": [],
+        }
+        report_rows.return_value = [{"searchOrder": 1, "rank": 1, "name": "Candidate One"}]
+        request = Request(
+            {
+                "type": "http",
+                "method": "GET",
+                "path": "/api/azureJobs/external/search-history/5/export",
+                "headers": [],
+                "scheme": "https",
+                "server": ("vetcode.example", 443),
+                "query_string": b"",
+            }
+        )
+
+        response = azureJobEndpoints.external_candidate_export_saved_search("5", request, domain="law")
+
+        self.assertEqual(response.headers["content-disposition"], 'attachment; filename="law-ranked-5.xlsx"')
+        self.assertEqual(response.headers["x-vetcode-filename"], "law-ranked-5.xlsx")
+        self.assertEqual(response.headers["x-vetcode-record-count"], "1")
 
     @patch("azureUtils.routes.azureJobEndpoints.externalSearchHistory.get_search_group")
     @patch("azureUtils.routes.azureJobEndpoints._saved_search_report_rows")

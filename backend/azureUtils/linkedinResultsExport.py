@@ -126,8 +126,8 @@ def build_linkedin_results_xlsx(rows: list[dict], domain: str) -> bytes:
     <col min="15" max="15" width="24" customWidth="1"/>
   </cols>
   <sheetData>{"".join(sheet_rows)}</sheetData>
-  <mergeCells count="1"><mergeCell ref="A1:O1"/></mergeCells>
   <autoFilter ref="A2:O{last_row}"/>
+  <mergeCells count="1"><mergeCell ref="A1:O1"/></mergeCells>
   {hyperlinks_xml}
 </worksheet>'''
 
@@ -136,9 +136,9 @@ def build_linkedin_results_xlsx(rows: list[dict], domain: str) -> bytes:
   <numFmts count="1"><numFmt numFmtId="164" formatCode="0&quot;%&quot;"/></numFmts>
   <fonts count="4">
     <font><sz val="11"/><name val="Aptos"/></font>
-    <font><b/><color rgb="FFFFFFFF"/><sz val="16"/><name val="Aptos Display"/></font>
-    <font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Aptos"/></font>
-    <font><u/><color rgb="FF0563C1"/><sz val="11"/><name val="Aptos"/></font>
+    <font><b/><sz val="16"/><color rgb="FFFFFFFF"/><name val="Aptos Display"/></font>
+    <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Aptos"/></font>
+    <font><u/><sz val="11"/><color rgb="FF0563C1"/><name val="Aptos"/></font>
   </fonts>
   <fills count="4">
     <fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>

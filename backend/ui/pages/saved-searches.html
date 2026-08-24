@@ -263,6 +263,14 @@
         return { dev: "Technology", engineer: "Engineering", law: "Law", dental: "Dental" }[domain] || domain;
       }
 
+      function rankedExportFilename(search) {
+        const exportId = String(search?.rootId || search?.id || "saved")
+          .replace(/[^A-Za-z0-9_-]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 32) || "saved";
+        return `${currentDomain()}-ranked-${exportId}.xlsx`;
+      }
+
       function sourceLabel(source) {
         return {
           pdl: "People Data Labs",
@@ -325,7 +333,7 @@
           const openUrl = `mine-candidate-external.html?domain=${encodeURIComponent(currentDomain())}&savedSearchId=${encodeURIComponent(id)}`;
           const exportUrl = `${API_BASE}/api/azureJobs/external/search-history/${encodeURIComponent(id)}/export?domain=${encodeURIComponent(currentDomain())}`;
           const exportAction = records > 0
-            ? `<a class="btn secondary" href="${escapeHtml(exportUrl)}" data-ranked-export data-records="${records}" data-filename="${escapeHtml(search.queryName || "Saved_Search_QRY")}.xlsx">Export ranked Excel</a>`
+            ? `<a class="btn secondary" href="${escapeHtml(exportUrl)}" data-ranked-export data-records="${records}" data-filename="${escapeHtml(rankedExportFilename(search))}">Export ranked Excel</a>`
             : `<button class="btn secondary" type="button" disabled title="This saved query has no candidate rows to export.">No rows to export</button>`;
           return `<tr>
             <td><strong class="query-name">${escapeHtml(search.queryName || "Not_Found_Not_Found_QRY")}</strong><span class="query-meta">${escapeHtml(search.queryMode || "saved query")} · ${pages} saved page${pages === 1 ? "" : "s"}</span></td>
@@ -357,7 +365,7 @@
           const downloadUrl = URL.createObjectURL(blob);
           const downloadLink = document.createElement("a");
           downloadLink.href = downloadUrl;
-          downloadLink.download = link.dataset.filename || "Saved_Search_QRY.xlsx";
+          downloadLink.download = response.headers.get("X-VETCODE-Filename") || link.dataset.filename || "ranked-candidates.xlsx";
           document.body.appendChild(downloadLink);
           downloadLink.click();
           downloadLink.remove();

@@ -944,6 +944,14 @@
         return `${source} - ${records} result${records === 1 ? "" : "s"} - ${shortenedRole}`;
       }
 
+      function rankedExportFilename(search) {
+        const exportId = String(search?.rootId || search?.id || "saved")
+          .replace(/[^A-Za-z0-9_-]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 32) || "saved";
+        return `${currentDomain()}-ranked-${exportId}.xlsx`;
+      }
+
       function setActiveSavedSearch(savedSearch, resultCount = null) {
         activeSavedSearch = savedSearch && (savedSearch.rootId || savedSearch.id) ? { ...savedSearch } : null;
         if (activeSavedSearch && resultCount !== null) {
@@ -1002,7 +1010,7 @@
           const downloadUrl = URL.createObjectURL(blob);
           const downloadLink = document.createElement("a");
           downloadLink.href = downloadUrl;
-          downloadLink.download = `${activeSavedSearch?.queryName || "Saved_Search_QRY"}.xlsx`;
+          downloadLink.download = response.headers.get("X-VETCODE-Filename") || rankedExportFilename(activeSavedSearch);
           document.body.appendChild(downloadLink);
           downloadLink.click();
           downloadLink.remove();

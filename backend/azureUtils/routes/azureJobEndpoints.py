@@ -3846,13 +3846,16 @@ def external_candidate_export_saved_search(search_id: str, request: Request, dom
             ),
         )
     workbook = externalSearchReport.build_ranked_search_xlsx(group, rows)
-    filename = f"{group.get('metadata', {}).get('queryName') or 'Saved_Search_QRY'}.xlsx"
+    metadata = group.get("metadata") if isinstance(group.get("metadata"), dict) else {}
+    export_id = re.sub(r"[^A-Za-z0-9_-]+", "-", str(metadata.get("rootId") or metadata.get("id") or search_id)).strip("-")[:32]
+    filename = f"{domain}-ranked-{export_id or 'saved'}.xlsx"
     return StreamingResponse(
         iter([workbook]),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"',
             "X-VETCODE-Record-Count": str(len(rows)),
+            "X-VETCODE-Filename": filename,
         },
     )
 
