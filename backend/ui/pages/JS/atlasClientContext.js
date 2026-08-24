@@ -209,16 +209,37 @@
     }
   }
 
+  function isSyntheticSourcingRecord(record, domain) {
+    if (!record || typeof record !== "object") return true;
+    if (domain !== "law") return false;
+    const id = clean(record.id, 180).toUpperCase();
+    const history = clean(record.history, 1000).toLowerCase();
+    return history.includes("sample law card created for dev testing") || [
+      "CRM-SEED-LOCAL-LAW-",
+      "CRM-SEED-DEVDB-LAW-",
+      "CRM-DEMO-LAW-",
+    ].some((prefix) => id.startsWith(prefix));
+  }
+
+  function clientNameKey(name) {
+    return clean(name, 240).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  }
+
   function mergeRecords(serverRecords, localRecords, domain) {
     const merged = new Map();
-    [...serverRecords, ...localRecords].forEach((record) => {
+    const addRecord = (record, prefer = false) => {
       if (!record || typeof record !== "object" || record.archived === true) return;
       const recordDomain = clean(record.domain || domain, 40);
       if (recordDomain !== domain) return;
+      if (isSyntheticSourcingRecord(record, domain)) return;
       const normalized = normalizeRecord(record, domain);
       if (!normalized.id || !normalized.name) return;
-      merged.set(normalized.id, normalized);
-    });
+      const key = clientNameKey(normalized.name);
+      if (!key || (merged.has(key) && !prefer)) return;
+      merged.set(key, normalized);
+    };
+    serverRecords.forEach((record) => addRecord(record));
+    localRecords.forEach((record) => addRecord(record, true));
     return [...merged.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
 
@@ -227,7 +248,7 @@
     if (!force && state.recordsByDomain.has(domain)) return state.recordsByDomain.get(domain);
     let serverRecords = [];
     try {
-      const response = await fetch(`/api/crm/records?domain=${encodeURIComponent(domain)}&limit=1000`, { cache: "no-store" });
+      const response = await fetch(`/api/crm/records?domain=${encodeURIComponent(domain)}&limit=1000&sourcing_only=true`, { cache: "no-store" });
       if (!response.ok) throw new Error(await response.text());
       const data = await response.json();
       serverRecords = Array.isArray(data.records) ? data.records : [];
@@ -307,6 +328,9 @@
     const pickerOpen = !client || state.pickerOpen.has(domain);
     const warning = mismatchMessage(client);
     const picker = pickerHtml(records);
+    const noRecordsMessage = domain === "law"
+      ? "No active LegalReady client cards were found. Demo and seed cards are excluded from sourcing; add the real client in Atlas first."
+      : "No Atlas client records were found in this domain. Add the client in Atlas first.";
     host.innerHTML = `
       <section class="card atlas-client-card" aria-label="Atlas client attached to sourcing process">
         <div class="atlas-client-head">
@@ -336,7 +360,7 @@
             <select data-atlas-select aria-label="Choose Atlas client">${picker.html}</select>
             <button class="btn primary" type="button" data-atlas-attach ${records.length ? "" : "disabled"}>Attach Atlas client</button>
           </div>
-          <div class="atlas-client-empty" data-atlas-count>${records.length ? `${picker.count} Atlas client record${picker.count === 1 ? "" : "s"} available in this domain.` : "No Atlas client records were found in this domain. Add the client in Atlas first."}</div>
+          <div class="atlas-client-empty" data-atlas-count>${records.length ? `${picker.count} Atlas client record${picker.count === 1 ? "" : "s"} available in this domain.` : escapeHtml(noRecordsMessage)}</div>
         </div>
       </section>
     `;

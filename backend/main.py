@@ -237,6 +237,24 @@ ADMIN_SESSION_TOKENS = {}
 def _crm_record_archived(record: dict) -> bool:
     return bool((record or {}).get("archived") or (record or {}).get("archivedAt"))
 
+
+def _crm_record_is_synthetic_for_sourcing(record: dict, domain: str = "") -> bool:
+    """Keep known LegalReady fixtures out of real client sourcing workflows."""
+    if not isinstance(record, dict):
+        return True
+    clean_domain = _domain_key(domain or record.get("domain", "dev"))
+    if clean_domain != "law":
+        return False
+    record_id = str(record.get("id") or "").strip().upper()
+    history = str(record.get("history") or "").strip().lower()
+    return "sample law card created for dev testing" in history or record_id.startswith(
+        (
+            "CRM-SEED-LOCAL-LAW-",
+            "CRM-SEED-DEVDB-LAW-",
+            "CRM-DEMO-LAW-",
+        )
+    )
+
 MENU_ITEMS = [
     {"key": "talent", "label": "Talent", "href": "find-candidate.html"},
     {"key": "job_descriptions", "label": "Job Descriptions", "href": "job-descriptions.html"},
@@ -8629,20 +8647,43 @@ def list_interview_archive(
 
 
 @app.get("/api/crm/records")
-def list_crm_records(domain: str = "dev", limit: int = 200, include_archived: bool = False):
+def list_crm_records(
+    domain: str = "dev",
+    limit: int = 200,
+    include_archived: bool = False,
+    sourcing_only: bool = False,
+):
+    clean_domain = _domain_key(domain)
     db_records = _atlas_crm_records_db(domain, include_archived=include_archived, limit=limit)
     if db_records is not None:
-        return {"ok": True, "records": db_records[: max(1, min(limit, 500))], "storage": "postgres"}
-    records = _read_json_store_with_demo(CRM_RECORDS_PATH, [])
-    wanted_domain = _domain_key(domain)
-    if not isinstance(records, list):
-        records = []
-    if not include_archived:
-        records = [item for item in records if isinstance(item, dict) and not _crm_record_archived(item)]
-    if wanted_domain != "all":
-        records = [item for item in records if _domain_key(item.get("domain", "dev")) == wanted_domain]
+        records = db_records
+        storage_name = "postgres"
+    else:
+        records = _read_json_store_with_demo(CRM_RECORDS_PATH, [])
+        storage_name = "json_fallback"
+        if not isinstance(records, list):
+            records = []
+        if not include_archived:
+            records = [item for item in records if isinstance(item, dict) and not _crm_record_archived(item)]
+        if clean_domain != "all":
+            records = [item for item in records if _domain_key(item.get("domain", "dev")) == clean_domain]
+    excluded_synthetic_count = 0
+    if sourcing_only:
+        eligible_records = []
+        for item in records:
+            if _crm_record_is_synthetic_for_sourcing(item, clean_domain):
+                excluded_synthetic_count += 1
+                continue
+            eligible_records.append(item)
+        records = eligible_records
     records = sorted(records, key=lambda item: item.get("updatedAt") or item.get("createdAt") or "", reverse=True)
-    return {"ok": True, "records": records[: max(1, min(limit, 500))], "storage": "json_fallback"}
+    return {
+        "ok": True,
+        "records": records[: max(1, min(limit, 500))],
+        "storage": storage_name,
+        "sourcingOnly": bool(sourcing_only),
+        "excludedSyntheticCount": excluded_synthetic_count,
+    }
 
 
 def _crm_customer_rows(domain: str = "dev") -> list[dict]:

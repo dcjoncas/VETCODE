@@ -1,5 +1,8 @@
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+
+import main
 
 
 BACKEND = Path(__file__).resolve().parents[1]
@@ -17,6 +20,10 @@ class AtlasSourcingContextTests(unittest.TestCase):
         script = (PAGES / "JS" / "atlasClientContext.js").read_text(encoding="utf-8")
         self.assertIn('atlasSourcingClient:${domain}', script)
         self.assertIn('/api/crm/records?domain=', script)
+        self.assertIn('sourcing_only=true', script)
+        self.assertIn('isSyntheticSourcingRecord', script)
+        self.assertIn('clientNameKey', script)
+        self.assertIn('Demo and seed cards are excluded from sourcing', script)
         self.assertIn('atlasClientId', script)
         self.assertIn('contactLinkedIn', script)
         self.assertIn('Check client/JD alignment', script)
@@ -55,6 +62,31 @@ class AtlasSourcingContextTests(unittest.TestCase):
         self.assertIn('sessionStorage.removeItem(`atlasSourcingClient:${activeDomain}`)', sidebar)
         self.assertIn('id="clientSelected"', process_flow)
         self.assertIn('function updateAtlasClient()', update_flow)
+
+    @patch("main._atlas_crm_records_db")
+    def test_legalready_sourcing_excludes_known_seed_and_demo_cards(self, load_records):
+        load_records.return_value = [
+            {"id": "CRM-SEED-LOCAL-LAW-01", "domain": "law", "customer": "BrightPath Legal Ops"},
+            {"id": "CRM-SEED-DEVDB-LAW-01", "domain": "law", "customer": "BrightPath Legal Ops"},
+            {"id": "CRM-DEMO-LAW-01", "domain": "law", "customer": "Civic Harbor Legal"},
+            {
+                "id": "random-browser-demo-id",
+                "domain": "law",
+                "customer": "Meridian Compliance Group",
+                "history": "Sample law card created for dev testing.",
+            },
+            {"id": "CRM-LAW-ACTIVE-01", "domain": "law", "customer": "Murchison & Cumming LLP"},
+        ]
+
+        response = main.list_crm_records(domain="law", limit=100, sourcing_only=True)
+
+        self.assertEqual([record["id"] for record in response["records"]], ["CRM-LAW-ACTIVE-01"])
+        self.assertEqual(response["excludedSyntheticCount"], 4)
+        self.assertTrue(response["sourcingOnly"])
+
+    def test_non_law_sourcing_records_are_not_hidden_by_legalready_filter(self):
+        record = {"id": "CRM-DEMO-DENTAL-01", "domain": "dental", "customer": "Dental Sample"}
+        self.assertFalse(main._crm_record_is_synthetic_for_sourcing(record, "dental"))
 
 
 if __name__ == "__main__":
