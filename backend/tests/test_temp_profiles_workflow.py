@@ -35,7 +35,21 @@ class TempProfilesWorkflowTests(unittest.TestCase):
         self.assertIn("DevReady TEMP profile complete", html)
         self.assertIn("Open DevReady Profile", html)
         self.assertIn("Profile complete", html)
-        self.assertIn("renderResults(latestExternalResults, { preserveSelection: true })", html)
+        self.assertIn("enriched_match_complete", html)
+        self.assertIn("Calculate JD match", html)
+        self.assertIn("match_pending", html)
+
+    def test_external_results_and_temp_profiles_are_ranked_by_current_fit(self):
+        find_out = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")
+        temp_profiles = (PAGES / "temp-profiles.html").read_text(encoding="utf-8")
+
+        self.assertIn("function rankExternalResults", find_out)
+        self.assertIn("latestExternalResults = rankExternalResults", find_out)
+        self.assertIn("discovery preview", find_out)
+        self.assertIn("saved JD match", find_out)
+        self.assertIn("profileMatchesCurrentJob(left)", temp_profiles)
+        self.assertIn("safeRightScore - safeLeftScore", temp_profiles)
+        self.assertIn("LinkedIn link stored", temp_profiles)
 
     def test_external_profile_actions_name_the_actual_destination(self):
         html = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")
@@ -54,14 +68,42 @@ class TempProfilesWorkflowTests(unittest.TestCase):
         self.assertIn("Provider-reported admission or license", html)
         self.assertIn("function candidateLegalCredentials", html)
         self.assertIn("target jurisdiction", html)
+        self.assertIn("Target licensing jurisdiction", html)
+
+    def test_courtlistener_and_professional_sources_share_combined_profile_evidence(self):
+        html = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")
+        routes = (BACKEND / "azureUtils" / "routes" / "azureJobEndpoints.py").read_text(encoding="utf-8")
+
+        self.assertIn("Create combined TEMP profile", html)
+        self.assertIn("Professional data added", html)
+        self.assertIn("includedInCandidateProfile", routes)
+        self.assertIn('"match_pending"] = True', routes)
+        self.assertIn('"usedForCandidateScoring": False', routes)
 
     def test_stored_scores_are_only_current_for_the_active_job(self):
         html = (PAGES / "temp-profiles.html").read_text(encoding="utf-8")
         candidates = (BACKEND / "azureUtils" / "storage" / "candidates.py").read_text(encoding="utf-8")
 
         self.assertIn('"matchJobId": match.get("jobId", "")', candidates)
+        self.assertIn('"matchCalculated": match_calculated', candidates)
+        self.assertIn('"courtEvidenceCount": court_evidence.get("evidenceCount")', candidates)
         self.assertIn("profile.matchJobId", html)
-        self.assertIn("Not matched to the current JD", html)
+        self.assertIn("JD match not calculated for the current job", html)
+
+    def test_enrichment_and_manual_matching_are_separate_guided_actions(self):
+        find_out = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")
+        temp_profiles = (PAGES / "temp-profiles.html").read_text(encoding="utf-8")
+        routes = (BACKEND / "azureUtils" / "routes" / "azureJobEndpoints.py").read_text(encoding="utf-8")
+
+        self.assertIn('/external/temp/{person_id}/calculate-match', routes)
+        self.assertIn('"status": "calculated"', routes)
+        self.assertIn('"calculationMode": "explicit_user_action"', routes)
+        self.assertIn("function calculateCandidateMatch", find_out)
+        self.assertIn('id="candidateMatchDialog"', find_out)
+        self.assertIn("function calculateTempMatch", temp_profiles)
+        self.assertIn('id="matchStatsDialog"', temp_profiles)
+        self.assertIn('body: JSON.stringify({ domain: currentDomain() })', temp_profiles)
+        self.assertNotIn("Enrich checked and rematch", temp_profiles)
 
     def test_start_over_clears_scoped_workflow_state_not_saved_records(self):
         reset_sources = [
@@ -83,9 +125,11 @@ class TempProfilesWorkflowTests(unittest.TestCase):
         nav = (PAGES / "components" / "sideNav.html").read_text(encoding="utf-8")
         main = (BACKEND / "main.py").read_text(encoding="utf-8")
 
-        self.assertLess(nav.index(">Find Candidates (Out)</a>"), nav.index(">TEMP Profiles</a>"))
+        self.assertLess(nav.index(">Find Candidates (Out)</a>"), nav.index(">Saved Searches</a>"))
+        self.assertLess(nav.index(">Saved Searches</a>"), nav.index(">TEMP Profiles</a>"))
         self.assertLess(nav.index(">TEMP Profiles</a>"), nav.index(">Profiles</a>"))
         self.assertIn('"key": "temp_profiles"', main)
+        self.assertIn('"key": "saved_searches"', main)
 
 
 if __name__ == "__main__":

@@ -86,6 +86,105 @@
         gap: 5px;
       }
 
+      .profile-name-line {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .match-action {
+        padding: 5px 10px;
+      }
+
+      .match-action[disabled] {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
+      .match-dialog {
+        width: min(760px, calc(100vw - 32px));
+        max-height: calc(100vh - 48px);
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        box-shadow: 0 20px 70px rgb(0 0 0 / 28%);
+      }
+
+      .match-dialog::backdrop {
+        background: rgb(14 23 38 / 55%);
+      }
+
+      .match-dialog-head,
+      .match-dialog-body,
+      .match-dialog-footer {
+        padding: 16px 18px;
+      }
+
+      .match-dialog-head,
+      .match-dialog-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .match-dialog-head {
+        border-bottom: 1px solid var(--border);
+      }
+
+      .match-dialog-head h3 {
+        margin: 0;
+      }
+
+      .match-dialog-body {
+        overflow: auto;
+      }
+
+      .match-score-summary,
+      .match-stat-grid {
+        display: grid;
+        gap: 10px;
+      }
+
+      .match-score-summary {
+        grid-template-columns: minmax(110px, auto) 1fr;
+        align-items: center;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface, #f7f8fa);
+      }
+
+      .match-score-number {
+        font-size: 2rem;
+        font-weight: 800;
+      }
+
+      .match-stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin-top: 14px;
+      }
+
+      .match-stat-card {
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+      }
+
+      .match-stat-card h4 {
+        margin: 0 0 8px;
+      }
+
+      .match-stat-card ul {
+        margin: 0;
+        padding-left: 20px;
+      }
+
+      .match-component-list {
+        margin-top: 14px;
+      }
+
       .linkedin-enriched-pill {
         background: #eaf7ef;
         border-color: #8ec7a3;
@@ -136,6 +235,13 @@
         .temp-profile-actions {
           grid-column: 2;
           justify-content: flex-start;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .match-stat-grid,
+        .match-score-summary {
+          grid-template-columns: 1fr;
         }
       }
     </style>
@@ -209,6 +315,21 @@
             </div>
           </section>
         </section>
+
+        <dialog id="matchStatsDialog" class="match-dialog" aria-labelledby="matchStatsTitle">
+          <div class="match-dialog-head">
+            <div>
+              <h3 id="matchStatsTitle">JD match statistics</h3>
+              <div id="matchStatsSubtitle" class="muted"></div>
+            </div>
+            <button class="btn secondary" type="button" onclick="closeMatchStats()">Close</button>
+          </div>
+          <div id="matchStatsBody" class="match-dialog-body"></div>
+          <div class="match-dialog-footer">
+            <span class="muted">Saved with this TEMP profile. No provider credits are used.</span>
+            <button class="btn primary" type="button" onclick="closeMatchStats()">Done</button>
+          </div>
+        </dialog>
       </main>
     </div>
 
@@ -257,28 +378,30 @@
 
       function profileMatchesCurrentJob(profile = {}) {
         const jobId = currentJobId();
-        return Boolean(jobId && profile.matchJobId && String(profile.matchJobId) === String(jobId));
+        return Boolean(profile.matchCalculated === true
+          && jobId
+          && profile.matchJobId
+          && String(profile.matchJobId) === String(jobId));
       }
 
       function matchLabel(profile = {}) {
         const score = profile.matchScore === null || profile.matchScore === "" ? Number.NaN : Number(profile.matchScore);
         const matchedCount = Array.isArray(profile.matchMatched) ? profile.matchMatched.length : 0;
         const requiredCount = Number(profile.matchRequiredCount || 0);
-        if (!currentJobId()) return "No active JD - enrich now or choose a JD before rematching";
-        if (!profileMatchesCurrentJob(profile)) return "Not matched to the current JD";
+        if (!currentJobId()) return "Choose a JD before calculating a match";
+        if (!isRichTempProfile(profile)) return "Enrich professional data before calculating the JD match";
+        if (!profileMatchesCurrentJob(profile)) return "JD match not calculated for the current job";
         return Number.isFinite(score)
-          ? `${Math.round(score)}% current-job match${requiredCount ? ` (${matchedCount}/${requiredCount} JD signals)` : ""}`
-          : "Current JD saved - not yet scored";
+          ? `${Math.round(score)}% saved JD match${requiredCount ? ` (${matchedCount}/${requiredCount} JD signals)` : ""}`
+          : "JD match calculation needs review";
       }
 
       function renderWorkflowContext() {
         const jobId = currentJobId();
         const context = document.getElementById("workflowContext");
         context.innerHTML = jobId
-          ? `<div class="context-line"><div><strong>Active sourcing job:</strong> ${escapeHtml(currentJobLabel())}</div><span class="pill">JD ${escapeHtml(jobId)}</span></div><div class="muted" style="margin-top:5px">Only scores tied to this JD are shown as current. Check profiles and enrich them to rematch against this job.</div>`
-          : `<strong>No active sourcing job.</strong><div class="muted" style="margin-top:5px">The TEMP library is still available, but no old match score will be treated as current. Select a JD in Talent or Find Out before rematching.</div>`;
-        const button = document.getElementById("btnEnrichTempSelected");
-        button.textContent = jobId ? "Enrich checked and rematch to current JD" : "Enrich checked TEMP profiles";
+          ? `<div class="context-line"><div><strong>Active sourcing job:</strong> ${escapeHtml(currentJobLabel())}</div><span class="pill">JD ${escapeHtml(jobId)}</span></div><div class="muted" style="margin-top:5px">Enrichment and matching are separate steps. Enrich a profile first, then use Calculate JD match next to the candidate's name. The saved percentage is never recalculated automatically.</div>`
+          : `<strong>No active sourcing job.</strong><div class="muted" style="margin-top:5px">You can enrich TEMP profiles now. To calculate and save match statistics, first choose a JD in Job Descriptions or Find Candidates (Out).</div>`;
       }
 
       async function loadProviderStatus() {
@@ -313,7 +436,26 @@
       }
 
       function renderTempProfiles(profiles) {
-        latestTempProfiles = Array.isArray(profiles) ? profiles : [];
+        latestTempProfiles = (Array.isArray(profiles) ? [...profiles] : []).sort((left, right) => {
+          const leftCurrent = profileMatchesCurrentJob(left) ? 1 : 0;
+          const rightCurrent = profileMatchesCurrentJob(right) ? 1 : 0;
+          if (leftCurrent !== rightCurrent) return rightCurrent - leftCurrent;
+          if (leftCurrent && rightCurrent) {
+            const leftScore = left.matchScore === null || left.matchScore === "" || left.matchScore === undefined
+              ? Number.NaN
+              : Number(left.matchScore);
+            const rightScore = right.matchScore === null || right.matchScore === "" || right.matchScore === undefined
+              ? Number.NaN
+              : Number(right.matchScore);
+            const safeLeftScore = Number.isFinite(leftScore) ? leftScore : -1;
+            const safeRightScore = Number.isFinite(rightScore) ? rightScore : -1;
+            if (safeLeftScore !== safeRightScore) return safeRightScore - safeLeftScore;
+          }
+          const leftEnriched = isRichTempProfile(left) ? 1 : 0;
+          const rightEnriched = isRichTempProfile(right) ? 1 : 0;
+          if (leftEnriched !== rightEnriched) return rightEnriched - leftEnriched;
+          return String(right.updated || "").localeCompare(String(left.updated || ""));
+        });
         const list = document.getElementById("tempProfileList");
         document.getElementById("tempProfileStatus").textContent = latestTempProfiles.length
           ? `${latestTempProfiles.length} saved TEMP profile${latestTempProfiles.length === 1 ? "" : "s"} in the ${currentDomain()} domain.`
@@ -324,14 +466,22 @@
           const profileHost = profileUrl ? new URL(profileUrl).hostname.toLowerCase() : "";
           const isLinkedIn = profileHost === "linkedin.com" || profileHost.endsWith(".linkedin.com");
           const indicator = profile.linkedInEnriched
-            ? '<span class="pill linkedin-enriched-pill">✓ LinkedIn-enriched</span>'
+            ? `<span class="pill linkedin-enriched-pill">✓ ${escapeHtml(profile.enrichmentProvider || "Provider")} enriched · LinkedIn link stored</span>`
             : profileUrl
               ? '<span class="pill">Professional link stored</span>'
               : '<span class="pill">Professional link not stored</span>';
+          const courtEvidenceIndicator = Number(profile.courtEvidenceCount || 0)
+            ? `<span class="pill">${Number(profile.courtEvidenceCount).toLocaleString()} CourtListener / RECAP record${Number(profile.courtEvidenceCount) === 1 ? "" : "s"} stored</span>`
+            : "";
+          const canCalculate = Boolean(currentJobId() && isRichTempProfile(profile));
+          const currentMatch = profileMatchesCurrentJob(profile);
+          const nameMatchButton = currentMatch
+            ? `<button class="btn secondary match-action" type="button" onclick="showMatchStatsById('${escapeHtml(personId)}')">View ${Math.round(Number(profile.matchScore) || 0)}% match</button>`
+            : `<button class="btn primary match-action" type="button" onclick="calculateTempMatch('${escapeHtml(personId)}')" ${canCalculate ? "" : "disabled"} title="${escapeHtml(!currentJobId() ? "Choose a JD first" : !isRichTempProfile(profile) ? "Enrich this TEMP profile first" : "Calculate and save this JD match")}">Calculate JD match</button>`;
           return `<article class="temp-profile-row" data-person-id="${escapeHtml(personId)}">
             <input class="temp-profile-check" type="checkbox" data-person-id="${escapeHtml(personId)}" aria-label="Select ${escapeHtml(profile.name || "Temporary Profile")} for enrichment" />
             <div class="profile-contact">
-              <strong>${escapeHtml(profile.name || "Temporary Profile")}</strong>
+              <div class="profile-name-line"><strong>${escapeHtml(profile.name || "Temporary Profile")}</strong>${nameMatchButton}</div>
               <span class="muted">${escapeHtml(profile.title || "External candidate")}${profile.location ? ` - ${escapeHtml(profile.location)}` : ""}</span>
               <span class="muted">Email: ${escapeHtml(profile.email || "Not returned")}</span>
               <span class="muted">Phone: ${escapeHtml(profile.phone || "Not returned")}</span>
@@ -340,8 +490,10 @@
               <span>${escapeHtml(profile.source || "External")}</span>
               <strong>${escapeHtml(matchLabel(profile))}</strong>
               <span>${indicator}</span>
+              ${courtEvidenceIndicator}
             </div>
             <div class="temp-profile-actions">
+              ${currentMatch ? `<button class="btn secondary" type="button" onclick="calculateTempMatch('${escapeHtml(personId)}')">Recalculate JD match</button>` : ""}
               <button class="btn primary" type="button" onclick="useTempProfile('${escapeHtml(personId)}')">Use in current process</button>
               <button class="btn secondary" type="button" onclick="reviewTempProfile('${escapeHtml(personId)}')">Review profile</button>
               ${profileUrl ? `<a class="btn secondary" href="${escapeHtml(profileUrl)}" target="_blank" rel="noopener">${isLinkedIn ? "Open LinkedIn" : "Open professional profile"}</a>` : ""}
@@ -376,7 +528,7 @@
         const button = document.getElementById("btnEnrichTempSelected");
         button.disabled = !selected.length || !allSupported;
         button.title = allSupported
-          ? "Enrich selected records and rematch them when a job description is active"
+          ? "Enrich selected records with licensed professional data"
           : "A Coresignal or People Data Labs key is required for one or more selected records";
       }
 
@@ -449,8 +601,7 @@
         if (selectedProfiles.some((profile) => !tempEnrichmentProvider(profile))) {
           return alert("One or more checked profiles need a configured Coresignal or People Data Labs key.");
         }
-        const jobText = currentJobId() ? ` and rematch them to ${currentJobLabel()}` : "";
-        if (!confirm(`Enrich ${selectedIds.length} checked TEMP profile${selectedIds.length === 1 ? "" : "s"}${jobText}? Licensed provider requests may use credits. Already-enriched records are reused without another collection credit. VETCODE does not scrape LinkedIn.`)) return;
+        if (!confirm(`Enrich ${selectedIds.length} checked TEMP profile${selectedIds.length === 1 ? "" : "s"}? Licensed provider requests may use credits. Already-enriched records are reused without another collection credit. This step does not calculate a JD match, and VETCODE does not scrape LinkedIn.`)) return;
         const button = document.getElementById("btnEnrichTempSelected");
         const status = document.getElementById("tempProfileStatus");
         button.disabled = true;
@@ -464,7 +615,7 @@
             const response = await api(`/api/azureJobs/external/temp/${encodeURIComponent(personId)}/enrich-professional`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ domain: currentDomain(), jd_id: currentJobId() }),
+              body: JSON.stringify({ domain: currentDomain() }),
             });
             if (response.reused) reused++;
             else enriched++;
@@ -476,9 +627,98 @@
         const summary = [];
         if (enriched) summary.push(`Enriched ${enriched}.`);
         if (reused) summary.push(`Reused ${reused} without another collection credit.`);
-        if (currentJobId() && (enriched || reused)) summary.push("Current-JD match information was refreshed.");
+        if (enriched || reused) summary.push("Professional data is ready. Use Calculate JD match next to a candidate's name when you want a saved percentage and breakdown.");
         if (failures.length) summary.push(`${failures.length} failed: ${failures[0]}`);
         status.textContent = summary.join(" ") || "No TEMP profiles were changed.";
+      }
+
+      function readableMatchComponent(value) {
+        return String(value || "")
+          .replace(/([a-z])([A-Z])/g, "$1 $2")
+          .replace(/[_-]+/g, " ")
+          .replace(/^./, (letter) => letter.toUpperCase());
+      }
+
+      function matchList(items, emptyText) {
+        const values = Array.isArray(items) ? items.filter(Boolean) : [];
+        return values.length
+          ? `<ul>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>`
+          : `<div class="muted">${escapeHtml(emptyText)}</div>`;
+      }
+
+      function showMatchStats(profile = {}) {
+        if (!profileMatchesCurrentJob(profile)) {
+          return alert("Calculate this profile's match to the active JD before viewing statistics.");
+        }
+        const score = Number(profile.matchScore);
+        const components = profile.matchComponents && typeof profile.matchComponents === "object"
+          ? Object.entries(profile.matchComponents)
+          : [];
+        const calculatedAt = profile.matchCalculatedAt
+          ? new Date(profile.matchCalculatedAt).toLocaleString()
+          : "Saved time unavailable";
+        const sources = Array.isArray(profile.matchEvidenceSources) ? profile.matchEvidenceSources.filter(Boolean) : [];
+        document.getElementById("matchStatsTitle").textContent = `${profile.name || "Candidate"} — JD match`;
+        document.getElementById("matchStatsSubtitle").textContent = `${currentJobLabel()} · calculated ${calculatedAt}`;
+        document.getElementById("matchStatsBody").innerHTML = `
+          <div class="match-score-summary">
+            <div class="match-score-number">${Number.isFinite(score) ? `${Math.round(score)}%` : "Review"}</div>
+            <div>
+              <strong>${escapeHtml(profile.matchBand || profile.matchDecision || "Saved match")}</strong>
+              <div style="margin-top:5px">${escapeHtml(profile.matchReason || "The score is based only on evidence saved in the enriched TEMP profile.")}</div>
+            </div>
+          </div>
+          <div class="match-stat-grid">
+            <section class="match-stat-card">
+              <h4>What matched</h4>
+              ${matchList(profile.matchMatched, "No JD signals were confirmed in the stored evidence.")}
+            </section>
+            <section class="match-stat-card">
+              <h4>What is missing</h4>
+              ${matchList(profile.matchMissing, "No missing JD signals were recorded.")}
+            </section>
+          </div>
+          ${components.length ? `<section class="match-stat-card match-component-list"><h4>Score components</h4><ul>${components.map(([name, points]) => `<li>${escapeHtml(readableMatchComponent(name))}: <strong>${escapeHtml(String(points))} points</strong></li>`).join("")}</ul></section>` : ""}
+          <section class="match-stat-card match-component-list">
+            <h4>How this was calculated</h4>
+            <div>${escapeHtml(profile.matchFormula || "Weighted matched JD signals divided by weighted searchable JD signals.")}</div>
+            <div class="muted" style="margin-top:7px">Evidence sources: ${escapeHtml(sources.join(", ") || "Stored TEMP professional profile")}. Match calculation uses no provider credits and does not scrape LinkedIn.</div>
+          </section>`;
+        document.getElementById("matchStatsDialog").showModal();
+      }
+
+      function showMatchStatsById(personId) {
+        const profile = profileById(personId);
+        if (!profile) return alert("That TEMP profile is no longer available. Refresh the list.");
+        showMatchStats(profile);
+      }
+
+      function closeMatchStats() {
+        const dialog = document.getElementById("matchStatsDialog");
+        if (dialog?.open) dialog.close();
+      }
+
+      async function calculateTempMatch(personId) {
+        const profile = profileById(personId);
+        if (!profile) return alert("That TEMP profile is no longer available. Refresh the list.");
+        if (!currentJobId()) return alert("Choose an active job description before calculating a match.");
+        if (!isRichTempProfile(profile)) return alert("Enrich this TEMP profile with professional data before calculating its JD match.");
+        const status = document.getElementById("tempProfileStatus");
+        status.textContent = `Calculating ${profile.name || "candidate"}'s match to ${currentJobLabel()} from stored evidence...`;
+        try {
+          await api(`/api/azureJobs/external/temp/${encodeURIComponent(personId)}/calculate-match`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ domain: currentDomain(), jd_id: currentJobId() }),
+          });
+          await loadTempProfiles();
+          const refreshed = profileById(personId);
+          status.textContent = `${profile.name || "Candidate"}'s JD match was calculated and saved. No provider credits were used.`;
+          if (refreshed) showMatchStats(refreshed);
+        } catch (error) {
+          status.textContent = error.message || String(error);
+          alert(error.message || error);
+        }
       }
 
       function linkedInEnrichedProfiles() {
@@ -508,7 +748,7 @@
             <td>${escapeHtml(profile.title || "")}</td>
             <td>${escapeHtml(profile.email || "Not returned")}</td>
             <td>${escapeHtml(profile.phone || "Not returned")}</td>
-            <td>${escapeHtml(matchLabel(profile))}</td>
+            <td>${profileMatchesCurrentJob(profile) ? `<button class="btn secondary" type="button" onclick="showMatchStatsById('${escapeHtml(personId)}')">${escapeHtml(matchLabel(profile))}</button>` : escapeHtml(matchLabel(profile))}</td>
             <td>${escapeHtml(profile.source || "External")}</td>
             <td><a class="btn secondary" href="${escapeHtml(safeHttpUrl(profile.profileUrl))}" target="_blank" rel="noopener">Open LinkedIn</a></td>
           </tr>`;

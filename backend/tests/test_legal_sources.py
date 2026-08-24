@@ -168,6 +168,21 @@ class LegalSourceClientTests(unittest.TestCase):
 
 class LegalSourceRouteTests(unittest.TestCase):
     def setUp(self):
+        self.cached_search = patch(
+            "azureUtils.routes.azureJobEndpoints.externalSearchHistory.get_cached_search",
+            return_value=None,
+        ).start()
+        self.saved_search = patch(
+            "azureUtils.routes.azureJobEndpoints.externalSearchHistory.save_search",
+            side_effect=lambda **kwargs: {
+                "id": 1,
+                "rootId": int(kwargs.get("parent_id") or 1),
+                "queryName": kwargs.get("query_name"),
+                "source": kwargs.get("source"),
+                "cacheHit": False,
+            },
+        ).start()
+        self.addCleanup(patch.stopall)
         self.jd = {
             "jd_id": 85,
             "company": "Murchison & Cumming",
@@ -301,6 +316,46 @@ class LegalSourceRouteTests(unittest.TestCase):
         self.assertFalse(result["identityVerified"])
 
     @patch("azureUtils.routes.azureJobEndpoints.courtListener.search_evidence")
+    def test_court_evidence_is_added_to_professional_candidate_profile(self, search):
+        search.return_value = {
+            "provider": "CourtListener / RECAP",
+            "results": [
+                {
+                    "title": "Example Professional Liability Matter",
+                    "snippet": "Sample Attorney appeared for the defense.",
+                    "court": "District Court",
+                    "url": "https://www.courtlistener.com/docket/1/example/",
+                }
+            ],
+            "identityVerified": False,
+        }
+
+        result = azureJobEndpoints.external_candidate_legal_evidence(
+            {
+                "domain": "law",
+                "name": "Sample Attorney",
+                "size": 3,
+                "criteria": {"practiceAreas": ["Professional Liability"]},
+                "candidate": {
+                    "source": "pdl",
+                    "source_label": "People Data Labs",
+                    "name": "Sample Attorney",
+                    "score": 80,
+                    "profile_data": {},
+                },
+            }
+        )
+
+        self.assertTrue(result["includedInCandidateProfile"])
+        self.assertFalse(result["usedForScoring"])
+        self.assertEqual(result["candidate"]["profile_data"]["evidence_count"], 1)
+        self.assertEqual(
+            result["candidate"]["profile_data"]["matched_practice_areas"],
+            ["Professional Liability"],
+        )
+        self.assertIn("CourtListener / RECAP", result["candidate"]["source_label"])
+
+    @patch("azureUtils.routes.azureJobEndpoints.courtListener.search_evidence")
     def test_courtlistener_direct_search_returns_research_only_records(self, search):
         search.return_value = {
             "provider": "CourtListener / RECAP",
@@ -405,7 +460,7 @@ class LegalSourceRouteTests(unittest.TestCase):
 
     @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
     @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
-    def test_court_lead_profile_validation_merges_likely_exact_match_without_scoring(
+    def test_court_lead_profile_validation_builds_and_scores_combined_profile(
         self, get_job, enrich
     ):
         get_job.return_value = (
@@ -443,7 +498,11 @@ class LegalSourceRouteTests(unittest.TestCase):
             "profile_url": "https://www.courtlistener.com/docket/101/example/",
             "score": 0,
             "verification": {"identity_status": "not_verified"},
-            "profile_data": {"evidence_count": 2, "evidence_records": []},
+            "profile_data": {
+                "evidence_count": 2,
+                "evidence_records": [],
+                "matched_practice_areas": ["Professional Liability"],
+            },
         }
 
         result = azureJobEndpoints.external_court_lead_validate_profile(
@@ -469,7 +528,13 @@ class LegalSourceRouteTests(unittest.TestCase):
         self.assertEqual(updated["company"], "Example LLP")
         self.assertEqual(updated["years_experience"], 7)
         self.assertEqual(updated["score"], 0)
+        self.assertTrue(updated["match_pending"])
+        self.assertEqual(
+            updated["score_details"]["evidence_sources"],
+            ["People Data Labs", "CourtListener / RECAP"],
+        )
         self.assertFalse(result["usedForCandidateScoring"])
+        self.assertFalse(result["courtEvidenceUsedForScoring"])
         self.assertFalse(result["linkedinScraped"])
 
     @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
@@ -665,8 +730,8 @@ class LegalSourceRouteTests(unittest.TestCase):
         )
         self.assertIn("Court-record research profile", clean_description)
         self.assertEqual(metadata["recordType"], "court_attorney_lead")
-        self.assertEqual(metadata["match"]["score"], 0)
-        self.assertEqual(metadata["match"]["matched"], [])
+        self.assertEqual(metadata["match"]["status"], "not_run")
+        self.assertIsNone(metadata["match"]["score"])
         self.assertEqual(metadata["providerSkills"], [])
         self.assertEqual(metadata["verification"]["identityStatus"], "not_verified")
         self.assertEqual(metadata["profileValidation"]["status"], "no_match")
@@ -677,9 +742,65 @@ class LegalSourceRouteTests(unittest.TestCase):
 
     @patch("azureUtils.routes.azureJobEndpoints.candidates.uploadProfile")
     @patch("azureUtils.routes.azureJobEndpoints.candidates.findTemporaryExternalProfile")
+    def test_confirmed_court_lead_imports_combined_temp_profile_with_match_pending(self, find_temp, upload):
+        find_temp.return_value = None
+        upload.return_value = {"personid": 501, "name": "Sample Attorney"}
+        candidate = {
+            "source": "courtlistener",
+            "source_label": "CourtListener / RECAP + People Data Labs",
+            "source_id": "courtlistener-attorney:sample-attorney",
+            "result_type": "court_attorney_lead",
+            "name": "Sample Attorney",
+            "title": "Associate Attorney",
+            "company": "Example LLP",
+            "professional_profile_url": "https://www.linkedin.com/in/sample-attorney",
+            "score": 88,
+            "match_band": "Strong fit",
+            "top_matches": ["Attorney title", "Professional Liability"],
+            "score_details": {
+                "matched_count": 2,
+                "required_count": 5,
+                "evidence_sources": ["People Data Labs", "CourtListener / RECAP"],
+                "court_evidence_count": 2,
+            },
+            "profile_validation": {
+                "status": "confirmed_profile_match",
+                "provider": "People Data Labs Person Enrichment",
+            },
+            "profile_data": {
+                "location": {"locality": "Denver", "region": "Colorado", "country": "United States"},
+                "evidence_count": 2,
+                "evidence_records": [{"title": "Example v. Example"}],
+            },
+            "skills": ["Professional Liability"],
+        }
+
+        result = azureJobEndpoints.external_candidate_import(
+            {"domain": "law", "source": "courtlistener", "candidate": candidate}
+        )
+
+        upload_args = upload.call_args.kwargs
+        self.assertEqual(upload_args["candidateTitle"], "Associate Attorney")
+        self.assertEqual(upload_args["linkedInUrl"], "https://www.linkedin.com/in/sample-attorney")
+        self.assertEqual(upload_args["candidateState"], "Colorado")
+        self.assertEqual(result["match"]["status"], "not_run")
+        self.assertIsNone(result["match"]["score"])
+        _, metadata = azureJobEndpoints.candidates.splitExternalProfileDescription(
+            upload_args["candidateDescription"]
+        )
+        self.assertEqual(metadata["searchPreviewMatch"]["score"], 88)
+        self.assertEqual(
+            metadata["searchPreviewMatch"]["matched"],
+            ["Attorney title", "Professional Liability"],
+        )
+        self.assertFalse(result["identityUnverified"])
+        self.assertTrue(result["identityNeedsReview"])
+
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.uploadProfile")
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.findTemporaryExternalProfile")
     @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
     @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
-    def test_selected_pdl_profile_is_enriched_rematched_and_imported_with_history(
+    def test_selected_pdl_profile_is_enriched_and_imported_with_match_pending(
         self,
         get_job,
         enrich,
@@ -763,7 +884,9 @@ class LegalSourceRouteTests(unittest.TestCase):
         self.assertIn("Temporary external profile", clean_description)
         self.assertEqual(metadata["enrichment"]["status"], "completed")
         self.assertEqual(metadata["enrichment"]["likelihood"], 9)
-        self.assertGreater(metadata["match"]["score"], 0)
+        self.assertEqual(metadata["match"]["status"], "not_run")
+        self.assertIsNone(metadata["match"]["score"])
+        self.assertIn("Civil Litigation", metadata["searchPreviewMatch"]["matched"])
         self.assertEqual(metadata["education"][0]["school"], "Example Law School")
         self.assertEqual(result["personid"], 501)
         self.assertEqual(result["enrichment"]["creditsUsed"], 1)
@@ -1078,12 +1201,10 @@ class LegalSourceRouteTests(unittest.TestCase):
 
     @patch("azureUtils.routes.azureJobEndpoints.candidates.applyTemporaryExternalProfileEnrichment")
     @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
-    @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
     @patch("azureUtils.routes.azureJobEndpoints.candidates.getTemporaryExternalProfileForEnrichment")
-    def test_rich_pdl_temp_profile_is_rematched_to_selected_jd_without_credit(
+    def test_rich_pdl_temp_profile_is_reused_without_automatic_match(
         self,
         get_temp,
-        get_job_skills,
         enrich,
         apply_enrichment,
     ):
@@ -1106,31 +1227,70 @@ class LegalSourceRouteTests(unittest.TestCase):
                 },
             },
         }
-        get_job_skills.return_value = (
-            {"job_title": "Dental Assistant"},
-            ["Digital Radiography", "Endodontic Chairside", "Patient Care"],
-        )
-        apply_enrichment.return_value = {
-            "status": "success",
-            "personid": 2381,
-            "name": "Demetria Keith",
-            "profileUrl": "https://www.linkedin.com/in/demetria-keith",
-        }
-
         result = azureJobEndpoints.external_candidate_enrich_temp_profile(
             "2381",
             {"domain": "dental", "jd_id": "jd-dental-1"},
         )
 
         enrich.assert_not_called()
-        apply_enrichment.assert_called_once()
-        saved_metadata = apply_enrichment.call_args.args[3]
-        self.assertEqual(saved_metadata["match"]["jobId"], "jd-dental-1")
-        self.assertGreater(saved_metadata["match"]["score"], 0)
-        self.assertIn("Digital Radiography", saved_metadata["match"]["matched"])
+        apply_enrichment.assert_not_called()
         self.assertTrue(result["reused"])
-        self.assertTrue(result["rematched"])
+        self.assertTrue(result["matchPending"])
         self.assertEqual(result["creditsUsed"], 0)
+
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.saveTemporaryExternalProfileMatch")
+    @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.getTemporaryExternalProfileForEnrichment")
+    def test_manual_temp_match_is_calculated_from_stored_evidence_without_provider_credit(
+        self,
+        get_temp,
+        get_job_skills,
+        save_match,
+    ):
+        get_temp.return_value = {
+            "personid": 2381,
+            "name": "Demetria Keith",
+            "title": "Dental Assistant",
+            "description": "Temporary external profile with patient-care experience.",
+            "profileUrl": "https://www.linkedin.com/in/demetria-keith",
+            "location": {"locality": "Denver", "region": "Colorado", "country": "United States"},
+            "externalProfile": {
+                "source": "People Data Labs",
+                "providerSkills": ["Dental Assisting", "Patient Care"],
+                "professionalEvidence": ["Digital radiography and endodontic chairside support"],
+                "certifications": ["Certified Dental Assistant"],
+                "enrichment": {
+                    "status": "completed",
+                    "provider": "People Data Labs Person Enrichment",
+                    "creditsUsed": 1,
+                    "profileVersion": 2,
+                },
+            },
+        }
+        get_job_skills.return_value = (
+            {"jd_id": "jd-dental-1", "title": "Dental Assistant", "company": "Example Dental"},
+            ["Digital Radiography", "Endodontic Chairside", "Patient Care"],
+        )
+        save_match.return_value = {
+            "status": "success",
+            "personid": 2381,
+            "name": "Demetria Keith",
+        }
+
+        result = azureJobEndpoints.external_candidate_calculate_temp_match(
+            "2381",
+            {"domain": "dental", "jd_id": "jd-dental-1"},
+        )
+
+        saved_match = save_match.call_args.args[2]
+        self.assertEqual(saved_match["status"], "calculated")
+        self.assertEqual(saved_match["jobId"], "jd-dental-1")
+        self.assertGreater(saved_match["score"], 0)
+        self.assertIn("Digital Radiography", saved_match["matched"])
+        self.assertEqual(saved_match["calculationMode"], "explicit_user_action")
+        self.assertEqual(result["providerCreditsUsed"], 0)
+        self.assertFalse(result["providerContacted"])
+        self.assertFalse(result["linkedinScraped"])
 
     @patch("azureUtils.routes.azureJobEndpoints.linkedinResultsExport.build_linkedin_results_xlsx")
     @patch("azureUtils.routes.azureJobEndpoints.candidates.listLinkedInEnrichedTemporaryProfiles")

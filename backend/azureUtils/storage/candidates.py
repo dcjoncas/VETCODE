@@ -1813,6 +1813,9 @@ def listTemporaryExternalProfiles(domain: str = "dev", limit: int = 50):
                 and _is_linkedin_profile_url(stored_profile_url)
             )
             match = external_profile.get("match") or {}
+            match_status = str(match.get("status") or "not_run").strip().lower()
+            match_calculated = match_status == "calculated"
+            court_evidence = external_profile.get("courtEvidence") or {}
             profiles.append({
                 "personid": row[0],
                 "name": f"{row[1] or ''} {row[2] or ''}".strip() or "Temporary Profile",
@@ -1820,6 +1823,7 @@ def listTemporaryExternalProfiles(domain: str = "dev", limit: int = 50):
                 "phone": stored_phone,
                 "title": row[4] or "",
                 "source": source,
+                "sourceId": external_profile.get("sourceId") or "",
                 "location": location,
                 "profileUrl": stored_profile_url,
                 "hasProfessionalProfile": bool(stored_profile_url),
@@ -1829,12 +1833,23 @@ def listTemporaryExternalProfiles(domain: str = "dev", limit: int = 50):
                 "enrichmentVersion": enrichment.get("profileVersion") or 1,
                 "enrichmentLikelihood": enrichment.get("likelihood"),
                 "linkedInEnriched": linked_in_enriched,
-                "matchScore": match.get("score"),
-                "matchBand": match.get("band", ""),
-                "matchJobId": match.get("jobId", ""),
-                "matchMatched": match.get("matched") or [],
-                "matchMissing": match.get("missing") or [],
-                "matchRequiredCount": match.get("requiredCount") or (match.get("components") or {}).get("required_count"),
+                "matchStatus": match_status,
+                "matchCalculated": match_calculated,
+                "matchScore": match.get("score") if match_calculated else None,
+                "matchBand": match.get("band", "") if match_calculated else "",
+                "matchFormula": match.get("formula", "") if match_calculated else "",
+                "matchReason": match.get("reason", "") if match_calculated else "",
+                "matchDecision": match.get("decision", "") if match_calculated else "",
+                "matchCalculatedAt": match.get("calculatedAt", "") if match_calculated else "",
+                "matchJobId": match.get("jobId", "") if match_calculated else "",
+                "matchMatched": (match.get("matched") or []) if match_calculated else [],
+                "matchMissing": (match.get("missing") or []) if match_calculated else [],
+                "matchComponents": (match.get("components") or {}) if match_calculated else {},
+                "matchRequiredCount": (
+                    match.get("requiredCount") or (match.get("components") or {}).get("required_count")
+                ) if match_calculated else 0,
+                "matchEvidenceSources": (match.get("evidenceSources") or []) if match_calculated else [],
+                "courtEvidenceCount": court_evidence.get("evidenceCount") or match.get("courtEvidenceCount") or 0,
             })
         return {"status": "success", "profiles": profiles}
     finally:
@@ -2045,6 +2060,58 @@ def applyTemporaryExternalProfileEnrichment(
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to enrich temporary profile: {e}")
+    finally:
+        conn.close()
+
+
+def saveTemporaryExternalProfileMatch(personId: str, domain: str, match: dict):
+    try:
+        person_id = int(personId)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid profile id.")
+
+    clean_match = match if isinstance(match, dict) else {}
+    conn = client.getConnection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            SELECT person.firstname, person.lastname, prof.id, prof.maindescription
+            FROM person
+            JOIN professional prof ON person.id = prof.personid
+            WHERE person.id = %s AND person.domain = %s
+            ORDER BY prof.modifieddate DESC NULLS LAST, prof.id DESC
+            LIMIT 1
+            """,
+            (person_id, domain),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Temporary profile not found in this environment.")
+        clean_description, metadata = splitExternalProfileDescription(row[3])
+        if "Temporary external profile" not in clean_description:
+            raise HTTPException(status_code=400, detail="Profile is already permanent.")
+        updated_description = attachExternalProfileMetadata(
+            clean_description,
+            {**metadata, "match": clean_match},
+        )
+        cur.execute(
+            "UPDATE professional SET maindescription = %s, modifieddate = NOW() WHERE id = %s",
+            (updated_description, row[2]),
+        )
+        conn.commit()
+        return {
+            "status": "success",
+            "personid": person_id,
+            "name": f"{row[0] or ''} {row[1] or ''}".strip() or "Temporary Profile",
+            "match": clean_match,
+        }
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to save temporary profile match: {exc}")
     finally:
         conn.close()
 

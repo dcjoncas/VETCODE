@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Saved Searches</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law", "dental"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        document.getElementById("domainCss").href = `../assets/${domain}Styles.css`;
+        document.documentElement.dataset.domain = domain;
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <style>
+      .library-head,
+      .library-actions,
+      .library-filters,
+      .search-actions,
+      .retention-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .library-head h2,
+      .library-head p {
+        margin: 0;
+      }
+
+      .retention-banner {
+        margin-top: 14px;
+        padding: 13px 14px;
+        border: 1px solid rgba(var(--primary-rgb), 0.32);
+        border-radius: 10px;
+        background: rgba(var(--primary-rgb), 0.07);
+      }
+
+      .retention-banner strong {
+        color: var(--primary-2);
+      }
+
+      .library-summary {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(150px, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .summary-card {
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface, #f7f8fa);
+      }
+
+      .summary-card span,
+      .summary-card strong {
+        display: block;
+      }
+
+      .summary-card span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 750;
+      }
+
+      .summary-card strong {
+        margin-top: 5px;
+        color: var(--primary-2);
+        font-size: 22px;
+      }
+
+      .library-filters {
+        justify-content: flex-start;
+        margin-top: 14px;
+      }
+
+      .library-filters input,
+      .library-filters select {
+        min-height: 40px;
+      }
+
+      .library-filters input {
+        flex: 1 1 320px;
+      }
+
+      .saved-search-table-wrap {
+        margin-top: 12px;
+        overflow-x: auto;
+      }
+
+      .saved-search-table {
+        width: 100%;
+        min-width: 1050px;
+        border-collapse: collapse;
+      }
+
+      .saved-search-table th,
+      .saved-search-table td {
+        padding: 10px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .saved-search-table th {
+        background: var(--primary-2);
+        color: #fff;
+      }
+
+      .query-name {
+        display: block;
+        max-width: 330px;
+        overflow-wrap: anywhere;
+      }
+
+      .query-meta {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .zero-credit-pill {
+        background: #eaf7ef;
+        border-color: #8ec7a3;
+        color: #146b37;
+      }
+
+      .load-older-row {
+        display: flex;
+        justify-content: center;
+        margin-top: 14px;
+      }
+
+      @media (max-width: 900px) {
+        .library-summary {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 560px) {
+        .library-summary {
+          grid-template-columns: 1fr;
+        }
+
+        .library-actions .btn {
+          flex: 1 1 100%;
+          justify-content: center;
+        }
+      }
+    </style>
+    <script>
+      $(function () {
+        $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow");
+        $("#processFlow").load("components/processFlow.html?v=20260819-workflow-guide");
+        $("#searchBar").load("components/searchBar.html");
+      });
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <div id="siteSidebar"></div>
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <div class="page-title" id="pageTitle">Saved Searches</div>
+            <div class="breadcrumb">Talent - Persistent outside-sourcing history</div>
+          </div>
+          <div id="searchBar"></div>
+        </div>
+
+        <div id="processFlow"></div>
+
+        <section class="card" aria-labelledby="savedSearchLibraryTitle">
+          <div class="library-head">
+            <div>
+              <h2 id="savedSearchLibraryTitle">Saved sourcing search library</h2>
+              <p class="muted">Return to every saved outside search in the current domain without paying to query the provider again.</p>
+            </div>
+            <div class="library-actions">
+              <button class="btn secondary" id="btnRefreshSearches" type="button">Refresh library</button>
+              <button class="btn secondary" id="btnExportRegister" type="button">Export search register</button>
+              <a class="btn primary" id="btnNewSearch" href="mine-candidate-external.html">Start a new outside search</a>
+            </div>
+          </div>
+
+          <div class="retention-banner">
+            <div>
+              <strong>Permanent VETCODE search history</strong>
+              <div class="muted">Completed queries and returned provider results are stored in the database. VETCODE does not automatically delete them, and this library has no delete action.</div>
+            </div>
+            <span class="pill zero-credit-pill">Reopen with 0 provider credits</span>
+          </div>
+
+          <div class="library-summary" aria-label="Saved search totals">
+            <div class="summary-card"><span>Saved queries</span><strong id="summarySearches">0</strong></div>
+            <div class="summary-card"><span>Returned records</span><strong id="summaryRecords">0</strong></div>
+            <div class="summary-card"><span>Provider calls avoided</span><strong id="summaryReuses">0</strong></div>
+            <div class="summary-card"><span>Current domain</span><strong id="summaryDomain">Dev</strong></div>
+          </div>
+
+          <div class="library-filters">
+            <input id="searchFilter" type="search" placeholder="Filter by query, JD, client, or source" aria-label="Filter saved searches" />
+            <select id="sourceFilter" aria-label="Filter saved searches by source">
+              <option value="">All sources</option>
+            </select>
+          </div>
+
+          <div id="savedSearchStatus" class="notice" style="margin-top: 12px" aria-live="polite">Loading saved searches...</div>
+
+          <div class="saved-search-table-wrap">
+            <table class="saved-search-table">
+              <thead>
+                <tr>
+                  <th>Saved query</th>
+                  <th>JD / client</th>
+                  <th>Source</th>
+                  <th>Results</th>
+                  <th>Created / reopened</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="savedSearchRows"></tbody>
+            </table>
+          </div>
+
+          <div class="load-older-row">
+            <button class="btn secondary" id="btnLoadOlder" type="button" hidden>Load older saved searches</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="JS/apiScripts.js"></script>
+    <script src="JS/updateProcessFlow.js?v=20260819-active-candidate"></script>
+    <script>
+      const PAGE_SIZE = 100;
+      let savedSearches = [];
+      let savedSearchTotal = 0;
+      let hasMoreSavedSearches = false;
+      let loadingSavedSearches = false;
+
+      function currentDomain() {
+        return sessionStorage.getItem("domain") || "dev";
+      }
+
+      function domainLabel(domain = currentDomain()) {
+        return { dev: "Technology", engineer: "Engineering", law: "Law", dental: "Dental" }[domain] || domain;
+      }
+
+      function sourceLabel(source) {
+        return {
+          pdl: "People Data Labs",
+          coresignal: "Coresignal",
+          courtlistener: "CourtListener / RECAP",
+          github: "GitHub Public API",
+        }[String(source || "").toLowerCase()] || String(source || "External");
+      }
+
+      function formattedDate(value) {
+        if (!value) return "Not recorded";
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+      }
+
+      function savedSearchId(search) {
+        return String(search?.rootId || search?.id || "").replace(/[^0-9]/g, "");
+      }
+
+      function updateSourceFilter() {
+        const select = document.getElementById("sourceFilter");
+        const selected = select.value;
+        const sources = [...new Set(savedSearches.map((search) => String(search.source || "")).filter(Boolean))]
+          .sort((left, right) => sourceLabel(left).localeCompare(sourceLabel(right)));
+        select.innerHTML = '<option value="">All sources</option>'
+          + sources.map((source) => `<option value="${escapeHtml(source)}">${escapeHtml(sourceLabel(source))}</option>`).join("");
+        if (sources.includes(selected)) select.value = selected;
+      }
+
+      function filteredSavedSearches() {
+        const term = document.getElementById("searchFilter").value.trim().toLowerCase();
+        const source = document.getElementById("sourceFilter").value;
+        return savedSearches.filter((search) => {
+          if (source && search.source !== source) return false;
+          if (!term) return true;
+          return [search.queryName, search.jdName, search.clientName, sourceLabel(search.source), search.queryMode]
+            .some((value) => String(value || "").toLowerCase().includes(term));
+        });
+      }
+
+      function renderSavedSearchLibrary() {
+        const filtered = filteredSavedSearches();
+        const recordTotal = savedSearches.reduce((total, search) => total + Number(search.recordCount || 0), 0);
+        const reuseTotal = savedSearches.reduce((total, search) => total + Number(search.reuseCount || 0), 0);
+        document.getElementById("summarySearches").textContent = Number(savedSearchTotal || savedSearches.length).toLocaleString();
+        document.getElementById("summaryRecords").textContent = recordTotal.toLocaleString();
+        document.getElementById("summaryReuses").textContent = reuseTotal.toLocaleString();
+        document.getElementById("summaryDomain").textContent = domainLabel();
+        document.getElementById("pageTitle").textContent = `${domainLabel()} Saved Searches`;
+        document.getElementById("btnNewSearch").href = `mine-candidate-external.html?domain=${encodeURIComponent(currentDomain())}`;
+        document.getElementById("btnLoadOlder").hidden = !hasMoreSavedSearches;
+        document.getElementById("savedSearchStatus").textContent = savedSearches.length
+          ? `Showing ${filtered.length.toLocaleString()} of ${savedSearchTotal.toLocaleString()} saved ${domainLabel()} quer${savedSearchTotal === 1 ? "y" : "ies"}. Opening one uses the stored results and 0 provider credits.`
+          : `No saved searches have been created in the ${domainLabel()} domain yet.`;
+        document.getElementById("savedSearchRows").innerHTML = filtered.map((search) => {
+          const id = savedSearchId(search);
+          const records = Number(search.recordCount || 0);
+          const pages = Number(search.pageCount || 1);
+          const reuses = Number(search.reuseCount || 0);
+          const openUrl = `mine-candidate-external.html?domain=${encodeURIComponent(currentDomain())}&savedSearchId=${encodeURIComponent(id)}`;
+          const exportUrl = `${API_BASE}/api/azureJobs/external/search-history/${encodeURIComponent(id)}/export?domain=${encodeURIComponent(currentDomain())}`;
+          return `<tr>
+            <td><strong class="query-name">${escapeHtml(search.queryName || "Not_Found_Not_Found_QRY")}</strong><span class="query-meta">${escapeHtml(search.queryMode || "saved query")} · ${pages} saved page${pages === 1 ? "" : "s"}</span></td>
+            <td><strong>${escapeHtml(search.jdName || "Not Found")}</strong><span class="query-meta">Client: ${escapeHtml(search.clientName || "Not Found")}${search.jdId ? ` · JD ${escapeHtml(search.jdId)}` : ""}</span></td>
+            <td>${escapeHtml(sourceLabel(search.source))}</td>
+            <td><strong>${records.toLocaleString()}</strong><span class="query-meta">stored result${records === 1 ? "" : "s"}</span></td>
+            <td>${escapeHtml(formattedDate(search.createdAt))}<span class="query-meta">Last opened: ${escapeHtml(formattedDate(search.lastOpenedAt))} · ${reuses} provider call${reuses === 1 ? "" : "s"} avoided</span></td>
+            <td><div class="search-actions"><a class="btn primary" href="${escapeHtml(openUrl)}">Open saved results</a><a class="btn secondary" href="${escapeHtml(exportUrl)}" download>Export ranked Excel</a></div></td>
+          </tr>`;
+        }).join("");
+      }
+
+      async function loadSavedSearches({ reset = false } = {}) {
+        if (loadingSavedSearches) return;
+        loadingSavedSearches = true;
+        const button = document.getElementById("btnLoadOlder");
+        button.disabled = true;
+        try {
+          if (reset) savedSearches = [];
+          const offset = reset ? 0 : savedSearches.length;
+          const response = await api(`/api/azureJobs/external/search-history?domain=${encodeURIComponent(currentDomain())}&limit=${PAGE_SIZE}&offset=${offset}`);
+          const incoming = Array.isArray(response.searches) ? response.searches : [];
+          const known = new Set(savedSearches.map(savedSearchId));
+          savedSearches.push(...incoming.filter((search) => !known.has(savedSearchId(search))));
+          savedSearchTotal = Number(response.total ?? savedSearches.length);
+          hasMoreSavedSearches = response.hasMore === true;
+          updateSourceFilter();
+          renderSavedSearchLibrary();
+          return true;
+        } catch (error) {
+          document.getElementById("savedSearchStatus").textContent = `Saved-search library unavailable: ${error.message || error}`;
+          return false;
+        } finally {
+          loadingSavedSearches = false;
+          button.disabled = false;
+        }
+      }
+
+      function csvCell(value) {
+        let text = String(value ?? "");
+        if (/^[=+\-@]/.test(text)) text = `'${text}`;
+        return `"${text.replace(/"/g, '""')}"`;
+      }
+
+      async function exportSearchRegister() {
+        const button = document.getElementById("btnExportRegister");
+        button.disabled = true;
+        button.textContent = "Preparing register...";
+        try {
+          while (hasMoreSavedSearches) {
+            if (!await loadSavedSearches()) throw new Error("The complete saved-search register could not be loaded.");
+          }
+          if (!savedSearches.length) return alert("There are no saved searches to export.");
+          const headers = ["Query Name", "Domain", "JD", "JD ID", "Client", "Source", "Query Mode", "Records", "Pages", "Created", "Last Opened", "Provider Calls Avoided"];
+          const rows = savedSearches.map((search) => [search.queryName, domainLabel(search.domain), search.jdName || "Not Found", search.jdId, search.clientName || "Not Found", sourceLabel(search.source), search.queryMode, search.recordCount, search.pageCount, search.createdAt, search.lastOpenedAt, search.reuseCount]);
+          const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+          const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `${currentDomain()}-saved-search-register.csv`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(url);
+          document.getElementById("savedSearchStatus").textContent = `Exported the complete ${savedSearches.length}-query register. Individual ranked Excel reports remain available in each row.`;
+        } catch (error) {
+          alert(error.message || error);
+        } finally {
+          button.disabled = false;
+          button.textContent = "Export search register";
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("btnRefreshSearches").addEventListener("click", () => loadSavedSearches({ reset: true }));
+        document.getElementById("btnLoadOlder").addEventListener("click", () => loadSavedSearches());
+        document.getElementById("btnExportRegister").addEventListener("click", exportSearchRegister);
+        document.getElementById("searchFilter").addEventListener("input", renderSavedSearchLibrary);
+        document.getElementById("sourceFilter").addEventListener("change", renderSavedSearchLibrary);
+        loadSavedSearches({ reset: true });
+      });
+    </script>
+  </body>
+</html>

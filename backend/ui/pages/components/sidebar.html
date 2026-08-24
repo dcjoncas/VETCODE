@@ -676,7 +676,10 @@
     const allowed = new Set(user.allowed_menu || []);
     domainHiddenKeys.forEach((key) => allowed.delete(key));
     allowed.add("channels");
-    if (allowed.has("find_out")) allowed.add("temp_profiles");
+    if (allowed.has("find_out")) {
+      allowed.add("saved_searches");
+      allowed.add("temp_profiles");
+    }
     if (isAdministrator) {
       allowed.add("admin");
       allowed.add("agents");

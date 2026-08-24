@@ -380,6 +380,34 @@
         margin-top: 4px;
       }
 
+      .saved-search-panel {
+        display: grid;
+        grid-template-columns: minmax(260px, 1fr) auto;
+        gap: 12px;
+        align-items: end;
+        margin: 12px 0;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface, #f7f8fa);
+      }
+
+      .saved-search-panel h3,
+      .saved-search-panel p {
+        margin: 0;
+      }
+
+      .saved-search-panel select {
+        width: 100%;
+        margin-top: 8px;
+      }
+
+      .saved-search-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
       .result-pager {
         display: flex;
         align-items: center;
@@ -451,6 +479,16 @@
         border-radius: 999px;
         padding: 4px 8px;
         font-size: 12px;
+      }
+
+      .candidate-card .enriched-match-pill {
+        background: #eef7e8;
+        border-color: #9bc67d;
+        color: #285f13;
+      }
+
+      .candidate-card .match-explanation {
+        color: var(--text);
       }
 
       @media (max-width: 760px) {
@@ -536,12 +574,68 @@
           justify-content: center;
         }
 
+        .saved-search-panel {
+          grid-template-columns: 1fr;
+        }
+
+        .saved-search-actions .btn {
+          flex: 1 1 100%;
+          justify-content: center;
+        }
+
       }
 
       @media (prefers-reduced-motion: reduce) {
         .workflow-prerequisite-focus {
           animation: none;
         }
+      }
+
+      .candidate-name-line {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .match-dialog {
+        width: min(760px, calc(100vw - 32px));
+        max-height: calc(100vh - 48px);
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        box-shadow: 0 20px 70px rgb(0 0 0 / 28%);
+      }
+
+      .match-dialog::backdrop { background: rgb(14 23 38 / 55%); }
+      .match-dialog-head, .match-dialog-body, .match-dialog-footer { padding: 16px 18px; }
+      .match-dialog-head, .match-dialog-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .match-dialog-head { border-bottom: 1px solid var(--border); }
+      .match-dialog-head h3 { margin: 0; }
+      .match-dialog-body { overflow: auto; }
+      .match-score-summary, .match-stat-grid { display: grid; gap: 10px; }
+      .match-score-summary {
+        grid-template-columns: minmax(110px, auto) 1fr;
+        align-items: center;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface, #f7f8fa);
+      }
+      .match-score-number { font-size: 2rem; font-weight: 800; }
+      .match-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 14px; }
+      .match-stat-card { padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+      .match-stat-card h4 { margin: 0 0 8px; }
+      .match-stat-card ul { margin: 0; padding-left: 20px; }
+      .match-component-list { margin-top: 14px; }
+
+      @media (max-width: 620px) {
+        .match-stat-grid, .match-score-summary { grid-template-columns: 1fr; }
       }
     </style>
     <script>
@@ -575,6 +669,22 @@
             Search directly by name, email, profile URL, or skills. You can also choose
             an existing job description when you want MineEx ranked to a role.
           </p>
+
+          <section class="saved-search-panel" aria-labelledby="savedSearchTitle">
+            <div>
+              <h3 id="savedSearchTitle">Saved sourcing searches</h3>
+              <p class="muted">Reopen saved results without contacting the provider or using another search credit.</p>
+              <select id="savedSearchSelect" aria-label="Saved sourcing searches">
+                <option value="">No saved searches loaded</option>
+              </select>
+              <small id="activeSavedSearchName">Every completed query is saved as JD_Client_Date_QRY.</small>
+            </div>
+            <div class="saved-search-actions">
+              <a class="btn secondary" href="saved-searches.html">View full library</a>
+              <button class="btn secondary" id="btnOpenSavedSearch" type="button" disabled>Open saved results</button>
+              <a class="btn secondary" id="btnExportSearchReport" aria-disabled="true">Export ranked report</a>
+            </div>
+          </section>
 
           <div class="field">
             <label>Search external candidates</label>
@@ -611,7 +721,7 @@
             <div class="criteria-head">
               <div>
                 <h3 id="lawCriteriaTitle">Lawyer search criteria</h3>
-                <p class="muted">Review the JD-derived filters before using a paid PDL search.</p>
+                <p class="muted">Review the JD-derived filters before searching professional profiles or court records.</p>
               </div>
               <span class="pill">JD-derived</span>
             </div>
@@ -632,8 +742,11 @@
                 <label for="lawMinYears">Minimum years</label>
                 <input id="lawMinYears" type="number" min="0" max="60" step="1" value="3" />
               </div>
+              <div class="field">
+                <label for="lawRegion">Target licensing jurisdiction</label>
+                <input id="lawRegion" value="California" placeholder="California, New York, Texas" />
+              </div>
             </div>
-            <input id="lawRegion" type="hidden" value="California" />
             <label class="criteria-toggle" for="lawStrictLocations">
               <input id="lawStrictLocations" type="checkbox" checked />
               <span id="lawStrictLocationsHelp">Require the current profile location to match a target city. Uncheck to broaden to the target jurisdiction.</span>
@@ -654,7 +767,7 @@
             <label>Pick place to mine</label>
             <div class="source-guide" id="sourceGuide">
               Select a configured professional source, then search outside sources. After results return,
-              choose up to five candidates to enrich, rematch, and build as TEMP profiles for the normal shortlist flow.
+              choose up to five candidates to enrich and build as TEMP profiles. Calculate a JD match separately when the saved professional evidence is ready.
             </div>
             <div class="source-toggle">
               <button class="btn active" type="button" data-source="pdl" aria-pressed="true">
@@ -703,6 +816,7 @@
             <a class="btn secondary" href="temp-profiles.html" id="btnViewTempProfiles">
               Open TEMP Profiles
             </a>
+            <a class="btn secondary" id="btnExportCurrentReport" aria-disabled="true">Export current report</a>
             <a class="btn secondary process-next-action" id="btnContinueRoleMatch" data-process-next-action data-enabled-href="match-role.html" href="match-role.html">Continue to Role & Match</a>
           </div>
 
@@ -747,6 +861,21 @@
           </section>
 
         </section>
+
+        <dialog id="candidateMatchDialog" class="match-dialog" aria-labelledby="candidateMatchTitle">
+          <div class="match-dialog-head">
+            <div>
+              <h3 id="candidateMatchTitle">JD match statistics</h3>
+              <div id="candidateMatchSubtitle" class="muted"></div>
+            </div>
+            <button class="btn secondary" type="button" onclick="closeCandidateMatchStats()">Close</button>
+          </div>
+          <div id="candidateMatchBody" class="match-dialog-body"></div>
+          <div class="match-dialog-footer">
+            <span class="muted">Saved with the TEMP profile. No provider credits are used.</span>
+            <button class="btn primary" type="button" onclick="closeCandidateMatchStats()">Done</button>
+          </div>
+        </dialog>
       </main>
     </div>
 
@@ -767,6 +896,8 @@
       let externalSearchCompleted = false;
       let externalSearchRunning = false;
       let externalImportRunning = false;
+      let savedExternalSearches = [];
+      let activeSavedSearch = null;
 
       function currentDomain() {
         return sessionStorage.getItem("domain") || "dev";
@@ -778,6 +909,96 @@
 
       function isDentalDomain() {
         return currentDomain() === "dental";
+      }
+
+      function attachedAtlasClientName() {
+        return window.DevReadyAtlasClient?.getAttachedClient(currentDomain())?.name || "";
+      }
+
+      function setActiveSavedSearch(savedSearch) {
+        activeSavedSearch = savedSearch && (savedSearch.rootId || savedSearch.id) ? savedSearch : null;
+        const searchId = activeSavedSearch ? String(activeSavedSearch.rootId || activeSavedSearch.id) : "";
+        const queryName = activeSavedSearch?.queryName || "";
+        const exportUrl = searchId
+          ? `/api/azureJobs/external/search-history/${encodeURIComponent(searchId)}/export?domain=${encodeURIComponent(currentDomain())}`
+          : "";
+        [document.getElementById("btnExportSearchReport"), document.getElementById("btnExportCurrentReport")]
+          .filter(Boolean)
+          .forEach((link) => {
+            if (exportUrl) {
+              link.href = exportUrl;
+              link.removeAttribute("aria-disabled");
+            } else {
+              link.removeAttribute("href");
+              link.setAttribute("aria-disabled", "true");
+            }
+          });
+        const label = document.getElementById("activeSavedSearchName");
+        if (label) {
+          label.textContent = queryName
+            ? `Current saved query: ${queryName}${activeSavedSearch.cacheHit ? " - reopened with 0 provider credits" : ""}`
+            : "Every completed query is saved as JD_Client_Date_QRY; missing parts use Not_Found.";
+        }
+      }
+
+      function renderSavedSearches() {
+        const select = document.getElementById("savedSearchSelect");
+        const openButton = document.getElementById("btnOpenSavedSearch");
+        if (!select || !openButton) return;
+        const selectedId = String(activeSavedSearch?.rootId || activeSavedSearch?.id || select.value || "");
+        select.innerHTML = savedExternalSearches.length
+          ? `<option value="">Choose a saved search</option>${savedExternalSearches.map((search) => {
+              const source = sourceDisplayName(search.source);
+              const records = Number(search.recordCount || 0);
+              return `<option value="${escapeHtml(search.rootId || search.id)}">${escapeHtml(search.queryName)} - ${escapeHtml(source)} - ${records} result${records === 1 ? "" : "s"}</option>`;
+            }).join("")}`
+          : `<option value="">No saved searches yet</option>`;
+        if (selectedId && savedExternalSearches.some((search) => String(search.rootId || search.id) === selectedId)) {
+          select.value = selectedId;
+        }
+        openButton.disabled = !select.value;
+      }
+
+      async function loadSavedSearchHistory() {
+        const response = await api(
+          `/api/azureJobs/external/search-history?domain=${encodeURIComponent(currentDomain())}&limit=100`,
+        );
+        savedExternalSearches = Array.isArray(response.searches) ? response.searches : [];
+        renderSavedSearches();
+      }
+
+      async function openSavedSearch() {
+        const searchId = document.getElementById("savedSearchSelect")?.value || "";
+        if (!searchId) return;
+        document.getElementById("mineStatus").textContent = "Opening saved results without contacting the provider...";
+        try {
+          const response = await api(
+            `/api/azureJobs/external/search-history/${encodeURIComponent(searchId)}?domain=${encodeURIComponent(currentDomain())}`,
+          );
+          latestExternalResults = rankExternalResults(response.results || []);
+          externalSearchCompleted = true;
+          resetExternalPagination();
+          latestExternalResults = rankExternalResults(response.results || []);
+          cumulativeSourceAudit = { ...(response.sourceAudit || {}) };
+          setActiveSavedSearch(response.savedSearch || {});
+          if (response.source) setSource(response.source);
+          if (response.jd?.jd_id) {
+            rememberJob(String(response.jd.jd_id), response.jd);
+            externalJobPicker?.setSelection(String(response.jd.jd_id), response.jd, { dispatch: false });
+          }
+          renderSourceAudit(cumulativeSourceAudit);
+          renderResults(latestExternalResults);
+          renderResultPager();
+          document.getElementById("jobSkillPanel").textContent = response.searchUsesJobDescription
+            ? `Saved JD search skills: ${(response.searchSkills || response.jobSkills || []).join(", ")}`
+            : `Saved direct search: ${response.savedQuery?.directQuery || (response.searchSkills || []).join(", ")}`;
+          document.getElementById("mineStatus").textContent =
+            `Loaded ${latestExternalResults.length} saved result${latestExternalResults.length === 1 ? "" : "s"} from ${response.savedSearch?.queryName || "the saved query"}. The provider was not contacted and 0 search credits were used.`;
+        } catch (error) {
+          document.getElementById("mineStatus").textContent = `Saved search could not be opened: ${error.message || error}`;
+        } finally {
+          updateWorkflowGuidance();
+        }
       }
 
       const LAWYER_LICENSING_DIRECTORY_URL =
@@ -820,7 +1041,7 @@
         document.getElementById("pageIntro").textContent =
           `Search professional and public sources from a saved legal JD, then verify every selected attorney with the official ${target.jurisdiction} lawyer-licensing authority.`;
         document.getElementById("sourceGuide").textContent =
-          `Choose a configured discovery source, then select up to five candidates for profile enrichment and rematching. ${target.jurisdiction} license and standing verification remains required before permanent use or outreach.`;
+          `Choose a configured discovery source, then select up to five candidates for profile enrichment and TEMP-profile creation. Calculate each JD match separately when ready. ${target.jurisdiction} license and standing verification remains required before permanent use or outreach.`;
       }
 
       function configureDomainPage() {
@@ -854,7 +1075,7 @@
         document.getElementById("githubSourceButton").hidden = true;
         document.getElementById("courtListenerSourceButton").hidden = false;
         document.getElementById("sourceGuide").textContent =
-          "Choose a configured discovery source, then select up to five candidates for profile enrichment and rematching. License and standing verification remains required before permanent use or outreach.";
+          "Choose a configured discovery source, then select up to five candidates for profile enrichment and TEMP-profile creation. Calculate each JD match separately when ready. License and standing verification remains required before permanent use or outreach.";
         document.getElementById("resultsLimitHelp").textContent =
           "Provider usage is shown before each additional page is requested.";
         setLawCriteria({
@@ -996,12 +1217,142 @@
 
       function markCandidateDevReadyProfile(candidate, response) {
         if (!candidate || !response?.personid) return candidate;
+        const match = response.match || response.externalProfile?.match || {};
+        const enrichment = response.enrichment || response.externalProfile?.enrichment || {};
+        const matchCalculated = match.status === "calculated";
+        const professionalEnrichmentComplete = enrichment.status === "completed"
+          || Number(enrichment.profileVersion || 0) >= 2
+          || candidate.professional_enrichment_complete === true;
+        const score = match.score === null || match.score === "" || match.score === undefined
+          ? Number.NaN
+          : Number(match.score);
+        const matched = matchCalculated && Array.isArray(match.matched) ? match.matched : candidate.top_matches;
+        const missing = matchCalculated && Array.isArray(match.missing) ? match.missing : candidate.score_details?.missing;
         return {
           ...candidate,
+          score: matchCalculated && Number.isFinite(score) ? score : candidate.score,
+          match_band: matchCalculated ? (match.band || candidate.match_band) : candidate.match_band,
+          top_matches: matched || [],
+          score_details: {
+            ...(candidate.score_details || {}),
+            band: matchCalculated ? (match.band || candidate.score_details?.band) : candidate.score_details?.band,
+            formula: matchCalculated ? (match.formula || candidate.score_details?.formula) : candidate.score_details?.formula,
+            missing: missing || [],
+            matched_count: matchCalculated ? (match.matchedCount ?? candidate.score_details?.matched_count) : candidate.score_details?.matched_count,
+            required_count: matchCalculated ? (match.requiredCount ?? candidate.score_details?.required_count) : candidate.score_details?.required_count,
+            components: matchCalculated ? (match.components || {}) : (candidate.score_details?.components || {}),
+          },
+          enriched_match_complete: matchCalculated,
+          professional_enrichment_complete: professionalEnrichmentComplete,
+          match_pending: professionalEnrichmentComplete && !matchCalculated,
+          saved_match: matchCalculated ? match : candidate.saved_match,
+          enrichment_provider: enrichment.provider || candidate.enrichment_provider || "",
           devready_profile_id: String(response.personid),
           devready_profile_complete: true,
           devready_profile_reused: response.duplicate === true,
         };
+      }
+
+      function readableMatchComponent(value) {
+        return String(value || "")
+          .replace(/([a-z])([A-Z])/g, "$1 $2")
+          .replace(/[_-]+/g, " ")
+          .replace(/^./, (letter) => letter.toUpperCase());
+      }
+
+      function candidateMatchList(items, emptyText) {
+        const values = Array.isArray(items) ? items.filter(Boolean) : [];
+        return values.length
+          ? `<ul>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>`
+          : `<div class="muted">${escapeHtml(emptyText)}</div>`;
+      }
+
+      function selectedJobLabel() {
+        const select = document.getElementById("jdSelect");
+        return select?.selectedOptions?.[0]?.textContent?.trim() || selectedWorkflowJobId();
+      }
+
+      function showCandidateMatchStats(index) {
+        const candidate = latestExternalResults[index];
+        const match = candidate?.saved_match && typeof candidate.saved_match === "object"
+          ? candidate.saved_match
+          : {};
+        if (!candidate || match.status !== "calculated" || String(match.jobId || "") !== String(selectedWorkflowJobId())) {
+          return alert("Calculate this TEMP profile's match to the selected JD before viewing statistics.");
+        }
+        const components = match.components && typeof match.components === "object"
+          ? Object.entries(match.components)
+          : [];
+        const calculatedAt = match.calculatedAt ? new Date(match.calculatedAt).toLocaleString() : "Saved time unavailable";
+        const sources = Array.isArray(match.evidenceSources) ? match.evidenceSources.filter(Boolean) : [];
+        document.getElementById("candidateMatchTitle").textContent = `${candidate.name || "Candidate"} — JD match`;
+        document.getElementById("candidateMatchSubtitle").textContent = `${match.jobTitle || selectedJobLabel()} · calculated ${calculatedAt}`;
+        document.getElementById("candidateMatchBody").innerHTML = `
+          <div class="match-score-summary">
+            <div class="match-score-number">${Number.isFinite(Number(match.score)) ? `${Math.round(Number(match.score))}%` : "Review"}</div>
+            <div><strong>${escapeHtml(match.band || match.decision || "Saved match")}</strong><div style="margin-top:5px">${escapeHtml(match.reason || "The score is based only on evidence saved in the enriched TEMP profile.")}</div></div>
+          </div>
+          <div class="match-stat-grid">
+            <section class="match-stat-card"><h4>What matched</h4>${candidateMatchList(match.matched, "No JD signals were confirmed in the stored evidence.")}</section>
+            <section class="match-stat-card"><h4>What is missing</h4>${candidateMatchList(match.missing, "No missing JD signals were recorded.")}</section>
+          </div>
+          ${components.length ? `<section class="match-stat-card match-component-list"><h4>Score components</h4><ul>${components.map(([name, points]) => `<li>${escapeHtml(readableMatchComponent(name))}: <strong>${escapeHtml(String(points))} points</strong></li>`).join("")}</ul></section>` : ""}
+          <section class="match-stat-card match-component-list"><h4>How this was calculated</h4><div>${escapeHtml(match.formula || "Weighted matched JD signals divided by weighted searchable JD signals.")}</div><div class="muted" style="margin-top:7px">Evidence sources: ${escapeHtml(sources.join(", ") || "Stored TEMP professional profile")}. No provider credits were used, and LinkedIn was not scraped.</div></section>`;
+        document.getElementById("candidateMatchDialog").showModal();
+      }
+
+      function closeCandidateMatchStats() {
+        const dialog = document.getElementById("candidateMatchDialog");
+        if (dialog?.open) dialog.close();
+      }
+
+      async function calculateCandidateMatch(index) {
+        const candidate = latestExternalResults[index];
+        const jdId = selectedWorkflowJobId();
+        if (!candidate?.devready_profile_id) return alert("Create the DevReady TEMP profile first.");
+        if (!candidate.professional_enrichment_complete) return alert("Complete professional enrichment before calculating the JD match.");
+        if (!jdId) return alert("Choose a job description before calculating the match.");
+        const candidateKey = candidateResultKey(candidate);
+        const status = document.getElementById("mineStatus");
+        status.textContent = `Calculating ${candidate.name || "candidate"}'s match to ${selectedJobLabel()} from saved evidence...`;
+        try {
+          const response = await api(`/api/azureJobs/external/temp/${encodeURIComponent(candidate.devready_profile_id)}/calculate-match`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ domain: currentDomain(), jd_id: jdId, criteria: currentLawCriteria() }),
+          });
+          latestExternalResults[index] = markCandidateDevReadyProfile(candidate, response);
+          latestExternalResults = rankExternalResults(latestExternalResults);
+          const rankedIndex = latestExternalResults.findIndex((item) => candidateResultKey(item) === candidateKey);
+          renderResults(latestExternalResults);
+          status.textContent = `${candidate.name || "Candidate"}'s JD match was calculated and saved. No provider credits were used.`;
+          if (rankedIndex >= 0) showCandidateMatchStats(rankedIndex);
+        } catch (error) {
+          status.textContent = error.message || String(error);
+          alert(error.message || error);
+        }
+      }
+
+      function rankExternalResults(results = []) {
+        return results
+          .map((candidate, originalIndex) => ({ candidate, originalIndex }))
+          .sort((left, right) => {
+            const leftScore = left.candidate.score === null || left.candidate.score === "" || left.candidate.score === undefined
+              ? Number.NaN
+              : Number(left.candidate.score);
+            const rightScore = right.candidate.score === null || right.candidate.score === "" || right.candidate.score === undefined
+              ? Number.NaN
+              : Number(right.candidate.score);
+            const safeLeftScore = Number.isFinite(leftScore) ? leftScore : -1;
+            const safeRightScore = Number.isFinite(rightScore) ? rightScore : -1;
+            if (safeLeftScore !== safeRightScore) return safeRightScore - safeLeftScore;
+
+            const leftEnriched = left.candidate.enriched_match_complete === true ? 1 : 0;
+            const rightEnriched = right.candidate.enriched_match_complete === true ? 1 : 0;
+            if (leftEnriched !== rightEnriched) return rightEnriched - leftEnriched;
+            return left.originalIndex - right.originalIndex;
+          })
+          .map(({ candidate }) => candidate);
       }
 
       function selectedWorkflowJobId() {
@@ -1408,19 +1759,27 @@
             method: "POST",
             body: buildNextPageForm(),
           });
+          setActiveSavedSearch(response.savedSearch || activeSavedSearch || {});
           const pageResults = response.results || [];
-          const startIndex = latestExternalResults.length;
+          const preservedCandidateKeys = selectedCandidateKeys();
+          const firstAddedKey = candidateResultKey(pageResults[0]);
           latestExternalResults.push(...pageResults);
+          latestExternalResults = rankExternalResults(latestExternalResults);
           const returnedToken = response.pagination?.nextScrollToken || "";
           nextExternalScrollToken = returnedToken === usedToken && !pageResults.length ? "" : returnedToken;
           cumulativeSourceAudit = mergeSourceAudit(cumulativeSourceAudit, response.sourceAudit || {});
           renderSourceAudit(cumulativeSourceAudit);
-          renderResults(pageResults, { append: true, startIndex });
-          document.getElementById("mineStatus").textContent = pageResults.length
-            ? `Showing ${latestExternalResults.length.toLocaleString()} results. ${Number(cumulativeSourceAudit.recordsReturned || 0).toLocaleString()} ${providerName} records retrieved so far.`
-            : `${providerName} returned no additional results for this search.`;
+          renderResults(latestExternalResults, { preservedCandidateKeys });
+          document.getElementById("mineStatus").textContent = response.savedSearch?.cacheHit
+            ? `Loaded ${pageResults.length} saved next-page result${pageResults.length === 1 ? "" : "s"}. ${providerName} was not contacted and 0 search credits were used.`
+            : pageResults.length
+              ? `Showing ${latestExternalResults.length.toLocaleString()} results. ${Number(cumulativeSourceAudit.recordsReturned || 0).toLocaleString()} ${providerName} records retrieved so far.`
+              : `${providerName} returned no additional results for this search.`;
           if (pageResults.length) {
-            document.getElementById(`candidate-card-${startIndex}`)?.scrollIntoView({
+            const firstAddedIndex = latestExternalResults.findIndex(
+              (candidate) => candidateResultKey(candidate) === firstAddedKey,
+            );
+            document.getElementById(`candidate-card-${Math.max(firstAddedIndex, 0)}`)?.scrollIntoView({
               behavior: "smooth",
               block: "start",
             });
@@ -1473,7 +1832,7 @@
         const guides = {
           pdl: "Professional discovery using PDL record credits. Returned profiles still require identity and target-jurisdiction license verification.",
           coresignal: "Professional-profile comparison using one Coresignal search credit per preview page. No LinkedIn scraping is performed by VETCODE.",
-          courtlistener: "JD-driven lawyer discovery across matching RECAP dockets. Select up to five named lawyer leads to create identity-unverified TEMP research profiles; verify identity, current role, experience, location, and target-jurisdiction license status before outreach.",
+          courtlistener: "JD-driven lawyer discovery across matching RECAP dockets. Add a matching licensed professional profile to build a combined TEMP profile, then calculate its JD match separately. Unmatched court leads remain identity-unverified research records.",
           github: "Public code-footprint discovery for technical candidates.",
         };
         if (isDentalDomain()) {
@@ -1528,6 +1887,7 @@
             document.getElementById("jdSelect").appendChild(option);
             document.getElementById("jdSelect").value = savedJdId;
           }
+          loadSavedSearchHistory().catch(() => {});
           rememberJob(savedJdId, jd);
           await loadLawCriteria(savedJdId);
           document.getElementById("mineStatus").textContent =
@@ -1551,7 +1911,14 @@
           const response = await api("/api/azureJobs/external/legal-evidence", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ domain: currentDomain(), name: candidate.name, size: 3 }),
+            body: JSON.stringify({
+              domain: currentDomain(),
+              name: candidate.name,
+              size: 3,
+              jd_id: document.getElementById("jdSelect").value || "",
+              criteria: currentLawCriteria(),
+              candidate,
+            }),
           });
           const results = response.results || [];
           const items = results.map((item) => `
@@ -1563,15 +1930,30 @@
               ${item.url ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">Open CourtListener record</a>` : ""}
             </div>`,
           ).join("");
-          panel.innerHTML = `
+          const evidenceHtml = `
             <strong>Court evidence review</strong>
             <div class="verification-note">${escapeHtml(response.notice || "Identity and role require manual verification.")}</div>
+            ${response.includedInCandidateProfile ? '<div class="meta"><strong>Saved with candidate:</strong> Court evidence will follow this candidate into the TEMP profile and combined evidence review.</div>' : ""}
             ${items || '<div class="muted">No matching CourtListener or RECAP records were returned.</div>'}
           `;
+          if (response.candidate) {
+            const preservedCandidateKeys = selectedCandidateKeys();
+            latestExternalResults[index] = response.candidate;
+            renderResults(latestExternalResults, { preservedCandidateKeys });
+          }
+          const updatedPanel = document.getElementById(`legal-evidence-${index}`);
+          if (updatedPanel) {
+            updatedPanel.hidden = false;
+            updatedPanel.innerHTML = evidenceHtml;
+          }
+          document.getElementById("mineStatus").textContent = results.length
+            ? `Added ${results.length} CourtListener / RECAP record${results.length === 1 ? "" : "s"} to ${candidate.name}'s combined evidence profile. Court-record identity still requires review.`
+            : `No matching CourtListener / RECAP records were returned for ${candidate.name}.`;
         } catch (error) {
           panel.innerHTML = `<div class="verification-note">Court evidence check failed: ${escapeHtml(error.message || error)}</div>`;
         } finally {
-          button.disabled = externalProviderStatus.courtlistener?.ready === false;
+          const updatedButton = document.querySelector(`[data-evidence-index="${index}"]`);
+          if (updatedButton) updatedButton.disabled = externalProviderStatus.courtlistener?.ready === false;
         }
       }
 
@@ -1639,15 +2021,21 @@
               candidate,
             }),
           });
-          latestExternalResults[index] = response.candidate || candidate;
+          const updatedCandidate = response.candidate || candidate;
+          const updatedCandidateKey = candidateResultKey(updatedCandidate);
+          latestExternalResults[index] = updatedCandidate;
+          latestExternalResults = rankExternalResults(latestExternalResults);
+          const rankedIndex = latestExternalResults.findIndex(
+            (result) => candidateResultKey(result) === updatedCandidateKey,
+          );
           renderResults(latestExternalResults);
-          const validation = latestExternalResults[index].profile_validation || {};
+          const validation = updatedCandidate.profile_validation || {};
           document.getElementById("mineStatus").textContent = validation.status === "confirmed_profile_match"
-            ? `Added the likely professional profile data for ${candidate.name}. Fit score remains 0 until the profile, Bar standing, and JD requirements are reviewed.`
+            ? `Added professional data to the CourtListener research lead for ${candidate.name}. Create the TEMP profile, then deliberately calculate and save its JD match. Verify court-record identity and ${currentLawCriteria().region || "target-jurisdiction"} license standing before outreach.`
             : validation.status === "no_match"
               ? `No exact LinkedIn-linked PDL profile met the validation threshold for ${candidate.name}. You can still save the court evidence as an identity-unverified TEMP research profile.`
               : `A possible professional profile was returned for ${candidate.name}, but it needs manual identity review. No provider fields were merged.`;
-          document.getElementById(`candidate-card-${index}`)?.scrollIntoView({
+          document.getElementById(`candidate-card-${Math.max(rankedIndex, 0)}`)?.scrollIntoView({
             behavior: "smooth",
             block: "start",
           });
@@ -1665,13 +2053,16 @@
         }
 
         const startIndex = Number(options.startIndex || 0);
-        const preservedCandidateKeys = options.preserveSelection ? selectedCandidateKeys() : new Set();
+        const preservedCandidateKeys = options.preservedCandidateKeys
+          || (options.preserveSelection ? selectedCandidateKeys() : new Set());
         const html = results
           .map((candidate, index) => {
             const globalIndex = startIndex + index;
             const isCourtRecord = candidate.result_type === "court_record_evidence";
             const isCourtAttorneyLead = candidate.result_type === "court_attorney_lead";
-            const isCourtResearch = isCourtRecord || isCourtAttorneyLead;
+            const courtProfileConfirmed = isCourtAttorneyLead
+              && candidate.profile_validation?.status === "confirmed_profile_match";
+            const isCourtResearch = isCourtRecord || (isCourtAttorneyLead && !courtProfileConfirmed);
             const devReadyProfileId = String(candidate.devready_profile_id || "");
             const hasDevReadyProfile = Boolean(devReadyProfileId && candidate.devready_profile_complete);
             const devReadyProfileUrl = hasDevReadyProfile
@@ -1701,14 +2092,14 @@
             const profileValidationStatus = candidate.profile_validation?.status || "";
             const profileValidationComplete = ["confirmed_profile_match", "needs_review", "no_match"].includes(profileValidationStatus);
             const profileValidationLabels = {
-              confirmed_profile_match: "Profile match added",
+              confirmed_profile_match: "Professional data added",
               needs_review: "Possible match needs review",
               no_match: "No exact profile found",
             };
             const pdlReady = externalProviderStatus.pdl?.ready === true;
             const profileValidationButton = isCourtAttorneyLead
               ? `<button class="btn secondary" type="button" data-profile-validation-index="${globalIndex}" onclick="validateCourtLeadProfile(${globalIndex})" ${profileValidationComplete || !pdlReady ? "disabled" : ""}>
-                  ${profileValidationLabels[profileValidationStatus] || (pdlReady ? "Validate professional profile" : "PDL key needed")}
+                  ${profileValidationLabels[profileValidationStatus] || (pdlReady ? "Add professional data" : "PDL key needed")}
                 </button>`
               : "";
             const isResearchOnly = ["public_web_evidence", "court_record_evidence"].includes(candidate.result_type);
@@ -1722,11 +2113,11 @@
               : hasDevReadyProfile
                 ? `<a class="btn primary" href="${escapeHtml(devReadyProfileUrl)}">Open DevReady Profile</a>`
                 : `<button class="btn primary" type="button" onclick="importExternalCandidate(${globalIndex})">
-                    ${isCourtAttorneyLead ? "Create identity-unverified TEMP profile" : candidate.source === "pdl" ? "Enrich, rematch, and create TEMP profile" : "Create TEMP profile from this candidate"}
+                    ${isCourtAttorneyLead ? (courtProfileConfirmed ? "Create combined TEMP profile" : "Create identity-unverified TEMP profile") : candidate.source === "pdl" ? "Enrich and create TEMP profile" : "Create TEMP profile from this candidate"}
                   </button>`;
             const profileStatusBadge = isResearchOnly
               ? ""
-              : `<span class="pill" style="margin-left: 8px">${hasDevReadyProfile ? "DevReady TEMP profile complete" : isCourtAttorneyLead ? "Research TEMP if imported" : "TEMP if imported"}</span>`;
+              : `<span class="pill" style="margin-left: 8px">${hasDevReadyProfile ? "DevReady TEMP profile complete" : isCourtAttorneyLead ? (courtProfileConfirmed ? "Combined TEMP if imported" : "Research TEMP if imported") : "TEMP if imported"}</span>`;
             const skills = (candidate.top_matches || candidate.skills || [])
               .slice(0, 10)
               .map((skill) => `<span class="skill-pill">${escapeHtml(skill)}</span>`)
@@ -1745,17 +2136,41 @@
                     .join(" | ")}</div>`
                 : "";
             const scoreBand = candidate.match_band || candidate.score_details?.band || "Below threshold";
+            const hasEnrichedMatch = candidate.enriched_match_complete === true;
+            const savedMatch = candidate.saved_match && typeof candidate.saved_match === "object" ? candidate.saved_match : {};
+            const matchIsCurrent = hasEnrichedMatch
+              && Boolean(selectedWorkflowJobId())
+              && String(savedMatch.jobId || "") === String(selectedWorkflowJobId());
+            const canCalculateMatch = hasDevReadyProfile
+              && candidate.professional_enrichment_complete === true
+              && Boolean(selectedWorkflowJobId());
+            const matchAction = !hasDevReadyProfile
+              ? ""
+              : matchIsCurrent
+                ? `<button class="btn secondary" type="button" onclick="showCandidateMatchStats(${globalIndex})">View ${Math.round(Number(savedMatch.score) || 0)}% match</button>`
+                : `<button class="btn primary" type="button" onclick="calculateCandidateMatch(${globalIndex})" ${canCalculateMatch ? "" : "disabled"} title="${escapeHtml(!selectedWorkflowJobId() ? "Choose a JD first" : "Professional enrichment must be complete first")}">Calculate JD match</button>`;
+            const matchedCount = Number(candidate.score_details?.matched_count || (candidate.top_matches || []).length || 0);
+            const requiredCount = Number(candidate.score_details?.required_count || 0);
+            const matchTypeLabel = matchIsCurrent ? "saved JD match" : "discovery preview";
             const isDirectResult = candidate.search_mode === "direct";
             const scoreLabel =
-              isCourtAttorneyLead
+              isCourtAttorneyLead && !courtProfileConfirmed
                 ? "Court-data lawyer lead - verify identity"
                 : isCourtRecord
                 ? "Court record - identity unverified"
+                : hasEnrichedMatch && !matchIsCurrent
+                ? "JD match not calculated for the selected job"
                 : isDirectResult && !(candidate.top_matches || []).length
                 ? "Direct result"
-                : `${Math.round(candidate.score || 0)}% - ${escapeHtml(scoreBand)}`;
+                : `${Math.round(candidate.score || 0)}% ${matchTypeLabel} - ${escapeHtml(scoreBand)}`;
+            const matchExplanation = !isCourtResearch && !isDirectResult
+              ? hasEnrichedMatch && !matchIsCurrent
+                ? `<div class="meta match-explanation"><strong>Saved match belongs to another JD.</strong> Use Calculate JD match to create statistics for the selected job.</div>`
+                : `<div class="meta match-explanation"><strong>${matchIsCurrent ? "Saved JD match" : "Discovery preview"}:</strong> ${matchedCount}${requiredCount ? ` of ${requiredCount}` : ""} JD signals matched.${matchIsCurrent ? ` Calculated deliberately from the saved ${escapeHtml(candidate.enrichment_provider || "provider")} evidence.` : hasDevReadyProfile && candidate.professional_enrichment_complete ? " Professional data is saved; use Calculate JD match when you want to replace this preview with saved statistics." : " Enrich and create the TEMP profile before calculating a saved match."}</div>`
+              : "";
+            const courtEvidenceCount = Number(candidate.profile_data?.evidence_count || 0);
             const sourceEvidence = candidate.source === "pdl"
-              ? `<div class="meta">${candidate.years_experience ? `${escapeHtml(candidate.years_experience)} years inferred experience` : "Experience not reported"}${candidate.job_last_verified ? ` | PDL job verified ${escapeHtml(candidate.job_last_verified)}` : ""}</div>`
+              ? `<div class="meta">${candidate.years_experience ? `${escapeHtml(candidate.years_experience)} years inferred experience` : "Experience not reported"}${candidate.job_last_verified ? ` | PDL job verified ${escapeHtml(candidate.job_last_verified)}` : ""}${courtEvidenceCount ? ` | ${courtEvidenceCount} supporting CourtListener / RECAP record${courtEvidenceCount === 1 ? "" : "s"}` : ""}</div>`
               : isCourtAttorneyLead
                 ? `<div class="meta">${Number(candidate.profile_data?.evidence_count || 0).toLocaleString()} matching ${Number(candidate.profile_data?.evidence_count || 0) === 1 ? "docket" : "dockets"}${candidate.profile_data?.matched_practice_areas?.length ? ` | Evidence: ${candidate.profile_data.matched_practice_areas.slice(0, 3).map(escapeHtml).join(", ")}` : ""}</div>`
                 : isCourtRecord
@@ -1766,8 +2181,10 @@
               : "";
             const barStatus = isCourtResearch
               ? '<span class="pill">Identity unverified</span>'
-              : verification.california_bar_status === "not_verified"
-              ? '<span class="pill">Bar not verified</span>'
+              : courtProfileConfirmed
+              ? '<span class="pill">Court identity needs review</span>'
+              : (verification.license_status || verification.california_bar_status) === "not_verified"
+              ? `<span class="pill">${escapeHtml(verification.license_jurisdiction || currentLawCriteria().region || "License")} standing not verified</span>`
               : "";
             const missingSkills = candidate.score_details?.missing?.length
               && !isDirectResult
@@ -1779,7 +2196,7 @@
                 <label style="display:flex;gap:10px;align-items:flex-start">
                   ${selectControl}
                   <span>
-                  <strong>${globalIndex + 1}. ${escapeHtml(candidate.name)}</strong>
+                  <span class="candidate-name-line"><strong>${globalIndex + 1}. ${escapeHtml(candidate.name)}</strong>${matchAction}</span>
                   ${profileStatusBadge}
                   <div class="meta">${escapeHtml(candidate.title || "")}${candidate.company ? " at " + escapeHtml(candidate.company) : ""}</div>
                   <div class="meta">${escapeHtml(candidate.location || "")}</div>
@@ -1787,18 +2204,20 @@
                   ${repoLine}
                   ${repoEvidence}
                   ${legalCredentialEvidence}
+                  ${matchExplanation}
                   ${missingSkills}
                   ${researchSummary}
                   </span>
                 </label>
                 <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
                   ${barStatus}
-                  <div class="pill">${scoreLabel}</div>
+                  <div class="pill ${matchIsCurrent ? "enriched-match-pill" : ""}">${scoreLabel}</div>
                 </div>
               </div>
               <div class="skills">${skills}</div>
               <div class="row-actions">
                 ${importButton}
+                  ${matchIsCurrent ? `<button class="btn secondary" type="button" onclick="calculateCandidateMatch(${globalIndex})">Recalculate JD match</button>` : ""}
                   ${barLink}
                   ${profileLink}
                   ${profileValidationButton}
@@ -1838,14 +2257,17 @@
             : `Searching ${providerName} from the selected JD criteria...`;
         document.getElementById("results").innerHTML = "";
         resetExternalPagination();
+        setActiveSavedSearch(null);
         renderSourceAudit({});
 
         const fd = new FormData();
         fd.append("domain", currentDomain());
         fd.append("source", selectedSource);
         fd.append("top_k", document.getElementById("topK").value);
+        fd.append("client_name", attachedAtlasClientName());
         if (directSearch) {
           fd.append("query", directSearch);
+          if (isLawDomain()) fd.append("region", document.getElementById("lawRegion").value.trim());
         } else {
           fd.append("jd_id", jdId);
           appendLawCriteria(fd);
@@ -1858,7 +2280,7 @@
             body: fd,
           });
 
-          latestExternalResults = response.results || [];
+          latestExternalResults = rankExternalResults(response.results || []);
           externalSearchCompleted = true;
           activeExternalSearch = {
             endpoint,
@@ -1867,6 +2289,11 @@
             costLabel: response.pagination?.costLabel || response.sourceAudit?.costLabel || "provider request",
             providerName: response.sourceAudit?.provider || sourceDisplayName(response.source),
           };
+          setActiveSavedSearch(response.savedSearch || {});
+          const historyRootId = response.savedSearch?.rootId || response.savedSearch?.id || "";
+          if (historyRootId) {
+            activeExternalSearch.fields.push(["history_root_id", String(historyRootId)]);
+          }
           nextExternalScrollToken = response.pagination?.nextScrollToken || "";
           cumulativeSourceAudit = { ...(response.sourceAudit || {}) };
           if (!directSearch) {
@@ -1880,7 +2307,10 @@
               ? `Direct search used: ${(response.searchSkills || response.jobSkills || []).join(", ")}`
               : `Search skills used: ${(response.searchSkills || response.jobSkills || []).join(", ")}`;
           const totalMatches = Number(response.sourceAudit?.totalMatches || 0);
-          if (response.pagination?.creditLimited) {
+          if (response.savedSearch?.cacheHit) {
+            document.getElementById("mineStatus").textContent =
+              `Loaded ${latestExternalResults.length} saved result${latestExternalResults.length === 1 ? "" : "s"} from ${response.savedSearch.queryName}. ${response.sourceAudit?.provider || providerName} was not contacted and 0 search credits were used.`;
+          } else if (response.pagination?.creditLimited) {
             const requestedSize = Number(response.pagination.requestedPageSize || document.getElementById("topK").value || 0);
             const effectiveSize = Number(response.pagination.pageSize || latestExternalResults.length || 1);
             document.getElementById("mineStatus").innerHTML = `
@@ -1907,6 +2337,7 @@
           }
           renderResults(latestExternalResults);
           renderResultPager();
+          loadSavedSearchHistory().catch(() => {});
         } catch (e) {
           renderMiningError(e);
         } finally {
@@ -1919,25 +2350,29 @@
         let candidate = latestExternalResults[index];
         if (!candidate) return;
         const isCourtLead = candidate.source === "courtlistener" && candidate.result_type === "court_attorney_lead";
+        const courtProfileConfirmed = isCourtLead
+          && candidate.profile_validation?.status === "confirmed_profile_match";
         if (candidate.source === "pdl" && options.skipConfirmation !== true) {
           const approved = confirm(
-            "Enrich this selected People Data Labs profile, rerun the match, and create a TEMP profile? A successful enrichment may use 1 PDL Person Enrichment credit.",
+            "Enrich this selected People Data Labs profile and create a TEMP profile? A successful enrichment may use 1 PDL Person Enrichment credit. The JD match will not be calculated automatically.",
           );
           if (!approved) return null;
         }
-        if (isCourtLead && options.skipConfirmation !== true) {
+        if (isCourtLead && !courtProfileConfirmed && options.skipConfirmation !== true) {
           const jurisdiction = currentLawCriteria().region || "target-jurisdiction";
           const approved = confirm(
-            `Create a TEMP research profile for ${candidate.name || "this lawyer"}? CourtListener shows the name on matching dockets, but identity, current employer, experience, location, and ${jurisdiction} license standing are not verified. No fit score will be assigned.`,
+            `Create a TEMP research profile for ${candidate.name || "this lawyer"}? CourtListener shows the name on matching dockets, but identity, current employer, experience, location, and ${jurisdiction} license standing are not verified. Add a matching professional profile before calculating a JD match.`,
           );
           if (!approved) return null;
         }
 
         document.getElementById("mineStatus").textContent =
           candidate.source === "pdl"
-            ? `Enriching and rematching ${candidate.name || "selected candidate"}...`
-            : isCourtLead
+            ? `Enriching and creating a TEMP profile for ${candidate.name || "selected candidate"}...`
+            : isCourtLead && !courtProfileConfirmed
               ? `Creating identity-unverified TEMP research profile for ${candidate.name || "selected lawyer"}...`
+              : isCourtLead
+                ? `Creating combined professional and court-evidence TEMP profile for ${candidate.name || "selected lawyer"}...`
             : `Creating TEMP profile for ${candidate.name || "selected candidate"}...`;
 
         let response;
@@ -1951,7 +2386,7 @@
               candidate,
               jd_id: document.getElementById("jdSelect").value || "",
               criteria: currentLawCriteria(),
-              identity_unverified_acknowledged: isCourtLead,
+              identity_unverified_acknowledged: isCourtLead && !courtProfileConfirmed,
             }),
           });
         } catch (e) {
@@ -1974,10 +2409,10 @@
 
         sessionStorage.setItem("candidateId", response.personid);
         sessionStorage.setItem("candidateName", response.name);
-        const temporaryStatus = isCourtLead
+        const temporaryStatus = isCourtLead && !courtProfileConfirmed
           ? "Temporary Research Profile - Identity Unverified"
           : "Temporary Profile";
-        const displayTitle = isCourtLead
+        const displayTitle = isCourtLead && !courtProfileConfirmed
           ? "Court-record attorney lead - identity unverified"
           : candidate.title || "";
         sessionStorage.setItem("candidateStatus", temporaryStatus);
@@ -2019,17 +2454,22 @@
           courtEvidence: response.courtEvidence || {},
           duplicate: response.duplicate === true,
         });
-        const score = Number(response.match?.score);
         document.getElementById("mineStatus").textContent = response.duplicate
           ? "This selected candidate already has a TEMP profile, so no additional enrichment credit was used."
           : response.identityUnverified
             ? `TEMP research profile created for ${response.name}. Identity and qualifications remain unverified; open the profile to review ${Number(response.courtEvidence?.evidenceCount || 0)} supporting court records and continue verification.`
-          : Number.isFinite(score)
-            ? `TEMP profile enriched and rematched at ${Math.round(score)}%. Open the TEMP Profiles page to review the evidence.`
-            : "TEMP profile created. Open the TEMP Profiles page to use it, make it permanent, or delete it.";
+          : response.enrichment?.status === "completed"
+            ? `${isCourtLead ? "Combined professional and court-evidence TEMP profile" : "TEMP profile"} enriched and saved. Match percentage was not calculated. Use Calculate JD match next to the candidate's name when ready.`
+            : "TEMP profile created. Open the TEMP Profiles page to enrich it, calculate a JD match, make it permanent, or delete it.";
         if (options.deferRender !== true) {
-          renderResults(latestExternalResults, { preserveSelection: true });
-          document.getElementById(`candidate-card-${index}`)?.scrollIntoView({
+          const preservedCandidateKeys = selectedCandidateKeys();
+          const importedCandidateKey = candidateResultKey(candidate);
+          latestExternalResults = rankExternalResults(latestExternalResults);
+          const rankedIndex = latestExternalResults.findIndex(
+            (result) => candidateResultKey(result) === importedCandidateKey,
+          );
+          renderResults(latestExternalResults, { preservedCandidateKeys });
+          document.getElementById(`candidate-card-${Math.max(rankedIndex, 0)}`)?.scrollIntoView({
             behavior: "smooth",
             block: "nearest",
           });
@@ -2043,16 +2483,21 @@
         if (selected.length > 5) return alert("Select no more than five candidates for enrichment.");
         const pdlCount = selected.filter((index) => latestExternalResults[index]?.source === "pdl").length;
         const courtLeadCount = selected.filter((index) => latestExternalResults[index]?.result_type === "court_attorney_lead").length;
+        const unverifiedCourtLeadCount = selected.filter((index) => {
+          const candidate = latestExternalResults[index];
+          return candidate?.result_type === "court_attorney_lead"
+            && candidate?.profile_validation?.status !== "confirmed_profile_match";
+        }).length;
         if (pdlCount) {
           const approved = confirm(
-            `Enrich ${pdlCount} selected People Data Labs profile${pdlCount === 1 ? "" : "s"}, rerun the match, and create TEMP profiles? This may use up to ${pdlCount} PDL Person Enrichment credit${pdlCount === 1 ? "" : "s"}. Existing TEMP profiles are reused without another enrichment call.`,
+            `Enrich ${pdlCount} selected People Data Labs profile${pdlCount === 1 ? "" : "s"} and create TEMP profiles? This may use up to ${pdlCount} PDL Person Enrichment credit${pdlCount === 1 ? "" : "s"}. Existing TEMP profiles are reused without another enrichment call. JD matches will not be calculated automatically.`,
           );
           if (!approved) return;
         }
-        if (courtLeadCount) {
+        if (unverifiedCourtLeadCount) {
           const jurisdiction = currentLawCriteria().region || "target-jurisdiction";
           const approved = confirm(
-            `Create ${courtLeadCount} identity-unverified CourtListener TEMP research profile${courtLeadCount === 1 ? "" : "s"}? These records show names on matching dockets, but identity, employer, experience, location, ${jurisdiction} license standing, and fit are not verified.`,
+            `Create ${unverifiedCourtLeadCount} identity-unverified CourtListener TEMP research profile${unverifiedCourtLeadCount === 1 ? "" : "s"}? These records show names on matching dockets, but identity, employer, experience, location, ${jurisdiction} license standing, and fit are not verified.`,
           );
           if (!approved) return;
         }
@@ -2066,10 +2511,11 @@
             if (created?.duplicate) reused++;
             else if (created) count++;
           }
+          latestExternalResults = rankExternalResults(latestExternalResults);
           renderResults(latestExternalResults);
           document.getElementById("mineStatus").textContent =
             count
-              ? `${courtLeadCount ? "Created" : "Enriched, rematched, and created"} ${count} TEMP profile${count === 1 ? "" : "s"}.${courtLeadCount ? " CourtListener profiles remain identity-unverified research records until reviewed." : ""}${reused ? ` Reused ${reused} existing TEMP profile${reused === 1 ? "" : "s"} without another enrichment call.` : ""}`
+              ? `${courtLeadCount ? "Created" : "Enriched and created"} ${count} TEMP profile${count === 1 ? "" : "s"}.${unverifiedCourtLeadCount ? ` ${unverifiedCourtLeadCount} CourtListener profile${unverifiedCourtLeadCount === 1 ? " remains" : "s remain"} identity-unverified until a matching professional profile is added.` : ""} Use Calculate JD match for each enriched profile when ready.${reused ? ` Reused ${reused} existing TEMP profile${reused === 1 ? "" : "s"} without another enrichment call.` : ""}`
               : reused
                 ? `Reused ${reused} existing TEMP profile${reused === 1 ? "" : "s"}; no new enrichment calls were made for them.`
                 : "No TEMP profiles were created. Check the error message above.";
@@ -2091,7 +2537,7 @@
         panel.innerHTML = `
           <strong>${profile.duplicate ? "Existing TEMP profile:" : "TEMP profile ready:"}</strong> ${escapeHtml(profile.name || "Temporary Profile")}
           ${profile.title ? `<span class="muted"> - ${escapeHtml(profile.title)}</span>` : ""}
-          ${profile.identityUnverified ? `<div class="muted">Identity unverified - ${Number(profile.courtEvidence?.evidenceCount || 0)} supporting court record${Number(profile.courtEvidence?.evidenceCount || 0) === 1 ? "" : "s"} saved for review. No fit score assigned.</div>` : Number.isFinite(Number(profile.match?.score)) ? `<div class="muted">Rematched ${Math.round(Number(profile.match.score))}% - ${escapeHtml(profile.match.band || "Review evidence")}</div>` : ""}
+          ${profile.identityUnverified ? `<div class="muted">Identity unverified - ${Number(profile.courtEvidence?.evidenceCount || 0)} supporting court record${Number(profile.courtEvidence?.evidenceCount || 0) === 1 ? "" : "s"} saved for review. No fit score assigned.</div>` : profile.match?.status === "calculated" ? `<div class="muted">Saved JD match: ${Math.round(Number(profile.match.score) || 0)}% - ${escapeHtml(profile.match.band || "Review evidence")}</div>` : `<div class="muted">JD match not calculated. Use Calculate JD match next to the candidate's name when ready.</div>`}
           ${profile.enrichment?.status === "completed" ? `<div class="muted">${escapeHtml(profile.enrichment.provider || "Selected-profile provider")} enrichment completed${profile.enrichment.likelihood ? ` at ${escapeHtml(profile.enrichment.likelihood)}/10 identity likelihood` : ""}. ${profile.enrichment.contactNotice ? escapeHtml(profile.enrichment.contactNotice) + " " : ""}No LinkedIn scraping.</div>` : ""}
           <div class="row-actions" style="margin-top: 8px">
             <a class="btn primary" href="temp-profiles.html?domain=${encodeURIComponent(currentDomain())}">Open TEMP Profiles</a>
@@ -2147,8 +2593,17 @@
           updateWorkflowGuidance();
           applySelectedExternalJob(this.value);
         });
+        document.getElementById("lawRegion")?.addEventListener("change", updateLawVerificationSource);
         document.getElementById("btnMine").addEventListener("click", mineCandidates);
         document.getElementById("btnImportSelected").addEventListener("click", importSelectedExternalCandidates);
+        document.getElementById("savedSearchSelect").addEventListener("change", function () {
+          document.getElementById("btnOpenSavedSearch").disabled = !this.value;
+          const selected = savedExternalSearches.find(
+            (search) => String(search.rootId || search.id) === String(this.value),
+          );
+          if (selected) setActiveSavedSearch(selected);
+        });
+        document.getElementById("btnOpenSavedSearch").addEventListener("click", openSavedSearch);
         document.getElementById("externalSearchInput").addEventListener("keydown", (event) => {
           if (event.key === "Enter") {
             event.preventDefault();
@@ -2162,6 +2617,26 @@
         window.addEventListener("devready-active-candidate-changed", updateWorkflowGuidance);
         updateSelectedEnrichmentCount();
         hydrateSavedJobSelection();
+        loadSavedSearchHistory()
+          .then(async () => {
+            const requestedSearchId = new URLSearchParams(window.location.search).get("savedSearchId") || "";
+            if (!requestedSearchId) return;
+            const selected = savedExternalSearches.find(
+              (search) => String(search.rootId || search.id) === String(requestedSearchId),
+            );
+            if (!selected) {
+              document.getElementById("mineStatus").textContent = "That saved search is not available in the current domain.";
+              return;
+            }
+            document.getElementById("savedSearchSelect").value = String(selected.rootId || selected.id);
+            setActiveSavedSearch(selected);
+            await openSavedSearch();
+          })
+          .catch((error) => {
+            document.getElementById("savedSearchSelect").innerHTML = '<option value="">Saved searches unavailable</option>';
+            document.getElementById("activeSavedSearchName").textContent =
+              `Saved-search storage unavailable: ${error.message || error}`;
+          });
       });
     </script>
   </body>

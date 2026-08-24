@@ -83,6 +83,17 @@ class LawyerMiningTests(unittest.TestCase):
             },
         )
 
+    def test_criteria_detect_non_california_target_jurisdiction(self):
+        jd = {
+            "jd_id": 99,
+            "title": "Commercial Litigation Attorney in New York",
+            "description": "New York, NY. Active New York license required.",
+        }
+
+        criteria = _lawyer_search_criteria(jd)
+
+        self.assertEqual(criteria["region"], "New York")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -14,10 +14,14 @@ class TalentNavigationTests(unittest.TestCase):
         jobs = html.index(">Job Descriptions</a>")
         find_in = html.index(">Find Candidates (In)</a>")
         find_out = html.index(">Find Candidates (Out)</a>")
+        saved_searches = html.index(">Saved Searches</a>")
+        temp_profiles = html.index(">TEMP Profiles</a>")
 
         self.assertLess(talent, jobs)
         self.assertLess(jobs, find_in)
         self.assertLess(find_in, find_out)
+        self.assertLess(find_out, saved_searches)
+        self.assertLess(saved_searches, temp_profiles)
 
     def test_process_flow_routes_talent_through_job_descriptions(self):
         html = (PAGES / "components" / "processFlow.html").read_text(encoding="utf-8")
