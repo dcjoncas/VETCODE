@@ -41,6 +41,43 @@ class ExternalSearchHistoryTests(unittest.TestCase):
         self.assertIn('data-menu-key="saved_searches"', nav)
         self.assertIn('"key": "saved_searches"', main)
 
+    def test_saved_search_workflow_accepts_product_domain_aliases(self):
+        backend = Path(__file__).resolve().parents[1]
+        for page_name in ("mine-candidate-external.html", "saved-searches.html", "temp-profiles.html"):
+            html = (backend / "ui" / "pages" / page_name).read_text(encoding="utf-8")
+            with self.subTest(page=page_name):
+                self.assertIn('technology: "dev"', html)
+                self.assertIn('tech: "dev"', html)
+                self.assertIn('engineering: "engineer"', html)
+                self.assertIn('dentalready: "dental"', html)
+
+    @patch("azureUtils.routes.azureJobEndpoints.externalSearchHistory.count_searches")
+    @patch("azureUtils.routes.azureJobEndpoints.externalSearchHistory.list_searches")
+    def test_saved_search_library_is_isolated_for_every_product_domain(self, list_searches, count_searches):
+        list_searches.return_value = []
+        count_searches.return_value = 0
+
+        aliases = {
+            "tech": "dev",
+            "technology": "dev",
+            "engineering": "engineer",
+            "buildready": "engineer",
+            "dentalready": "dental",
+            "legalready": "law",
+        }
+        for requested, stored in aliases.items():
+            with self.subTest(requested=requested, stored=stored):
+                list_searches.reset_mock()
+                count_searches.reset_mock()
+                response = azureJobEndpoints.external_candidate_search_history(
+                    domain=requested,
+                    limit=25,
+                    offset=0,
+                )
+                list_searches.assert_called_once_with(stored, 25, 0)
+                count_searches.assert_called_once_with(stored)
+                self.assertEqual(response["total"], 0)
+
     @patch("azureUtils.routes.azureJobEndpoints.externalSearchHistory.count_searches")
     @patch("azureUtils.routes.azureJobEndpoints.externalSearchHistory.list_searches")
     def test_saved_search_history_is_paginated_without_hiding_older_queries(self, list_searches, count_searches):

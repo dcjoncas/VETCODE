@@ -10,7 +10,13 @@
       (function () {
         const params = new URLSearchParams(window.location.search);
         const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
-        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law", "dental"].includes(requested) ? requested : "dev");
+        const domainAliases = {
+          dev: "dev", technology: "dev", tech: "dev", devready: "dev",
+          engineer: "engineer", engineering: "engineer", build: "engineer", buildready: "engineer",
+          law: "law", legal: "law", legalready: "law",
+          dental: "dental", dentalready: "dental",
+        };
+        const domain = domainAliases[String(requested).trim().toLowerCase()] || "dev";
         sessionStorage.setItem("domain", domain);
         document.getElementById("domainCss").href = `../assets/${domain}Styles.css`;
         document.documentElement.dataset.domain = domain;
