@@ -2639,7 +2639,7 @@ def _save_external_search(
     history_root_id: str = "",
 ) -> dict:
     query_name = externalSearchHistory.build_query_name(jd_name, client_name)
-    return externalSearchHistory.save_search(
+    metadata = externalSearchHistory.save_search(
         cache_key=cache_key,
         query_name=query_name,
         domain=domain,
@@ -2652,6 +2652,8 @@ def _save_external_search(
         response_payload=response_payload,
         parent_id=history_root_id,
     )
+    metadata["recordCount"] = len(response_payload.get("results") or [])
+    return metadata
 
 
 @router.post("/external/search")
@@ -3692,7 +3694,11 @@ def _combined_saved_search_response(group: dict) -> dict:
         "nextScrollToken": "",
         "costLabel": "saved search - no provider charge",
     }
-    response["savedSearch"] = {**(group.get("metadata") or {}), "cacheHit": True}
+    response["savedSearch"] = {
+        **(group.get("metadata") or {}),
+        "cacheHit": True,
+        "recordCount": len(all_results),
+    }
     response["savedQuery"] = pages[0].get("query") or {}
     return response
 
@@ -3710,6 +3716,14 @@ def _candidate_location(candidate: dict) -> str:
     )
 
 
+def _public_request_base_url(request: Request) -> str:
+    base_url = request.base_url
+    forwarded_proto = str(request.headers.get("x-forwarded-proto") or "").split(",", 1)[0].strip().lower()
+    if forwarded_proto in {"http", "https"}:
+        base_url = base_url.replace(scheme=forwarded_proto)
+    return str(base_url).rstrip("/")
+
+
 def _saved_search_report_rows(group: dict, domain: str, request: Request) -> list[dict]:
     response = _combined_saved_search_response(group)
     temp_profiles = candidates.listTemporaryExternalProfiles(domain, 500).get("profiles") or []
@@ -3724,7 +3738,7 @@ def _saved_search_report_rows(group: dict, domain: str, request: Request) -> lis
         if str(profile.get("profileUrl") or "").strip()
     }
     report_rows = []
-    base_url = str(request.base_url).rstrip("/")
+    base_url = _public_request_base_url(request)
     for search_order, candidate in enumerate(response.get("results") or [], start=1):
         source_id = str(candidate.get("source_id") or "").strip().lower()
         profile_url_key = str(candidate.get("profile_url") or "").strip().rstrip("/").lower()
@@ -3823,12 +3837,23 @@ def external_candidate_export_saved_search(search_id: str, request: Request, dom
     if not group:
         raise HTTPException(status_code=404, detail="Saved search not found in this domain.")
     rows = _saved_search_report_rows(group, domain, request)
+    if not rows:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This saved query has no candidate rows to export. Open the saved query or run the search again "
+                "after results are returned. No provider request was made by this export."
+            ),
+        )
     workbook = externalSearchReport.build_ranked_search_xlsx(group, rows)
     filename = f"{group.get('metadata', {}).get('queryName') or 'Saved_Search_QRY'}.xlsx"
     return StreamingResponse(
         iter([workbook]),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-VETCODE-Record-Count": str(len(rows)),
+        },
     )
 
 

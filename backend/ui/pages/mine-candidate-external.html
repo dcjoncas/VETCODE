@@ -921,22 +921,31 @@
         return window.DevReadyAtlasClient?.getAttachedClient(currentDomain())?.name || "";
       }
 
-      function setActiveSavedSearch(savedSearch) {
-        activeSavedSearch = savedSearch && (savedSearch.rootId || savedSearch.id) ? savedSearch : null;
+      function setActiveSavedSearch(savedSearch, resultCount = null) {
+        activeSavedSearch = savedSearch && (savedSearch.rootId || savedSearch.id) ? { ...savedSearch } : null;
+        if (activeSavedSearch && resultCount !== null) {
+          activeSavedSearch.recordCount = Math.max(0, Number(resultCount || 0));
+        }
         const searchId = activeSavedSearch ? String(activeSavedSearch.rootId || activeSavedSearch.id) : "";
         const queryName = activeSavedSearch?.queryName || "";
+        const recordCount = Math.max(0, Number(activeSavedSearch?.recordCount || 0));
         const exportUrl = searchId
           ? `/api/azureJobs/external/search-history/${encodeURIComponent(searchId)}/export?domain=${encodeURIComponent(currentDomain())}`
           : "";
         [document.getElementById("btnExportSearchReport"), document.getElementById("btnExportCurrentReport")]
           .filter(Boolean)
           .forEach((link) => {
-            if (exportUrl) {
+            link.dataset.recordCount = String(recordCount);
+            if (exportUrl && recordCount > 0) {
               link.href = exportUrl;
               link.removeAttribute("aria-disabled");
+              link.title = `Export ${recordCount} ranked candidate row${recordCount === 1 ? "" : "s"} to Excel`;
             } else {
               link.removeAttribute("href");
               link.setAttribute("aria-disabled", "true");
+              link.title = searchId
+                ? "This saved query has no candidate rows to export."
+                : "Run or open a saved search before exporting.";
             }
           });
         const label = document.getElementById("activeSavedSearchName");
@@ -944,6 +953,45 @@
           label.textContent = queryName
             ? `Current saved query: ${queryName}${activeSavedSearch.cacheHit ? " - reopened with 0 provider credits" : ""}`
             : "Every completed query is saved as JD_Client_Date_QRY; missing parts use Not_Found.";
+        }
+      }
+
+      async function downloadActiveSavedSearchReport(event) {
+        event.preventDefault();
+        const link = event.currentTarget;
+        const recordCount = Number(link.dataset.recordCount || 0);
+        if (!link.href || link.getAttribute("aria-disabled") === "true" || recordCount < 1) {
+          document.getElementById("mineStatus").textContent =
+            "Excel export is unavailable until a saved search contains at least one candidate result.";
+          return;
+        }
+        const originalText = link.textContent;
+        link.setAttribute("aria-disabled", "true");
+        link.textContent = `Preparing ${recordCount} row${recordCount === 1 ? "" : "s"}...`;
+        try {
+          const response = await fetch(link.href);
+          if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.detail || `Excel export failed with HTTP ${response.status}.`);
+          }
+          const blob = await response.blob();
+          if (!blob.size) throw new Error("The server returned an empty Excel file.");
+          const downloadUrl = URL.createObjectURL(blob);
+          const downloadLink = document.createElement("a");
+          downloadLink.href = downloadUrl;
+          downloadLink.download = `${activeSavedSearch?.queryName || "Saved_Search_QRY"}.xlsx`;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          downloadLink.remove();
+          URL.revokeObjectURL(downloadUrl);
+          const exportedRows = Number(response.headers.get("X-VETCODE-Record-Count") || recordCount);
+          document.getElementById("mineStatus").textContent =
+            `Downloaded ranked Excel with ${exportedRows} candidate row${exportedRows === 1 ? "" : "s"}. Blank provider contact fields are labeled Not returned.`;
+        } catch (error) {
+          document.getElementById("mineStatus").textContent = `Excel export failed: ${error.message || error}`;
+        } finally {
+          link.removeAttribute("aria-disabled");
+          link.textContent = originalText;
         }
       }
 
@@ -986,7 +1034,7 @@
           resetExternalPagination();
           latestExternalResults = rankExternalResults(response.results || []);
           cumulativeSourceAudit = { ...(response.sourceAudit || {}) };
-          setActiveSavedSearch(response.savedSearch || {});
+          setActiveSavedSearch(response.savedSearch || {}, latestExternalResults.length);
           if (response.source) setSource(response.source);
           if (response.jd?.jd_id) {
             rememberJob(String(response.jd.jd_id), response.jd);
@@ -1765,12 +1813,12 @@
             method: "POST",
             body: buildNextPageForm(),
           });
-          setActiveSavedSearch(response.savedSearch || activeSavedSearch || {});
           const pageResults = response.results || [];
           const preservedCandidateKeys = selectedCandidateKeys();
           const firstAddedKey = candidateResultKey(pageResults[0]);
           latestExternalResults.push(...pageResults);
           latestExternalResults = rankExternalResults(latestExternalResults);
+          setActiveSavedSearch(response.savedSearch || activeSavedSearch || {}, latestExternalResults.length);
           const returnedToken = response.pagination?.nextScrollToken || "";
           nextExternalScrollToken = returnedToken === usedToken && !pageResults.length ? "" : returnedToken;
           cumulativeSourceAudit = mergeSourceAudit(cumulativeSourceAudit, response.sourceAudit || {});
@@ -2295,7 +2343,7 @@
             costLabel: response.pagination?.costLabel || response.sourceAudit?.costLabel || "provider request",
             providerName: response.sourceAudit?.provider || sourceDisplayName(response.source),
           };
-          setActiveSavedSearch(response.savedSearch || {});
+          setActiveSavedSearch(response.savedSearch || {}, latestExternalResults.length);
           const historyRootId = response.savedSearch?.rootId || response.savedSearch?.id || "";
           if (historyRootId) {
             activeExternalSearch.fields.push(["history_root_id", String(historyRootId)]);
@@ -2610,6 +2658,8 @@
           if (selected) setActiveSavedSearch(selected);
         });
         document.getElementById("btnOpenSavedSearch").addEventListener("click", openSavedSearch);
+        document.getElementById("btnExportSearchReport").addEventListener("click", downloadActiveSavedSearchReport);
+        document.getElementById("btnExportCurrentReport").addEventListener("click", downloadActiveSavedSearchReport);
         document.getElementById("externalSearchInput").addEventListener("keydown", (event) => {
           if (event.key === "Enter") {
             event.preventDefault();

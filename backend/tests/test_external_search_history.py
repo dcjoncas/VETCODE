@@ -5,6 +5,8 @@ from pathlib import Path
 from unittest.mock import patch
 from zipfile import ZipFile
 
+from starlette.requests import Request
+
 from azureUtils import externalSearchReport
 from azureUtils.routes import azureJobEndpoints
 from azureUtils.storage import externalSearchHistory
@@ -24,6 +26,8 @@ class ExternalSearchHistoryTests(unittest.TestCase):
         self.assertIn('activeExternalSearch.fields.push(["history_root_id"', html)
         self.assertIn('href="saved-searches.html">View full library</a>', html)
         self.assertIn('get("savedSearchId")', html)
+        self.assertIn("downloadActiveSavedSearchReport", html)
+        self.assertIn("X-VETCODE-Record-Count", html)
 
     def test_saved_searches_have_a_persistent_domain_library(self):
         backend = Path(__file__).resolve().parents[1]
@@ -35,6 +39,9 @@ class ExternalSearchHistoryTests(unittest.TestCase):
         self.assertIn("VETCODE does not automatically delete them", html)
         self.assertIn("Open saved results", html)
         self.assertIn("Export ranked Excel", html)
+        self.assertIn("downloadRankedSearch", html)
+        self.assertIn("No rows to export", html)
+        self.assertIn("Downloaded ranked Excel with", html)
         self.assertIn("Export search register", html)
         self.assertIn("Load older saved searches", html)
         self.assertNotIn("Delete saved search", html)
@@ -203,11 +210,53 @@ class ExternalSearchHistoryTests(unittest.TestCase):
 
         self.assertIn("Search Order", sheet)
         self.assertIn("Current Rank", sheet)
+        self.assertIn("Candidate rows", sheet)
+        self.assertIn("Not returned", sheet)
         self.assertIn("TEMP Profile", sheet)
         self.assertIn("People Data Labs; CourtListener / RECAP", sheet)
         self.assertIn('ref="N9"', sheet)
         self.assertIn('ref="O9"', sheet)
         self.assertIn("profileId=2389", rels)
+
+    @patch("azureUtils.routes.azureJobEndpoints.externalSearchHistory.get_search_group")
+    @patch("azureUtils.routes.azureJobEndpoints._saved_search_report_rows")
+    def test_ranked_export_rejects_saved_queries_without_candidate_rows(self, report_rows, get_group):
+        get_group.return_value = {"metadata": {"queryName": "Empty_Query_QRY"}, "pages": []}
+        report_rows.return_value = []
+        request = Request(
+            {
+                "type": "http",
+                "method": "GET",
+                "path": "/api/azureJobs/external/search-history/3/export",
+                "headers": [],
+                "scheme": "https",
+                "server": ("vetcode.example", 443),
+                "query_string": b"",
+            }
+        )
+
+        with self.assertRaisesRegex(Exception, "no candidate rows") as raised:
+            azureJobEndpoints.external_candidate_export_saved_search("3", request, domain="law")
+
+        self.assertEqual(raised.exception.status_code, 409)
+
+    def test_ranked_export_uses_forwarded_https_for_temp_profile_links(self):
+        request = Request(
+            {
+                "type": "http",
+                "method": "GET",
+                "path": "/api/azureJobs/external/search-history/3/export",
+                "headers": [(b"x-forwarded-proto", b"https")],
+                "scheme": "http",
+                "server": ("vetcode-dev.up.railway.app", 80),
+                "query_string": b"",
+            }
+        )
+
+        self.assertEqual(
+            azureJobEndpoints._public_request_base_url(request),
+            "https://vetcode-dev.up.railway.app",
+        )
 
 
 if __name__ == "__main__":

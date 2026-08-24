@@ -53,6 +53,11 @@ def _joined(values) -> str:
     return "; ".join(str(value).strip() for value in values if str(value or "").strip())
 
 
+def _display(value, fallback: str = "Not returned") -> str:
+    text = str(value or "").strip()
+    return text or fallback
+
+
 def _safe_http_url(value) -> str:
     url = str(value or "").strip()
     try:
@@ -73,6 +78,7 @@ def build_ranked_search_xlsx(search: dict, rows: list[dict]) -> bytes:
         ("Client", metadata.get("clientName") or "Not Found"),
         ("Source", metadata.get("source") or "External"),
         ("Created", metadata.get("createdAt") or ""),
+        ("Candidate rows", len(rows or [])),
     ]
     for row_index, (label, value) in enumerate(summary, start=2):
         sheet_rows.append(
@@ -94,20 +100,20 @@ def build_ranked_search_xlsx(search: dict, rows: list[dict]) -> bytes:
         values = [
             row.get("searchOrder"),
             row.get("rank"),
-            row.get("name"),
-            row.get("title"),
-            row.get("location"),
-            row.get("email"),
-            row.get("phone"),
+            _display(row.get("name"), "Not Found"),
+            _display(row.get("title")),
+            _display(row.get("location")),
+            _display(row.get("email")),
+            _display(row.get("phone")),
             row.get("matchScore"),
-            row.get("matchBand"),
-            _joined(row.get("matched")),
-            _joined(row.get("missing")),
-            row.get("source"),
-            _joined(row.get("evidenceSources")),
-            source_url,
-            temp_url,
-            row.get("tempProfileId"),
+            _display(row.get("matchBand"), "Not calculated"),
+            _display(_joined(row.get("matched")), "Not recorded"),
+            _display(_joined(row.get("missing")), "Not recorded"),
+            _display(row.get("source"), "External"),
+            _display(_joined(row.get("evidenceSources")), _display(row.get("source"), "External")),
+            source_url or "Not returned",
+            temp_url or "TEMP profile not created",
+            row.get("tempProfileId") or "Not created",
         ]
         cells = []
         for column_index, value in enumerate(values, start=1):
@@ -115,7 +121,11 @@ def build_ranked_search_xlsx(search: dict, rows: list[dict]) -> bytes:
             if column_index in {1, 2}:
                 cells.append(_number_cell(ref, value))
             elif column_index == 8:
-                cells.append(_number_cell(ref, value, 4))
+                cells.append(
+                    _number_cell(ref, value, 4)
+                    if value not in {None, ""}
+                    else _text_cell(ref, "Not calculated")
+                )
             elif column_index in {14, 15} and value:
                 cells.append(_text_cell(ref, value, 3))
             else:
@@ -134,6 +144,7 @@ def build_ranked_search_xlsx(search: dict, rows: list[dict]) -> bytes:
     hyperlinks_xml = f'<hyperlinks>{"".join(hyperlinks)}</hyperlinks>' if hyperlinks else ""
     sheet_xml = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <dimension ref="A1:P{last_row}"/>
   <sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="8" topLeftCell="A9" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
   <sheetFormatPr defaultRowHeight="18"/>
   <cols>
