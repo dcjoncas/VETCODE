@@ -94,7 +94,9 @@ def search_people(
     workforce_location: str = "onshore",
     strict_locations: bool = True,
     license_or_certification: str = "",
+    licenses_or_certifications: list[str] | None = None,
     min_years: int = 0,
+    experience_ranges: list[str] | None = None,
     size: int = 10,
     page: int = 1,
     direct_query: str = "",
@@ -103,18 +105,27 @@ def search_people(
     page_number = max(1, min(int(page or 1), 100))
     clean_titles = _clean_terms(titles) or ["Professional"]
     clean_practice = _clean_terms(practice_areas)
-    clean_credential = " ".join(str(license_or_certification or "").split()).strip()
-    credential_is_required = clean_credential.lower() not in {
-        "", "none", "none required", "not required", "n/a", "na",
-    }
+    clean_credentials = _clean_terms(
+        licenses_or_certifications or [license_or_certification],
+        12,
+    )
+    clean_credentials = [
+        value
+        for value in clean_credentials
+        if value.lower() not in {"none", "none required", "not required", "n/a", "na"}
+    ]
     clean_locations = _clean_terms(locations)
     clean_workforce_location = str(workforce_location or "onshore").strip().lower()
     if clean_workforce_location == "offshore":
         location_terms = clean_locations if strict_locations else []
-    elif strict_locations:
+    elif clean_workforce_location == "onshore" and strict_locations:
         location_terms = clean_locations + ([region] if region else [])
-    else:
+    elif clean_workforce_location == "onshore":
         location_terms = [region] if region else []
+    elif strict_locations:
+        location_terms = clean_locations
+    else:
+        location_terms = []
     clean_direct_query = " ".join(str(direct_query or "").split()).strip()
     if clean_direct_query:
         payload: dict[str, Any] = {
@@ -133,8 +144,8 @@ def search_people(
             payload["country"] = "United States"
         if clean_practice:
             payload["skill"] = _and_filter(clean_practice)
-        if credential_is_required:
-            payload["certification_title"] = f'("{clean_credential}")'
+        if clean_credentials:
+            payload["certification_title"] = _or_filter(clean_credentials)
 
     try:
         response = requests.post(
@@ -190,7 +201,9 @@ def search_people(
         "query": payload,
         "criteria_verification": {
             "minimum_years": max(0, min(int(min_years or 0), 60)),
-            "license_or_certification": clean_credential,
+            "experience_ranges": [str(value) for value in experience_ranges or []],
+            "license_or_certification": clean_credentials[0] if clean_credentials else "",
+            "licenses_or_certifications": clean_credentials,
             "experience_and_credential_require_manual_confirmation": True,
         },
         "credits_used": credit_cost("base"),

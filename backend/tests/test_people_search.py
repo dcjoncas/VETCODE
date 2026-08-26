@@ -48,6 +48,57 @@ class PeopleSearchTests(unittest.TestCase):
 
         self.assertNotIn("none required", str(payload).lower())
 
+    def test_multi_select_experience_and_credentials_are_or_filters(self):
+        payload = peopleSearch.build_candidate_search_payload(
+            titles=["Platform Engineer"],
+            must_have_skills=["Python"],
+            locations=["Denver", "Toronto"],
+            experience_ranges=["3-5", "10-14"],
+            licenses_or_certifications=["AWS Certified Solutions Architect", "CKA"],
+            region="California",
+            workforce_location="either",
+        )
+
+        must_clauses = payload["query"]["bool"]["must"]
+        self.assertNotIn({"term": {"location_region": "california"}}, must_clauses)
+        self.assertNotIn({"term": {"location_country": "united states"}}, must_clauses)
+        self.assertIn(
+            {
+                "bool": {
+                    "should": [
+                        {"range": {"inferred_years_experience": {"gte": 3, "lte": 5}}},
+                        {"range": {"inferred_years_experience": {"gte": 10, "lte": 14}}},
+                    ]
+                }
+            },
+            must_clauses,
+        )
+        self.assertTrue(
+            any(
+                {"match_phrase": {"certifications.name": "aws certified solutions architect"}}
+                in clause.get("bool", {}).get("should", [])
+                and {"match_phrase": {"certifications.name": "cka"}}
+                in clause.get("bool", {}).get("should", [])
+                for clause in must_clauses
+            )
+        )
+
+    def test_either_workforce_does_not_force_a_us_or_california_profile_location(self):
+        payload = peopleSearch.build_candidate_search_payload(
+            titles=["Attorney"],
+            must_have_skills=["Litigation"],
+            locations=["Toronto"],
+            region="California",
+            strict_locations=True,
+            license_or_certification="California attorney license",
+            workforce_location="either",
+        )
+
+        must_clauses = payload["query"]["bool"]["must"]
+        self.assertIn({"terms": {"location_locality": ["toronto"]}}, must_clauses)
+        self.assertNotIn({"term": {"location_region": "california"}}, must_clauses)
+        self.assertNotIn({"term": {"location_country": "united states"}}, must_clauses)
+
     def test_lawyer_payload_requires_role_region_experience_practice_and_city(self):
         payload = peopleSearch.build_lawyer_search_payload(
             titles=["Associate Attorney", "Counsel"],

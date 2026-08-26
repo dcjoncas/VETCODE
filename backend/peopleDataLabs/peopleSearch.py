@@ -341,8 +341,10 @@ def build_candidate_search_payload(
     locations: list[str],
     region: str = "",
     min_years: int = 0,
+    experience_ranges: list[str] | None = None,
     strict_locations: bool = True,
     license_or_certification: str = "",
+    licenses_or_certifications: list[str] | None = None,
     workforce_location: str = "onshore",
     size: int = 10,
 ) -> dict[str, Any]:
@@ -350,7 +352,15 @@ def build_candidate_search_payload(
     skill_terms = _clean_terms(must_have_skills, 12)
     location_terms = _clean_terms(locations, 12)
     region_term = str(region or "").strip().lower()
-    credential_term = str(license_or_certification or "").strip().lower()
+    credential_terms = _clean_terms(
+        licenses_or_certifications or [license_or_certification],
+        12,
+    )
+    credential_terms = [
+        value
+        for value in credential_terms
+        if value not in {"none", "none required", "not required", "n/a", "na"}
+    ]
     workforce_term = str(workforce_location or "onshore").strip().lower()
     if workforce_term not in {"onshore", "offshore", "either"}:
         workforce_term = "onshore"
@@ -366,14 +376,31 @@ def build_candidate_search_payload(
     }
     must_clauses: list[dict[str, Any]] = [title_query]
 
-    if region_term and workforce_term != "offshore":
+    if region_term and workforce_term == "onshore":
         must_clauses.append({"term": {"location_region": region_term}})
     must_not_clauses: list[dict[str, Any]] = []
     if workforce_term == "onshore":
         must_clauses.append({"term": {"location_country": "united states"}})
     elif workforce_term == "offshore":
         must_not_clauses.append({"term": {"location_country": "united states"}})
-    if years:
+    range_bounds = {
+        "1-2": (1, 2),
+        "3-5": (3, 5),
+        "6-9": (6, 9),
+        "10-14": (10, 14),
+        "15+": (15, None),
+    }
+    selected_ranges = [value for value in experience_ranges or [] if value in range_bounds]
+    if selected_ranges:
+        range_clauses = []
+        for label in selected_ranges:
+            minimum, maximum = range_bounds[label]
+            bounds: dict[str, int] = {"gte": minimum}
+            if maximum is not None:
+                bounds["lte"] = maximum
+            range_clauses.append({"range": {"inferred_years_experience": bounds}})
+        must_clauses.append({"bool": {"should": range_clauses}})
+    elif years:
         must_clauses.append({"range": {"inferred_years_experience": {"gte": years}}})
 
     if skill_terms:
@@ -393,17 +420,22 @@ def build_candidate_search_payload(
                 }
             )
 
-    if credential_term and credential_term not in {"none", "none required", "not required", "n/a", "na"}:
+    if credential_terms:
+        credential_should = []
+        for credential_term in credential_terms:
+            credential_should.extend(
+                [
+                    {"match_phrase": {"certifications.name": credential_term}},
+                    {"term": {"skills": credential_term}},
+                    {"match_phrase": {"headline": credential_term}},
+                    {"match_phrase": {"summary": credential_term}},
+                    {"match_phrase": {"experience.summary": credential_term}},
+                ]
+            )
         must_clauses.append(
             {
                 "bool": {
-                    "should": [
-                        {"match_phrase": {"certifications.name": credential_term}},
-                        {"term": {"skills": credential_term}},
-                        {"match_phrase": {"headline": credential_term}},
-                        {"match_phrase": {"summary": credential_term}},
-                        {"match_phrase": {"experience.summary": credential_term}},
-                    ]
+                    "should": credential_should,
                 }
             }
         )
@@ -457,8 +489,10 @@ def searchCandidates(
     locations: list[str],
     region: str = "",
     min_years: int = 0,
+    experience_ranges: list[str] | None = None,
     strict_locations: bool = True,
     license_or_certification: str = "",
+    licenses_or_certifications: list[str] | None = None,
     workforce_location: str = "onshore",
     size: int = 10,
     scroll_token: str = "",
@@ -469,8 +503,10 @@ def searchCandidates(
         locations=locations,
         region=region,
         min_years=min_years,
+        experience_ranges=experience_ranges,
         strict_locations=strict_locations,
         license_or_certification=license_or_certification,
+        licenses_or_certifications=licenses_or_certifications,
         workforce_location=workforce_location,
         size=size,
     )

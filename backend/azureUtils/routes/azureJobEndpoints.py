@@ -462,6 +462,32 @@ def _split_external_terms(value, limit: int = 20):
     return cleaned
 
 
+EXPERIENCE_RANGE_BOUNDS = {
+    "1-2": (1, 2),
+    "3-5": (3, 5),
+    "6-9": (6, 9),
+    "10-14": (10, 14),
+    "15+": (15, None),
+}
+
+
+def _experience_range_for_years(years: int) -> str:
+    clean_years = max(1, min(int(years or 1), 60))
+    for label, (minimum, maximum) in EXPERIENCE_RANGE_BOUNDS.items():
+        if clean_years >= minimum and (maximum is None or clean_years <= maximum):
+            return label
+    return "15+"
+
+
+def _experience_ranges(value, fallback_years: int = 1) -> list[str]:
+    selected = [
+        item
+        for item in _split_external_terms(value, len(EXPERIENCE_RANGE_BOUNDS))
+        if item in EXPERIENCE_RANGE_BOUNDS
+    ]
+    return selected or [_experience_range_for_years(fallback_years)]
+
+
 def _lawyer_search_criteria(
     jd: dict,
     titles=None,
@@ -551,7 +577,7 @@ def _lawyer_search_criteria(
             resolved_workforce_location = "onshore"
 
     return {
-        "policyVersion": 3,
+        "policyVersion": 4,
         "titles": resolved_titles,
         "practiceAreas": resolved_practice,
         "requiredSkills": required_practice,
@@ -559,10 +585,14 @@ def _lawyer_search_criteria(
         "locations": resolved_locations,
         "region": resolved_region,
         "minYears": resolved_years,
+        "experienceRanges": [_experience_range_for_years(resolved_years)],
         "strictLocations": resolved_strict_locations,
         "licenseOrCertification": f"{resolved_region} attorney license",
+        "licensesOrCertifications": [f"{resolved_region} attorney license"],
         "workArrangement": resolved_work_arrangement,
+        "workArrangements": [resolved_work_arrangement] if resolved_work_arrangement else [],
         "workforceLocation": resolved_workforce_location,
+        "workforceLocations": [resolved_workforce_location],
     }
 
 
@@ -621,10 +651,14 @@ def _candidate_search_criteria(
     locations=None,
     region: str = "",
     min_years: int = 0,
+    experience_ranges=None,
     strict_locations: bool | None = None,
     license_or_certification: str = "",
+    licenses_or_certifications=None,
     work_arrangement: str = "",
+    work_arrangements=None,
     workforce_location: str = "",
+    workforce_locations=None,
 ) -> dict:
     clean_domain = _domain_key(domain)
     law_base = _lawyer_search_criteria(
@@ -675,36 +709,65 @@ def _candidate_search_criteria(
             years_match = re.search(r"\b(\d{1,2})\s*\+?\s*years?\b", combined, flags=re.IGNORECASE)
             resolved_years = min(int(years_match.group(1)), 60) if years_match else 0
     resolved_years = max(1, resolved_years)
+    resolved_experience_ranges = _experience_ranges(experience_ranges, resolved_years)
+    resolved_years = min(
+        EXPERIENCE_RANGE_BOUNDS[label][0] for label in resolved_experience_ranges
+    )
 
-    resolved_work_arrangement = str(work_arrangement or law_base.get("workArrangement") or "").strip().lower()
-    if resolved_work_arrangement not in SEARCH_WORK_ARRANGEMENTS:
+    resolved_work_arrangements = [
+        item.lower()
+        for item in _split_external_terms(
+            work_arrangements or work_arrangement or law_base.get("workArrangements") or law_base.get("workArrangement"),
+            3,
+        )
+        if item.lower() in SEARCH_WORK_ARRANGEMENTS
+    ]
+    if not resolved_work_arrangements:
         has_remote = bool(re.search(r"\bremote\b", lower))
         has_onsite = bool(re.search(r"\b(?:on[ -]?site|in[ -]?office)\b", lower))
         if "hybrid" in lower or "combination" in lower or (has_remote and has_onsite):
-            resolved_work_arrangement = "hybrid"
+            resolved_work_arrangements = ["hybrid"]
         elif has_remote:
-            resolved_work_arrangement = "remote"
+            resolved_work_arrangements = ["remote"]
         elif has_onsite:
-            resolved_work_arrangement = "onsite"
-        else:
-            resolved_work_arrangement = ""
+            resolved_work_arrangements = ["onsite"]
+    resolved_work_arrangement = resolved_work_arrangements[0] if resolved_work_arrangements else ""
 
-    resolved_workforce_location = str(
-        workforce_location or law_base.get("workforceLocation") or "onshore"
-    ).strip().lower()
-    if resolved_workforce_location not in SEARCH_WORKFORCE_LOCATIONS:
-        resolved_workforce_location = "onshore"
+    resolved_workforce_locations = [
+        item.lower()
+        for item in _split_external_terms(
+            workforce_locations or workforce_location or law_base.get("workforceLocations") or law_base.get("workforceLocation"),
+            3,
+        )
+        if item.lower() in SEARCH_WORKFORCE_LOCATIONS
+    ] or ["onshore"]
+    if "either" in resolved_workforce_locations or {
+        "onshore", "offshore"
+    }.issubset(set(resolved_workforce_locations)):
+        resolved_workforce_location = "either"
+    else:
+        resolved_workforce_location = resolved_workforce_locations[0]
 
     if strict_locations is None:
         resolved_strict_locations = bool(resolved_locations)
     else:
         resolved_strict_locations = bool(strict_locations)
-    credential = str(license_or_certification or "").strip()
-    if not credential:
-        credential = _candidate_credential_from_jd(jd, clean_domain, resolved_region)
+    resolved_credentials = _split_external_terms(
+        licenses_or_certifications or license_or_certification,
+        12,
+    )
+    if not resolved_credentials:
+        derived_credential = _candidate_credential_from_jd(jd, clean_domain, resolved_region)
+        resolved_credentials = [derived_credential] if derived_credential else []
+    if len(resolved_credentials) > 1:
+        non_none_credentials = [
+            value for value in resolved_credentials if value.lower() != "none required"
+        ]
+        resolved_credentials = non_none_credentials or ["None required"]
+    credential = resolved_credentials[0] if resolved_credentials else ""
 
     criteria = {
-        "policyVersion": 3,
+        "policyVersion": 4,
         "domain": clean_domain,
         "titles": resolved_titles,
         "mustHaveSkills": resolved_skills,
@@ -712,10 +775,14 @@ def _candidate_search_criteria(
         "locations": resolved_locations,
         "region": resolved_region,
         "minYears": resolved_years,
+        "experienceRanges": resolved_experience_ranges,
         "strictLocations": resolved_strict_locations,
         "licenseOrCertification": credential,
+        "licensesOrCertifications": resolved_credentials,
         "workArrangement": resolved_work_arrangement,
+        "workArrangements": resolved_work_arrangements,
         "workforceLocation": resolved_workforce_location,
+        "workforceLocations": resolved_workforce_locations,
     }
     if law_base:
         criteria["practiceAreas"] = law_base.get("practiceAreas", [])
@@ -741,10 +808,16 @@ def _candidate_search_criteria_from_payload(
         locations=",".join(_safe_list(supplied.get("locations"))),
         region=_external_text(supplied.get("region"), 100),
         min_years=supplied.get("minYears") or 0,
+        experience_ranges=",".join(_safe_list(supplied.get("experienceRanges"))),
         strict_locations=supplied.get("strictLocations"),
         license_or_certification=_external_text(supplied.get("licenseOrCertification"), 160),
+        licenses_or_certifications=",".join(
+            _safe_list(supplied.get("licensesOrCertifications"))
+        ),
         work_arrangement=_external_text(supplied.get("workArrangement"), 40),
+        work_arrangements=",".join(_safe_list(supplied.get("workArrangements"))),
         workforce_location=_external_text(supplied.get("workforceLocation"), 40),
+        workforce_locations=",".join(_safe_list(supplied.get("workforceLocations"))),
     )
 
 
@@ -756,17 +829,16 @@ def _candidate_search_criteria_errors(criteria: dict) -> list[str]:
         errors.append("Must-have skills")
     if not _safe_list(criteria.get("locations")):
         errors.append("Target cities")
-    try:
-        min_years = int(criteria.get("minYears") or 0)
-    except (TypeError, ValueError):
-        min_years = 0
-    if min_years < 1:
-        errors.append("Minimum experience (at least 1 year)")
-    if not str(criteria.get("licenseOrCertification") or "").strip():
+    experience_ranges = _safe_list(criteria.get("experienceRanges"))
+    if not experience_ranges or any(value not in EXPERIENCE_RANGE_BOUNDS for value in experience_ranges):
+        errors.append("Experience range")
+    if not _safe_list(
+        criteria.get("licensesOrCertifications") or criteria.get("licenseOrCertification")
+    ):
         errors.append("License or certification name (or None required)")
-    if str(criteria.get("workArrangement") or "").strip().lower() not in SEARCH_WORK_ARRANGEMENTS:
+    if not _safe_list(criteria.get("workArrangements") or criteria.get("workArrangement")):
         errors.append("Remote, onsite, or hybrid")
-    if str(criteria.get("workforceLocation") or "").strip().lower() not in SEARCH_WORKFORCE_LOCATIONS:
+    if not _safe_list(criteria.get("workforceLocations") or criteria.get("workforceLocation")):
         errors.append("Onshore, offshore, or either")
     return errors
 
@@ -2963,10 +3035,14 @@ def external_candidate_search(
     locations: str = Form(default=""),
     region: str = Form(default=""),
     min_years: int = Form(default=0),
+    experience_ranges: str = Form(default=""),
     strict_locations: bool | None = Form(default=None),
     license_or_certification: str = Form(default=""),
+    licenses_or_certifications: str = Form(default=""),
     work_arrangement: str = Form(default=""),
+    work_arrangements: str = Form(default=""),
     workforce_location: str = Form(default=""),
+    workforce_locations: str = Form(default=""),
     scroll_token: str = Form(default=""),
     client_name: str = Form(default=""),
     history_root_id: str = Form(default=""),
@@ -2974,6 +3050,10 @@ def external_candidate_search(
     domain = _domain_key(domain)
     client_name = client_name if isinstance(client_name, str) else ""
     history_root_id = history_root_id if isinstance(history_root_id, (str, int)) else ""
+    experience_ranges = experience_ranges if isinstance(experience_ranges, str) else ""
+    licenses_or_certifications = licenses_or_certifications if isinstance(licenses_or_certifications, str) else ""
+    work_arrangements = work_arrangements if isinstance(work_arrangements, str) else ""
+    workforce_locations = workforce_locations if isinstance(workforce_locations, str) else ""
     top_k = _external_result_limit(top_k)
     jd, job_skills = _get_job_skills(jd_id, domain)
     search_skills = _searchable_job_skills(job_skills, 12)
@@ -2989,16 +3069,20 @@ def external_candidate_search(
         locations=locations,
         region=region,
         min_years=min_years,
+        experience_ranges=experience_ranges,
         strict_locations=strict_locations,
         license_or_certification=license_or_certification,
+        licenses_or_certifications=licenses_or_certifications,
         work_arrangement=work_arrangement,
+        work_arrangements=work_arrangements,
         workforce_location=workforce_location,
+        workforce_locations=workforce_locations,
     )
     _require_candidate_search_criteria(criteria)
     resolved_client_name = str(jd.get("company") or client_name or "").strip()
     jd_name = str(jd.get("title") or "").strip()
     history_query = {
-        "version": 3,
+        "version": 4,
         "domain": domain,
         "source": selected_source,
         "queryMode": "job_description",
@@ -3030,8 +3114,10 @@ def external_candidate_search(
                 locations=criteria["locations"],
                 region=criteria["region"],
                 min_years=criteria["minYears"],
+                experience_ranges=criteria["experienceRanges"],
                 strict_locations=criteria["strictLocations"],
                 license_or_certification=criteria["licenseOrCertification"],
+                licenses_or_certifications=criteria["licensesOrCertifications"],
                 workforce_location=criteria["workforceLocation"],
                 size=top_k,
                 scroll_token=scroll_token,
@@ -3053,7 +3139,9 @@ def external_candidate_search(
                 workforce_location=criteria["workforceLocation"] if criteria else "either",
                 strict_locations=criteria["strictLocations"] if criteria else False,
                 license_or_certification=criteria["licenseOrCertification"] if criteria else "",
+                licenses_or_certifications=criteria["licensesOrCertifications"] if criteria else [],
                 min_years=criteria["minYears"] if criteria else 0,
+                experience_ranges=criteria["experienceRanges"] if criteria else [],
                 size=top_k,
                 page=page,
             )

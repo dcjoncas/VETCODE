@@ -284,7 +284,7 @@
 
       .criteria-grid {
         display: grid;
-        grid-template-columns: minmax(220px, 1.4fr) minmax(220px, 1.4fr) minmax(180px, 1fr) minmax(120px, 0.6fr);
+        grid-template-columns: repeat(2, minmax(260px, 1fr));
         gap: 12px;
         margin-top: 12px;
       }
@@ -293,8 +293,91 @@
         margin: 0;
       }
 
-      .criteria-grid input {
+      .criteria-picker {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--card);
+      }
+
+      .criteria-picker summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 40px;
+        padding: 8px 10px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 700;
+        list-style-position: inside;
+      }
+
+      .criteria-picker[open] summary {
+        border-bottom: 1px solid var(--border);
+      }
+
+      .criteria-picker-summary {
+        color: var(--primary-2);
+        font-size: 12px;
+        font-weight: 700;
+        text-align: right;
+      }
+
+      .criteria-picker-body {
+        display: grid;
+        gap: 9px;
+        padding: 10px;
+      }
+
+      .criteria-option-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 6px;
+        max-height: 210px;
+        overflow: auto;
+      }
+
+      .criteria-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 7px;
+        min-width: 0;
+        padding: 7px 8px;
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        background: var(--surface, #f7f8fa);
+        color: var(--text);
+        font-size: 12px;
+        line-height: 1.3;
+        cursor: pointer;
+      }
+
+      .criteria-option:has(input:checked) {
+        border-color: var(--primary-2);
+        background: rgba(var(--primary-rgb), 0.1);
+      }
+
+      .criteria-option input,
+      .criteria-toggle input {
+        width: 16px;
+        height: 16px;
+        flex: 0 0 16px;
+      }
+
+      .criteria-filter,
+      .criteria-custom-row input {
         width: 100%;
+        min-width: 0;
+      }
+
+      .criteria-custom-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 7px;
+      }
+
+      .criteria-custom-row .btn {
+        white-space: nowrap;
       }
 
       .criteria-toggle {
@@ -304,12 +387,6 @@
         margin-top: 10px;
         font-size: 13px;
         color: var(--muted);
-      }
-
-      .criteria-toggle input {
-        width: 16px;
-        height: 16px;
-        flex: 0 0 16px;
       }
 
       .verification-strip {
@@ -516,6 +593,10 @@
       @media (max-width: 760px) {
         .criteria-grid,
         .source-audit {
+          grid-template-columns: 1fr;
+        }
+
+        .criteria-custom-row {
           grid-template-columns: 1fr;
         }
 
@@ -743,50 +824,96 @@
             <div class="criteria-head">
               <div>
                 <h3 id="searchCriteriaTitle">Non-negotiable candidate search criteria</h3>
-                <p class="muted">Review every JD-derived requirement. Search stays blocked in every domain until all criteria are complete.</p>
+                <p class="muted">JD-derived values start checked. Uncheck them to override, choose better defaults, or type and add your own selections.</p>
               </div>
               <span class="pill">Required before search</span>
             </div>
             <div class="criteria-grid">
               <div class="field">
-                <label for="criteriaTitles">Current titles *</label>
-                <input id="criteriaTitles" required placeholder="Software Engineer, Project Engineer, Attorney" />
+                <label>Current titles *</label>
+                <details class="criteria-picker" open>
+                  <summary>Choose current titles <span id="criteriaTitlesSummary" class="criteria-picker-summary">0 selected</span></summary>
+                  <div class="criteria-picker-body">
+                    <input id="criteriaTitlesFilter" class="criteria-filter" type="search" placeholder="Filter title choices" data-criteria-filter="titles" />
+                    <div id="criteriaTitlesOptions" class="criteria-option-grid"></div>
+                    <div class="criteria-custom-row">
+                      <input id="criteriaTitlesCustom" placeholder="Type another title" />
+                      <button class="btn secondary" type="button" data-criteria-add="titles" data-input="criteriaTitlesCustom">Add title</button>
+                    </div>
+                  </div>
+                </details>
               </div>
               <div class="field">
-                <label for="criteriaMustHaveSkills">Must-have skills (open text) *</label>
-                <input id="criteriaMustHaveSkills" required placeholder="Python, structural design, professional liability" />
+                <label>Must-have skills *</label>
+                <details class="criteria-picker">
+                  <summary>Choose must-have skills <span id="criteriaSkillsSummary" class="criteria-picker-summary">0 selected</span></summary>
+                  <div class="criteria-picker-body">
+                    <input class="criteria-filter" type="search" placeholder="Filter skill choices" data-criteria-filter="skills" />
+                    <div id="criteriaSkillsOptions" class="criteria-option-grid"></div>
+                    <div class="criteria-custom-row">
+                      <input id="criteriaSkillsCustom" placeholder="Type another skill" />
+                      <button class="btn secondary" type="button" data-criteria-add="skills" data-input="criteriaSkillsCustom">Add skill</button>
+                    </div>
+                  </div>
+                </details>
               </div>
               <div class="field">
-                <label for="criteriaLocations">Target cities *</label>
-                <input id="criteriaLocations" required placeholder="Denver, Los Angeles, New York" />
-                <small>Always required; exact-city matching controls whether these are mandatory or preferred.</small>
+                <label>Target cities in the U.S. and Canada *</label>
+                <details class="criteria-picker">
+                  <summary>Choose major cities <span id="criteriaCitiesSummary" class="criteria-picker-summary">0 selected</span></summary>
+                  <div class="criteria-picker-body">
+                    <input class="criteria-filter" type="search" placeholder="Filter major cities" data-criteria-filter="cities" />
+                    <div id="criteriaCitiesOptions" class="criteria-option-grid"></div>
+                    <div class="criteria-custom-row">
+                      <input id="criteriaCitiesCustom" placeholder="Type another city" />
+                      <button class="btn secondary" type="button" data-criteria-add="cities" data-input="criteriaCitiesCustom">Add city</button>
+                    </div>
+                  </div>
+                </details>
+                <small>Exact-city matching controls whether checked cities are mandatory or preferred.</small>
               </div>
               <div class="field">
-                <label for="criteriaMinYears">Minimum experience (years) *</label>
-                <input id="criteriaMinYears" type="number" min="1" max="60" step="1" value="1" required />
+                <label>Experience ranges *</label>
+                <details class="criteria-picker">
+                  <summary>Choose experience ranges <span id="criteriaExperienceSummary" class="criteria-picker-summary">0 selected</span></summary>
+                  <div class="criteria-picker-body">
+                    <div id="criteriaExperienceOptions" class="criteria-option-grid"></div>
+                  </div>
+                </details>
               </div>
               <div class="field">
-                <label for="criteriaLicenseCertification">License or certification by name *</label>
-                <input id="criteriaLicenseCertification" required placeholder="PMP, PE license, California attorney license, or None required" />
-                <small>Enter the exact requirement, or explicitly enter “None required.”</small>
+                <label>Licenses or certifications *</label>
+                <details class="criteria-picker">
+                  <summary>Choose accepted credentials <span id="criteriaLicensesSummary" class="criteria-picker-summary">0 selected</span></summary>
+                  <div class="criteria-picker-body">
+                    <input class="criteria-filter" type="search" placeholder="Filter license and certification choices" data-criteria-filter="licenses" />
+                    <div id="criteriaLicensesOptions" class="criteria-option-grid"></div>
+                    <div class="criteria-custom-row">
+                      <input id="criteriaLicensesCustom" placeholder="Type another license or certification" />
+                      <button class="btn secondary" type="button" data-criteria-add="licenses" data-input="criteriaLicensesCustom">Add credential</button>
+                    </div>
+                  </div>
+                </details>
+                <small>Choose every accepted credential, or check “None required.”</small>
               </div>
               <div class="field">
-                <label for="criteriaWorkArrangement">Work arrangement *</label>
-                <select id="criteriaWorkArrangement" required>
-                  <option value="">Select required arrangement</option>
-                  <option value="remote">Remote</option>
-                  <option value="onsite">Onsite</option>
-                  <option value="hybrid">Hybrid (remote + onsite)</option>
-                </select>
+                <label>Work arrangement *</label>
+                <details class="criteria-picker">
+                  <summary>Choose accepted arrangements <span id="criteriaArrangementSummary" class="criteria-picker-summary">0 selected</span></summary>
+                  <div class="criteria-picker-body">
+                    <div id="criteriaArrangementOptions" class="criteria-option-grid"></div>
+                  </div>
+                </details>
                 <small>Role requirement; confirm candidate availability before outreach.</small>
               </div>
               <div class="field">
-                <label for="criteriaWorkforceLocation">Workforce location *</label>
-                <select id="criteriaWorkforceLocation" required>
-                  <option value="onshore">Onshore (United States)</option>
-                  <option value="offshore">Offshore (outside United States)</option>
-                  <option value="either">Onshore or offshore</option>
-                </select>
+                <label>Workforce location *</label>
+                <details class="criteria-picker">
+                  <summary>Choose workforce locations <span id="criteriaWorkforceSummary" class="criteria-picker-summary">0 selected</span></summary>
+                  <div class="criteria-picker-body">
+                    <div id="criteriaWorkforceOptions" class="criteria-option-grid"></div>
+                  </div>
+                </details>
                 <small>Applied to the candidate's current profile country where the provider supports it.</small>
               </div>
             </div>
@@ -943,6 +1070,103 @@
       let savedExternalSearches = [];
       let activeSavedSearch = null;
       let searchCriteriaRegion = "";
+
+      const MAJOR_US_CANADA_CITIES = [
+        "Atlanta", "Austin", "Boston", "Charlotte", "Chicago", "Dallas", "Denver", "Detroit",
+        "Houston", "Las Vegas", "Los Angeles", "Miami", "Minneapolis", "Nashville", "New York",
+        "Orlando", "Philadelphia", "Phoenix", "Pittsburgh", "Portland", "Raleigh", "Salt Lake City",
+        "San Antonio", "San Diego", "San Francisco", "San Jose", "Seattle", "Tampa", "Washington",
+        "Calgary", "Edmonton", "Halifax", "Montreal", "Ottawa", "Quebec City", "Toronto",
+        "Vancouver", "Victoria", "Winnipeg",
+      ];
+
+      const DOMAIN_CRITERIA_CHOICES = {
+        dev: {
+          titles: [
+            "Software Engineer", "Senior Software Engineer", "Full-Stack Engineer", "Backend Engineer",
+            "Frontend Engineer", "Platform Engineer", "DevOps Engineer", "Cloud Engineer", "Data Engineer",
+            "Machine Learning Engineer", "AI Engineer", "Solutions Architect", "Engineering Manager",
+          ],
+          skills: [
+            "Python", "Java", "JavaScript", "TypeScript", "C#", ".NET", "React", "Angular", "Node.js",
+            "Django", "FastAPI", "Spring Boot", "SQL", "AWS", "Azure", "Google Cloud", "Docker",
+            "Kubernetes", "CI/CD", "Terraform", "RAG", "LLM applications", "MCP",
+          ],
+          licenses: [
+            "AWS Certified Solutions Architect", "Microsoft Certified: Azure Solutions Architect Expert",
+            "Google Professional Cloud Architect", "CISSP", "CompTIA Security+", "PMP", "ScrumMaster (CSM)",
+            "None required",
+          ],
+        },
+        engineer: {
+          titles: [
+            "Civil Engineer", "Mechanical Engineer", "Electrical Engineer", "Structural Engineer",
+            "Project Engineer", "Controls Engineer", "Field Engineer", "Design Engineer",
+            "Manufacturing Engineer", "Quality Engineer", "Engineering Manager", "Project Manager",
+          ],
+          skills: [
+            "AutoCAD", "Civil 3D", "Revit", "SolidWorks", "SCADA", "PLC programming", "Commissioning",
+            "Structural design", "Electrical design", "Mechanical design", "Construction management",
+            "Project management", "QA/QC", "Safety", "Cost estimating", "Scheduling", "BIM",
+          ],
+          licenses: [
+            "Professional Engineer (PE) license", "Engineer in Training (EIT) certification", "PMP",
+            "OSHA 10", "OSHA 30", "LEED AP", "Certified Energy Manager (CEM)", "None required",
+          ],
+        },
+        law: {
+          titles: [
+            "Associate Attorney", "Attorney", "Senior Attorney", "Counsel", "Senior Counsel",
+            "Staff Attorney", "Litigation Attorney", "Corporate Counsel", "Paralegal", "Legal Assistant",
+          ],
+          skills: [
+            "Civil litigation", "Commercial litigation", "Insurance defense", "Professional liability",
+            "Legal research", "Legal writing", "Depositions", "Discovery", "Trial preparation",
+            "Contract drafting", "Regulatory compliance", "Case management", "Client counseling",
+          ],
+          licenses: [
+            "California attorney license", "New York attorney license", "Texas attorney license",
+            "Florida attorney license", "Illinois attorney license", "Washington attorney license",
+            "Ontario lawyer license", "British Columbia lawyer license", "None required",
+          ],
+        },
+        dental: {
+          titles: [
+            "General Dentist", "Dental Hygienist", "Registered Dental Hygienist", "Dental Assistant",
+            "Expanded Functions Dental Assistant", "Treatment Coordinator", "Dental Office Manager",
+            "Orthodontic Assistant", "Oral Surgery Assistant", "Dental Front Office Coordinator",
+          ],
+          skills: [
+            "Patient care", "Dental hygiene", "Digital radiography", "Chairside assisting", "Dentrix",
+            "Eaglesoft", "Treatment planning", "Periodontal therapy", "Sterilization", "Infection control",
+            "Insurance verification", "Scheduling", "Case presentation", "Orthodontics", "Oral surgery",
+          ],
+          licenses: [
+            "State dental license", "Registered Dental Hygienist (RDH)", "Certified Dental Assistant (CDA)",
+            "Expanded Functions Dental Assistant (EFDA)", "Radiology certification", "BLS/CPR certification",
+            "Nitrous oxide certification", "None required",
+          ],
+        },
+      };
+
+      const CRITERIA_PICKER_META = {
+        titles: { container: "criteriaTitlesOptions", summary: "criteriaTitlesSummary" },
+        skills: { container: "criteriaSkillsOptions", summary: "criteriaSkillsSummary" },
+        cities: { container: "criteriaCitiesOptions", summary: "criteriaCitiesSummary" },
+        experience: { container: "criteriaExperienceOptions", summary: "criteriaExperienceSummary" },
+        licenses: { container: "criteriaLicensesOptions", summary: "criteriaLicensesSummary" },
+        arrangements: { container: "criteriaArrangementOptions", summary: "criteriaArrangementSummary" },
+        workforce: { container: "criteriaWorkforceOptions", summary: "criteriaWorkforceSummary" },
+      };
+
+      const EXPERIENCE_RANGE_CHOICES = ["1-2", "3-5", "6-9", "10-14", "15+"];
+      const CRITERIA_VALUE_LABELS = {
+        "1-2": "1–2 years", "3-5": "3–5 years", "6-9": "6–9 years",
+        "10-14": "10–14 years", "15+": "15+ years",
+        remote: "Remote", onsite: "Onsite", hybrid: "Hybrid (remote + onsite)",
+        onshore: "Onshore (United States)", offshore: "Offshore (outside United States)",
+        either: "Onshore or offshore",
+      };
 
       function currentDomain() {
         return sessionStorage.getItem("domain") || "dev";
@@ -1155,9 +1379,128 @@
         if (help) help.textContent = target.help;
       }
 
+      function uniqueCriteriaValues(values) {
+        const seen = new Set();
+        return (values || []).map((value) => String(value || "").trim()).filter((value) => {
+          const key = value.toLowerCase();
+          if (!value || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      }
+
+      function criteriaChoices(group) {
+        const domainChoices = DOMAIN_CRITERIA_CHOICES[currentDomain()] || DOMAIN_CRITERIA_CHOICES.dev;
+        if (group === "cities") return MAJOR_US_CANADA_CITIES;
+        if (group === "experience") return EXPERIENCE_RANGE_CHOICES;
+        if (group === "arrangements") return ["remote", "onsite", "hybrid"];
+        if (group === "workforce") return ["onshore", "offshore", "either"];
+        return domainChoices[group] || [];
+      }
+
+      function criteriaValueLabel(value) {
+        return CRITERIA_VALUE_LABELS[value] || value;
+      }
+
+      function selectedCriteriaValues(group) {
+        return [...document.querySelectorAll(`input[data-criteria-group="${group}"]:checked`)]
+          .map((input) => input.value);
+      }
+
+      function updateCriteriaSummary(group) {
+        const summary = document.getElementById(CRITERIA_PICKER_META[group]?.summary);
+        if (!summary) return;
+        const selected = selectedCriteriaValues(group);
+        summary.textContent = selected.length
+          ? `${selected.length} selected${selected.length <= 2 ? `: ${selected.map(criteriaValueLabel).join(", ")}` : ""}`
+          : "0 selected";
+      }
+
+      function handleCriteriaOptionChange(group, changedInput) {
+        if (group === "licenses" && changedInput?.checked) {
+          const isNone = changedInput.value.toLowerCase() === "none required";
+          document.querySelectorAll('input[data-criteria-group="licenses"]:checked').forEach((input) => {
+            if (input !== changedInput && (isNone || input.value.toLowerCase() === "none required")) {
+              input.checked = false;
+            }
+          });
+        }
+        if (group === "workforce" && changedInput?.checked) {
+          const isEither = changedInput.value === "either";
+          document.querySelectorAll('input[data-criteria-group="workforce"]:checked').forEach((input) => {
+            if (input !== changedInput && (isEither || input.value === "either")) input.checked = false;
+          });
+        }
+        updateCriteriaSummary(group);
+        if (group === "workforce") updateSearchLocationHelp();
+        refreshSearchCriteriaStatus();
+      }
+
+      function renderCriteriaGroup(group, selectedValues = []) {
+        const container = document.getElementById(CRITERIA_PICKER_META[group]?.container);
+        if (!container) return;
+        const selected = uniqueCriteriaValues(selectedValues);
+        const selectedKeys = new Set(selected.map((value) => value.toLowerCase()));
+        const values = uniqueCriteriaValues([...selected, ...criteriaChoices(group)]);
+        container.innerHTML = "";
+        values.forEach((value) => {
+          const label = document.createElement("label");
+          label.className = "criteria-option";
+          label.dataset.criteriaText = criteriaValueLabel(value).toLowerCase();
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.value = value;
+          input.dataset.criteriaGroup = group;
+          input.checked = selectedKeys.has(value.toLowerCase());
+          input.addEventListener("change", () => handleCriteriaOptionChange(group, input));
+          const copy = document.createElement("span");
+          copy.textContent = criteriaValueLabel(value);
+          label.append(input, copy);
+          container.appendChild(label);
+        });
+        updateCriteriaSummary(group);
+      }
+
+      function addCustomCriteriaValue(group, inputId) {
+        const input = document.getElementById(inputId);
+        const additions = uniqueCriteriaValues(String(input?.value || "").split(/[,;\n]+/));
+        if (!additions.length) return;
+        const selected = uniqueCriteriaValues([...selectedCriteriaValues(group), ...additions]);
+        renderCriteriaGroup(group, selected);
+        input.value = "";
+        refreshSearchCriteriaStatus();
+      }
+
+      function filterCriteriaGroup(group, query) {
+        const container = document.getElementById(CRITERIA_PICKER_META[group]?.container);
+        const normalized = String(query || "").trim().toLowerCase();
+        container?.querySelectorAll(".criteria-option").forEach((option) => {
+          option.hidden = Boolean(normalized) && !String(option.dataset.criteriaText || "").includes(normalized);
+        });
+      }
+
+      function experienceRangeForYears(years) {
+        const value = Math.max(1, Number(years || 1));
+        if (value <= 2) return "1-2";
+        if (value <= 5) return "3-5";
+        if (value <= 9) return "6-9";
+        if (value <= 14) return "10-14";
+        return "15+";
+      }
+
+      function minimumYearsForRanges(ranges) {
+        const minimums = { "1-2": 1, "3-5": 3, "6-9": 6, "10-14": 10, "15+": 15 };
+        return Math.min(...ranges.map((value) => minimums[value]).filter(Number.isFinite));
+      }
+
       function updateSearchLocationHelp() {
         const locationHelp = document.getElementById("criteriaStrictLocationsHelp");
-        const workforceLocation = document.getElementById("criteriaWorkforceLocation")?.value || "onshore";
+        const workforceLocations = selectedCriteriaValues("workforce");
+        const workforceLocation = workforceLocations.includes("offshore") && !workforceLocations.includes("onshore")
+          ? "offshore"
+          : workforceLocations.includes("either") || workforceLocations.length > 1
+            ? "either"
+            : workforceLocations[0] || "onshore";
         if (!locationHelp) return;
         locationHelp.textContent = workforceLocation === "offshore"
           ? "Require the current profile location to match a target city. Uncheck to treat the cities as preferred while searching outside the United States."
@@ -1217,16 +1560,29 @@
 
       function setSearchCriteria(criteria = {}) {
         document.getElementById("searchCriteriaPanel").hidden = false;
-        document.getElementById("criteriaTitles").value = (criteria.titles || []).join(", ");
-        document.getElementById("criteriaMustHaveSkills").value = (
-          criteria.mustHaveSkills || criteria.requiredSkills || criteria.requiredPracticeAreas || []
-        ).join(", ");
-        document.getElementById("criteriaLocations").value = (criteria.locations || []).join(", ");
-        document.getElementById("criteriaMinYears").value = Number(criteria.minYears || 1);
+        renderCriteriaGroup("titles", criteria.titles || []);
+        renderCriteriaGroup(
+          "skills",
+          criteria.mustHaveSkills || criteria.requiredSkills || criteria.requiredPracticeAreas || [],
+        );
+        renderCriteriaGroup("cities", criteria.locations || []);
+        renderCriteriaGroup(
+          "experience",
+          criteria.experienceRanges || [experienceRangeForYears(criteria.minYears || 1)],
+        );
+        renderCriteriaGroup(
+          "licenses",
+          criteria.licensesOrCertifications || (criteria.licenseOrCertification ? [criteria.licenseOrCertification] : []),
+        );
+        renderCriteriaGroup(
+          "arrangements",
+          criteria.workArrangements || (criteria.workArrangement ? [criteria.workArrangement] : []),
+        );
+        renderCriteriaGroup(
+          "workforce",
+          criteria.workforceLocations || (criteria.workforceLocation ? [criteria.workforceLocation] : ["onshore"]),
+        );
         document.getElementById("criteriaStrictLocations").checked = criteria.strictLocations !== false;
-        document.getElementById("criteriaLicenseCertification").value = criteria.licenseOrCertification || "";
-        document.getElementById("criteriaWorkArrangement").value = criteria.workArrangement || "";
-        document.getElementById("criteriaWorkforceLocation").value = criteria.workforceLocation || "onshore";
         searchCriteriaRegion = criteria.region || (isLawDomain() ? "California" : "");
         updateSearchLocationHelp();
         updateLawVerificationSource();
@@ -1242,14 +1598,19 @@
       }
 
       function appendSearchCriteria(formData) {
-        formData.append("titles", document.getElementById("criteriaTitles").value.trim());
-        formData.append("required_skills", document.getElementById("criteriaMustHaveSkills").value.trim());
-        formData.append("locations", document.getElementById("criteriaLocations").value.trim());
+        const criteria = currentSearchCriteria();
+        formData.append("titles", criteria.titles.join(","));
+        formData.append("required_skills", criteria.mustHaveSkills.join(","));
+        formData.append("locations", criteria.locations.join(","));
         formData.append("region", searchCriteriaRegion);
-        formData.append("min_years", document.getElementById("criteriaMinYears").value || "0");
-        formData.append("license_or_certification", document.getElementById("criteriaLicenseCertification").value.trim());
-        formData.append("work_arrangement", document.getElementById("criteriaWorkArrangement").value);
-        formData.append("workforce_location", document.getElementById("criteriaWorkforceLocation").value);
+        formData.append("min_years", String(criteria.minYears || 1));
+        formData.append("experience_ranges", criteria.experienceRanges.join(","));
+        formData.append("license_or_certification", criteria.licenseOrCertification);
+        formData.append("licenses_or_certifications", criteria.licensesOrCertifications.join(","));
+        formData.append("work_arrangement", criteria.workArrangement);
+        formData.append("work_arrangements", criteria.workArrangements.join(","));
+        formData.append("workforce_location", criteria.workforceLocation);
+        formData.append("workforce_locations", criteria.workforceLocations.join(","));
         formData.append(
           "strict_locations",
           document.getElementById("criteriaStrictLocations").checked ? "true" : "false",
@@ -1257,21 +1618,28 @@
       }
 
       function currentSearchCriteria() {
-        const splitValues = (value) => String(value || "")
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean);
+        const experienceRanges = selectedCriteriaValues("experience");
+        const licensesOrCertifications = selectedCriteriaValues("licenses");
+        const workArrangements = selectedCriteriaValues("arrangements");
+        const workforceLocations = selectedCriteriaValues("workforce");
+        const workforceLocation = workforceLocations.includes("either") || (
+          workforceLocations.includes("onshore") && workforceLocations.includes("offshore")
+        ) ? "either" : workforceLocations[0] || "";
         return {
-          titles: splitValues(document.getElementById("criteriaTitles").value),
-          mustHaveSkills: splitValues(document.getElementById("criteriaMustHaveSkills").value),
-          requiredSkills: splitValues(document.getElementById("criteriaMustHaveSkills").value),
-          locations: splitValues(document.getElementById("criteriaLocations").value),
+          titles: selectedCriteriaValues("titles"),
+          mustHaveSkills: selectedCriteriaValues("skills"),
+          requiredSkills: selectedCriteriaValues("skills"),
+          locations: selectedCriteriaValues("cities"),
           region: searchCriteriaRegion,
-          minYears: Number(document.getElementById("criteriaMinYears").value || 0),
+          minYears: experienceRanges.length ? minimumYearsForRanges(experienceRanges) : 0,
+          experienceRanges,
           strictLocations: document.getElementById("criteriaStrictLocations").checked,
-          licenseOrCertification: document.getElementById("criteriaLicenseCertification").value.trim(),
-          workArrangement: document.getElementById("criteriaWorkArrangement").value,
-          workforceLocation: document.getElementById("criteriaWorkforceLocation").value,
+          licenseOrCertification: licensesOrCertifications[0] || "",
+          licensesOrCertifications,
+          workArrangement: workArrangements[0] || "",
+          workArrangements,
+          workforceLocation,
+          workforceLocations,
         };
       }
 
@@ -1285,10 +1653,10 @@
         if (!criteria.titles.length) errors.push("Current titles");
         if (!criteria.requiredSkills.length) errors.push("Must-have skills");
         if (!criteria.locations.length) errors.push("Target cities");
-        if (!Number.isInteger(criteria.minYears) || criteria.minYears < 1) errors.push("Minimum experience (at least 1 year)");
-        if (!criteria.licenseOrCertification) errors.push("License or certification name (or None required)");
-        if (!["remote", "onsite", "hybrid"].includes(criteria.workArrangement)) errors.push("Remote, onsite, or hybrid");
-        if (!["onshore", "offshore", "either"].includes(criteria.workforceLocation)) errors.push("Onshore, offshore, or either");
+        if (!criteria.experienceRanges.length) errors.push("Experience range");
+        if (!criteria.licensesOrCertifications.length) errors.push("License or certification name (or None required)");
+        if (!criteria.workArrangements.length) errors.push("Remote, onsite, or hybrid");
+        if (!criteria.workforceLocations.length) errors.push("Onshore, offshore, or either");
         return errors;
       }
 
@@ -2776,15 +3144,23 @@
           updateWorkflowGuidance();
           applySelectedExternalJob(this.value);
         });
-        document.getElementById("criteriaWorkforceLocation")?.addEventListener("change", () => {
-          updateSearchLocationHelp();
-          updateLawVerificationSource();
-          refreshSearchCriteriaStatus();
+        document.querySelectorAll("[data-criteria-add]").forEach((button) => {
+          button.addEventListener("click", () => {
+            addCustomCriteriaValue(button.dataset.criteriaAdd, button.dataset.input);
+          });
         });
-        document.querySelectorAll("#searchCriteriaPanel input, #searchCriteriaPanel select").forEach((control) => {
-          control.addEventListener("input", refreshSearchCriteriaStatus);
-          control.addEventListener("change", refreshSearchCriteriaStatus);
+        document.querySelectorAll("[data-criteria-filter]").forEach((input) => {
+          input.addEventListener("input", () => filterCriteriaGroup(input.dataset.criteriaFilter, input.value));
         });
+        document.querySelectorAll(".criteria-custom-row input").forEach((input) => {
+          input.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            const button = input.parentElement?.querySelector("[data-criteria-add]");
+            if (button) addCustomCriteriaValue(button.dataset.criteriaAdd, button.dataset.input);
+          });
+        });
+        document.getElementById("criteriaStrictLocations")?.addEventListener("change", refreshSearchCriteriaStatus);
         document.getElementById("btnMine").addEventListener("click", mineCandidates);
         document.getElementById("btnImportSelected").addEventListener("click", importSelectedExternalCandidates);
         document.getElementById("savedSearchSelect").addEventListener("change", function () {

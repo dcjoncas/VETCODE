@@ -75,10 +75,42 @@ class LawyerMiningTests(unittest.TestCase):
         self.assertEqual(criteria["titles"], ["Senior Software Engineer"])
         self.assertEqual(criteria["mustHaveSkills"], ["Python", "AWS", "FastAPI"])
         self.assertEqual(criteria["locations"], ["Denver"])
-        self.assertEqual(criteria["minYears"], 5)
+        self.assertEqual(criteria["minYears"], 3)
+        self.assertEqual(criteria["experienceRanges"], ["3-5"])
         self.assertEqual(criteria["licenseOrCertification"], "AWS Certified Solutions Architect")
+        self.assertEqual(criteria["licensesOrCertifications"], ["AWS Certified Solutions Architect"])
         self.assertEqual(criteria["workArrangement"], "remote")
+        self.assertEqual(criteria["workArrangements"], ["remote"])
         self.assertEqual(criteria["workforceLocation"], "onshore")
+        self.assertEqual(criteria["workforceLocations"], ["onshore"])
+        self.assertEqual(_candidate_search_criteria_errors(criteria), [])
+
+    def test_multi_select_overrides_are_preserved_in_the_shared_contract(self):
+        criteria = _candidate_search_criteria(
+            {
+                "title": "Platform Engineer (5+ years) in Denver",
+                "description": "Denver, CO | Hybrid",
+            },
+            job_skills=["Python", "AWS"],
+            domain="technology",
+            titles="Platform Engineer,Site Reliability Engineer",
+            required_skills="Python,Kubernetes,Terraform",
+            locations="Denver,Toronto",
+            experience_ranges="3-5,10-14",
+            licenses_or_certifications="AWS Certified Solutions Architect,CKA",
+            work_arrangements="remote,hybrid",
+            workforce_locations="onshore,offshore",
+        )
+
+        self.assertEqual(criteria["experienceRanges"], ["3-5", "10-14"])
+        self.assertEqual(criteria["minYears"], 3)
+        self.assertEqual(
+            criteria["licensesOrCertifications"],
+            ["AWS Certified Solutions Architect", "CKA"],
+        )
+        self.assertEqual(criteria["workArrangements"], ["remote", "hybrid"])
+        self.assertEqual(criteria["workforceLocations"], ["onshore", "offshore"])
+        self.assertEqual(criteria["workforceLocation"], "either")
         self.assertEqual(_candidate_search_criteria_errors(criteria), [])
 
     def test_explicit_none_required_is_a_valid_credential_decision(self):
@@ -110,7 +142,7 @@ class LawyerMiningTests(unittest.TestCase):
         response = external_candidate_criteria("202", "build")
 
         self.assertEqual(response["domain"], "engineer")
-        self.assertEqual(response["criteria"]["policyVersion"], 3)
+        self.assertEqual(response["criteria"]["policyVersion"], 4)
         self.assertEqual(response["criteria"]["licenseOrCertification"], "Professional Engineer (PE) license")
         self.assertEqual(response["criteriaStatus"]["missing"], [])
         self.assertTrue(response["criteriaStatus"]["complete"])

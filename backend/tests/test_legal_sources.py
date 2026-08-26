@@ -29,8 +29,9 @@ class LegalSourceClientTests(unittest.TestCase):
             titles=["Attorney"],
             practice_areas=["Professional Liability"],
             locations=["Los Angeles"],
-            license_or_certification="California attorney license",
+            licenses_or_certifications=["California attorney license", "New York attorney license"],
             min_years=3,
+            experience_ranges=["3-5", "10-14"],
             size=5,
             page=2,
         )
@@ -40,11 +41,38 @@ class LegalSourceClientTests(unittest.TestCase):
         self.assertEqual(request["params"], {"page": 2, "items_per_page": 5})
         self.assertIn("Professional Liability", request["json"]["skill"])
         self.assertIn("California attorney license", request["json"]["certification_title"])
+        self.assertIn("New York attorney license", request["json"]["certification_title"])
         self.assertTrue(request["json"]["active_experience"])
         self.assertEqual(result["total"], 24)
         self.assertEqual(result["next_page"], 3)
         self.assertEqual(result["credits_used"], 10)
         self.assertEqual(result["criteria_verification"]["minimum_years"], 3)
+        self.assertEqual(result["criteria_verification"]["experience_ranges"], ["3-5", "10-14"])
+        self.assertEqual(
+            result["criteria_verification"]["licenses_or_certifications"],
+            ["California attorney license", "New York attorney license"],
+        )
+
+    @patch.dict(os.environ, {"CORESIGNAL_API_KEY": "core-test-key"}, clear=False)
+    @patch("legalSources.coreSignal.requests.post")
+    def test_coresignal_either_workforce_does_not_force_a_us_region(self, post):
+        response = Mock(status_code=200)
+        response.headers = {}
+        response.json.return_value = []
+        post.return_value = response
+
+        coreSignal.search_people(
+            titles=["Attorney"],
+            practice_areas=["Litigation"],
+            locations=["Toronto"],
+            region="California",
+            workforce_location="either",
+            strict_locations=False,
+        )
+
+        payload = post.call_args.kwargs["json"]
+        self.assertNotIn("country", payload)
+        self.assertNotIn("location", payload)
 
     @patch.dict(os.environ, {"CORESIGNAL_API_KEY": "core-test-key"}, clear=False)
     @patch("legalSources.coreSignal.requests.get")
@@ -308,9 +336,11 @@ class LegalSourceRouteTests(unittest.TestCase):
             must_have_skills=["Python", "AWS"],
             locations=["Denver"],
             region="",
-            min_years=5,
+            min_years=3,
+            experience_ranges=["3-5"],
             strict_locations=True,
             license_or_certification="AWS Certified Solutions Architect",
+            licenses_or_certifications=["AWS Certified Solutions Architect"],
             workforce_location="onshore",
             size=5,
             scroll_token="",
