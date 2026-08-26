@@ -66,6 +66,10 @@ def _or_filter(values: list[str]) -> str:
     return " OR ".join(f'("{value}")' for value in _clean_terms(values))
 
 
+def _and_filter(values: list[str]) -> str:
+    return " AND ".join(f'("{value}")' for value in _clean_terms(values))
+
+
 def _error_message(status_code: int) -> str:
     messages = {
         400: "Coresignal rejected the request criteria.",
@@ -89,14 +93,20 @@ def search_people(
     region: str = "California",
     workforce_location: str = "onshore",
     strict_locations: bool = True,
+    license_or_certification: str = "",
+    min_years: int = 0,
     size: int = 10,
     page: int = 1,
     direct_query: str = "",
 ) -> dict[str, Any]:
     page_size = max(1, min(int(size or 10), 20))
     page_number = max(1, min(int(page or 1), 100))
-    clean_titles = _clean_terms(titles) or ["Attorney", "Lawyer", "Counsel"]
+    clean_titles = _clean_terms(titles) or ["Professional"]
     clean_practice = _clean_terms(practice_areas)
+    clean_credential = " ".join(str(license_or_certification or "").split()).strip()
+    credential_is_required = clean_credential.lower() not in {
+        "", "none", "none required", "not required", "n/a", "na",
+    }
     clean_locations = _clean_terms(locations)
     clean_workforce_location = str(workforce_location or "onshore").strip().lower()
     if clean_workforce_location == "offshore":
@@ -114,6 +124,7 @@ def search_people(
     else:
         payload = {
             "experience_title": _or_filter(clean_titles),
+            "active_experience": True,
             "deleted": False,
         }
         if location_terms:
@@ -121,7 +132,9 @@ def search_people(
         if clean_workforce_location == "onshore":
             payload["country"] = "United States"
         if clean_practice:
-            payload["keyword"] = _or_filter(clean_practice)
+            payload["skill"] = _and_filter(clean_practice)
+        if credential_is_required:
+            payload["certification_title"] = f'("{clean_credential}")'
 
     try:
         response = requests.post(
@@ -175,6 +188,11 @@ def search_people(
         "has_more": has_more,
         "next_page": page_number + 1 if has_more else None,
         "query": payload,
+        "criteria_verification": {
+            "minimum_years": max(0, min(int(min_years or 0), 60)),
+            "license_or_certification": clean_credential,
+            "experience_and_credential_require_manual_confirmation": True,
+        },
         "credits_used": credit_cost("base"),
     }
 

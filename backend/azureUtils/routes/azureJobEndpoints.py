@@ -397,8 +397,16 @@ LAWYER_SUPPORTING_TERMS = {
     "depositions",
     "trial preparation",
 }
-LAWYER_WORK_ARRANGEMENTS = {"remote", "onsite", "hybrid"}
-LAWYER_WORKFORCE_LOCATIONS = {"onshore", "offshore", "either"}
+SEARCH_WORK_ARRANGEMENTS = {"remote", "onsite", "hybrid"}
+SEARCH_WORKFORCE_LOCATIONS = {"onshore", "offshore", "either"}
+LAWYER_WORK_ARRANGEMENTS = SEARCH_WORK_ARRANGEMENTS
+LAWYER_WORKFORCE_LOCATIONS = SEARCH_WORKFORCE_LOCATIONS
+DOMAIN_TITLE_DEFAULTS = {
+    "dev": ["software engineer", "software developer", "developer"],
+    "engineer": ["engineer", "project engineer", "design engineer"],
+    "law": list(LAWYER_TITLE_DEFAULTS),
+    "dental": ["dental assistant", "dental hygienist", "treatment coordinator"],
+}
 US_STATE_NAMES_BY_ABBR = {
     "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
     "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware",
@@ -511,6 +519,7 @@ def _lawyer_search_criteria(
         years_match = re.search(r"\b(\d{1,2})\s*\+?\s*years?\b", combined, flags=re.IGNORECASE)
         if years_match:
             resolved_years = max(0, min(int(years_match.group(1)), 60))
+    resolved_years = max(1, resolved_years)
 
     if strict_locations is None:
         resolved_strict_locations = bool(resolved_locations)
@@ -542,7 +551,7 @@ def _lawyer_search_criteria(
             resolved_workforce_location = "onshore"
 
     return {
-        "policyVersion": 2,
+        "policyVersion": 3,
         "titles": resolved_titles,
         "practiceAreas": resolved_practice,
         "requiredSkills": required_practice,
@@ -551,65 +560,240 @@ def _lawyer_search_criteria(
         "region": resolved_region,
         "minYears": resolved_years,
         "strictLocations": resolved_strict_locations,
+        "licenseOrCertification": f"{resolved_region} attorney license",
         "workArrangement": resolved_work_arrangement,
         "workforceLocation": resolved_workforce_location,
     }
 
 
-def _lawyer_search_criteria_from_payload(jd: dict, supplied_criteria: dict | None = None) -> dict:
-    supplied = supplied_criteria if isinstance(supplied_criteria, dict) else {}
-    return _lawyer_search_criteria(
+def _candidate_title_from_jd(title: str) -> str:
+    clean = re.sub(r"^[A-Z]{2,12}-\d{4}-\d+\s+", "", str(title or "").strip())
+    clean = re.split(r"\s+\(\s*\d{1,2}\s*\+?\s*years?", clean, maxsplit=1, flags=re.IGNORECASE)[0]
+    clean = re.split(r"\s+in\s+", clean, maxsplit=1, flags=re.IGNORECASE)[0]
+    clean = clean.strip(" -|,")
+    return clean[:120] if 2 <= len(clean) <= 120 else ""
+
+
+def _candidate_locations_from_jd(jd: dict) -> list[str]:
+    title = str(jd.get("title") or "")
+    description = str(jd.get("description") or jd.get("jd_text") or "")
+    locations: list[str] = []
+    title_location = re.search(r"\bin\s+(.+)$", title, flags=re.IGNORECASE)
+    if title_location:
+        locations.extend(_split_external_terms(title_location.group(1), 12))
+    state_abbreviations = "|".join(US_STATE_NAMES_BY_ABBR)
+    for city in re.findall(
+        rf"(?m)(?:^|[|;]\s*)([A-Za-z][A-Za-z .'-]+),\s*(?:{state_abbreviations})\b",
+        description,
+        flags=re.IGNORECASE,
+    ):
+        clean_city = city.strip(" |;,-")
+        if clean_city and clean_city.lower() not in {value.lower() for value in locations}:
+            locations.append(clean_city)
+    return locations[:12]
+
+
+def _candidate_credential_from_jd(jd: dict, domain: str, region: str = "") -> str:
+    if domain == "law":
+        return f"{region or 'Target jurisdiction'} attorney license"
+    text = " ".join(
+        str(jd.get(field) or "") for field in ("title", "description", "jd_text")
+    )
+    patterns = (
+        r"\b((?:professional engineer|registered nurse|architect|contractor)\s*(?:\([A-Z]{2,10}\))?\s+(?:license|licensure|certification))\b",
+        r"\b((?:PMP|PE|FE|EIT|CISSP|CPA|RDH|EFDA|CDA|AWS Certified [A-Za-z -]+)(?:\s+(?:license|certification|certificate))?)\b",
+        r"\b([A-Za-z][A-Za-z0-9+.#/& -]{1,50}\s+(?:license|licensure|certification|certificate))\s+(?:is\s+)?required\b",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            credential = re.sub(r"\s+", " ", match.group(1)).strip(" ,.;")
+            return re.sub(r"\s+required$", "", credential, flags=re.IGNORECASE)[:120]
+    return ""
+
+
+def _candidate_search_criteria(
+    jd: dict,
+    job_skills: list[str] | None = None,
+    domain: str = "dev",
+    titles=None,
+    required_skills=None,
+    locations=None,
+    region: str = "",
+    min_years: int = 0,
+    strict_locations: bool | None = None,
+    license_or_certification: str = "",
+    work_arrangement: str = "",
+    workforce_location: str = "",
+) -> dict:
+    clean_domain = _domain_key(domain)
+    law_base = _lawyer_search_criteria(
         jd,
+        titles=titles,
+        required_skills=required_skills,
+        locations=locations,
+        region=region,
+        min_years=min_years,
+        strict_locations=strict_locations,
+        work_arrangement=work_arrangement,
+        workforce_location=workforce_location,
+    ) if clean_domain == "law" else {}
+    combined = "\n".join(
+        str(jd.get(field) or "") for field in ("title", "description", "jd_text")
+    )
+    lower = combined.lower()
+
+    resolved_titles = _split_external_terms(titles, 8)
+    if not resolved_titles:
+        if law_base:
+            resolved_titles = law_base["titles"]
+        else:
+            jd_title = _candidate_title_from_jd(jd.get("title") or "")
+            resolved_titles = [jd_title] if jd_title else list(DOMAIN_TITLE_DEFAULTS[clean_domain])
+
+    resolved_skills = _split_external_terms(required_skills, 12)
+    if not resolved_skills:
+        resolved_skills = (
+            law_base.get("requiredSkills", [])
+            if law_base
+            else _searchable_job_skills(job_skills or [], 12)
+        )
+
+    resolved_locations = _split_external_terms(locations, 12)
+    if not resolved_locations:
+        resolved_locations = law_base.get("locations", []) or _candidate_locations_from_jd(jd)
+
+    resolved_region = str(region or law_base.get("region") or "").strip()
+    try:
+        resolved_years = max(0, min(int(min_years or 0), 60))
+    except (TypeError, ValueError):
+        resolved_years = 0
+    if not resolved_years:
+        if law_base:
+            resolved_years = int(law_base.get("minYears") or 0)
+        else:
+            years_match = re.search(r"\b(\d{1,2})\s*\+?\s*years?\b", combined, flags=re.IGNORECASE)
+            resolved_years = min(int(years_match.group(1)), 60) if years_match else 0
+    resolved_years = max(1, resolved_years)
+
+    resolved_work_arrangement = str(work_arrangement or law_base.get("workArrangement") or "").strip().lower()
+    if resolved_work_arrangement not in SEARCH_WORK_ARRANGEMENTS:
+        has_remote = bool(re.search(r"\bremote\b", lower))
+        has_onsite = bool(re.search(r"\b(?:on[ -]?site|in[ -]?office)\b", lower))
+        if "hybrid" in lower or "combination" in lower or (has_remote and has_onsite):
+            resolved_work_arrangement = "hybrid"
+        elif has_remote:
+            resolved_work_arrangement = "remote"
+        elif has_onsite:
+            resolved_work_arrangement = "onsite"
+        else:
+            resolved_work_arrangement = ""
+
+    resolved_workforce_location = str(
+        workforce_location or law_base.get("workforceLocation") or "onshore"
+    ).strip().lower()
+    if resolved_workforce_location not in SEARCH_WORKFORCE_LOCATIONS:
+        resolved_workforce_location = "onshore"
+
+    if strict_locations is None:
+        resolved_strict_locations = bool(resolved_locations)
+    else:
+        resolved_strict_locations = bool(strict_locations)
+    credential = str(license_or_certification or "").strip()
+    if not credential:
+        credential = _candidate_credential_from_jd(jd, clean_domain, resolved_region)
+
+    criteria = {
+        "policyVersion": 3,
+        "domain": clean_domain,
+        "titles": resolved_titles,
+        "mustHaveSkills": resolved_skills,
+        "requiredSkills": resolved_skills,
+        "locations": resolved_locations,
+        "region": resolved_region,
+        "minYears": resolved_years,
+        "strictLocations": resolved_strict_locations,
+        "licenseOrCertification": credential,
+        "workArrangement": resolved_work_arrangement,
+        "workforceLocation": resolved_workforce_location,
+    }
+    if law_base:
+        criteria["practiceAreas"] = law_base.get("practiceAreas", [])
+        criteria["requiredPracticeAreas"] = resolved_skills
+    return criteria
+
+
+def _candidate_search_criteria_from_payload(
+    jd: dict,
+    job_skills: list[str] | None,
+    domain: str,
+    supplied_criteria: dict | None = None,
+) -> dict:
+    supplied = supplied_criteria if isinstance(supplied_criteria, dict) else {}
+    return _candidate_search_criteria(
+        jd,
+        job_skills=job_skills,
+        domain=domain,
         titles=",".join(_safe_list(supplied.get("titles"))),
-        practice_areas=",".join(_safe_list(supplied.get("practiceAreas"))),
         required_skills=",".join(
-            _safe_list(supplied.get("requiredSkills") or supplied.get("requiredPracticeAreas"))
+            _safe_list(supplied.get("mustHaveSkills") or supplied.get("requiredSkills"))
         ),
         locations=",".join(_safe_list(supplied.get("locations"))),
         region=_external_text(supplied.get("region"), 100),
         min_years=supplied.get("minYears") or 0,
         strict_locations=supplied.get("strictLocations"),
+        license_or_certification=_external_text(supplied.get("licenseOrCertification"), 160),
         work_arrangement=_external_text(supplied.get("workArrangement"), 40),
         workforce_location=_external_text(supplied.get("workforceLocation"), 40),
     )
 
 
-def _lawyer_search_criteria_errors(criteria: dict) -> list[str]:
+def _candidate_search_criteria_errors(criteria: dict) -> list[str]:
     errors = []
     if not _safe_list(criteria.get("titles")):
         errors.append("Current titles")
-    if not _safe_list(criteria.get("requiredSkills") or criteria.get("requiredPracticeAreas")):
+    if not _safe_list(criteria.get("mustHaveSkills") or criteria.get("requiredSkills")):
         errors.append("Must-have skills")
-    if not _safe_list(criteria.get("practiceAreas")):
-        errors.append("Practice evidence")
-    if not str(criteria.get("region") or "").strip():
-        errors.append("Target licensing jurisdiction")
+    if not _safe_list(criteria.get("locations")):
+        errors.append("Target cities")
     try:
         min_years = int(criteria.get("minYears") or 0)
     except (TypeError, ValueError):
         min_years = 0
     if min_years < 1:
-        errors.append("Minimum years (at least 1)")
-    if criteria.get("strictLocations") and not _safe_list(criteria.get("locations")):
-        errors.append("Target cities (required when exact city matching is on)")
-    if str(criteria.get("workArrangement") or "").strip().lower() not in LAWYER_WORK_ARRANGEMENTS:
-        errors.append("Work arrangement")
-    if str(criteria.get("workforceLocation") or "").strip().lower() not in LAWYER_WORKFORCE_LOCATIONS:
-        errors.append("Workforce location")
+        errors.append("Minimum experience (at least 1 year)")
+    if not str(criteria.get("licenseOrCertification") or "").strip():
+        errors.append("License or certification name (or None required)")
+    if str(criteria.get("workArrangement") or "").strip().lower() not in SEARCH_WORK_ARRANGEMENTS:
+        errors.append("Remote, onsite, or hybrid")
+    if str(criteria.get("workforceLocation") or "").strip().lower() not in SEARCH_WORKFORCE_LOCATIONS:
+        errors.append("Onshore, offshore, or either")
     return errors
 
 
-def _require_lawyer_search_criteria(criteria: dict):
-    errors = _lawyer_search_criteria_errors(criteria)
+def _require_candidate_search_criteria(criteria: dict):
+    errors = _candidate_search_criteria_errors(criteria)
     if errors:
         raise HTTPException(
             status_code=400,
             detail=(
-                "Complete the non-negotiable Lawyer search criteria before contacting a provider: "
+                "Complete the non-negotiable candidate search criteria before contacting a provider: "
                 + ", ".join(errors)
                 + "."
             ),
         )
+
+
+def _lawyer_search_criteria_from_payload(jd: dict, supplied_criteria: dict | None = None) -> dict:
+    return _candidate_search_criteria_from_payload(jd, [], "law", supplied_criteria)
+
+
+def _lawyer_search_criteria_errors(criteria: dict) -> list[str]:
+    return _candidate_search_criteria_errors(criteria)
+
+
+def _require_lawyer_search_criteria(criteria: dict):
+    _require_candidate_search_criteria(criteria)
 
 
 def _lawyer_match_score(row: dict, criteria: dict):
@@ -725,7 +909,10 @@ def _pdl_source_audit(
             f"{(criteria or {}).get('region') or 'Target-jurisdiction'} license and standing, plus "
             f"{(criteria or {}).get('workArrangement') or 'the required'} work arrangement, must be verified before permanent use or outreach."
             if domain == "law"
-            else "Identity, current role, and material facts require human verification before outreach."
+            else (
+                f"Identity, current role, {(criteria or {}).get('licenseOrCertification') or 'license/certification'}, "
+                f"and {(criteria or {}).get('workArrangement') or 'required'} availability require human verification before outreach."
+            )
         ),
         "linkedInMode": "Profile link only; no LinkedIn scraping was performed.",
         "statusMessage": (
@@ -890,7 +1077,10 @@ def _provider_source_audit(
             f"{(criteria or {}).get('region') or 'Target-jurisdiction'} license, standing, candidate identity, and "
             f"{(criteria or {}).get('workArrangement') or 'required'} work arrangement require manual verification."
             if domain == "law"
-            else "Candidate identity, current role, credentials, and availability require manual verification."
+            else (
+                f"Candidate identity, current role, {(criteria or {}).get('licenseOrCertification') or 'credentials'}, "
+                f"experience, and {(criteria or {}).get('workArrangement') or 'required'} availability require manual verification."
+            )
         ),
         "linkedInMode": "Professional profile links may be returned; no LinkedIn scraping was performed.",
     }
@@ -2382,10 +2572,14 @@ def external_provider_status():
 @router.get("/external/criteria/{jd_id}")
 def external_candidate_criteria(jd_id: str, domain: str = "dev"):
     clean_domain = _domain_key(domain)
-    jd, _job_skills = _get_job_skills(jd_id, clean_domain)
-    lawyer_criteria = _lawyer_search_criteria(jd) if clean_domain == "law" else {}
-    criteria_errors = _lawyer_search_criteria_errors(lawyer_criteria) if lawyer_criteria else []
-    license_verification = _lawyer_license_verification(lawyer_criteria.get("region", "")) if lawyer_criteria else {}
+    jd, job_skills = _get_job_skills(jd_id, clean_domain)
+    criteria = _candidate_search_criteria(jd, job_skills=job_skills, domain=clean_domain)
+    criteria_errors = _candidate_search_criteria_errors(criteria)
+    license_verification = (
+        _lawyer_license_verification(criteria.get("region", ""))
+        if clean_domain == "law"
+        else {}
+    )
     return {
         "domain": clean_domain,
         "jd": {
@@ -2393,17 +2587,18 @@ def external_candidate_criteria(jd_id: str, domain: str = "dev"):
             "company": jd.get("company", ""),
             "title": jd.get("title", ""),
         },
-        "criteria": lawyer_criteria,
+        "criteria": criteria,
         "criteriaStatus": {
-            "complete": bool(lawyer_criteria) and not criteria_errors,
+            "complete": not criteria_errors,
             "missing": criteria_errors,
             "providerContactBlocked": bool(criteria_errors),
         },
         "verificationSources": {
             "lawyerLicensingAuthority": license_verification.get("url", ""),
-            "targetJurisdiction": lawyer_criteria.get("region", ""),
+            "targetJurisdiction": criteria.get("region", ""),
+            "licenseOrCertification": criteria.get("licenseOrCertification", ""),
             "linkedIn": "profile_link_only",
-            "courtEvidence": "CourtListener / RECAP",
+            "courtEvidence": "CourtListener / RECAP" if clean_domain == "law" else "",
         },
     }
 
@@ -2769,6 +2964,7 @@ def external_candidate_search(
     region: str = Form(default=""),
     min_years: int = Form(default=0),
     strict_locations: bool | None = Form(default=None),
+    license_or_certification: str = Form(default=""),
     work_arrangement: str = Form(default=""),
     workforce_location: str = Form(default=""),
     scroll_token: str = Form(default=""),
@@ -2784,28 +2980,25 @@ def external_candidate_search(
     selected_source = (source or "pdl").strip().lower()
     _assert_external_source_allowed(selected_source, domain)
     results = []
-    criteria = (
-        _lawyer_search_criteria(
-            jd,
-            titles=titles,
-            practice_areas=practice_areas,
-            required_skills=required_skills,
-            locations=locations,
-            region=region,
-            min_years=min_years,
-            strict_locations=strict_locations,
-            work_arrangement=work_arrangement,
-            workforce_location=workforce_location,
-        )
-        if domain == "law"
-        else None
+    criteria = _candidate_search_criteria(
+        jd,
+        job_skills=job_skills,
+        domain=domain,
+        titles=titles,
+        required_skills=required_skills,
+        locations=locations,
+        region=region,
+        min_years=min_years,
+        strict_locations=strict_locations,
+        license_or_certification=license_or_certification,
+        work_arrangement=work_arrangement,
+        workforce_location=workforce_location,
     )
-    if criteria:
-        _require_lawyer_search_criteria(criteria)
+    _require_candidate_search_criteria(criteria)
     resolved_client_name = str(jd.get("company") or client_name or "").strip()
     jd_name = str(jd.get("title") or "").strip()
     history_query = {
-        "version": 2,
+        "version": 3,
         "domain": domain,
         "source": selected_source,
         "queryMode": "job_description",
@@ -2831,29 +3024,25 @@ def external_candidate_search(
 
     try:
         if selected_source == "pdl":
-            if domain == "law":
-                pdl_response = peopleDataLabs.searchLawyers(
-                    titles=criteria["titles"],
-                    practice_areas=criteria["requiredSkills"],
-                    locations=criteria["locations"],
-                    region=criteria["region"],
-                    min_years=criteria["minYears"],
-                    strict_locations=criteria["strictLocations"],
-                    workforce_location=criteria["workforceLocation"],
-                    size=top_k,
-                    scroll_token=scroll_token,
-                )
-                results = [
-                    _people_data_row(row, job_skills, search_skills, criteria)
-                    for row in pdl_response.get("data", [])
-                ]
-                source_audit = _pdl_source_audit(pdl_response, criteria, "lawyer", domain)
-                pagination = _pdl_pagination(pdl_response, top_k)
-            else:
-                pdl_response = peopleDataLabs.searchSkills(search_skills, top_k, scroll_token=scroll_token)
-                results = [_people_data_row(row, job_skills, search_skills) for row in pdl_response.get("data", [])]
-                source_audit = _pdl_source_audit(pdl_response, {"skills": search_skills}, "skills", domain)
-                pagination = _pdl_pagination(pdl_response, top_k)
+            pdl_response = peopleDataLabs.searchCandidates(
+                titles=criteria["titles"],
+                must_have_skills=criteria["requiredSkills"],
+                locations=criteria["locations"],
+                region=criteria["region"],
+                min_years=criteria["minYears"],
+                strict_locations=criteria["strictLocations"],
+                license_or_certification=criteria["licenseOrCertification"],
+                workforce_location=criteria["workforceLocation"],
+                size=top_k,
+                scroll_token=scroll_token,
+            )
+            scoring_criteria = criteria if domain == "law" else None
+            results = [
+                _people_data_row(row, job_skills, search_skills, scoring_criteria)
+                for row in pdl_response.get("data", [])
+            ]
+            source_audit = _pdl_source_audit(pdl_response, criteria, "candidate_criteria", domain)
+            pagination = _pdl_pagination(pdl_response, top_k)
         elif selected_source == "coresignal":
             page = _provider_page(scroll_token, 1, 100)
             core_response = coreSignal.search_people(
@@ -2863,11 +3052,13 @@ def external_candidate_search(
                 region=criteria["region"] if criteria else "",
                 workforce_location=criteria["workforceLocation"] if criteria else "either",
                 strict_locations=criteria["strictLocations"] if criteria else False,
+                license_or_certification=criteria["licenseOrCertification"] if criteria else "",
+                min_years=criteria["minYears"] if criteria else 0,
                 size=top_k,
                 page=page,
             )
             results = [
-                _coresignal_row(row, job_skills, search_skills, criteria)
+                _coresignal_row(row, job_skills, search_skills, criteria if domain == "law" else None)
                 for row in core_response.get("data", [])
             ]
             criteria_rejected = 0

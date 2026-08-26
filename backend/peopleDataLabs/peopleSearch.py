@@ -335,20 +335,22 @@ def searchDirect(searchQuery: str, size: int = 5, scroll_token: str = ""):
     return _post_search(_add_scroll_token(payload, scroll_token))
 
 
-def build_lawyer_search_payload(
+def build_candidate_search_payload(
     titles: list[str],
-    practice_areas: list[str],
+    must_have_skills: list[str],
     locations: list[str],
-    region: str = "california",
+    region: str = "",
     min_years: int = 0,
     strict_locations: bool = True,
+    license_or_certification: str = "",
     workforce_location: str = "onshore",
     size: int = 10,
 ) -> dict[str, Any]:
-    title_terms = _clean_terms(titles, 8) or ["attorney", "associate attorney", "lawyer", "counsel"]
-    practice_terms = _clean_terms(practice_areas, 12)
+    title_terms = _clean_terms(titles, 8)
+    skill_terms = _clean_terms(must_have_skills, 12)
     location_terms = _clean_terms(locations, 12)
     region_term = str(region or "").strip().lower()
+    credential_term = str(license_or_certification or "").strip().lower()
     workforce_term = str(workforce_location or "onshore").strip().lower()
     if workforce_term not in {"onshore", "offshore", "either"}:
         workforce_term = "onshore"
@@ -374,23 +376,34 @@ def build_lawyer_search_payload(
     if years:
         must_clauses.append({"range": {"inferred_years_experience": {"gte": years}}})
 
-    if practice_terms:
-        practice_should = []
-        for practice in practice_terms:
-            practice_should.extend(
-                [
-                    {"term": {"skills": practice}},
-                    {"match_phrase": {"job_title.text": practice}},
-                    {"match_phrase": {"headline": practice}},
-                    {"match_phrase": {"summary": practice}},
-                    {"match_phrase": {"job_summary": practice}},
-                    {"match_phrase": {"experience.summary": practice}},
-                ]
+    if skill_terms:
+        for skill in skill_terms:
+            must_clauses.append(
+                {
+                    "bool": {
+                        "should": [
+                            {"term": {"skills": skill}},
+                            {"match_phrase": {"job_title.text": skill}},
+                            {"match_phrase": {"headline": skill}},
+                            {"match_phrase": {"summary": skill}},
+                            {"match_phrase": {"job_summary": skill}},
+                            {"match_phrase": {"experience.summary": skill}},
+                        ]
+                    }
+                }
             )
+
+    if credential_term and credential_term not in {"none", "none required", "not required", "n/a", "na"}:
         must_clauses.append(
             {
                 "bool": {
-                    "should": practice_should,
+                    "should": [
+                        {"match_phrase": {"certifications.name": credential_term}},
+                        {"term": {"skills": credential_term}},
+                        {"match_phrase": {"headline": credential_term}},
+                        {"match_phrase": {"summary": credential_term}},
+                        {"match_phrase": {"experience.summary": credential_term}},
+                    ]
                 }
             }
         )
@@ -415,6 +428,55 @@ def build_lawyer_search_payload(
     }
 
 
+def build_lawyer_search_payload(
+    titles: list[str],
+    practice_areas: list[str],
+    locations: list[str],
+    region: str = "california",
+    min_years: int = 0,
+    strict_locations: bool = True,
+    workforce_location: str = "onshore",
+    size: int = 10,
+) -> dict[str, Any]:
+    return build_candidate_search_payload(
+        titles=titles,
+        must_have_skills=practice_areas,
+        locations=locations,
+        region=region,
+        min_years=min_years,
+        strict_locations=strict_locations,
+        license_or_certification=f"{region} attorney license" if region else "attorney license",
+        workforce_location=workforce_location,
+        size=size,
+    )
+
+
+def searchCandidates(
+    titles: list[str],
+    must_have_skills: list[str],
+    locations: list[str],
+    region: str = "",
+    min_years: int = 0,
+    strict_locations: bool = True,
+    license_or_certification: str = "",
+    workforce_location: str = "onshore",
+    size: int = 10,
+    scroll_token: str = "",
+):
+    payload = build_candidate_search_payload(
+        titles=titles,
+        must_have_skills=must_have_skills,
+        locations=locations,
+        region=region,
+        min_years=min_years,
+        strict_locations=strict_locations,
+        license_or_certification=license_or_certification,
+        workforce_location=workforce_location,
+        size=size,
+    )
+    return _post_search(_add_scroll_token(payload, scroll_token))
+
+
 def searchLawyers(
     titles: list[str],
     practice_areas: list[str],
@@ -426,17 +488,18 @@ def searchLawyers(
     size: int = 10,
     scroll_token: str = "",
 ):
-    payload = build_lawyer_search_payload(
+    return searchCandidates(
         titles=titles,
-        practice_areas=practice_areas,
+        must_have_skills=practice_areas,
         locations=locations,
         region=region,
         min_years=min_years,
         strict_locations=strict_locations,
+        license_or_certification=f"{region} attorney license" if region else "attorney license",
         workforce_location=workforce_location,
         size=size,
+        scroll_token=scroll_token,
     )
-    return _post_search(_add_scroll_token(payload, scroll_token))
 
 
 def searchSkillsAndLocation(

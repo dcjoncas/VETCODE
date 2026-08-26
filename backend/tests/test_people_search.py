@@ -6,6 +6,48 @@ from peopleDataLabs import peopleSearch
 
 
 class PeopleSearchTests(unittest.TestCase):
+    def test_universal_candidate_payload_applies_non_negotiable_provider_filters(self):
+        payload = peopleSearch.build_candidate_search_payload(
+            titles=["Senior Software Engineer"],
+            must_have_skills=["Python", "AWS"],
+            locations=["Denver"],
+            min_years=5,
+            strict_locations=True,
+            license_or_certification="AWS Certified Solutions Architect",
+            workforce_location="onshore",
+            size=10,
+        )
+
+        query = payload["query"]["bool"]
+        self.assertIn({"term": {"location_country": "united states"}}, query["must"])
+        self.assertIn({"terms": {"location_locality": ["denver"]}}, query["must"])
+        self.assertIn({"range": {"inferred_years_experience": {"gte": 5}}}, query["must"])
+        skill_clauses = [
+            clause.get("bool", {}).get("should", [])
+            for clause in query["must"]
+            if clause.get("bool")
+        ]
+        self.assertTrue(any({"term": {"skills": "python"}} in clause for clause in skill_clauses))
+        self.assertTrue(any({"term": {"skills": "aws"}} in clause for clause in skill_clauses))
+        self.assertTrue(
+            any(
+                {"match_phrase": {"certifications.name": "aws certified solutions architect"}}
+                in clause.get("bool", {}).get("should", [])
+                for clause in query["must"]
+            )
+        )
+
+    def test_none_required_credential_is_not_added_to_provider_query(self):
+        payload = peopleSearch.build_candidate_search_payload(
+            titles=["Software Engineer"],
+            must_have_skills=["Python"],
+            locations=["Denver"],
+            min_years=1,
+            license_or_certification="None required",
+        )
+
+        self.assertNotIn("none required", str(payload).lower())
+
     def test_lawyer_payload_requires_role_region_experience_practice_and_city(self):
         payload = peopleSearch.build_lawyer_search_payload(
             titles=["Associate Attorney", "Counsel"],

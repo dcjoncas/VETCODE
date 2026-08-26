@@ -1,11 +1,15 @@
 import unittest
+from unittest.mock import patch
 
 from azureUtils.routes.azureJobEndpoints import (
+    _candidate_search_criteria,
+    _candidate_search_criteria_errors,
     _lawyer_match_score,
     _lawyer_search_criteria,
     _lawyer_search_criteria_errors,
     _pdl_pagination,
     _people_data_row,
+    external_candidate_criteria,
 )
 
 
@@ -44,12 +48,72 @@ class LawyerMiningTests(unittest.TestCase):
             }
         )
 
-        self.assertEqual(criteria["minYears"], 0)
+        self.assertEqual(criteria["minYears"], 1)
         self.assertEqual(criteria["workArrangement"], "")
         self.assertEqual(
             _lawyer_search_criteria_errors(criteria),
-            ["Minimum years (at least 1)", "Work arrangement"],
+            [
+                "Target cities",
+                "Remote, onsite, or hybrid",
+            ],
         )
+
+    def test_universal_technology_criteria_are_derived_and_validated(self):
+        jd = {
+            "jd_id": 101,
+            "title": "Senior Software Engineer (5+ years) in Denver",
+            "description": "Denver, CO | Remote. AWS Certified Solutions Architect required.",
+        }
+
+        criteria = _candidate_search_criteria(
+            jd,
+            job_skills=["Python", "AWS", "FastAPI"],
+            domain="technology",
+        )
+
+        self.assertEqual(criteria["domain"], "dev")
+        self.assertEqual(criteria["titles"], ["Senior Software Engineer"])
+        self.assertEqual(criteria["mustHaveSkills"], ["Python", "AWS", "FastAPI"])
+        self.assertEqual(criteria["locations"], ["Denver"])
+        self.assertEqual(criteria["minYears"], 5)
+        self.assertEqual(criteria["licenseOrCertification"], "AWS Certified Solutions Architect")
+        self.assertEqual(criteria["workArrangement"], "remote")
+        self.assertEqual(criteria["workforceLocation"], "onshore")
+        self.assertEqual(_candidate_search_criteria_errors(criteria), [])
+
+    def test_explicit_none_required_is_a_valid_credential_decision(self):
+        criteria = _candidate_search_criteria(
+            {
+                "title": "Mechanical Engineer (2+ years) in Austin",
+                "description": "Austin, TX | Onsite",
+            },
+            job_skills=["CAD", "SolidWorks"],
+            domain="build",
+            license_or_certification="None required",
+        )
+
+        self.assertEqual(criteria["domain"], "engineer")
+        self.assertEqual(criteria["licenseOrCertification"], "None required")
+        self.assertEqual(_candidate_search_criteria_errors(criteria), [])
+
+    @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
+    def test_criteria_endpoint_returns_the_shared_contract_for_build_domain(self, get_job):
+        get_job.return_value = (
+            {
+                "jd_id": 202,
+                "title": "Civil Engineer (4+ years) in Phoenix",
+                "description": "Phoenix, AZ | Hybrid. Professional Engineer (PE) license required.",
+            },
+            ["Civil 3D", "Drainage Design"],
+        )
+
+        response = external_candidate_criteria("202", "build")
+
+        self.assertEqual(response["domain"], "engineer")
+        self.assertEqual(response["criteria"]["policyVersion"], 3)
+        self.assertEqual(response["criteria"]["licenseOrCertification"], "Professional Engineer (PE) license")
+        self.assertEqual(response["criteriaStatus"]["missing"], [])
+        self.assertTrue(response["criteriaStatus"]["complete"])
 
     def test_lawyer_score_is_transparent_and_requires_bar_verification(self):
         criteria = _lawyer_search_criteria(self.jd)

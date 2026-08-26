@@ -29,6 +29,8 @@ class LegalSourceClientTests(unittest.TestCase):
             titles=["Attorney"],
             practice_areas=["Professional Liability"],
             locations=["Los Angeles"],
+            license_or_certification="California attorney license",
+            min_years=3,
             size=5,
             page=2,
         )
@@ -36,10 +38,13 @@ class LegalSourceClientTests(unittest.TestCase):
         request = post.call_args.kwargs
         self.assertEqual(request["headers"]["apikey"], "core-test-key")
         self.assertEqual(request["params"], {"page": 2, "items_per_page": 5})
-        self.assertIn("Professional Liability", request["json"]["keyword"])
+        self.assertIn("Professional Liability", request["json"]["skill"])
+        self.assertIn("California attorney license", request["json"]["certification_title"])
+        self.assertTrue(request["json"]["active_experience"])
         self.assertEqual(result["total"], 24)
         self.assertEqual(result["next_page"], 3)
         self.assertEqual(result["credits_used"], 10)
+        self.assertEqual(result["criteria_verification"]["minimum_years"], 3)
 
     @patch.dict(os.environ, {"CORESIGNAL_API_KEY": "core-test-key"}, clear=False)
     @patch("legalSources.coreSignal.requests.get")
@@ -264,8 +269,97 @@ class LegalSourceRouteTests(unittest.TestCase):
         self.assertEqual(result["pagination"]["nextScrollToken"], "2")
         self.assertEqual(result["pagination"]["costLabel"], "10 search credits")
 
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.searchCandidates")
+    @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
+    def test_technology_route_sends_the_universal_criteria_to_pdl(self, get_job, search):
+        get_job.return_value = (
+            {
+                "jd_id": 201,
+                "company": "Example Tech",
+                "title": "Senior Software Engineer",
+                "description": "Remote role based in Denver, CO.",
+            },
+            ["Python", "AWS"],
+        )
+        search.return_value = {"status": 200, "data": [], "total": 0}
+
+        result = azureJobEndpoints.external_candidate_search(
+            domain="technology",
+            jd_id="201",
+            source="pdl",
+            top_k=5,
+            titles="Senior Software Engineer",
+            practice_areas="",
+            required_skills="Python, AWS",
+            locations="Denver",
+            region="",
+            min_years=5,
+            strict_locations=True,
+            license_or_certification="AWS Certified Solutions Architect",
+            work_arrangement="remote",
+            workforce_location="onshore",
+            scroll_token="",
+            client_name="",
+            history_root_id="",
+        )
+
+        search.assert_called_once_with(
+            titles=["Senior Software Engineer"],
+            must_have_skills=["Python", "AWS"],
+            locations=["Denver"],
+            region="",
+            min_years=5,
+            strict_locations=True,
+            license_or_certification="AWS Certified Solutions Architect",
+            workforce_location="onshore",
+            size=5,
+            scroll_token="",
+        )
+        self.assertEqual(result["criteria"]["domain"], "dev")
+        self.assertEqual(result["criteria"]["workArrangement"], "remote")
+        self.assertEqual(result["sourceAudit"]["queryMode"], "candidate_criteria")
+
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.searchCandidates")
+    @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
+    def test_dental_provider_is_not_contacted_when_shared_criteria_are_incomplete(self, get_job, search):
+        get_job.return_value = (
+            {
+                "jd_id": 203,
+                "title": "Dental Hygienist",
+                "description": "Provide preventive dental care.",
+            },
+            ["Dental Hygiene", "Patient Care"],
+        )
+
+        with self.assertRaises(HTTPException) as raised:
+            azureJobEndpoints.external_candidate_search(
+                domain="dental",
+                jd_id="203",
+                source="pdl",
+                top_k=5,
+                titles="Dental Hygienist",
+                practice_areas="",
+                required_skills="Dental Hygiene, Patient Care",
+                locations="",
+                region="",
+                min_years=1,
+                strict_locations=False,
+                license_or_certification="",
+                work_arrangement="",
+                workforce_location="onshore",
+                scroll_token="",
+                client_name="",
+                history_root_id="",
+            )
+
+        self.assertEqual(raised.exception.status_code, 400)
+        self.assertIn("Target cities", raised.exception.detail)
+        self.assertIn("License or certification", raised.exception.detail)
+        self.assertIn("Remote, onsite, or hybrid", raised.exception.detail)
+        search.assert_not_called()
+
     @patch.dict(os.environ, {"PDL_API_KEY": "pdl-key"}, clear=True)
-    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.searchLawyers")
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.searchCandidates")
     @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
     def test_pdl_credit_failure_returns_actionable_zero_record_audit(self, get_job, search):
         get_job.return_value = (self.jd, ["Professional Liability", "Civil Litigation"])

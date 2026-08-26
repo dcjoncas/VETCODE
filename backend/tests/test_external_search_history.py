@@ -132,7 +132,7 @@ class ExternalSearchHistoryTests(unittest.TestCase):
         self.assertEqual(first, repeated)
         self.assertNotEqual(first, next_page)
 
-    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.searchLawyers")
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.searchCandidates")
     @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
     @patch("azureUtils.routes.azureJobEndpoints.externalSearchHistory.get_cached_search")
     def test_repeated_pdl_search_uses_saved_results_without_provider_call(self, cached, get_job, pdl_search):
@@ -167,10 +167,11 @@ class ExternalSearchHistoryTests(unittest.TestCase):
             top_k=5,
             titles="",
             practice_areas="",
-            locations="",
+            locations="Los Angeles",
             region="",
             min_years=3,
             strict_locations=None,
+            license_or_certification="California attorney license",
             work_arrangement="hybrid",
             workforce_location="onshore",
             scroll_token="",
