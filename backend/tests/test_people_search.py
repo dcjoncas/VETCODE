@@ -20,6 +20,7 @@ class PeopleSearchTests(unittest.TestCase):
         query = payload["query"]["bool"]
         self.assertEqual(payload["size"], 5)
         self.assertIn({"term": {"location_region": "california"}}, query["must"])
+        self.assertIn({"term": {"location_country": "united states"}}, query["must"])
         self.assertIn({"range": {"inferred_years_experience": {"gte": 3}}}, query["must"])
         self.assertIn(
             {"terms": {"location_locality": ["los angeles", "irvine", "walnut creek"]}},
@@ -40,6 +41,22 @@ class PeopleSearchTests(unittest.TestCase):
                 for clause in query["must"]
             )
         )
+
+    def test_offshore_lawyer_payload_excludes_us_profiles_without_using_license_region_as_location(self):
+        payload = peopleSearch.build_lawyer_search_payload(
+            titles=["Attorney"],
+            practice_areas=["Civil Litigation"],
+            locations=[],
+            region="California",
+            min_years=3,
+            strict_locations=False,
+            workforce_location="offshore",
+            size=5,
+        )
+
+        query = payload["query"]["bool"]
+        self.assertNotIn({"term": {"location_region": "california"}}, query["must"])
+        self.assertIn({"term": {"location_country": "united states"}}, query["must_not"])
 
     @patch.dict(os.environ, {"PDL_API_KEY": "test-key"}, clear=False)
     @patch("peopleDataLabs.peopleSearch.requests.post")

@@ -342,12 +342,16 @@ def build_lawyer_search_payload(
     region: str = "california",
     min_years: int = 0,
     strict_locations: bool = True,
+    workforce_location: str = "onshore",
     size: int = 10,
 ) -> dict[str, Any]:
     title_terms = _clean_terms(titles, 8) or ["attorney", "associate attorney", "lawyer", "counsel"]
     practice_terms = _clean_terms(practice_areas, 12)
     location_terms = _clean_terms(locations, 12)
     region_term = str(region or "").strip().lower()
+    workforce_term = str(workforce_location or "onshore").strip().lower()
+    if workforce_term not in {"onshore", "offshore", "either"}:
+        workforce_term = "onshore"
     years = max(0, min(int(min_years or 0), 60))
 
     title_query = {
@@ -360,8 +364,13 @@ def build_lawyer_search_payload(
     }
     must_clauses: list[dict[str, Any]] = [title_query]
 
-    if region_term:
+    if region_term and workforce_term != "offshore":
         must_clauses.append({"term": {"location_region": region_term}})
+    must_not_clauses: list[dict[str, Any]] = []
+    if workforce_term == "onshore":
+        must_clauses.append({"term": {"location_country": "united states"}})
+    elif workforce_term == "offshore":
+        must_not_clauses.append({"term": {"location_country": "united states"}})
     if years:
         must_clauses.append({"range": {"inferred_years_experience": {"gte": years}}})
 
@@ -394,13 +403,14 @@ def build_lawyer_search_payload(
         else:
             should_clauses.append(location_query)
 
+    bool_query: dict[str, Any] = {
+        "must": must_clauses,
+        "should": should_clauses,
+    }
+    if must_not_clauses:
+        bool_query["must_not"] = must_not_clauses
     return {
-        "query": {
-            "bool": {
-                "must": must_clauses,
-                "should": should_clauses,
-            }
-        },
+        "query": {"bool": bool_query},
         "size": _result_size(size),
     }
 
@@ -412,6 +422,7 @@ def searchLawyers(
     region: str = "california",
     min_years: int = 0,
     strict_locations: bool = True,
+    workforce_location: str = "onshore",
     size: int = 10,
     scroll_token: str = "",
 ):
@@ -422,6 +433,7 @@ def searchLawyers(
         region=region,
         min_years=min_years,
         strict_locations=strict_locations,
+        workforce_location=workforce_location,
         size=size,
     )
     return _post_search(_add_scroll_token(payload, scroll_token))

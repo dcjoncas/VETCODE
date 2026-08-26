@@ -738,37 +738,62 @@
           <section id="lawCriteriaPanel" class="law-criteria" aria-labelledby="lawCriteriaTitle" hidden>
             <div class="criteria-head">
               <div>
-                <h3 id="lawCriteriaTitle">Lawyer search criteria</h3>
-                <p class="muted">Review the JD-derived filters before searching professional profiles or court records.</p>
+                <h3 id="lawCriteriaTitle">Non-negotiable Lawyer search criteria</h3>
+                <p class="muted">Review every JD-derived requirement. Search stays blocked until the required criteria are complete.</p>
               </div>
-              <span class="pill">JD-derived</span>
+              <span class="pill">Required before search</span>
             </div>
             <div class="criteria-grid">
               <div class="field">
-                <label for="lawTitles">Current titles</label>
-                <input id="lawTitles" placeholder="Associate Attorney, Attorney, Counsel" />
+                <label for="lawTitles">Current titles *</label>
+                <input id="lawTitles" required placeholder="Associate Attorney, Attorney, Counsel" />
               </div>
               <div class="field">
-                <label for="lawPracticeAreas">Practice evidence</label>
-                <input id="lawPracticeAreas" placeholder="Professional liability, civil litigation" />
+                <label for="lawMustHaveSkills">Must-have skills *</label>
+                <input id="lawMustHaveSkills" required placeholder="Professional liability, insurance defense" />
               </div>
               <div class="field">
-                <label for="lawLocations">Target cities</label>
+                <label for="lawPracticeAreas">Practice evidence *</label>
+                <input id="lawPracticeAreas" required placeholder="Civil litigation, depositions, trial preparation" />
+              </div>
+              <div class="field">
+                <label for="lawLocations">Target cities *</label>
                 <input id="lawLocations" placeholder="Los Angeles, Irvine, Walnut Creek" />
+                <small>Required when exact city matching is on.</small>
               </div>
               <div class="field">
-                <label for="lawMinYears">Minimum years</label>
-                <input id="lawMinYears" type="number" min="0" max="60" step="1" value="3" />
+                <label for="lawMinYears">Minimum years *</label>
+                <input id="lawMinYears" type="number" min="1" max="60" step="1" value="3" required />
               </div>
               <div class="field">
-                <label for="lawRegion">Target licensing jurisdiction</label>
-                <input id="lawRegion" value="California" placeholder="California, New York, Texas" />
+                <label for="lawRegion">Target licensing jurisdiction *</label>
+                <input id="lawRegion" value="California" required placeholder="California, New York, Texas" />
+              </div>
+              <div class="field">
+                <label for="lawWorkArrangement">Work arrangement *</label>
+                <select id="lawWorkArrangement" required>
+                  <option value="">Select required arrangement</option>
+                  <option value="remote">Remote</option>
+                  <option value="onsite">Onsite</option>
+                  <option value="hybrid">Hybrid (remote + onsite)</option>
+                </select>
+                <small>Role requirement; confirm candidate availability before outreach.</small>
+              </div>
+              <div class="field">
+                <label for="lawWorkforceLocation">Workforce location *</label>
+                <select id="lawWorkforceLocation" required>
+                  <option value="onshore">Onshore (United States)</option>
+                  <option value="offshore">Offshore (outside United States)</option>
+                  <option value="either">Onshore or offshore</option>
+                </select>
+                <small>Applied to the candidate's current profile country where the provider supports it.</small>
               </div>
             </div>
             <label class="criteria-toggle" for="lawStrictLocations">
               <input id="lawStrictLocations" type="checkbox" checked />
               <span id="lawStrictLocationsHelp">Require the current profile location to match a target city. Uncheck to broaden to the target jurisdiction.</span>
             </label>
+            <div id="lawCriteriaStatus" class="verification-note" role="status" aria-live="polite"></div>
             <div class="verification-strip">
               <div class="verification-source">
                 <a id="lawLicenseLookup" class="btn secondary" href="https://apps.calbar.ca.gov/attorney/LicenseeSearch/QuickSearch" target="_blank" rel="noopener">Verify California license</a>
@@ -1120,13 +1145,16 @@
         const link = document.getElementById("lawLicenseLookup");
         const help = document.getElementById("lawLicenseLookupHelp");
         const locationHelp = document.getElementById("lawStrictLocationsHelp");
+        const workforceLocation = document.getElementById("lawWorkforceLocation")?.value || "onshore";
         if (link) {
           link.href = target.url;
           link.textContent = target.label;
         }
         if (help) help.textContent = target.help;
         if (locationHelp) {
-          locationHelp.textContent = `Require the current profile location to match a target city. Uncheck to broaden to ${target.jurisdiction}.`;
+          locationHelp.textContent = workforceLocation === "offshore"
+            ? "Require the current profile location to match a target city. Uncheck to search outside the United States without a city restriction."
+            : `Require the current profile location to match a target city. Uncheck to broaden to ${target.jurisdiction}.`;
         }
         document.getElementById("pageIntro").textContent =
           `Search professional and public sources from a saved legal JD, then verify every selected attorney with the official ${target.jurisdiction} lawyer-licensing authority.`;
@@ -1171,10 +1199,13 @@
         setLawCriteria({
           titles: ["Associate Attorney", "Attorney", "Lawyer", "Counsel"],
           practiceAreas: ["Professional Liability", "Professional Negligence", "Insurance Defense"],
+          requiredSkills: ["Professional Liability", "Professional Negligence", "Insurance Defense"],
           locations: [],
           region: "California",
           minYears: 3,
           strictLocations: true,
+          workArrangement: "hybrid",
+          workforceLocation: "onshore",
         });
         setSource("pdl");
       }
@@ -1184,11 +1215,17 @@
         document.getElementById("lawCriteriaPanel").hidden = false;
         document.getElementById("lawTitles").value = (criteria.titles || []).join(", ");
         document.getElementById("lawPracticeAreas").value = (criteria.practiceAreas || []).join(", ");
+        document.getElementById("lawMustHaveSkills").value = (
+          criteria.requiredSkills || criteria.requiredPracticeAreas || []
+        ).join(", ");
         document.getElementById("lawLocations").value = (criteria.locations || []).join(", ");
         document.getElementById("lawRegion").value = criteria.region || "California";
         document.getElementById("lawMinYears").value = Number(criteria.minYears || 0);
         document.getElementById("lawStrictLocations").checked = criteria.strictLocations !== false;
+        document.getElementById("lawWorkArrangement").value = criteria.workArrangement || "";
+        document.getElementById("lawWorkforceLocation").value = criteria.workforceLocation || "onshore";
         updateLawVerificationSource();
+        refreshLawCriteriaStatus();
       }
 
       async function loadLawCriteria(jdId) {
@@ -1203,9 +1240,12 @@
         if (!isLawDomain() || !["pdl", "coresignal", "courtlistener"].includes(selectedSource)) return;
         formData.append("titles", document.getElementById("lawTitles").value.trim());
         formData.append("practice_areas", document.getElementById("lawPracticeAreas").value.trim());
+        formData.append("required_skills", document.getElementById("lawMustHaveSkills").value.trim());
         formData.append("locations", document.getElementById("lawLocations").value.trim());
         formData.append("region", document.getElementById("lawRegion").value.trim() || "California");
         formData.append("min_years", document.getElementById("lawMinYears").value || "0");
+        formData.append("work_arrangement", document.getElementById("lawWorkArrangement").value);
+        formData.append("workforce_location", document.getElementById("lawWorkforceLocation").value);
         formData.append(
           "strict_locations",
           document.getElementById("lawStrictLocations").checked ? "true" : "false",
@@ -1221,11 +1261,43 @@
         return {
           titles: splitValues(document.getElementById("lawTitles").value),
           practiceAreas: splitValues(document.getElementById("lawPracticeAreas").value),
+          requiredSkills: splitValues(document.getElementById("lawMustHaveSkills").value),
           locations: splitValues(document.getElementById("lawLocations").value),
           region: document.getElementById("lawRegion").value.trim() || "California",
           minYears: Number(document.getElementById("lawMinYears").value || 0),
           strictLocations: document.getElementById("lawStrictLocations").checked,
+          workArrangement: document.getElementById("lawWorkArrangement").value,
+          workforceLocation: document.getElementById("lawWorkforceLocation").value,
         };
+      }
+
+      function lawCriteriaErrors() {
+        if (!isLawDomain()) return [];
+        const criteria = currentLawCriteria();
+        const errors = [];
+        if (!criteria.titles.length) errors.push("Current titles");
+        if (!criteria.requiredSkills.length) errors.push("Must-have skills");
+        if (!criteria.practiceAreas.length) errors.push("Practice evidence");
+        if (!criteria.region) errors.push("Target licensing jurisdiction");
+        if (!Number.isInteger(criteria.minYears) || criteria.minYears < 1) errors.push("Minimum years (at least 1)");
+        if (criteria.strictLocations && !criteria.locations.length) {
+          errors.push("Target cities (required while exact city matching is on)");
+        }
+        if (!["remote", "onsite", "hybrid"].includes(criteria.workArrangement)) errors.push("Work arrangement");
+        if (!["onshore", "offshore", "either"].includes(criteria.workforceLocation)) errors.push("Workforce location");
+        return errors;
+      }
+
+      function refreshLawCriteriaStatus() {
+        if (!isLawDomain()) return [];
+        const errors = lawCriteriaErrors();
+        const status = document.getElementById("lawCriteriaStatus");
+        if (status) {
+          status.textContent = errors.length
+            ? `Still required: ${errors.join(", ")}.`
+            : "Required criteria complete. Provider search can run.";
+        }
+        return errors;
       }
 
       function selectedCandidateIndexes() {
@@ -2342,6 +2414,16 @@
           return alert(message);
         }
 
+        if (isLawDomain() && !directSearch) {
+          const criteriaErrors = refreshLawCriteriaStatus();
+          if (criteriaErrors.length) {
+            const message = `Complete the non-negotiable Lawyer search criteria: ${criteriaErrors.join(", ")}.`;
+            document.getElementById("mineStatus").textContent = message;
+            document.getElementById("lawCriteriaPanel")?.scrollIntoView({ behavior: "smooth", block: "center" });
+            return alert(message);
+          }
+        }
+
         externalSearchRunning = true;
         externalSearchCompleted = false;
         updateWorkflowGuidance();
@@ -2689,6 +2771,14 @@
           applySelectedExternalJob(this.value);
         });
         document.getElementById("lawRegion")?.addEventListener("change", updateLawVerificationSource);
+        document.getElementById("lawWorkforceLocation")?.addEventListener("change", () => {
+          updateLawVerificationSource();
+          refreshLawCriteriaStatus();
+        });
+        document.querySelectorAll("#lawCriteriaPanel input, #lawCriteriaPanel select").forEach((control) => {
+          control.addEventListener("input", refreshLawCriteriaStatus);
+          control.addEventListener("change", refreshLawCriteriaStatus);
+        });
         document.getElementById("btnMine").addEventListener("click", mineCandidates);
         document.getElementById("btnImportSelected").addEventListener("click", importSelectedExternalCandidates);
         document.getElementById("savedSearchSelect").addEventListener("change", function () {

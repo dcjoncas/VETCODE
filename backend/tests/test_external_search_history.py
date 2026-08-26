@@ -169,8 +169,10 @@ class ExternalSearchHistoryTests(unittest.TestCase):
             practice_areas="",
             locations="",
             region="",
-            min_years=0,
+            min_years=3,
             strict_locations=None,
+            work_arrangement="hybrid",
+            workforce_location="onshore",
             scroll_token="",
         )
 

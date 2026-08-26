@@ -69,6 +69,12 @@ class TempProfilesWorkflowTests(unittest.TestCase):
         self.assertIn("function candidateLegalCredentials", html)
         self.assertIn("target jurisdiction", html)
         self.assertIn("Target licensing jurisdiction", html)
+        self.assertIn("Non-negotiable Lawyer search criteria", html)
+        self.assertIn('id="lawMustHaveSkills"', html)
+        self.assertIn('id="lawWorkArrangement"', html)
+        self.assertIn('id="lawWorkforceLocation"', html)
+        self.assertIn('formData.append("required_skills"', html)
+        self.assertIn("Complete the non-negotiable Lawyer search criteria", html)
 
     def test_courtlistener_and_professional_sources_share_combined_profile_evidence(self):
         html = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")

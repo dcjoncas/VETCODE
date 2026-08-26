@@ -87,6 +87,8 @@ def search_people(
     practice_areas: list[str],
     locations: list[str],
     region: str = "California",
+    workforce_location: str = "onshore",
+    strict_locations: bool = True,
     size: int = 10,
     page: int = 1,
     direct_query: str = "",
@@ -96,7 +98,13 @@ def search_people(
     clean_titles = _clean_terms(titles) or ["Attorney", "Lawyer", "Counsel"]
     clean_practice = _clean_terms(practice_areas)
     clean_locations = _clean_terms(locations)
-    location_terms = clean_locations + ([region] if region else [])
+    clean_workforce_location = str(workforce_location or "onshore").strip().lower()
+    if clean_workforce_location == "offshore":
+        location_terms = clean_locations if strict_locations else []
+    elif strict_locations:
+        location_terms = clean_locations + ([region] if region else [])
+    else:
+        location_terms = [region] if region else []
     clean_direct_query = " ".join(str(direct_query or "").split()).strip()
     if clean_direct_query:
         payload: dict[str, Any] = {
@@ -106,10 +114,12 @@ def search_people(
     else:
         payload = {
             "experience_title": _or_filter(clean_titles),
-            "location": _or_filter(location_terms),
-            "country": "United States",
             "deleted": False,
         }
+        if location_terms:
+            payload["location"] = _or_filter(location_terms)
+        if clean_workforce_location == "onshore":
+            payload["country"] = "United States"
         if clean_practice:
             payload["keyword"] = _or_filter(clean_practice)
 

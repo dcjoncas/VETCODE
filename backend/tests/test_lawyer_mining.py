@@ -3,6 +3,7 @@ import unittest
 from azureUtils.routes.azureJobEndpoints import (
     _lawyer_match_score,
     _lawyer_search_criteria,
+    _lawyer_search_criteria_errors,
     _pdl_pagination,
     _people_data_row,
 )
@@ -28,8 +29,27 @@ class LawyerMiningTests(unittest.TestCase):
         self.assertIn("professional liability", criteria["practiceAreas"])
         self.assertIn("civil litigation", criteria["practiceAreas"])
         self.assertIn("professional liability", criteria["requiredPracticeAreas"])
+        self.assertIn("professional liability", criteria["requiredSkills"])
         self.assertNotIn("civil litigation", criteria["requiredPracticeAreas"])
         self.assertTrue(criteria["strictLocations"])
+        self.assertEqual(criteria["workArrangement"], "hybrid")
+        self.assertEqual(criteria["workforceLocation"], "onshore")
+        self.assertEqual(_lawyer_search_criteria_errors(criteria), [])
+
+    def test_missing_non_negotiable_values_are_reported_before_provider_search(self):
+        criteria = _lawyer_search_criteria(
+            {
+                "title": "Litigation Attorney",
+                "description": "California civil litigation attorney.",
+            }
+        )
+
+        self.assertEqual(criteria["minYears"], 0)
+        self.assertEqual(criteria["workArrangement"], "")
+        self.assertEqual(
+            _lawyer_search_criteria_errors(criteria),
+            ["Minimum years (at least 1)", "Work arrangement"],
+        )
 
     def test_lawyer_score_is_transparent_and_requires_bar_verification(self):
         criteria = _lawyer_search_criteria(self.jd)
