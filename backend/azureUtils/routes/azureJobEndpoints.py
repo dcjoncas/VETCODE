@@ -3777,6 +3777,252 @@ def _external_profile_metadata(candidate: dict, source: str, enrichment: dict) -
     return metadata
 
 
+def _reusable_external_result_enrichment(candidate: dict) -> dict:
+    enrichment = (
+        candidate.get("external_enrichment")
+        if isinstance(candidate.get("external_enrichment"), dict)
+        else {}
+    )
+    try:
+        profile_version = int(enrichment.get("profileVersion") or 0)
+    except (TypeError, ValueError):
+        profile_version = 0
+    provider = str(enrichment.get("provider") or "").lower()
+    source = str(candidate.get("source") or "").lower()
+    provider_matches_source = (
+        source == "pdl" and "people data labs" in provider
+    ) or (
+        source == "coresignal" and "coresignal" in provider
+    )
+    if (
+        enrichment.get("status") == "completed"
+        and profile_version >= 2
+        and provider_matches_source
+    ):
+        return dict(enrichment)
+    return {}
+
+
+def _enrich_external_pdl_result(candidate: dict) -> tuple[dict, dict]:
+    source_id = _external_text(candidate.get("source_id"), 180)
+    profile_url = _external_text(candidate.get("profile_url"), 500)
+    if not source_id and not profile_url:
+        raise HTTPException(
+            status_code=400,
+            detail="A People Data Labs id or professional-profile link is required for enrichment.",
+        )
+    try:
+        response = peopleDataLabs.enrichPerson(profile=profile_url, pdl_id=source_id)
+    except peopleDataLabs.PeopleDataLabsError as exc:
+        provider_status = int(exc.status_code or 502)
+        status_code = provider_status if provider_status in {400, 401, 402, 403, 429, 503} else 502
+        raise HTTPException(status_code=status_code, detail=f"Selected profile enrichment failed: {str(exc)}") from exc
+    if response.get("status") != 200 or not isinstance(response.get("data"), dict):
+        raise HTTPException(
+            status_code=404,
+            detail="People Data Labs could not enrich the selected person. No TEMP profile was created.",
+        )
+
+    discovery_match = {
+        "score": candidate.get("score"),
+        "match_band": candidate.get("match_band"),
+        "top_matches": _safe_list(candidate.get("top_matches")),
+        "score_details": (
+            candidate.get("score_details")
+            if isinstance(candidate.get("score_details"), dict)
+            else {}
+        ),
+    }
+    original_profile_data = (
+        candidate.get("profile_data")
+        if isinstance(candidate.get("profile_data"), dict)
+        else {}
+    )
+    original_score_details = (
+        candidate.get("score_details")
+        if isinstance(candidate.get("score_details"), dict)
+        else {}
+    )
+    court_practice_signals = _safe_list(original_profile_data.get("matched_practice_areas"))
+    enrichment_row = dict(response["data"])
+    if court_practice_signals:
+        enrichment_row["skills"] = list(
+            dict.fromkeys(_safe_list(enrichment_row.get("skills")) + court_practice_signals)
+        )
+    mapped = _people_data_row(enrichment_row, [], [], None)
+    merged_profile_data = {
+        **original_profile_data,
+        **(mapped.get("profile_data") if isinstance(mapped.get("profile_data"), dict) else {}),
+    }
+    enriched_candidate = {**candidate, **mapped, "profile_data": merged_profile_data}
+    enriched_candidate.update(discovery_match)
+    enriched_candidate["source"] = "pdl"
+    enriched_candidate["source_label"] = (
+        "People Data Labs + CourtListener / RECAP"
+        if original_profile_data.get("evidence_count")
+        else "People Data Labs"
+    )
+    if original_profile_data.get("evidence_count"):
+        enriched_candidate["score_details"] = {
+            **original_score_details,
+            "evidence_sources": list(
+                dict.fromkeys(
+                    _safe_list(original_score_details.get("evidence_sources"))
+                    + ["People Data Labs", "CourtListener / RECAP"]
+                )
+            ),
+            "court_evidence_count": int(original_profile_data.get("evidence_count") or 0),
+            "court_practice_signals": court_practice_signals[:12],
+            "court_identity_notice": "Court-record association still requires human confirmation.",
+        }
+    enrichment = {
+        "status": "completed",
+        "provider": "People Data Labs Person Enrichment",
+        "enrichedAt": datetime.now(timezone.utc).isoformat(),
+        "likelihood": int(response.get("likelihood") or 0),
+        "creditsUsed": 1,
+        "profileVersion": 2,
+        "contactFieldsRequested": True,
+        "matchedInput": "pdl_id" if source_id else "profile_url",
+        "linkedinMode": "Provider dataset lookup only; LinkedIn was not scraped.",
+        "dataOrigin": "Provider-supplied professional data; no LinkedIn scraping.",
+    }
+    enriched_candidate.update(
+        {
+            "external_enrichment": enrichment,
+            "professional_enrichment_complete": True,
+            "enrichment_provider": enrichment["provider"],
+            "match_pending": True,
+        }
+    )
+    return enriched_candidate, enrichment
+
+
+def _enrich_external_coresignal_result(candidate: dict) -> tuple[dict, dict]:
+    source_id = _external_text(candidate.get("source_id"), 180)
+    profile_url = _external_text(candidate.get("profile_url"), 500)
+    if not source_id and not profile_url:
+        raise HTTPException(
+            status_code=400,
+            detail="A Coresignal employee id or professional-profile link is required for enrichment.",
+        )
+    dataset = coreSignal.enrichment_dataset()
+    collect_by_profile = dataset == "multi_source" and bool(profile_url)
+    try:
+        response = coreSignal.collect_person(
+            employee_id="" if collect_by_profile else source_id,
+            profile_url=profile_url if collect_by_profile or not source_id else "",
+            dataset=dataset,
+        )
+    except coreSignal.CoreSignalError as exc:
+        provider_status = int(exc.status_code or 502)
+        status_code = provider_status if provider_status in {400, 401, 402, 403, 404, 429, 503} else 502
+        raise HTTPException(status_code=status_code, detail=f"Selected profile enrichment failed: {str(exc)}") from exc
+    if response.get("status") != 200 or not isinstance(response.get("data"), dict):
+        raise HTTPException(
+            status_code=404,
+            detail="Coresignal could not collect the selected professional profile.",
+        )
+
+    mapped = _coresignal_collected_row(response["data"], [], [], None)
+    returned_name = _external_text(mapped.get("name"), 160)
+    matched_profile_url = _external_text(mapped.get("profile_url") or profile_url, 500)
+    expected_name = _external_text(candidate.get("name"), 160)
+    if expected_name and returned_name and not _person_names_align(expected_name, returned_name):
+        raise HTTPException(
+            status_code=409,
+            detail="Coresignal returned a profile whose name did not align with the selected result.",
+        )
+    if profile_url and matched_profile_url and not _professional_profile_urls_align(profile_url, matched_profile_url):
+        raise HTTPException(
+            status_code=409,
+            detail="Coresignal returned a different professional-profile link than the selected result.",
+        )
+
+    discovery_match = {
+        "score": candidate.get("score"),
+        "match_band": candidate.get("match_band"),
+        "top_matches": _safe_list(candidate.get("top_matches")),
+        "score_details": (
+            candidate.get("score_details")
+            if isinstance(candidate.get("score_details"), dict)
+            else {}
+        ),
+    }
+    enriched_candidate = {**candidate, **mapped}
+    enriched_candidate.update(discovery_match)
+    enriched_candidate["source"] = "coresignal"
+    collected_dataset = str(response.get("dataset") or dataset).lower()
+    is_multi_source = collected_dataset == "multi_source"
+    provider_label = (
+        "Coresignal Multi-source Employee Collect"
+        if is_multi_source
+        else "Coresignal Base Employee Collect"
+    )
+    enriched_candidate["source_label"] = provider_label
+    enriched_candidate["profile_url"] = matched_profile_url
+    enrichment = {
+        "status": "completed",
+        "provider": provider_label,
+        "enrichedAt": datetime.now(timezone.utc).isoformat(),
+        "creditsUsed": int(response.get("credits_used") or coreSignal.credit_cost(dataset)),
+        "profileVersion": 2,
+        "contactFieldsRequested": is_multi_source,
+        "matchedInput": response.get("matched_input") or ("profile_url" if collect_by_profile else "employee_id"),
+        "employeeDataset": collected_dataset,
+        "linkedinMode": "Licensed provider dataset lookup only; LinkedIn was not scraped.",
+        "dataOrigin": "Licensed provider professional data; no LinkedIn scraping.",
+    }
+    enriched_candidate.update(
+        {
+            "external_enrichment": enrichment,
+            "professional_enrichment_complete": True,
+            "enrichment_provider": enrichment["provider"],
+            "match_pending": True,
+        }
+    )
+    return enriched_candidate, enrichment
+
+
+def _enrich_external_result_candidate(candidate: dict) -> tuple[dict, dict, bool]:
+    reusable = _reusable_external_result_enrichment(candidate)
+    if reusable:
+        return candidate, reusable, True
+    source = str(candidate.get("source") or "").strip().lower()
+    if source == "pdl":
+        enriched_candidate, enrichment = _enrich_external_pdl_result(candidate)
+    elif source == "coresignal":
+        enriched_candidate, enrichment = _enrich_external_coresignal_result(candidate)
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Bulk linked-profile enrichment is available for People Data Labs and Coresignal results.",
+        )
+    return enriched_candidate, enrichment, False
+
+
+@router.post("/external/enrich-result")
+def external_candidate_enrich_result(payload: dict = Body(...)):
+    domain = _domain_key(payload.get("domain") or "dev")
+    candidate = payload.get("candidate") or {}
+    if not isinstance(candidate, dict):
+        raise HTTPException(status_code=400, detail="Candidate data is required.")
+    source = str(candidate.get("source") or payload.get("source") or "").strip().lower()
+    _assert_external_source_allowed(source, domain)
+    if candidate.get("devready_profile_complete") is True:
+        raise HTTPException(status_code=409, detail="This result already has a DevReady TEMP profile.")
+    enriched_candidate, enrichment, reused = _enrich_external_result_candidate(candidate)
+    return {
+        "status": "success",
+        "candidate": enriched_candidate,
+        "enrichment": enrichment,
+        "reused": reused,
+        "creditsUsed": 0 if reused else int(enrichment.get("creditsUsed") or 0),
+        "temporaryProfileCreated": False,
+        "linkedinScraped": False,
+    }
+
+
 @router.post("/external/import")
 def external_candidate_import(payload: dict = Body(...)):
     domain = _domain_key(payload.get("domain") or "dev")
@@ -3846,6 +4092,7 @@ def external_candidate_import(payload: dict = Body(...)):
         "enrichedAt": "",
         "dataOrigin": "Provider-supplied professional data; no LinkedIn scraping.",
     }
+    enrichment_reused = False
     if is_court_lead:
         try:
             successful_enrichment_credits = int(profile_validation.get("successfulEnrichmentCredits") or 0)
@@ -3872,7 +4119,11 @@ def external_candidate_import(payload: dict = Body(...)):
         )
         if court_profile_confirmed:
             enrichment["status"] = "completed"
-    if source == "pdl":
+    reusable_enrichment = _reusable_external_result_enrichment(candidate)
+    if reusable_enrichment:
+        enrichment.update(reusable_enrichment)
+        enrichment_reused = True
+    if source == "pdl" and not enrichment_reused:
         try:
             response = peopleDataLabs.enrichPerson(profile=profile_url, pdl_id=source_id)
         except peopleDataLabs.PeopleDataLabsError as exc:
@@ -4026,6 +4277,10 @@ def external_candidate_import(payload: dict = Body(...)):
         created["identityNeedsReview"] = is_court_lead
         created["courtEvidence"] = metadata.get("courtEvidence") or {}
         created["enriched_candidate"] = candidate
+        created["enrichmentReused"] = enrichment_reused
+        created["providerCreditsUsed"] = (
+            0 if enrichment_reused else int(enrichment.get("creditsUsed") or 0)
+        )
         return created
     except HTTPException:
         raise

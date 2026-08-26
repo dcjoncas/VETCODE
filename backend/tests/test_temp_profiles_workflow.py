@@ -39,6 +39,21 @@ class TempProfilesWorkflowTests(unittest.TestCase):
         self.assertIn("Calculate JD match", html)
         self.assertIn("match_pending", html)
 
+    def test_returned_profiles_can_be_bulk_enriched_before_temp_selection(self):
+        html = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")
+        routes = (BACKEND / "azureUtils" / "routes" / "azureJobEndpoints.py").read_text(encoding="utf-8")
+
+        self.assertIn('id="btnEnrichAllLinkedProfiles"', html)
+        self.assertIn("function enrichAllLinkedProfiles", html)
+        self.assertIn("function enrichExternalResultCandidate", html)
+        self.assertIn('/api/azureJobs/external/enrich-result', html)
+        self.assertIn("This step does not create any TEMP profiles", html)
+        self.assertIn("enriched-temp-action", html)
+        self.assertIn('linkedProfileEnriched ? "Create TEMP profile"', html)
+        self.assertIn('@router.post("/external/enrich-result")', routes)
+        self.assertIn('"temporaryProfileCreated": False', routes)
+        self.assertIn('created["enrichmentReused"] = enrichment_reused', routes)
+
     def test_external_results_and_temp_profiles_are_ranked_by_current_fit(self):
         find_out = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")
         temp_profiles = (PAGES / "temp-profiles.html").read_text(encoding="utf-8")

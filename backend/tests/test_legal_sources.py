@@ -1023,6 +1023,157 @@ class LegalSourceRouteTests(unittest.TestCase):
 
     @patch("azureUtils.routes.azureJobEndpoints.candidates.uploadProfile")
     @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
+    def test_bulk_pdl_enrichment_returns_reusable_candidate_without_creating_temp(
+        self,
+        enrich,
+        upload,
+    ):
+        enrich.return_value = {
+            "status": 200,
+            "likelihood": 9,
+            "data": {
+                "id": "pdl-123",
+                "first_name": "Sample",
+                "last_name": "Developer",
+                "linkedin_url": "linkedin.com/in/sample-developer",
+                "job_title": "Software Developer",
+                "job_company_name": "Example Tech",
+                "location_name": "Denver, Colorado, United States",
+                "location_locality": "Denver",
+                "location_region": "Colorado",
+                "location_country": "United States",
+                "inferred_years_experience": 6,
+                "skills": ["Python", "FastAPI"],
+            },
+        }
+
+        result = azureJobEndpoints.external_candidate_enrich_result(
+            {
+                "domain": "dev",
+                "source": "pdl",
+                "candidate": {
+                    "source": "pdl",
+                    "source_id": "pdl-123",
+                    "name": "Sample Developer",
+                    "profile_url": "https://www.linkedin.com/in/sample-developer",
+                    "score": 82,
+                    "top_matches": ["Python"],
+                },
+            }
+        )
+
+        enrich.assert_called_once_with(
+            profile="https://www.linkedin.com/in/sample-developer",
+            pdl_id="pdl-123",
+        )
+        upload.assert_not_called()
+        self.assertFalse(result["temporaryProfileCreated"])
+        self.assertFalse(result["linkedinScraped"])
+        self.assertEqual(result["creditsUsed"], 1)
+        self.assertTrue(result["candidate"]["professional_enrichment_complete"])
+        self.assertEqual(result["candidate"]["external_enrichment"]["profileVersion"], 2)
+        self.assertEqual(result["candidate"]["title"], "Software Developer")
+
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.uploadProfile")
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.findTemporaryExternalProfile")
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
+    def test_temp_creation_reuses_bulk_enrichment_without_another_provider_call(
+        self,
+        enrich,
+        find_temp,
+        upload,
+    ):
+        find_temp.return_value = None
+        upload.return_value = {"status": "success", "personid": 902, "name": "Sample Developer"}
+        enrichment = {
+            "status": "completed",
+            "provider": "People Data Labs Person Enrichment",
+            "profileVersion": 2,
+            "creditsUsed": 1,
+            "enrichedAt": "2026-08-26T20:00:00Z",
+        }
+
+        result = azureJobEndpoints.external_candidate_import(
+            {
+                "domain": "dev",
+                "source": "pdl",
+                "candidate": {
+                    "source": "pdl",
+                    "source_id": "pdl-123",
+                    "name": "Sample Developer",
+                    "title": "Software Developer",
+                    "profile_url": "https://www.linkedin.com/in/sample-developer",
+                    "skills": ["Python", "FastAPI"],
+                    "professional_enrichment_complete": True,
+                    "external_enrichment": enrichment,
+                    "profile_data": {
+                        "location": {
+                            "locality": "Denver",
+                            "region": "Colorado",
+                            "country": "United States",
+                        }
+                    },
+                },
+            }
+        )
+
+        enrich.assert_not_called()
+        upload.assert_called_once()
+        self.assertTrue(result["enrichmentReused"])
+        self.assertEqual(result["providerCreditsUsed"], 0)
+        self.assertEqual(result["enrichment"]["status"], "completed")
+        self.assertEqual(result["enrichment"]["provider"], enrichment["provider"])
+        self.assertEqual(result["enrichment"]["profileVersion"], 2)
+
+    @patch("azureUtils.routes.azureJobEndpoints.coreSignal.enrichment_dataset", return_value="base")
+    @patch("azureUtils.routes.azureJobEndpoints.coreSignal.collect_person")
+    def test_bulk_coresignal_enrichment_collects_profile_without_creating_temp(
+        self,
+        collect,
+        enrichment_dataset,
+    ):
+        collect.return_value = {
+            "status": 200,
+            "data": {
+                "id": 321,
+                "full_name": "Sample Developer",
+                "profile_url": "https://www.linkedin.com/in/sample-developer",
+                "headline": "Software Developer",
+                "title": "Software Developer",
+                "location": "Toronto, Ontario, Canada",
+                "skills": ["Python", "Django"],
+                "experience": [],
+                "education": [],
+                "certifications": [],
+            },
+            "credits_used": 10,
+            "dataset": "base",
+            "matched_input": "employee_id",
+        }
+
+        result = azureJobEndpoints.external_candidate_enrich_result(
+            {
+                "domain": "dev",
+                "source": "coresignal",
+                "candidate": {
+                    "source": "coresignal",
+                    "source_id": "321",
+                    "name": "Sample Developer",
+                    "profile_url": "https://www.linkedin.com/in/sample-developer",
+                    "score": 78,
+                },
+            }
+        )
+
+        enrichment_dataset.assert_called_once_with()
+        collect.assert_called_once_with(employee_id="321", profile_url="", dataset="base")
+        self.assertFalse(result["temporaryProfileCreated"])
+        self.assertEqual(result["creditsUsed"], 10)
+        self.assertTrue(result["candidate"]["professional_enrichment_complete"])
+        self.assertIn("Coresignal", result["enrichment"]["provider"])
+
+    @patch("azureUtils.routes.azureJobEndpoints.candidates.uploadProfile")
+    @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
     @patch("azureUtils.routes.azureJobEndpoints.candidates.findTemporaryExternalProfile")
     def test_duplicate_temp_profile_skips_paid_enrichment(self, find_temp, enrich, upload):
         find_temp.return_value = {
