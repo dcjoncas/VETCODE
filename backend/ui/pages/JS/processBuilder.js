@@ -26,6 +26,7 @@
     dirty: false,
     chatHistory: [],
     drafts: [],
+    portfolio: null,
     validation: null,
     clientChecks: {},
     libraryTab: "processes",
@@ -157,6 +158,17 @@
 
   const processMetadataFromForm = () => ({
     clientName: el.clientName.value.trim(),
+    portfolioId: state.activeProcess?.portfolio_id || state.portfolio?.temp_id || "",
+    portfolioName: state.activeProcess?.portfolio_name || state.portfolio?.name || "",
+    phaseId: state.activeProcess?.phase_id || "",
+    phaseName: state.activeProcess?.phase_name || "",
+    phaseOrder: state.activeProcess?.phase_order || 0,
+    variant: state.activeProcess?.variant || "shared",
+    laneNames: state.activeProcess?.lane_names || [],
+    entryCriteria: state.activeProcess?.entry_criteria || [],
+    exitCriteria: state.activeProcess?.exit_criteria || [],
+    predecessorProcessIds: state.activeProcess?.predecessor_process_ids || [],
+    successorProcessIds: state.activeProcess?.successor_process_ids || [],
     owner: el.processOwner.value.trim(),
     purpose: el.processPurpose.value.trim(),
     scope: el.processScope.value.trim(),
@@ -296,6 +308,10 @@
     call_activity: "bpmn:CallActivity",
     decision: "bpmn:ExclusiveGateway",
     parallel_gateway: "bpmn:ParallelGateway",
+    inclusive_gateway: "bpmn:InclusiveGateway",
+    event_based_gateway: "bpmn:EventBasedGateway",
+    intermediate_catch_event: "bpmn:IntermediateCatchEvent",
+    intermediate_throw_event: "bpmn:IntermediateThrowEvent",
     task: "bpmn:Task",
   }[type] || "bpmn:Task");
 
@@ -311,6 +327,10 @@
     "bpmn:CallActivity": "callActivity",
     "bpmn:ExclusiveGateway": "exclusiveGateway",
     "bpmn:ParallelGateway": "parallelGateway",
+    "bpmn:InclusiveGateway": "inclusiveGateway",
+    "bpmn:EventBasedGateway": "eventBasedGateway",
+    "bpmn:IntermediateCatchEvent": "intermediateCatchEvent",
+    "bpmn:IntermediateThrowEvent": "intermediateThrowEvent",
     "bpmn:Task": "task",
   }[type] || "task");
 
@@ -327,7 +347,7 @@
   const normalizeDraft = (draft) => {
     const used = new Set();
     const idMap = new Map();
-    const steps = (Array.isArray(draft.steps) ? draft.steps : []).slice(0, 40).map((raw, index) => {
+    const steps = (Array.isArray(draft.steps) ? draft.steps : []).slice(0, 60).map((raw, index) => {
       const id = validBpmnId(raw.id, "Step", used);
       idMap.set(String(raw.id || ""), id);
       return {
@@ -370,6 +390,17 @@
     const processId = `Process_${String(draft.temp_id || draft.name || "DevReady").replace(/[^A-Za-z0-9_]+/g, "_")}`;
     const processMeta = {
       clientName: el.clientName.value.trim(),
+      portfolioId: draft.portfolio_id || state.portfolio?.temp_id || "",
+      portfolioName: draft.portfolio_name || state.portfolio?.name || "",
+      phaseId: draft.phase_id || "",
+      phaseName: draft.phase_name || "",
+      phaseOrder: Number(draft.phase_order || 0),
+      variant: draft.variant || "shared",
+      laneNames: draft.lane_names || [],
+      entryCriteria: draft.entry_criteria || [],
+      exitCriteria: draft.exit_criteria || [],
+      predecessorProcessIds: draft.predecessor_process_ids || draft.predecessor_temp_ids || [],
+      successorProcessIds: draft.successor_process_ids || draft.successor_temp_ids || [],
       owner: draft.owner || "",
       purpose: draft.purpose || "",
       scope: draft.scope || "",
@@ -440,7 +471,7 @@
     }
     const shapeXml = normalized.steps.map((step) => {
       const pos = positions.get(step.id);
-      const event = ["bpmn:StartEvent", "bpmn:EndEvent"].includes(step.type);
+      const event = step.type.endsWith("Event");
       const gateway = step.type.endsWith("Gateway");
       const width = event ? 36 : (gateway ? 50 : 120);
       const height = event ? 36 : (gateway ? 50 : 80);
@@ -507,7 +538,7 @@ ${edgeXml}
     const status = process.status || "draft";
     el.diagramTitle.textContent = name;
     el.diagramSubtitle.textContent = process.client_name
-      ? `${process.client_name} · ${process.element_count || process.elements?.length || modelElements().length} modeled elements · Foundry reconciliation on save`
+      ? `${process.client_name}${process.phase_order ? ` · Phase ${String(process.phase_order).padStart(2, "0")}${process.phase_name ? ` ${process.phase_name}` : ""}` : ""} · ${process.element_count || process.elements?.length || modelElements().length} modeled elements · Foundry reconciliation on save`
       : "Use the BPMN palette for manual editing or open AI Intake to describe the flow.";
     el.processStatus.textContent = status.charAt(0).toUpperCase() + status.slice(1);
     el.processStatus.className = `process-badge${status === "validated" ? " validated" : ""}`;
@@ -548,6 +579,18 @@ ${edgeXml}
       client_name: el.clientName.value.trim(),
       domain: currentDomain(),
       status: state.activeProcess?.status || "draft",
+      portfolio_id: state.activeProcess?.portfolio_id || "",
+      portfolio_name: state.activeProcess?.portfolio_name || "",
+      portfolio_key: state.activeProcess?.portfolio_key || "",
+      phase_id: state.activeProcess?.phase_id || "",
+      phase_name: state.activeProcess?.phase_name || "",
+      phase_order: state.activeProcess?.phase_order || 0,
+      variant: state.activeProcess?.variant || "shared",
+      lane_names: state.activeProcess?.lane_names || [],
+      entry_criteria: state.activeProcess?.entry_criteria || [],
+      exit_criteria: state.activeProcess?.exit_criteria || [],
+      predecessor_process_ids: state.activeProcess?.predecessor_process_ids || [],
+      successor_process_ids: state.activeProcess?.successor_process_ids || [],
       owner: el.processOwner.value.trim(),
       purpose: el.processPurpose.value.trim(),
       scope: el.processScope.value.trim(),
@@ -572,6 +615,17 @@ ${edgeXml}
       client_name: el.clientName.value.trim(),
       domain: currentDomain(),
       status: "draft",
+      portfolio_id: draft.portfolio_id || state.portfolio?.temp_id || "",
+      portfolio_name: draft.portfolio_name || state.portfolio?.name || "",
+      phase_id: draft.phase_id || "",
+      phase_name: draft.phase_name || draft.name,
+      phase_order: Number(draft.phase_order || 0),
+      variant: draft.variant || "shared",
+      lane_names: draft.lane_names || [],
+      entry_criteria: draft.entry_criteria || [],
+      exit_criteria: draft.exit_criteria || [],
+      predecessor_process_ids: draft.predecessor_process_ids || draft.predecessor_temp_ids || [],
+      successor_process_ids: draft.successor_process_ids || draft.successor_temp_ids || [],
       owner: draft.owner,
       purpose: draft.purpose,
       scope: draft.scope,
@@ -653,7 +707,7 @@ ${edgeXml}
       const title = document.createElement("strong");
       title.textContent = process.name;
       const client = document.createElement("span");
-      client.textContent = process.client_name || "Client not named";
+      client.textContent = `${process.client_name || "Client not named"}${process.phase_order ? ` · Phase ${String(process.phase_order).padStart(2, "0")}` : ""}`;
       const meta = document.createElement("small");
       meta.className = "library-meta";
       const validation = process.validation || {};
@@ -958,7 +1012,6 @@ ${edgeXml}
     const generated = processXmlFromDraft(draft);
     const process = payloadFromDraft(draft);
     await loadXml(generated.xml, process);
-    state.activeProcess = null;
     populateProcessForm();
     updateHeader();
     setDirty(true);
@@ -968,22 +1021,40 @@ ${edgeXml}
 
   const saveAllDrafts = async () => {
     if (!state.drafts.length) return;
-    if (!window.confirm(`Save all ${state.drafts.length} staged process drafts and reconcile every activity with AIReady Foundry?`)) return;
+    if (!window.confirm(`Save this connected ${state.drafts.length}-process portfolio and reconcile every activity with AIReady Foundry? Existing phases and components will be reused when they match.`)) return;
     const button = document.getElementById("saveAllDrafts");
+    const activePhaseId = state.activeProcess?.phase_id || "";
+    const activePhaseOrder = Number(state.activeProcess?.phase_order || 0);
     if (button) { button.disabled = true; button.textContent = "Saving…"; }
-    let saved = 0;
     try {
-      for (const draft of state.drafts) {
-        await fetchJson(`${API}/processes`, { method: "POST", body: JSON.stringify(payloadFromDraft(draft)) });
-        saved += 1;
-      }
+      const data = await fetchJson(`${API}/portfolios`, {
+        method: "POST",
+        body: JSON.stringify({
+          client_name: el.clientName.value.trim(),
+          portfolio: state.portfolio || {
+            temp_id: "portfolio-draft",
+            name: `${el.clientName.value.trim() || "Client"} process portfolio`,
+            purpose: "Connected client business processes",
+            lanes: [],
+            handoffs: [],
+          },
+          processes: state.drafts.map((draft) => ({ ...payloadFromDraft(draft), temp_id: draft.temp_id })),
+        }),
+      });
+      state.portfolio = data.portfolio;
       await refreshLibraries();
-      toast(`${saved} client process drafts saved and reconciled with AIReady Foundry.`);
+      const savedActive = (data.processes || []).find((process) =>
+        (activePhaseId && process.phase_id === activePhaseId)
+        || (activePhaseOrder && Number(process.phase_order) === activePhaseOrder));
+      if (savedActive?.bpmn_xml) await loadXml(savedActive.bpmn_xml, savedActive);
+      const reused = data.reconciliation?.reused?.length || 0;
+      const created = data.reconciliation?.created?.length || 0;
+      toast(`${data.processes?.length || state.drafts.length} connected processes saved. Foundry reused ${reused} component links and created ${created} draft components.`);
       switchLibraryTab("processes");
     } catch (error) {
-      toast(`Saved ${saved} drafts before an error: ${error.message}`, "error");
+      toast(`Portfolio save failed without a partial batch: ${error.message}`, "error");
     } finally {
-      if (button) { button.disabled = false; button.textContent = `Save all ${state.drafts.length} reviewed drafts`; }
+      if (button) { button.disabled = false; button.textContent = `Save connected portfolio`; }
     }
   };
 
@@ -993,23 +1064,37 @@ ${edgeXml}
     if (!state.drafts.length) return;
     const heading = document.createElement("div");
     heading.className = "draft-heading";
+    const headingCopy = document.createElement("div");
     const title = document.createElement("strong");
-    title.textContent = `${state.drafts.length} staged process draft${state.drafts.length === 1 ? "" : "s"}`;
+    title.textContent = state.portfolio?.name || `${state.drafts.length} staged process drafts`;
+    const portfolioMeta = document.createElement("span");
+    portfolioMeta.className = "portfolio-meta";
+    portfolioMeta.textContent = `${state.drafts.length} connected phase${state.drafts.length === 1 ? "" : "s"} · ${state.portfolio?.lanes?.length || 0} business lanes · ${state.portfolio?.handoffs?.length || 0} handoffs`;
+    headingCopy.append(title, portfolioMeta);
     const saveAll = document.createElement("button");
     saveAll.id = "saveAllDrafts";
     saveAll.type = "button";
     saveAll.className = "text-button";
-    saveAll.textContent = `Save all ${state.drafts.length} reviewed drafts`;
+    saveAll.textContent = "Save connected portfolio";
     saveAll.addEventListener("click", saveAllDrafts);
-    heading.append(title, saveAll);
+    heading.append(headingCopy, saveAll);
     el.draftProcesses.appendChild(heading);
     state.drafts.forEach((draft, index) => {
       const card = document.createElement("article");
       card.className = "draft-card";
+      card.dataset.phaseOrder = String(draft.phase_order || index + 1);
+      const phase = document.createElement("span");
+      phase.className = "draft-phase";
+      phase.textContent = `Phase ${String(draft.phase_order || index + 1).padStart(2, "0")} · ${draft.phase_name || draft.name}`;
       const name = document.createElement("strong");
-      name.textContent = `${index + 1}. ${draft.name}`;
+      name.textContent = draft.name;
       const detail = document.createElement("span");
-      detail.textContent = `${draft.steps?.length || 0} elements · ${draft.owner || "owner to confirm"} · ${draft.purpose || "purpose to confirm"}`;
+      detail.textContent = `${draft.steps?.length || 0} elements · ${(draft.lane_names || []).join(", ") || draft.owner || "owner to confirm"} · ${draft.variant || "shared"}`;
+      const handoff = document.createElement("span");
+      handoff.className = "draft-handoff-summary";
+      const priorCount = draft.predecessor_temp_ids?.length || 0;
+      const nextCount = draft.successor_temp_ids?.length || 0;
+      handoff.textContent = `${priorCount} incoming · ${nextCount} outgoing · ${draft.exit_criteria?.[0] || draft.outcome || "exit criteria to confirm"}`;
       const actions = document.createElement("div");
       actions.className = "draft-card-actions";
       const open = document.createElement("button");
@@ -1034,16 +1119,23 @@ ${edgeXml}
         }
       });
       actions.append(open, save);
-      card.append(name, detail, actions);
+      card.append(phase, name, detail, handoff, actions);
       el.draftProcesses.appendChild(card);
+      if (index + 1 < state.drafts.length) {
+        const connector = document.createElement("div");
+        connector.className = "draft-connector";
+        connector.innerHTML = "<span>↓</span><small>validated handoff</small>";
+        el.draftProcesses.appendChild(connector);
+      }
     });
   };
 
   const clearChat = () => {
     state.chatHistory = [];
     state.drafts = [];
+    state.portfolio = null;
     el.chatConversation.replaceChildren();
-    appendChatMessage("assistant", "Tell me what the client does and describe their major business flows from trigger to outcome. Include people, systems, decisions, exceptions, controls, and any known code, API, MCP, or URL references.");
+    appendChatMessage("assistant", "Tell me what the client does and describe every named phase from trigger to outcome. Separate phases from role lanes, and include handoffs, systems, decisions, exceptions, controls, program variants, and any known code, API, MCP, or URL references.");
     renderDrafts();
     el.chatPrompt.value = "";
   };
@@ -1066,14 +1158,17 @@ ${edgeXml}
       appendChatMessage("assistant", result.assistant_message || "I prepared a process draft for review.");
       state.chatHistory.push({ role: "assistant", content: result.assistant_message || "" });
       if (result.client_name && !el.clientName.value.trim()) el.clientName.value = result.client_name;
-      state.drafts = Array.isArray(result.processes) ? result.processes.slice(0, 5) : [];
+      state.portfolio = result.portfolio || null;
+      state.drafts = Array.isArray(result.processes)
+        ? result.processes.slice(0, 12).sort((a, b) => Number(a.phase_order || 0) - Number(b.phase_order || 0))
+        : [];
       renderDrafts();
     } catch (error) {
       appendChatMessage("assistant", error.message, "error");
       toast(`AI intake failed: ${error.message}`, "error");
     } finally {
       el.sendChat.disabled = false;
-      el.sendChat.textContent = "Build process draft";
+      el.sendChat.textContent = "Build connected portfolio";
     }
   };
 

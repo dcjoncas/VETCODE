@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="process-builder-assets/diagram-js.css" />
     <link rel="stylesheet" href="process-builder-assets/bpmn-js.css" />
     <link rel="stylesheet" href="process-builder-assets/css/bpmn.css" />
-    <link rel="stylesheet" href="CSS/processBuilder.css?v=20260829-devready-foundry" />
+    <link rel="stylesheet" href="CSS/processBuilder.css?v=20260830-connected-portfolios" />
     <script>
       (function () {
         const params = new URLSearchParams(window.location.search);
@@ -131,20 +131,20 @@
                 </div>
                 <span class="human-gate">Review required</span>
               </div>
-              <p class="pane-caption">Use everyday language. The agent can map up to five major flows, ask one clarification at a time, and stage drafts without saving them.</p>
+              <p class="pane-caption">Use everyday language or paste a detailed specification. The agent preserves up to 12 named phases as connected process drafts, separates phases from lanes, and stages everything without saving.</p>
               <label class="form-field">Client or business name<input id="clientName" type="text" maxlength="240" placeholder="Example: Northwind Manufacturing" /></label>
               <div id="chatConversation" class="chat-conversation" aria-live="polite">
                 <article class="chat-message assistant">
                   <strong>DevReady Process Agent</strong>
-                  <p>Tell me what the client does and describe their major business flows from trigger to outcome. Include people, systems, decisions, exceptions, controls, and any known code, API, MCP, or URL references.</p>
+                  <p>Tell me what the client does and describe every named phase from trigger to outcome. Separate phases from role lanes, and include handoffs, systems, decisions, exceptions, controls, program variants, and any known code, API, MCP, or URL references.</p>
                 </article>
               </div>
               <div id="draftProcesses" class="draft-processes" hidden></div>
               <form id="chatForm" class="chat-form">
                 <label for="chatPrompt" class="sr-only">Business flow description</label>
-                <textarea id="chatPrompt" rows="5" maxlength="8000" placeholder="Example: We have five flows: lead intake, client approval, project kickoff, delivery review, and invoicing. A sales manager receives…"></textarea>
+                <textarea id="chatPrompt" rows="7" maxlength="30000" placeholder="Example: We have eight connected phases from advisor education through ongoing maintenance. These are phases, while the listed roles are lanes. Preserve every phase, decision, handoff, exception, and program variant…"></textarea>
                 <div class="chat-actions">
-                  <button id="sendChat" class="pb-button primary" type="submit">Build process draft</button>
+                  <button id="sendChat" class="pb-button primary" type="submit">Build connected portfolio</button>
                   <button id="clearChat" class="pb-button secondary" type="button">Clear chat</button>
                 </div>
               </form>
@@ -232,6 +232,6 @@
     </dialog>
 
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-    <script src="JS/processBuilder.js?v=20260829-devready-foundry"></script>
+    <script src="JS/processBuilder.js?v=20260830-connected-portfolios"></script>
   </body>
 </html>

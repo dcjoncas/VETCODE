@@ -7,6 +7,7 @@ AI-assisted discovery, traceability, and a read-only MCP catalog surface.
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import hashlib
 import json
@@ -37,6 +38,8 @@ STORAGE_STATE = "json"
 MAX_BPMN_BYTES = 3_000_000
 MAX_PROCESS_ELEMENTS = 250
 MAX_PROCESS_CONNECTIONS = 500
+MAX_AI_PROCESSES = 12
+MAX_AI_MESSAGE_CHARS = 30_000
 
 PROCESS_NODE_TYPES = {
     "bpmn:Task",
@@ -121,8 +124,9 @@ def _new_id(prefix: str) -> str:
 def _seed_store() -> dict[str, Any]:
     now = _utc_now()
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "updated_at": now,
+        "portfolios": [],
         "processes": [],
         "components": [
             {
@@ -279,7 +283,8 @@ def _read_store() -> dict[str, Any]:
                 database_data = _read_store_database()
                 if database_data is not None:
                     data = database_data
-                    data.setdefault("schema_version", 1)
+                    data.setdefault("schema_version", 2)
+                    data.setdefault("portfolios", [])
                     data.setdefault("processes", [])
                     data.setdefault("components", [])
                     if not data["components"]:
@@ -299,7 +304,8 @@ def _read_store() -> dict[str, Any]:
             raise HTTPException(status_code=500, detail=f"Process Builder store is unreadable: {exc}") from exc
         if not isinstance(data, dict):
             raise HTTPException(status_code=500, detail="Process Builder store has an invalid root object.")
-        data.setdefault("schema_version", 1)
+        data.setdefault("schema_version", 2)
+        data.setdefault("portfolios", [])
         data.setdefault("processes", [])
         data.setdefault("components", [])
         if not data["components"]:
@@ -370,6 +376,41 @@ def _sanitize_connection(raw: Any, index: int) -> dict[str, str]:
     }
 
 
+def _sanitize_lane(raw: Any, index: int) -> dict[str, str]:
+    item = raw if isinstance(raw, dict) else {}
+    return {
+        "id": _text(item.get("id"), 160) or f"lane_{index + 1}",
+        "name": _text(item.get("name"), 240),
+        "accountable": _text(item.get("accountable") or item.get("owner"), 240),
+        "description": _text(item.get("description"), 1_000),
+    }
+
+
+def _sanitize_handoff(raw: Any, index: int) -> dict[str, str]:
+    item = raw if isinstance(raw, dict) else {}
+    return {
+        "id": _text(item.get("id"), 160) or f"handoff_{index + 1}",
+        "from_process_id": _text(
+            item.get("from_process_id") or item.get("from_process_temp_id") or item.get("from"),
+            160,
+        ),
+        "to_process_id": _text(
+            item.get("to_process_id") or item.get("to_process_temp_id") or item.get("to"),
+            160,
+        ),
+        "condition": _text(item.get("condition"), 1_000),
+        "artifact": _text(item.get("artifact"), 1_000),
+        "description": _text(item.get("description"), 1_000),
+    }
+
+
+def _phase_order(value: Any) -> int:
+    try:
+        return max(0, min(99, int(value or 0)))
+    except (TypeError, ValueError):
+        return 0
+
+
 def _sanitize_process_payload(payload: dict[str, Any], *, process_id: str = "") -> dict[str, Any]:
     name = _text(payload.get("name") or payload.get("title"), 240)
     if not name:
@@ -395,6 +436,30 @@ def _sanitize_process_payload(payload: dict[str, Any], *, process_id: str = "") 
         "client_name": _text(payload.get("client_name") or payload.get("clientName"), 240),
         "domain": domain,
         "status": _text(payload.get("status"), 40) or "draft",
+        "portfolio_id": _text(payload.get("portfolio_id") or payload.get("portfolioId"), 160),
+        "portfolio_name": _text(payload.get("portfolio_name") or payload.get("portfolioName"), 240),
+        "portfolio_key": _text(payload.get("portfolio_key") or payload.get("portfolioKey"), 240),
+        "phase_id": _text(payload.get("phase_id") or payload.get("phaseId"), 160),
+        "phase_name": _text(payload.get("phase_name") or payload.get("phaseName"), 240),
+        "phase_order": _phase_order(payload.get("phase_order") or payload.get("phaseOrder")),
+        "variant": _text(payload.get("variant"), 80) or "shared",
+        "lane_names": _string_list(payload.get("lane_names") or payload.get("laneNames"), limit=30, item_limit=240),
+        "entry_criteria": _string_list(
+            payload.get("entry_criteria") or payload.get("entryCriteria"), limit=30, item_limit=1_000
+        ),
+        "exit_criteria": _string_list(
+            payload.get("exit_criteria") or payload.get("exitCriteria"), limit=30, item_limit=1_000
+        ),
+        "predecessor_process_ids": _string_list(
+            payload.get("predecessor_process_ids") or payload.get("predecessorProcessIds"),
+            limit=30,
+            item_limit=160,
+        ),
+        "successor_process_ids": _string_list(
+            payload.get("successor_process_ids") or payload.get("successorProcessIds"),
+            limit=30,
+            item_limit=160,
+        ),
         "owner": _text(payload.get("owner"), 240),
         "purpose": _text(payload.get("purpose") or payload.get("description"), 4_000),
         "scope": _text(payload.get("scope"), 4_000),
@@ -409,6 +474,44 @@ def _sanitize_process_payload(payload: dict[str, Any], *, process_id: str = "") 
         "elements": elements,
         "connections": connections,
         "source": _text(payload.get("source"), 80) or "manual",
+    }
+
+
+def _sanitize_portfolio_payload(
+    payload: dict[str, Any],
+    *,
+    portfolio_id: str = "",
+    client_name: str = "",
+) -> dict[str, Any]:
+    name = _text(payload.get("name") or payload.get("title"), 240)
+    if not name:
+        raise HTTPException(status_code=400, detail="Portfolio name is required.")
+    resolved_client = _text(client_name or payload.get("client_name") or payload.get("clientName"), 240)
+    lanes = [
+        _sanitize_lane(raw, index)
+        for index, raw in enumerate((payload.get("lanes") or [])[:30])
+        if isinstance(raw, dict)
+    ]
+    handoffs = [
+        _sanitize_handoff(raw, index)
+        for index, raw in enumerate((payload.get("handoffs") or [])[:100])
+        if isinstance(raw, dict)
+    ]
+    return {
+        "id": portfolio_id or _text(payload.get("id") or payload.get("temp_id"), 160) or _new_id("portfolio"),
+        "key": _slug(f"{resolved_client}-{name}"),
+        "name": name,
+        "client_name": resolved_client,
+        "purpose": _text(payload.get("purpose"), 4_000),
+        "status": _text(payload.get("status"), 40) or "draft",
+        "expected_process_count": max(
+            1,
+            min(MAX_AI_PROCESSES, _phase_order(payload.get("expected_process_count") or 1)),
+        ),
+        "lanes": lanes,
+        "handoffs": handoffs,
+        "process_ids": _string_list(payload.get("process_ids"), limit=MAX_AI_PROCESSES, item_limit=160),
+        "source": _text(payload.get("source"), 80) or "ai-intake",
     }
 
 
@@ -664,6 +767,18 @@ def _process_summary(process: dict[str, Any]) -> dict[str, Any]:
             "client_name",
             "domain",
             "status",
+            "portfolio_id",
+            "portfolio_name",
+            "portfolio_key",
+            "phase_id",
+            "phase_name",
+            "phase_order",
+            "variant",
+            "lane_names",
+            "entry_criteria",
+            "exit_criteria",
+            "predecessor_process_ids",
+            "successor_process_ids",
             "owner",
             "purpose",
             "source",
@@ -677,6 +792,28 @@ def _process_summary(process: dict[str, Any]) -> dict[str, Any]:
         "element_count": len(process.get("elements") or []),
         "connection_count": len(process.get("connections") or []),
     }
+
+
+def _portfolio_summary(portfolio: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: copy.deepcopy(portfolio.get(key))
+        for key in (
+            "id",
+            "key",
+            "name",
+            "client_name",
+            "purpose",
+            "status",
+            "expected_process_count",
+            "lanes",
+            "handoffs",
+            "process_ids",
+            "source",
+            "version",
+            "created_at",
+            "updated_at",
+        )
+    } | {"process_count": len(portfolio.get("process_ids") or [])}
 
 
 def _traceability(store: dict[str, Any], process: dict[str, Any]) -> dict[str, Any]:
@@ -765,6 +902,10 @@ AI_STEP_SCHEMA = {
                 "call_activity",
                 "decision",
                 "parallel_gateway",
+                "inclusive_gateway",
+                "event_based_gateway",
+                "intermediate_catch_event",
+                "intermediate_throw_event",
             ],
         },
         "owner": {"type": "string"},
@@ -784,6 +925,15 @@ AI_PROCESS_SCHEMA = {
     "additionalProperties": False,
     "required": [
         "temp_id",
+        "phase_id",
+        "phase_name",
+        "phase_order",
+        "variant",
+        "lane_names",
+        "entry_criteria",
+        "exit_criteria",
+        "predecessor_temp_ids",
+        "successor_temp_ids",
         "name",
         "purpose",
         "owner",
@@ -800,6 +950,23 @@ AI_PROCESS_SCHEMA = {
     ],
     "properties": {
         "temp_id": {"type": "string"},
+        "phase_id": {"type": "string"},
+        "phase_name": {"type": "string"},
+        "phase_order": {"type": "integer", "minimum": 1, "maximum": MAX_AI_PROCESSES},
+        "variant": {"type": "string", "enum": ["shared", "renewable", "film", "mixed"]},
+        "lane_names": {"type": "array", "maxItems": 20, "items": {"type": "string"}},
+        "entry_criteria": {"type": "array", "maxItems": 20, "items": {"type": "string"}},
+        "exit_criteria": {"type": "array", "maxItems": 20, "items": {"type": "string"}},
+        "predecessor_temp_ids": {
+            "type": "array",
+            "maxItems": MAX_AI_PROCESSES,
+            "items": {"type": "string"},
+        },
+        "successor_temp_ids": {
+            "type": "array",
+            "maxItems": MAX_AI_PROCESSES,
+            "items": {"type": "string"},
+        },
         "name": {"type": "string"},
         "purpose": {"type": "string"},
         "owner": {"type": "string"},
@@ -811,10 +978,10 @@ AI_PROCESS_SCHEMA = {
         "systems": {"type": "array", "maxItems": 20, "items": {"type": "string"}},
         "controls": {"type": "array", "maxItems": 20, "items": {"type": "string"}},
         "kpis": {"type": "array", "maxItems": 20, "items": {"type": "string"}},
-        "steps": {"type": "array", "minItems": 2, "maxItems": 40, "items": AI_STEP_SCHEMA},
+        "steps": {"type": "array", "minItems": 2, "maxItems": 60, "items": AI_STEP_SCHEMA},
         "connections": {
             "type": "array",
-            "maxItems": 80,
+            "maxItems": 120,
             "items": {
                 "type": "object",
                 "additionalProperties": False,
@@ -830,33 +997,355 @@ AI_PROCESS_SCHEMA = {
     },
 }
 
+AI_PROCESS_PLAN_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": [
+        "temp_id",
+        "phase_id",
+        "phase_name",
+        "phase_order",
+        "variant",
+        "lane_names",
+        "entry_criteria",
+        "exit_criteria",
+        "predecessor_temp_ids",
+        "successor_temp_ids",
+        "name",
+        "purpose",
+        "owner",
+        "scope",
+        "trigger",
+        "outcome",
+        "inputs",
+        "outputs",
+        "systems",
+        "controls",
+        "kpis",
+        "activity_names",
+    ],
+    "properties": {
+        key: copy.deepcopy(value)
+        for key, value in AI_PROCESS_SCHEMA["properties"].items()
+        if key not in {"steps", "connections"}
+    },
+}
+AI_PROCESS_PLAN_SCHEMA["properties"]["activity_names"] = {
+    "type": "array",
+    "minItems": 1,
+    "maxItems": 60,
+    "items": {"type": "string"},
+}
+
+AI_LANE_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["id", "name", "accountable", "description"],
+    "properties": {
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "accountable": {"type": "string"},
+        "description": {"type": "string"},
+    },
+}
+
+AI_HANDOFF_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["id", "from_process_temp_id", "to_process_temp_id", "condition", "artifact", "description"],
+    "properties": {
+        "id": {"type": "string"},
+        "from_process_temp_id": {"type": "string"},
+        "to_process_temp_id": {"type": "string"},
+        "condition": {"type": "string"},
+        "artifact": {"type": "string"},
+        "description": {"type": "string"},
+    },
+}
+
+AI_PORTFOLIO_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["temp_id", "name", "purpose", "expected_process_count", "lanes", "handoffs"],
+    "properties": {
+        "temp_id": {"type": "string"},
+        "name": {"type": "string"},
+        "purpose": {"type": "string"},
+        "expected_process_count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": MAX_AI_PROCESSES,
+        },
+        "lanes": {"type": "array", "maxItems": 30, "items": AI_LANE_SCHEMA},
+        "handoffs": {"type": "array", "maxItems": 100, "items": AI_HANDOFF_SCHEMA},
+    },
+}
+
 AI_DISCOVERY_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["assistant_message", "needs_clarification", "discovery_complete", "client_name", "processes"],
+    "required": [
+        "assistant_message",
+        "needs_clarification",
+        "discovery_complete",
+        "client_name",
+        "portfolio",
+        "processes",
+    ],
     "properties": {
         "assistant_message": {"type": "string"},
         "needs_clarification": {"type": "boolean"},
         "discovery_complete": {"type": "boolean"},
         "client_name": {"type": "string"},
-        "processes": {"type": "array", "maxItems": 5, "items": AI_PROCESS_SCHEMA},
+        "portfolio": AI_PORTFOLIO_SCHEMA,
+        "processes": {"type": "array", "maxItems": MAX_AI_PROCESSES, "items": AI_PROCESS_SCHEMA},
+    },
+}
+
+AI_DISCOVERY_PLAN_SCHEMA = copy.deepcopy(AI_DISCOVERY_SCHEMA)
+AI_DISCOVERY_PLAN_SCHEMA["properties"]["processes"] = {
+    "type": "array",
+    "maxItems": MAX_AI_PROCESSES,
+    "items": AI_PROCESS_PLAN_SCHEMA,
+}
+
+AI_PHASE_EXPANSION_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["steps", "connections"],
+    "properties": {
+        "steps": copy.deepcopy(AI_PROCESS_SCHEMA["properties"]["steps"]),
+        "connections": copy.deepcopy(AI_PROCESS_SCHEMA["properties"]["connections"]),
     },
 }
 
 AI_DISCOVERY_INSTRUCTIONS = """You are the DevReady Process Discovery Agent for client business-flow intake.
-Turn ordinary client descriptions into reviewable BPMN-oriented process drafts. This product is DevReady and AIReady Foundry; it is not SAP, HPCC, or Syntax.
+Turn ordinary client descriptions into a connected, reviewable BPMN-oriented process portfolio. This product is DevReady and AIReady Foundry; it is not SAP, HPCC, or Syntax.
 
 Conversation rules:
-- The client may have up to five major business flows. Identify all flows they described, but never invent a sixth.
+- The portfolio may contain up to twelve business processes. When the client explicitly enumerates phases, stages, or major flows, create one process draft per enumerated phase by default. Never compress eight named phases into five drafts.
+- Distinguish phases from functional lanes: phases become connected process drafts; lanes are accountable business roles that can recur across drafts.
+- Connect every process end-to-end. Each process must declare predecessor_temp_ids, successor_temp_ids, entry criteria, exit criteria, and the portfolio must contain explicit handoffs with a condition and transferred artifact. Normal completion should advance to the next numbered phase; model rework and renewal loops when described.
+- If the client removes a role or lane, retain its business activities and reassign them to an accountable remaining business lane or mark the owner TBD. Do not keep a removed role as a lane and do not silently drop its work.
+- Prefer the client's explicit decomposition even when the processes share activities. Use call_activity for a reusable subprocess and keep consistent activity names so AIReady Foundry can reuse one component across processes.
 - If essential facts are missing, ask exactly one concise, high-value question and preserve any already-built drafts.
 - Essential facts are: process purpose, trigger, end outcome, major actors/owners, systems, decision paths, exceptions, controls, and success measures.
 - Build a draft once the description is sufficient. Drafts still require human validation; never claim client approval.
+- Set discovery_complete true when all requested process drafts are structurally generated. Use needs_clarification for unresolved owners, assumptions, controls, or client-validation gaps; those gaps do not make an otherwise complete draft portfolio structurally incomplete.
 - Include a start_event and at least one end_event. Every connection must reference a step ID in the same process.
-- Use service_task for API/automation, call_activity for a reusable subprocess, user_task for system-assisted human work, manual_task for offline work, business_rule_task for a rule check, and decision for exclusive branching.
+- Use service_task for API/automation, call_activity for a reusable subprocess, user_task for system-assisted human work, manual_task for offline work, business_rule_task for a rule check, decision for exclusive branching, parallel_gateway for concurrent work, and inclusive_gateway when one or more branches may apply.
+- Start and end names must identify the cross-process handoff, not generic words alone. Put program-specific renewable and film behavior behind named gateways or identify the process variant explicitly.
 - Do not fabricate code paths, API routes, MCP tools, URLs, credentials, systems, controls, or owners. Leave unknown reference arrays empty and ask for the missing technical evidence later.
 - When the client names code, an API, an MCP tool/server, or a link, attach it to the exact step that uses it.
 - Each reusable activity will be checked against AIReady Foundry after the user accepts the draft. Do not decide that a component exists unless the supplied Foundry summary proves it.
+- Preserve every named activity, decision, external party, compliance control, program branch, and open validation gap from the client's description. Do not treat a long specification as a request to summarize.
 - Return only the requested strict JSON object."""
+
+AI_PORTFOLIO_PLAN_INSTRUCTIONS = AI_DISCOVERY_INSTRUCTIONS + """
+
+This is the portfolio-planning pass. Return concise process plans, not full BPMN steps or connections.
+- Put every explicitly named source activity into exactly one phase plan's activity_names array; preserve the source wording where practical.
+- Use activity_names to prove coverage before detailed phase generation.
+- Keep phase metadata, lanes, inputs, outputs, controls, handoffs, variants, and validation gaps specific enough for a second pass to expand each phase independently.
+- If eight phases are named, return eight plans ordered one through eight."""
+
+AI_PHASE_EXPANSION_INSTRUCTIONS = """You are the DevReady BPMN Phase Expansion Agent.
+Expand exactly one supplied phase plan into a technically coherent BPMN-oriented process draft.
+- Preserve every activity in phase_plan.activity_names as a named step or an explicitly named gateway/event. Do not merge away source activities.
+- Use the supplied phase identity, order, variant, lane names, entry/exit criteria, predecessor and successor IDs unchanged.
+- Include one specific start event and at least one specific end event. Connect all non-start/non-end nodes and label decision branches.
+- Model rework, exception, concurrent, inclusive, and renewal behavior described in the client request.
+- Use consistent activity names so AIReady Foundry can reuse components.
+- Reassign removed-role work as directed; never restore a removed lane.
+- Do not invent code references, API routes, MCP tools, links, credentials, systems, controls, or owners. Leave unknown reference arrays empty.
+- Return only the phase's steps and internal connections; phase metadata is supplied by the portfolio plan and will be joined deterministically.
+- Return only the requested strict JSON object."""
+
+
+def _normalize_ai_discovery(result: Any, message: str) -> dict[str, Any]:
+    if not isinstance(result, dict):
+        raise ValueError("Process discovery result must be an object.")
+    raw_processes = result.get("processes") if isinstance(result.get("processes"), list) else []
+    processes: list[dict[str, Any]] = []
+    used_temp_ids: set[str] = set()
+    temp_id_map: dict[str, str] = {}
+    for index, raw in enumerate(raw_processes[:MAX_AI_PROCESSES]):
+        if not isinstance(raw, dict):
+            continue
+        process = copy.deepcopy(raw)
+        source_temp_id = _text(
+            process.get("temp_id") or process.get("phase_id") or process.get("name") or f"phase-{index + 1}",
+            160,
+        )
+        base_id = _slug(source_temp_id)
+        temp_id = base_id
+        suffix = 2
+        while temp_id in used_temp_ids:
+            temp_id = f"{base_id}-{suffix}"
+            suffix += 1
+        used_temp_ids.add(temp_id)
+        process["temp_id"] = temp_id
+        temp_id_map[source_temp_id] = temp_id
+        temp_id_map[_slug(source_temp_id)] = temp_id
+        if process.get("phase_id"):
+            temp_id_map[_text(process.get("phase_id"), 160)] = temp_id
+            temp_id_map[_slug(process.get("phase_id"))] = temp_id
+        process["phase_order"] = _phase_order(process.get("phase_order")) or index + 1
+        process["phase_id"] = _text(process.get("phase_id"), 160) or f"phase-{process['phase_order']:02d}"
+        process["phase_name"] = _text(process.get("phase_name"), 240) or _text(process.get("name"), 240)
+        process["variant"] = _text(process.get("variant"), 80) or "shared"
+        process["lane_names"] = _string_list(process.get("lane_names"), limit=20, item_limit=240)
+        process["entry_criteria"] = _string_list(process.get("entry_criteria"), limit=20, item_limit=1_000)
+        process["exit_criteria"] = _string_list(process.get("exit_criteria"), limit=20, item_limit=1_000)
+        process["predecessor_temp_ids"] = _string_list(
+            process.get("predecessor_temp_ids"), limit=MAX_AI_PROCESSES, item_limit=160
+        )
+        process["successor_temp_ids"] = _string_list(
+            process.get("successor_temp_ids"), limit=MAX_AI_PROCESSES, item_limit=160
+        )
+        processes.append(process)
+    processes.sort(key=lambda item: (item.get("phase_order") or 0, item.get("phase_name") or ""))
+
+    for process in processes:
+        for field in ("predecessor_temp_ids", "successor_temp_ids"):
+            process[field] = _string_list(
+                [temp_id_map.get(item, temp_id_map.get(_slug(item), item)) for item in process[field]],
+                limit=MAX_AI_PROCESSES,
+                item_limit=160,
+            )
+
+    for index, process in enumerate(processes):
+        if index > 0:
+            prior = processes[index - 1]["temp_id"]
+            process["predecessor_temp_ids"] = _string_list(
+                [*process["predecessor_temp_ids"], prior],
+                limit=MAX_AI_PROCESSES,
+                item_limit=160,
+            )
+        if index + 1 < len(processes):
+            following = processes[index + 1]["temp_id"]
+            process["successor_temp_ids"] = _string_list(
+                [*process["successor_temp_ids"], following],
+                limit=MAX_AI_PROCESSES,
+                item_limit=160,
+            )
+
+    portfolio_raw = result.get("portfolio") if isinstance(result.get("portfolio"), dict) else {}
+    portfolio = {
+        **copy.deepcopy(portfolio_raw),
+        "temp_id": _text(portfolio_raw.get("temp_id"), 160) or _new_id("portfolio_draft"),
+        "name": _text(portfolio_raw.get("name"), 240) or "Client business process portfolio",
+        "purpose": _text(portfolio_raw.get("purpose"), 4_000),
+        "expected_process_count": len(processes) or 1,
+        "lanes": [
+            _sanitize_lane(raw, index)
+            for index, raw in enumerate((portfolio_raw.get("lanes") or [])[:30])
+            if isinstance(raw, dict)
+        ],
+    }
+    remove_solution_architect = bool(
+        re.search(r"\b(remove|exclude|without|drop)\b[^\n]{0,80}\bsolution architect(?:ure)?\b", message, re.I)
+        or re.search(r"\bsolution architect(?:ure)?\b[^\n]{0,80}\b(remove|exclude|without|drop)\b", message, re.I)
+    )
+    if remove_solution_architect:
+        portfolio["lanes"] = [
+            lane for lane in portfolio["lanes"] if "solution architect" not in lane.get("name", "").casefold()
+        ]
+        for process in processes:
+            process["lane_names"] = [
+                lane for lane in process["lane_names"] if "solution architect" not in lane.casefold()
+            ]
+
+    raw_handoffs = [
+        _sanitize_handoff(raw, index)
+        for index, raw in enumerate((portfolio_raw.get("handoffs") or [])[:100])
+        if isinstance(raw, dict)
+    ]
+    process_ids = {process["temp_id"] for process in processes}
+    handoffs = []
+    for handoff in raw_handoffs:
+        handoff["from_process_id"] = temp_id_map.get(
+            handoff["from_process_id"],
+            temp_id_map.get(_slug(handoff["from_process_id"]), handoff["from_process_id"]),
+        )
+        handoff["to_process_id"] = temp_id_map.get(
+            handoff["to_process_id"],
+            temp_id_map.get(_slug(handoff["to_process_id"]), handoff["to_process_id"]),
+        )
+        if handoff["from_process_id"] in process_ids and handoff["to_process_id"] in process_ids:
+            handoffs.append(handoff)
+    invalid_handoff_count = len(raw_handoffs) - len(handoffs)
+    connected_pairs = {
+        (handoff.get("from_process_id"), handoff.get("to_process_id")) for handoff in handoffs
+    }
+    for index in range(len(processes) - 1):
+        source = processes[index]
+        target = processes[index + 1]
+        pair = (source["temp_id"], target["temp_id"])
+        if pair in connected_pairs:
+            continue
+        handoffs.append(
+            {
+                "id": f"handoff_{source['phase_order']:02d}_{target['phase_order']:02d}",
+                "from_process_id": source["temp_id"],
+                "to_process_id": target["temp_id"],
+                "condition": _text(source.get("outcome"), 1_000) or "Prior phase exit criteria met",
+                "artifact": _text((source.get("outputs") or [""])[0], 1_000),
+                "description": f"Normal completion advances from {source['phase_name']} to {target['phase_name']}.",
+            }
+        )
+    process_by_id = {process["temp_id"]: process for process in processes}
+    for handoff in handoffs:
+        source = process_by_id.get(handoff.get("from_process_id"))
+        target = process_by_id.get(handoff.get("to_process_id"))
+        if not source or not target or source is target:
+            continue
+        source["successor_temp_ids"] = _string_list(
+            [*source["successor_temp_ids"], target["temp_id"]],
+            limit=MAX_AI_PROCESSES,
+            item_limit=160,
+        )
+        target["predecessor_temp_ids"] = _string_list(
+            [*target["predecessor_temp_ids"], source["temp_id"]],
+            limit=MAX_AI_PROCESSES,
+            item_limit=160,
+        )
+    portfolio["handoffs"] = handoffs
+
+    explicit_phases = {
+        int(match.group(1))
+        for match in re.finditer(r"\bphase\s+0?(\d{1,2})\b", message, re.I)
+        if 1 <= int(match.group(1)) <= MAX_AI_PROCESSES
+    }
+    result["portfolio"] = portfolio
+    result["processes"] = processes
+    phase_coverage_complete = not explicit_phases or len(processes) >= len(explicit_phases)
+    structurally_complete = bool(processes) and phase_coverage_complete and all(
+        len(process.get("steps") or []) >= 2
+        and any(step.get("type") == "start_event" for step in process.get("steps") or [])
+        and any(step.get("type") == "end_event" for step in process.get("steps") or [])
+        and bool(process.get("connections"))
+        and bool(process.get("entry_criteria"))
+        and bool(process.get("exit_criteria"))
+        for process in processes
+    ) and len(handoffs) >= max(0, len(processes) - 1) and invalid_handoff_count == 0
+    result["interpretation"] = {
+        "process_count": len(processes),
+        "explicit_phase_count": len(explicit_phases),
+        "handoff_count": len(handoffs),
+        "invalid_handoff_count": invalid_handoff_count,
+        "removed_solution_architect_lane": remove_solution_architect,
+        "complete_phase_coverage": phase_coverage_complete,
+        "structurally_complete": structurally_complete,
+    }
+    result["discovery_complete"] = structurally_complete
+    if not phase_coverage_complete:
+        result["discovery_complete"] = False
+        result["assistant_message"] = (
+            f"I identified {len(explicit_phases)} named phases but only produced {len(processes)} drafts. "
+            "The portfolio is staged as incomplete and needs regeneration before saving."
+        )
+    return result
 
 
 def _ai_model() -> str:
@@ -868,6 +1357,93 @@ def _ai_model() -> str:
     )
 
 
+def _response_diagnostic(response: Any) -> str:
+    status = getattr(response, "status", None)
+    if status is None and isinstance(response, dict):
+        status = response.get("status")
+    details = getattr(response, "incomplete_details", None)
+    if details is None and isinstance(response, dict):
+        details = response.get("incomplete_details")
+    reason = getattr(details, "reason", None)
+    if reason is None and isinstance(details, dict):
+        reason = details.get("reason")
+    parts = [str(item) for item in (status, reason) if item]
+    return "/".join(parts) or "empty structured output"
+
+
+def _structured_ai_result(
+    *,
+    client: Any,
+    model: str,
+    instructions: str,
+    context: dict[str, Any],
+    schema: dict[str, Any],
+    schema_name: str,
+    max_output_tokens: int,
+) -> dict[str, Any]:
+    request_args = {
+        "model": model,
+        "instructions": instructions,
+        "input": [{"role": "user", "content": json.dumps(context, ensure_ascii=False)}],
+        "text": {
+            "format": {
+                "type": "json_schema",
+                "name": schema_name,
+                "strict": True,
+                "schema": schema,
+            }
+        },
+        "max_output_tokens": max_output_tokens,
+    }
+    if model.casefold().startswith("gpt-5"):
+        request_args["reasoning"] = {"effort": "low"}
+    response = client.responses.create(
+        **request_args,
+    )
+    output = _output_text(response)
+    if not output:
+        raise ValueError(f"OpenAI returned no JSON ({_response_diagnostic(response)}).")
+    try:
+        parsed = json.loads(output)
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"OpenAI returned truncated or invalid JSON ({_response_diagnostic(response)}; {len(output)} characters)."
+        ) from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("OpenAI structured output was not an object.")
+    return parsed
+
+
+def _expand_ai_phase(
+    *,
+    client: Any,
+    model: str,
+    message: str,
+    portfolio: dict[str, Any],
+    phase_plan: dict[str, Any],
+    adjacent_phases: list[dict[str, Any]],
+) -> dict[str, Any]:
+    expanded = _structured_ai_result(
+        client=client,
+        model=model,
+        instructions=AI_PHASE_EXPANSION_INSTRUCTIONS,
+        context={
+            "client_request": message,
+            "portfolio": portfolio,
+            "phase_plan": phase_plan,
+            "adjacent_phases": adjacent_phases,
+        },
+        schema=AI_PHASE_EXPANSION_SCHEMA,
+        schema_name="devready_phase_expansion",
+        max_output_tokens=8_000,
+    )
+    return {
+        **{key: copy.deepcopy(value) for key, value in phase_plan.items() if key != "activity_names"},
+        "steps": expanded.get("steps") if isinstance(expanded.get("steps"), list) else [],
+        "connections": expanded.get("connections") if isinstance(expanded.get("connections"), list) else [],
+    }
+
+
 @router.get("/health")
 def process_builder_health() -> dict[str, Any]:
     store = _read_store()
@@ -875,6 +1451,7 @@ def process_builder_health() -> dict[str, Any]:
         "ok": True,
         "product": "DevReady Process Builder",
         "foundry": "AIReady Foundry",
+        "portfolios": len(store.get("portfolios", [])),
         "processes": len(store.get("processes", [])),
         "components": len(store.get("components", [])),
         "ai_ready": bool(os.getenv("OPENAI_API_KEY", "").strip()),
@@ -895,8 +1472,198 @@ def list_processes(
         processes = [item for item in processes if client_name.casefold() in str(item.get("client_name", "")).casefold()]
     if domain:
         processes = [item for item in processes if str(item.get("domain", "")).casefold() == domain.casefold()]
-    processes = sorted(processes, key=lambda item: item.get("updated_at", ""), reverse=True)
+    processes = sorted(
+        processes,
+        key=lambda item: (item.get("updated_at", ""), -(item.get("phase_order") or 0)),
+        reverse=True,
+    )
     return {"ok": True, "processes": [_process_summary(item) for item in processes], "count": len(processes)}
+
+
+@router.get("/portfolios")
+def list_portfolios(client_name: str = Query(default="")) -> dict[str, Any]:
+    portfolios = _read_store().get("portfolios", [])
+    if client_name:
+        portfolios = [
+            item
+            for item in portfolios
+            if client_name.casefold() in str(item.get("client_name", "")).casefold()
+        ]
+    portfolios = sorted(portfolios, key=lambda item: item.get("updated_at", ""), reverse=True)
+    return {
+        "ok": True,
+        "portfolios": [_portfolio_summary(item) for item in portfolios],
+        "count": len(portfolios),
+    }
+
+
+@router.get("/portfolios/{portfolio_id}")
+def get_portfolio(portfolio_id: str) -> dict[str, Any]:
+    store = _read_store()
+    portfolio = next((item for item in store.get("portfolios", []) if item.get("id") == portfolio_id), None)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Process portfolio not found.")
+    process_ids = set(portfolio.get("process_ids") or [])
+    processes = [
+        copy.deepcopy(item)
+        for item in store.get("processes", [])
+        if item.get("id") in process_ids
+    ]
+    processes.sort(key=lambda item: (item.get("phase_order") or 0, item.get("name") or ""))
+    return {"ok": True, "portfolio": portfolio, "processes": processes}
+
+
+@router.post("/portfolios", status_code=201)
+async def save_portfolio(request: Request) -> dict[str, Any]:
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Portfolio payload must be an object.")
+    raw_portfolio = payload.get("portfolio") if isinstance(payload.get("portfolio"), dict) else {}
+    raw_processes = payload.get("processes") if isinstance(payload.get("processes"), list) else []
+    if not raw_processes:
+        raise HTTPException(status_code=400, detail="Provide at least one process draft.")
+    if len(raw_processes) > MAX_AI_PROCESSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"A portfolio can contain at most {MAX_AI_PROCESSES} process drafts.",
+        )
+    client_name = _text(payload.get("client_name") or raw_portfolio.get("client_name"), 240)
+    now = _utc_now()
+    with STORE_LOCK:
+        store = _read_store()
+        store.setdefault("portfolios", [])
+        portfolio_name = _text(raw_portfolio.get("name"), 240) or f"{client_name or 'Client'} process portfolio"
+        portfolio_key = _slug(f"{client_name}-{portfolio_name}")
+        existing_portfolio_index = next(
+            (
+                index
+                for index, item in enumerate(store["portfolios"])
+                if item.get("key") == portfolio_key
+            ),
+            None,
+        )
+        prior_portfolio = (
+            store["portfolios"][existing_portfolio_index]
+            if existing_portfolio_index is not None
+            else None
+        )
+        portfolio_id = (prior_portfolio or {}).get("id") or _new_id("portfolio")
+        portfolio = _sanitize_portfolio_payload(
+            {**raw_portfolio, "name": portfolio_name},
+            portfolio_id=portfolio_id,
+            client_name=client_name,
+        )
+
+        id_map: dict[str, str] = {}
+        process_plan: list[tuple[dict[str, Any], str, int | None]] = []
+        for index, raw in enumerate(raw_processes):
+            if not isinstance(raw, dict):
+                raise HTTPException(status_code=400, detail=f"Process draft {index + 1} must be an object.")
+            temp_id = _text(raw.get("temp_id") or raw.get("phase_id") or raw.get("name"), 160) or f"phase_{index + 1}"
+            phase_order = _phase_order(raw.get("phase_order")) or index + 1
+            phase_id = _text(raw.get("phase_id"), 160)
+            phase_name = _text(raw.get("phase_name"), 240)
+            existing_index = next(
+                (
+                    process_index
+                    for process_index, item in enumerate(store.get("processes", []))
+                    if item.get("portfolio_id") == portfolio_id
+                    and (
+                        (phase_id and item.get("phase_id") == phase_id)
+                        or (phase_order and item.get("phase_order") == phase_order)
+                        or (phase_name and item.get("phase_name") == phase_name)
+                    )
+                ),
+                None,
+            )
+            process_id = (
+                store["processes"][existing_index].get("id")
+                if existing_index is not None
+                else _new_id("proc")
+            )
+            id_map[temp_id] = process_id
+            process_plan.append((raw, process_id, existing_index))
+
+        saved_processes: list[dict[str, Any]] = []
+        aggregate = {"checked": 0, "reused": [], "created": [], "mapping": []}
+        for index, (raw, process_id, existing_index) in enumerate(process_plan):
+            predecessor_refs = _string_list(
+                raw.get("predecessor_process_ids") or raw.get("predecessor_temp_ids"),
+                limit=MAX_AI_PROCESSES,
+                item_limit=160,
+            )
+            successor_refs = _string_list(
+                raw.get("successor_process_ids") or raw.get("successor_temp_ids"),
+                limit=MAX_AI_PROCESSES,
+                item_limit=160,
+            )
+            process = _sanitize_process_payload(
+                {
+                    **raw,
+                    "client_name": client_name,
+                    "portfolio_id": portfolio_id,
+                    "portfolio_name": portfolio["name"],
+                    "portfolio_key": portfolio["key"],
+                    "phase_order": _phase_order(raw.get("phase_order")) or index + 1,
+                    "predecessor_process_ids": [id_map.get(item, item) for item in predecessor_refs],
+                    "successor_process_ids": [id_map.get(item, item) for item in successor_refs],
+                    "source": _text(raw.get("source"), 80) or "ai-intake",
+                },
+                process_id=process_id,
+            )
+            if existing_index is None:
+                process["created_at"] = now
+                process["version"] = 1
+            else:
+                prior = store["processes"][existing_index]
+                process["created_at"] = prior.get("created_at", now)
+                process["version"] = int(prior.get("version") or 0) + 1
+            process["updated_at"] = now
+            reconciliation = _reconcile_components(store, process)
+            process["validation"] = _validation(process)
+            process["foundry_summary"] = {
+                "checked": reconciliation["checked"],
+                "reused": len(reconciliation["reused"]),
+                "created": len(reconciliation["created"]),
+            }
+            if existing_index is None:
+                store["processes"].append(process)
+            else:
+                store["processes"][existing_index] = process
+            aggregate["checked"] += reconciliation["checked"]
+            aggregate["reused"].extend(reconciliation["reused"])
+            aggregate["created"].extend(reconciliation["created"])
+            aggregate["mapping"].extend(
+                {**row, "process_id": process_id} for row in reconciliation["mapping"]
+            )
+            saved_processes.append(copy.deepcopy(process))
+
+        portfolio["handoffs"] = [
+            {
+                **handoff,
+                "from_process_id": id_map.get(handoff.get("from_process_id"), handoff.get("from_process_id")),
+                "to_process_id": id_map.get(handoff.get("to_process_id"), handoff.get("to_process_id")),
+            }
+            for handoff in portfolio.get("handoffs", [])
+        ]
+        portfolio["process_ids"] = [item["id"] for item in sorted(saved_processes, key=lambda row: row["phase_order"])]
+        portfolio["expected_process_count"] = len(saved_processes)
+        portfolio["created_at"] = (prior_portfolio or {}).get("created_at", now)
+        portfolio["updated_at"] = now
+        portfolio["version"] = int((prior_portfolio or {}).get("version") or 0) + 1
+        if existing_portfolio_index is None:
+            store["portfolios"].append(portfolio)
+        else:
+            store["portfolios"][existing_portfolio_index] = portfolio
+        _rebuild_component_usage(store)
+        _write_store_unlocked(store)
+    return {
+        "ok": True,
+        "created": existing_portfolio_index is None,
+        "portfolio": copy.deepcopy(portfolio),
+        "processes": saved_processes,
+        "reconciliation": aggregate,
+    }
 
 
 @router.get("/processes/{process_id}")
@@ -1076,25 +1843,41 @@ async def process_discovery_chat(request: Request) -> dict[str, Any]:
     payload = await request.json()
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="Chat payload must be an object.")
-    message = _text(payload.get("message"), 8_000)
+    message = _text(payload.get("message"), MAX_AI_MESSAGE_CHARS)
     if not message:
         raise HTTPException(status_code=400, detail="Describe the client's business flow.")
     if not os.getenv("OPENAI_API_KEY", "").strip():
         raise HTTPException(status_code=503, detail="AI intake needs OPENAI_API_KEY configured on the server.")
     history = payload.get("history") if isinstance(payload.get("history"), list) else []
     clean_history = []
-    for item in history[-12:]:
+    for item in history[-8:]:
         if not isinstance(item, dict):
             continue
         role = "assistant" if item.get("role") == "assistant" else "user"
-        content = _text(item.get("content"), 4_000)
+        content = _text(item.get("content"), 8_000)
         if content:
             clean_history.append({"role": role, "content": content})
     store = _read_store()
     context = {
         "latest_client_message": message,
         "conversation": clean_history,
+        "interpretation_preferences": {
+            "maximum_processes": MAX_AI_PROCESSES,
+            "separate_explicit_phases": True,
+            "require_cross_process_handoffs": True,
+            "reuse_foundry_components_before_build": True,
+            "removed_roles_must_be_reassigned_not_dropped": True,
+        },
         "active_process": payload.get("active_process") if isinstance(payload.get("active_process"), dict) else {},
+        "existing_portfolios": [
+            {
+                "id": item.get("id"),
+                "name": item.get("name"),
+                "client_name": item.get("client_name"),
+                "process_count": len(item.get("process_ids") or []),
+            }
+            for item in store.get("portfolios", [])[-20:]
+        ],
         "existing_processes": [
             {
                 "id": item.get("id"),
@@ -1116,23 +1899,49 @@ async def process_discovery_chat(request: Request) -> dict[str, Any]:
     }
     model = _ai_model()
     try:
-        response = getOpenAPIClient().responses.create(
+        client = getOpenAPIClient()
+        plan = await asyncio.to_thread(
+            _structured_ai_result,
+            client=client,
             model=model,
-            instructions=AI_DISCOVERY_INSTRUCTIONS,
-            input=[{"role": "user", "content": json.dumps(context, ensure_ascii=False)}],
-            text={
-                "format": {
-                    "type": "json_schema",
-                    "name": "devready_process_discovery",
-                    "strict": True,
-                    "schema": AI_DISCOVERY_SCHEMA,
-                }
-            },
+            instructions=AI_PORTFOLIO_PLAN_INSTRUCTIONS,
+            context=context,
+            schema=AI_DISCOVERY_PLAN_SCHEMA,
+            schema_name="devready_portfolio_plan",
+            max_output_tokens=12_000,
         )
-        output = _output_text(response)
-        result = json.loads(output)
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=502, detail="OpenAI returned an unreadable process draft.") from exc
+        phase_plans = plan.get("processes") if isinstance(plan.get("processes"), list) else []
+        portfolio = plan.get("portfolio") if isinstance(plan.get("portfolio"), dict) else {}
+        semaphore = asyncio.Semaphore(4)
+
+        async def expand(index: int, phase_plan: dict[str, Any]) -> dict[str, Any]:
+            adjacent = [
+                {
+                    key: item.get(key)
+                    for key in ("temp_id", "phase_name", "phase_order", "entry_criteria", "exit_criteria")
+                }
+                for item in phase_plans[max(0, index - 1) : index + 2]
+                if isinstance(item, dict) and item is not phase_plan
+            ]
+            async with semaphore:
+                try:
+                    return await asyncio.to_thread(
+                        _expand_ai_phase,
+                        client=client,
+                        model=model,
+                        message=message,
+                        portfolio=portfolio,
+                        phase_plan=phase_plan,
+                        adjacent_phases=adjacent,
+                    )
+                except Exception as exc:
+                    phase_name = _text(phase_plan.get("phase_name"), 240) or f"phase {index + 1}"
+                    raise ValueError(f"Could not expand {phase_name}: {exc}") from exc
+
+        expanded_processes = await asyncio.gather(
+            *(expand(index, item) for index, item in enumerate(phase_plans) if isinstance(item, dict))
+        )
+        result = _normalize_ai_discovery({**plan, "processes": expanded_processes}, message)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"OpenAI process discovery failed: {exc}") from exc
     return {
@@ -1146,6 +1955,25 @@ async def process_discovery_chat(request: Request) -> dict[str, Any]:
 
 def _mcp_tools() -> list[dict[str, Any]]:
     return [
+        {
+            "name": "list_portfolios",
+            "description": "List connected DevReady client process portfolios and phase counts.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"client_name": {"type": "string"}},
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "get_portfolio",
+            "description": "Get an end-to-end portfolio, ordered phase processes, lanes, and cross-process handoffs.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"portfolio_id": {"type": "string"}},
+                "required": ["portfolio_id"],
+                "additionalProperties": False,
+            },
+        },
         {
             "name": "list_processes",
             "description": "List DevReady client process-flow records.",
@@ -1192,7 +2020,7 @@ def mcp_manifest() -> dict[str, Any]:
     return {
         "name": "devready-aiready-foundry",
         "title": "DevReady AIReady Foundry",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "transport": "streamable-http-json-rpc",
         "endpoint": "/api/process-builder/mcp",
         "read_only": True,
@@ -1214,8 +2042,8 @@ async def mcp_endpoint(request: Request) -> Any:
         result = {
             "protocolVersion": "2025-06-18",
             "capabilities": {"tools": {"listChanged": False}},
-            "serverInfo": {"name": "devready-aiready-foundry", "version": "1.0.0"},
-            "instructions": "Read-only catalog for DevReady processes, reusable components, and implementation traceability.",
+            "serverInfo": {"name": "devready-aiready-foundry", "version": "1.1.0"},
+            "instructions": "Read-only catalog for connected DevReady process portfolios, reusable components, and implementation traceability.",
         }
     elif method == "tools/list":
         result = {"tools": _mcp_tools()}
@@ -1223,7 +2051,32 @@ async def mcp_endpoint(request: Request) -> Any:
         tool_name = _text(params.get("name"), 120)
         arguments = params.get("arguments") if isinstance(params.get("arguments"), dict) else {}
         store = _read_store()
-        if tool_name == "list_processes":
+        if tool_name == "list_portfolios":
+            rows = store.get("portfolios", [])
+            if arguments.get("client_name"):
+                needle = str(arguments["client_name"]).casefold()
+                rows = [item for item in rows if needle in str(item.get("client_name", "")).casefold()]
+            value = [_portfolio_summary(item) for item in rows]
+        elif tool_name == "get_portfolio":
+            portfolio = next(
+                (item for item in store.get("portfolios", []) if item.get("id") == arguments.get("portfolio_id")),
+                None,
+            )
+            if not portfolio:
+                return {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {"content": [{"type": "text", "text": "Portfolio not found."}], "isError": True},
+                }
+            process_ids = set(portfolio.get("process_ids") or [])
+            portfolio_processes = [
+                copy.deepcopy(item)
+                for item in store.get("processes", [])
+                if item.get("id") in process_ids
+            ]
+            portfolio_processes.sort(key=lambda item: (item.get("phase_order") or 0, item.get("name") or ""))
+            value = {"portfolio": copy.deepcopy(portfolio), "processes": portfolio_processes}
+        elif tool_name == "list_processes":
             rows = store.get("processes", [])
             if arguments.get("client_name"):
                 needle = str(arguments["client_name"]).casefold()
@@ -1287,6 +2140,7 @@ def process_builder_reference() -> dict[str, Any]:
     digest = hashlib.sha256(
         json.dumps(
             {
+                "portfolios": [item.get("id") for item in store.get("portfolios", [])],
                 "processes": [item.get("id") for item in store.get("processes", [])],
                 "components": [item.get("id") for item in store.get("components", [])],
                 "updated_at": store.get("updated_at"),
@@ -1300,6 +2154,9 @@ def process_builder_reference() -> dict[str, Any]:
         "foundry": "AIReady Foundry",
         "ui": "/ui/pages/process-builder.html?domain=dev",
         "rest_base": "/api/process-builder",
+        "portfolio_api": "/api/process-builder/portfolios",
+        "process_api": "/api/process-builder/processes",
+        "component_api": "/api/process-builder/components",
         "mcp": "/api/process-builder/mcp",
         "mcp_manifest": "/api/process-builder/mcp/manifest",
         "code": [

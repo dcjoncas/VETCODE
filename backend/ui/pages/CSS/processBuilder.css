@@ -709,8 +709,18 @@ html[data-embed="true"] #siteSidebar {
 .draft-heading {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
+}
+
+.draft-heading > div { min-width: 0; }
+
+.portfolio-meta {
+  display: block;
+  margin-top: 3px;
+  color: var(--pb-muted);
+  font-size: 9px;
+  line-height: 1.35;
 }
 
 .draft-card {
@@ -727,6 +737,34 @@ html[data-embed="true"] #siteSidebar {
 
 .draft-card strong { font-size: 11px; }
 .draft-card span { margin: 3px 0 7px; color: var(--pb-muted); font-size: 9px; line-height: 1.35; }
+
+.draft-card .draft-phase {
+  margin: 0 0 4px;
+  color: var(--pb-green);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.draft-card .draft-handoff-summary {
+  border-top: 1px dashed rgba(47, 125, 75, 0.25);
+  padding-top: 6px;
+  color: #3f5e49;
+}
+
+.draft-connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 20px;
+  margin: -6px 0;
+  color: var(--pb-green);
+}
+
+.draft-connector span { font-size: 14px; line-height: 1; }
+.draft-connector small { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
 
 .draft-card-actions {
   display: flex;

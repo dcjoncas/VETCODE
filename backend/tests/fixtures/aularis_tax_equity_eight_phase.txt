@@ -1,0 +1,100 @@
+Client: Aularis Strategies
+
+Create one connected business process for each of the eight explicitly named phases below. These are eight phases, not five summary flows. They must be ordered 1 through 8 and connected by normal completion handoffs. Preserve loops, gates, renewable and film variants, external parties, inputs, outputs, controls, and open validation gaps.
+
+The source map has seven role lanes including Solution Architecture & Technical. Remove Solution Architecture & Technical as a business lane. Do not remove its work. Reassign education materials, technical Q&A, compliance design/code monitoring, and the advisor/investor technical desk to Compliance & Client Experience, with the accountable owner marked TBD and Nate retained only as a supporting technical subject-matter expert where useful.
+
+Use these six remaining business lanes throughout the portfolio:
+1. Referring Advisor & Client
+2. Business Development & Capital — Billy, Chief Revenue Officer; VFO Hub supports advisor compensation
+3. Engagement, Closing & Systems — Steph owns project flow; Malcolm owns systems and automation
+4. Project Diligence & Information — Brian owns renewable/project execution; Michelle owns film projects
+5. Compliance & Client Experience — accountable owner currently TBD
+6. Counsel, Escrow & Counterparties — panel counsel, escrow agent, developer or producer, and return preparer
+
+Phase 01 — Advisor Education & Sales
+- Develop capital partnerships. Input: target advisor/RIA profile and program economics. Output: advisor pipeline and referring-firm relationships. Billy owns capital partnerships.
+- Onboard advisor as a VFO Hub member firm. Input: VFO Hub consulting agreement. Output: member-firm status and compensation eligibility. Aularis does not pay client advisors directly.
+- Produce education and program materials. Inputs: code positions and deal assumptions. Outputs: program guide, participation-hours guide, illustration model, and versioned Terms and Conditions. Compliance & Client Experience is the business lane; Nate may support as technical SME.
+- Conduct advisor education session. Inputs: program guide and client floors. Output: shortlist of candidate clients.
+- Advisor presents program to client. Output: client interest and rough capacity. Aularis supports but does not replace the client's advisor.
+- Source and pipeline projects begins in parallel. Brian owns renewable developer pipeline; Michelle owns completed-but-unreleased film sourcing. Output: project pipeline with timing and size.
+- Normal exit artifact: qualified advisor/client opportunity plus current program and project materials.
+
+Phase 02 — Expression of Interest & Sizing
+- Build Aularis illustration. Inputs: client capacity and illustration model. Outputs: investment size, purchase deposit, consulting fee, projected benefits, and schedule. Source assumptions to validate: purchase deposit about 40 percent of transaction value and fee equal to 20 percent of projected depreciation.
+- Technical Q&A on the illustration. Reassign to Compliance & Client Experience; Nate is supporting SME. Output: written answers/positions summary.
+- Advisor confirms fit with the client's other planning. Output: advisor sign-off and sizing decision.
+- Decision gateway: EOI addendum submitted — proceed? No returns to sizing or closes the opportunity. Yes fixes the fee assumptions, opens the transaction, hands off to Phase 03, and also starts participation onboarding.
+- Film floors are assumptions requiring validation: minimum $250,000 deposit and at least $500,000 annual income. Confirm whether renewable uses the same floors.
+- Exit artifact: approved non-binding EOI and locked assumption set.
+
+Phase 03 — Intake
+- Engagement Agreement and version-locked T&Cs signed. Steph owns project flow; Malcolm supports signature automation. Output: executed engagement.
+- Client intake package. Inputs: client/advisor data. Outputs: KYC/identity, investing entity and W-9, tax profile for K-1 reporting, eligibility confirmation, and advisor member-firm confirmation.
+- Client engages panel counsel using the firm's own engagement letter. Validate 0.725 percent basic versus 1.45 percent tax-plus-transaction scope and $5,000/$10,000 minimums.
+- Match client to project and assemble diligence package. Owners: Brian for renewable and Michelle for film. Outputs: diligence package and closing calendar.
+- Participation onboarding — hours start now. Lane: Compliance & Client Experience, owner TBD. Inputs: participation guide and logging tool. Outputs: client orientation and first logged hours. Pre-admission-hour position requires legal/tax validation.
+- Exit artifacts: intake-complete client file, counsel engagement, matched project/diligence package, and active participation log.
+
+Phase 04 — Escrow Coordination
+- Issue escrow instructions. Owner: Steph. Inputs: executed engagement and EOI amounts. Outputs: services/fee escrow with counsel earmark and a separate purchase-deposit/capital bucket.
+- Client wires deposits. Advisor coordinates; client funds. Aularis confirms receipt but does not hold client money outside escrow.
+- Escrow agent receives and holds funds. Output: receipt confirmation for both buckets.
+- Decision gateway: confirm funds and reconcile to EOI. Failure returns for discrepancy resolution. Success marks the transaction funded and releases Phase 05.
+- Versioned control: through 2026 the client funds the counsel earmark; proposed 2027 process has Aularis paying counsel directly.
+- Exit artifact: funded/reconciled status plus escrow evidence.
+
+Phase 05 — Closing
+- Final diligence and closing checklist. Owners: Brian or Michelle. Inputs: diligence package and funded status. Output: asset-level checklist complete.
+- Panel counsel reviews for client. Output: counsel sign-off. Counsel represents the client, not Aularis.
+- Execute closing and admit Member/Managers. Owner: Steph. Inputs: checklist, counsel sign-off, funded status. Outputs: operating agreement, admission, and services covenant up to 110 hours.
+- Settlement statement and disbursement. Owners: Steph and escrow agent. Outputs: all developer/promoter/facilitator disclosures, counsel payment, consulting-fee release, and purchase deposit released to project.
+- Compensation flows. Billy owns. Validate 2026 assumptions: VFO Hub receives 67.5 percent of fee collected, transaction attorney receives 75 basis points of transaction value, and developer financing consulting fee is separate.
+- Exit artifacts: executed closing set, admission record, settlement statement, compensation ledger, and project funding.
+
+Phase 06 — 100+ Hour Compliance
+- Client performs and logs services such as meetings, diligence trips, site visits, and production visits. Output: contemporaneous entries with specific descriptions.
+- Run activity program and hour tracking. Lane: Compliance & Client Experience, owner TBD. Output: scheduled activities and monthly status by member.
+- Description review and QC. AI may check specificity, business connection, and travel-rule consistency; a human reviews exceptions. Output: clean log and deficiency notices.
+- Keep other active participants below threshold. Inputs: service contracts and counterparty reports. Output: evidence that non-member active participants remain below member hours.
+- Compliance design and code monitoring. Reassign to Compliance & Client Experience; Nate supports as technical SME. Outputs: updated positions, guides, and T&C versions.
+- Decision gateway: year-end participation certification. If below 100 hours, start remediation before year-end. If met, produce certification and CPA support package.
+- Exit artifacts: quality-controlled log, threshold evidence, and participation certification.
+
+Phase 07 — Technical Support
+- Advisor and investor technical desk. Lane: Compliance & Client Experience, owner TBD; Nate supports as technical SME. Inputs: advisor/CPA/investor questions. Outputs: written answers, position summaries, and FAQs. Information only; no advice on an individual return.
+- Partnership return and K-1 preparation. External return preparer, coordinated by Aularis. Inputs: entity books, member tax profiles, and participation certifications. Outputs: partnership return, K-1s, and supporting information. Validate the approximate $5,000-per-entity assumption.
+- Advisor/CPA integrates K-1 into client return. Owners: client's professionals. Output: client return prepared by those professionals. Aularis supplies information but not return advice.
+- Advisor relations and program updates. Billy and VFO Hub communicate changes and reconcile compensation.
+- Exit artifacts: K-1 package, technical support record, and advisor update.
+
+Phase 08 — Ongoing Maintenance
+- Inclusive program gateway: renewable, film, or both applicable oversight paths.
+- Renewable path: placed-in-service confirmation, O&M oversight, annual credit compliance, and recapture-risk monitoring. Owner: Brian.
+- Film path: producer, distribution, and CAMA oversight; performance analysis; credentialing; distribution tracking; and about 10 percent back-end participation monitoring. Owner: Michelle. Validate later-year management-fee and year-five consolidation assumptions.
+- Annual entity administration. Owners: Malcolm and Steph. Outputs: return cycle, K-1 coordination, member communications, and applicable fee accrual.
+- Members continue engagement at the maintenance level. Owners: client and advisor.
+- Renewal to next transaction. Billy owns. Success loops back to Phase 01 through the advisor channel.
+- Exit artifacts: annual administration file, program oversight record, member communications, and renewed/referral opportunity.
+
+Required cross-process behavior:
+- Connect Phase 01 through Phase 08 in order with explicit entry and exit criteria and transferred artifacts.
+- Model the Phase 02 approved-EOI handoff to both Phase 03 intake and the Phase 03 participation-onboarding work.
+- Model Phase 04 funding failure as rework and success as the Phase 05 release gate.
+- Model renewable and film variants without duplicating shared work.
+- Model Phase 08 renewal as a loop back to Phase 01.
+- Use consistent activity names across phases so AIReady Foundry can reuse components.
+- Do not invent source code paths, APIs, MCP tools, URLs, systems, or credentials. Leave those arrays empty when not supplied and mark technical discovery as required.
+- Every process needs a specific start and end event, internal connections, owners, controls, inputs, outputs, lane names, predecessor/successor references, and measurable exit criteria.
+
+Open validation gaps:
+- Accountable owner for Compliance & Client Experience
+- Owner of the CPA relationship, return-preparation coordination, and K-1 support
+- Renewable eligibility floors
+- Legal/tax basis for pre-admission hours and the 100/110-hour operating rule
+- Counsel payment mechanics for 2027
+- In-house versus panel-counsel scope
+- Every fee, percentage, minimum, deposit ratio, facilitator payment, management fee, retention rule, evidence requirement, and access-control requirement
+
+Return all eight connected process drafts for review. Do not save or mark them validated.

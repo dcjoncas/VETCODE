@@ -156,7 +156,17 @@ class ProcessBuilderApiTests(unittest.TestCase):
         self.assertEqual(initialize.status_code, 200)
         self.assertEqual(initialize.json()["result"]["serverInfo"]["name"], "devready-aiready-foundry")
         tool_names = {item["name"] for item in tools.json()["result"]["tools"]}
-        self.assertEqual(tool_names, {"list_processes", "get_process", "find_components", "get_traceability"})
+        self.assertEqual(
+            tool_names,
+            {
+                "list_portfolios",
+                "get_portfolio",
+                "list_processes",
+                "get_process",
+                "find_components",
+                "get_traceability",
+            },
+        )
         manifest = self.client.get("/api/process-builder/mcp/manifest").json()
         self.assertTrue(manifest["read_only"])
 
@@ -167,15 +177,29 @@ class ProcessBuilderApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertIn("OPENAI_API_KEY", response.json()["detail"])
 
-    def test_ai_chat_uses_responses_api_structured_process_schema(self):
+    def test_ai_chat_uses_responses_api_structured_portfolio_plan_schema(self):
         result = {
             "assistant_message": "I drafted the flow for review.",
             "needs_clarification": False,
             "discovery_complete": True,
             "client_name": "Northwind",
+            "portfolio": {
+                "temp_id": "northwind",
+                "name": "Northwind portfolio",
+                "purpose": "Connected operations",
+                "expected_process_count": 1,
+                "lanes": [],
+                "handoffs": [],
+            },
             "processes": [],
         }
-        responses = SimpleNamespace(create=lambda **kwargs: SimpleNamespace(output_text=json.dumps(result)))
+        captured = {}
+
+        def create_response(**kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(output_text=json.dumps(result))
+
+        responses = SimpleNamespace(create=create_response)
         client = SimpleNamespace(responses=responses)
 
         with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key", "OPENAI_PROCESS_MODEL": "test-model"}), patch.object(
@@ -186,7 +210,261 @@ class ProcessBuilderApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["api"], "responses")
         self.assertEqual(response.json()["model"], "test-model")
-        self.assertEqual(response.json()["result"], result)
+        self.assertEqual(response.json()["result"]["portfolio"]["name"], "Northwind portfolio")
+        process_schema = captured["text"]["format"]["schema"]["properties"]["processes"]
+        self.assertEqual(process_schema["maxItems"], 12)
+        self.assertIn("activity_names", process_schema["items"]["properties"])
+        self.assertNotIn("steps", process_schema["items"]["properties"])
+        self.assertEqual(captured["max_output_tokens"], 12000)
+
+    def test_ai_chat_expands_each_planned_phase_with_bounded_schema(self):
+        phase_plan = {
+            "temp_id": "phase-01",
+            "phase_id": "phase-01",
+            "phase_name": "Intake",
+            "phase_order": 1,
+            "variant": "shared",
+            "lane_names": ["Operations"],
+            "entry_criteria": ["Opportunity accepted"],
+            "exit_criteria": ["Intake complete"],
+            "predecessor_temp_ids": [],
+            "successor_temp_ids": [],
+            "name": "Client intake",
+            "purpose": "Collect client data",
+            "owner": "Operations",
+            "scope": "Intake",
+            "trigger": "Opportunity accepted",
+            "outcome": "Complete file",
+            "inputs": ["Client request"],
+            "outputs": ["Complete file"],
+            "systems": [],
+            "controls": ["Identity review"],
+            "kpis": ["Cycle time"],
+            "activity_names": ["Collect client data"],
+        }
+        plan = {
+            "assistant_message": "Drafted one phase.",
+            "needs_clarification": False,
+            "discovery_complete": True,
+            "client_name": "Northwind",
+            "portfolio": {
+                "temp_id": "northwind",
+                "name": "Northwind portfolio",
+                "purpose": "Connected operations",
+                "expected_process_count": 1,
+                "lanes": [],
+                "handoffs": [],
+            },
+            "processes": [phase_plan],
+        }
+        expanded = {
+            **{key: value for key, value in phase_plan.items() if key != "activity_names"},
+            "steps": [
+                {
+                    "id": "start",
+                    "name": "Opportunity accepted",
+                    "type": "start_event",
+                    "owner": "Operations",
+                    "system": "",
+                    "description": "Start intake.",
+                    "control": "",
+                    "sla": "",
+                    "code_refs": [],
+                    "api_endpoints": [],
+                    "mcp_tools": [],
+                    "links": [],
+                },
+                {
+                    "id": "end",
+                    "name": "Intake complete",
+                    "type": "end_event",
+                    "owner": "Operations",
+                    "system": "",
+                    "description": "Complete intake.",
+                    "control": "",
+                    "sla": "",
+                    "code_refs": [],
+                    "api_endpoints": [],
+                    "mcp_tools": [],
+                    "links": [],
+                },
+            ],
+            "connections": [{"id": "flow-1", "from": "start", "to": "end", "label": ""}],
+        }
+        captured = []
+
+        def create_response(**kwargs):
+            captured.append(kwargs)
+            schema_name = kwargs["text"]["format"]["name"]
+            value = plan if schema_name == "devready_portfolio_plan" else {
+                "steps": expanded["steps"],
+                "connections": expanded["connections"],
+            }
+            return SimpleNamespace(output_text=json.dumps(value), status="completed")
+
+        client = SimpleNamespace(responses=SimpleNamespace(create=create_response))
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key", "OPENAI_PROCESS_MODEL": "gpt-5"}), patch.object(
+            process_builder, "getOpenAPIClient", return_value=client
+        ):
+            response = self.client.post("/api/process-builder/chat", json={"message": "Map our intake flow."})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item["text"]["format"]["name"] for item in captured], [
+            "devready_portfolio_plan",
+            "devready_phase_expansion",
+        ])
+        process = response.json()["result"]["processes"][0]
+        self.assertEqual(process["phase_name"], "Intake")
+        self.assertEqual(len(process["steps"]), 2)
+        self.assertEqual(captured[1]["max_output_tokens"], 8000)
+        self.assertEqual(captured[1]["reasoning"], {"effort": "low"})
+        self.assertEqual(set(captured[1]["text"]["format"]["schema"]["properties"]), {"steps", "connections"})
+
+    def test_phase_aware_interpretation_preserves_eight_connected_processes_and_removes_lane(self):
+        processes = []
+        for index in range(1, 9):
+            processes.append(
+                {
+                    "temp_id": f"phase-{index}",
+                    "phase_id": f"phase-{index:02d}",
+                    "phase_name": f"Phase {index}",
+                    "phase_order": index,
+                    "variant": "shared",
+                    "lane_names": ["Operations", "Solution Architect"],
+                    "entry_criteria": ["Prior phase complete"],
+                    "exit_criteria": ["Phase complete"],
+                    "predecessor_temp_ids": [],
+                    "successor_temp_ids": [],
+                    "name": f"Phase {index}",
+                    "purpose": "Test",
+                    "owner": "Operations",
+                    "scope": "Test",
+                    "trigger": "Start",
+                    "outcome": "Complete",
+                    "inputs": [],
+                    "outputs": [f"Phase {index} result"],
+                    "systems": [],
+                    "controls": [],
+                    "kpis": [],
+                    "steps": [
+                        {"id": "start", "type": "start_event"},
+                        {"id": "end", "type": "end_event"},
+                    ],
+                    "connections": [{"id": "flow", "from": "start", "to": "end", "label": ""}],
+                }
+            )
+        normalized = process_builder._normalize_ai_discovery(
+            {
+                "assistant_message": "Drafted.",
+                "needs_clarification": True,
+                "discovery_complete": False,
+                "client_name": "Aularis",
+                "portfolio": {
+                    "temp_id": "aularis",
+                    "name": "Aularis lifecycle",
+                    "purpose": "Eight phases",
+                    "expected_process_count": 8,
+                    "lanes": [
+                        {"id": "ops", "name": "Operations", "accountable": "Ops", "description": ""},
+                        {
+                            "id": "sa",
+                            "name": "Solution Architect",
+                            "accountable": "Nate",
+                            "description": "Remove this lane",
+                        },
+                    ],
+                    "handoffs": [
+                        {
+                            "id": "renewal-loop",
+                            "from_process_temp_id": "phase-8",
+                            "to_process_temp_id": "phase-1",
+                            "condition": "Renewal approved",
+                            "artifact": "Renewal opportunity",
+                            "description": "Return to advisor education.",
+                        }
+                    ],
+                },
+                "processes": processes,
+            },
+            "There are Phase 01 through Phase 08. Remove the Solution Architecture & Technical lane.",
+        )
+
+        self.assertEqual(len(normalized["processes"]), 8)
+        self.assertEqual(len(normalized["portfolio"]["handoffs"]), 8)
+        self.assertEqual([item["phase_order"] for item in normalized["processes"]], list(range(1, 9)))
+        self.assertEqual([item["name"] for item in normalized["portfolio"]["lanes"]], ["Operations"])
+        self.assertTrue(normalized["interpretation"]["removed_solution_architect_lane"])
+        self.assertTrue(normalized["interpretation"]["complete_phase_coverage"])
+        self.assertTrue(normalized["interpretation"]["structurally_complete"])
+        self.assertEqual(normalized["interpretation"]["invalid_handoff_count"], 0)
+        self.assertTrue(normalized["discovery_complete"])
+        self.assertTrue(normalized["needs_clarification"])
+        self.assertIn("phase-8", normalized["processes"][0]["predecessor_temp_ids"])
+        self.assertIn("phase-1", normalized["processes"][-1]["successor_temp_ids"])
+
+    def test_portfolio_save_is_atomic_connected_and_reuses_processes_and_components(self):
+        first = self.process_payload(name="Phase 01 Intake", activity="Shared client review")
+        first.update(
+            {
+                "temp_id": "phase-01",
+                "phase_id": "phase-01",
+                "phase_name": "Intake",
+                "phase_order": 1,
+                "successor_process_ids": ["phase-02"],
+            }
+        )
+        second = self.process_payload(name="Phase 02 Approval", activity="Shared client review")
+        second.update(
+            {
+                "temp_id": "phase-02",
+                "phase_id": "phase-02",
+                "phase_name": "Approval",
+                "phase_order": 2,
+                "predecessor_process_ids": ["phase-01"],
+            }
+        )
+        payload = {
+            "client_name": "Aularis",
+            "portfolio": {
+                "temp_id": "aularis-tax",
+                "name": "Aularis Tax Equity Lifecycle",
+                "purpose": "Connected phases",
+                "expected_process_count": 2,
+                "lanes": [
+                    {"id": "client", "name": "Client", "accountable": "Client", "description": ""}
+                ],
+                "handoffs": [
+                    {
+                        "id": "h1",
+                        "from_process_temp_id": "phase-01",
+                        "to_process_temp_id": "phase-02",
+                        "condition": "Intake complete",
+                        "artifact": "Client file",
+                        "description": "Normal handoff",
+                    }
+                ],
+            },
+            "processes": [first, second],
+        }
+
+        created = self.client.post("/api/process-builder/portfolios", json=payload)
+        self.assertEqual(created.status_code, 201)
+        created_data = created.json()
+        self.assertTrue(created_data["created"])
+        self.assertEqual(len(created_data["processes"]), 2)
+        self.assertEqual(len(created_data["reconciliation"]["created"]), 2)
+        self.assertEqual(len(created_data["reconciliation"]["reused"]), 2)
+        first_id, second_id = created_data["portfolio"]["process_ids"]
+        self.assertEqual(created_data["portfolio"]["handoffs"][0]["from_process_id"], first_id)
+        self.assertEqual(created_data["portfolio"]["handoffs"][0]["to_process_id"], second_id)
+        self.assertEqual(created_data["processes"][0]["successor_process_ids"], [second_id])
+        self.assertEqual(created_data["processes"][1]["predecessor_process_ids"], [first_id])
+
+        updated = self.client.post("/api/process-builder/portfolios", json=payload).json()
+        self.assertFalse(updated["created"])
+        self.assertEqual(updated["portfolio"]["process_ids"], [first_id, second_id])
+        self.assertEqual(self.client.get("/api/process-builder/portfolios").json()["count"], 1)
+        self.assertEqual(self.client.get("/api/process-builder/processes").json()["count"], 2)
 
     def test_decision_gateways_are_reconciled_as_reusable_foundry_components(self):
         payload = self.process_payload()
@@ -222,6 +500,8 @@ class ProcessBuilderFrontendTests(unittest.TestCase):
         self.assertIn("DevReady - Process Builder", html)
         self.assertIn("AI Intake", html)
         self.assertIn("Save + reconcile Foundry", html)
+        self.assertIn('maxlength="30000"', html)
+        self.assertIn("up to 12 named phases", html)
         self.assertIn("BPMN", html)
         self.assertNotIn("Syntax Process Forge", html)
         self.assertNotIn("SAP Cloud ALM", html)
@@ -237,6 +517,11 @@ class ProcessBuilderFrontendTests(unittest.TestCase):
         self.assertIn("mcpTools", script)
         self.assertIn("deleteComponent", script)
         self.assertIn("library-delete", script)
+        self.assertIn("/portfolios", script)
+        self.assertIn("Save connected portfolio", script)
+        self.assertIn("await loadXml(savedActive.bpmn_xml, savedActive)", script)
+        self.assertIn("slice(0, 60)", script)
+        self.assertIn("slice(0, 12)", script)
         self.assertIn("/mcp/manifest", (PAGES / "process-builder.html").read_text(encoding="utf-8"))
 
     def test_shared_navigation_exposes_builder_and_foundry(self):
