@@ -275,6 +275,20 @@ class ProcessBuilderApiTests(unittest.TestCase):
                     "links": [],
                 },
                 {
+                    "id": "collect",
+                    "name": "Collect client data",
+                    "type": "user_task",
+                    "owner": "Operations",
+                    "system": "",
+                    "description": "Collect the required data.",
+                    "control": "Identity review",
+                    "sla": "",
+                    "code_refs": [],
+                    "api_endpoints": [],
+                    "mcp_tools": [],
+                    "links": [],
+                },
+                {
                     "id": "end",
                     "name": "Intake complete",
                     "type": "end_event",
@@ -289,7 +303,10 @@ class ProcessBuilderApiTests(unittest.TestCase):
                     "links": [],
                 },
             ],
-            "connections": [{"id": "flow-1", "from": "start", "to": "end", "label": ""}],
+            "connections": [
+                {"id": "flow-1", "from": "start", "to": "collect", "label": ""},
+                {"id": "flow-2", "from": "collect", "to": "end", "label": ""},
+            ],
         }
         captured = []
 
@@ -315,10 +332,75 @@ class ProcessBuilderApiTests(unittest.TestCase):
         ])
         process = response.json()["result"]["processes"][0]
         self.assertEqual(process["phase_name"], "Intake")
-        self.assertEqual(len(process["steps"]), 2)
+        self.assertEqual(len(process["steps"]), 3)
         self.assertEqual(captured[1]["max_output_tokens"], 8000)
         self.assertEqual(captured[1]["reasoning"], {"effort": "low"})
         self.assertEqual(set(captured[1]["text"]["format"]["schema"]["properties"]), {"steps", "connections"})
+
+    def test_phase_expansion_repairs_missing_planned_activities_before_returning(self):
+        phase_plan = {
+            "temp_id": "phase-01",
+            "phase_id": "phase-01",
+            "phase_name": "Review",
+            "phase_order": 1,
+            "variant": "shared",
+            "lane_names": ["Operations"],
+            "entry_criteria": ["Request received"],
+            "exit_criteria": ["Request reviewed"],
+            "predecessor_temp_ids": [],
+            "successor_temp_ids": [],
+            "name": "Review request",
+            "purpose": "Review",
+            "owner": "Operations",
+            "scope": "Review",
+            "trigger": "Request received",
+            "outcome": "Reviewed",
+            "inputs": [],
+            "outputs": [],
+            "systems": [],
+            "controls": [],
+            "kpis": [],
+            "activity_names": ["Review request"],
+        }
+        invalid = {
+            "steps": [
+                {"id": "start", "type": "start_event", "name": "Start"},
+                {"id": "end", "type": "end_event", "name": "End"},
+            ],
+            "connections": [{"id": "flow-1", "from": "start", "to": "end", "label": ""}],
+        }
+        repaired = {
+            "steps": [
+                {"id": "start", "type": "start_event", "name": "Start"},
+                {"id": "review", "type": "user_task", "name": "Review request"},
+                {"id": "end", "type": "end_event", "name": "End"},
+            ],
+            "connections": [
+                {"id": "flow-1", "from": "start", "to": "review", "label": ""},
+                {"id": "flow-2", "from": "review", "to": "end", "label": ""},
+            ],
+        }
+        captured = []
+
+        def create_response(**kwargs):
+            captured.append(kwargs)
+            value = invalid if len(captured) == 1 else repaired
+            return SimpleNamespace(output_text=json.dumps(value), status="completed")
+
+        result = process_builder._expand_ai_phase(
+            client=SimpleNamespace(responses=SimpleNamespace(create=create_response)),
+            model="test-model",
+            message="Review the request.",
+            portfolio={"name": "Test"},
+            phase_plan=phase_plan,
+            adjacent_phases=[],
+        )
+
+        self.assertEqual(len(captured), 2)
+        repair_context = json.loads(captured[1]["input"][0]["content"])["repair"]
+        self.assertTrue(any("Review request" in item for item in repair_context["validation_errors"]))
+        self.assertEqual(result["source_activity_names"], ["Review request"])
+        self.assertEqual(len(result["steps"]), 3)
 
     def test_phase_aware_interpretation_preserves_eight_connected_processes_and_removes_lane(self):
         processes = []
@@ -373,20 +455,12 @@ class ProcessBuilderApiTests(unittest.TestCase):
                             "description": "Remove this lane",
                         },
                     ],
-                    "handoffs": [
-                        {
-                            "id": "renewal-loop",
-                            "from_process_temp_id": "phase-8",
-                            "to_process_temp_id": "phase-1",
-                            "condition": "Renewal approved",
-                            "artifact": "Renewal opportunity",
-                            "description": "Return to advisor education.",
-                        }
-                    ],
+                    "handoffs": [],
                 },
                 "processes": processes,
             },
-            "There are Phase 01 through Phase 08. Remove the Solution Architecture & Technical lane.",
+            "There are Phase 01 through Phase 08. Remove the Solution Architecture & Technical lane. "
+            "Model Phase 08 renewal as a loop back to Phase 01.",
         )
 
         self.assertEqual(len(normalized["processes"]), 8)
@@ -520,6 +594,7 @@ class ProcessBuilderFrontendTests(unittest.TestCase):
         self.assertIn("/portfolios", script)
         self.assertIn("Save connected portfolio", script)
         self.assertIn("await loadXml(savedActive.bpmn_xml, savedActive)", script)
+        self.assertIn("source_activity_names", script)
         self.assertIn("slice(0, 60)", script)
         self.assertIn("slice(0, 12)", script)
         self.assertIn("/mcp/manifest", (PAGES / "process-builder.html").read_text(encoding="utf-8"))

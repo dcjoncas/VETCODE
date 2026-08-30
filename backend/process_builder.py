@@ -450,6 +450,11 @@ def _sanitize_process_payload(payload: dict[str, Any], *, process_id: str = "") 
         "exit_criteria": _string_list(
             payload.get("exit_criteria") or payload.get("exitCriteria"), limit=30, item_limit=1_000
         ),
+        "source_activity_names": _string_list(
+            payload.get("source_activity_names") or payload.get("sourceActivityNames"),
+            limit=60,
+            item_limit=500,
+        ),
         "predecessor_process_ids": _string_list(
             payload.get("predecessor_process_ids") or payload.get("predecessorProcessIds"),
             limit=30,
@@ -777,6 +782,7 @@ def _process_summary(process: dict[str, Any]) -> dict[str, Any]:
             "lane_names",
             "entry_criteria",
             "exit_criteria",
+            "source_activity_names",
             "predecessor_process_ids",
             "successor_process_ids",
             "owner",
@@ -1294,6 +1300,35 @@ def _normalize_ai_discovery(result: Any, message: str) -> dict[str, Any]:
                 "description": f"Normal completion advances from {source['phase_name']} to {target['phase_name']}.",
             }
         )
+    phase_by_order = {process.get("phase_order"): process for process in processes}
+    known_pairs = {
+        (handoff.get("from_process_id"), handoff.get("to_process_id")) for handoff in handoffs
+    }
+    for match in re.finditer(
+        r"\bphase\s+0?(\d{1,2})\b(?:(?!\bphase\s+0?\d{1,2}\b)[^\n]){0,180}"
+        r"\b(?:loop|return|renewal)\w*\b(?:(?!\bphase\s+0?\d{1,2}\b)[^\n]){0,180}"
+        r"\b(?:back\s+)?to\s+phase\s+0?(\d{1,2})\b",
+        message,
+        re.I,
+    ):
+        source = phase_by_order.get(int(match.group(1)))
+        target = phase_by_order.get(int(match.group(2)))
+        if not source or not target or source is target:
+            continue
+        pair = (source["temp_id"], target["temp_id"])
+        if pair in known_pairs:
+            continue
+        handoffs.append(
+            {
+                "id": f"handoff_loop_{source['phase_order']:02d}_{target['phase_order']:02d}",
+                "from_process_id": source["temp_id"],
+                "to_process_id": target["temp_id"],
+                "condition": "Client-described loop condition is met",
+                "artifact": _text((source.get("outputs") or [""])[0], 1_000),
+                "description": f"Client-described loop from {source['phase_name']} to {target['phase_name']}.",
+            }
+        )
+        known_pairs.add(pair)
     process_by_id = {process["temp_id"]: process for process in processes}
     for handoff in handoffs:
         source = process_by_id.get(handoff.get("from_process_id"))
@@ -1321,10 +1356,10 @@ def _normalize_ai_discovery(result: Any, message: str) -> dict[str, Any]:
     result["processes"] = processes
     phase_coverage_complete = not explicit_phases or len(processes) >= len(explicit_phases)
     structurally_complete = bool(processes) and phase_coverage_complete and all(
-        len(process.get("steps") or []) >= 2
-        and any(step.get("type") == "start_event" for step in process.get("steps") or [])
-        and any(step.get("type") == "end_event" for step in process.get("steps") or [])
-        and bool(process.get("connections"))
+        not _phase_expansion_issues(
+            {"activity_names": process.get("source_activity_names") or []},
+            {"steps": process.get("steps") or [], "connections": process.get("connections") or []},
+        )
         and bool(process.get("entry_criteria"))
         and bool(process.get("exit_criteria"))
         for process in processes
@@ -1423,25 +1458,97 @@ def _expand_ai_phase(
     phase_plan: dict[str, Any],
     adjacent_phases: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    expanded = _structured_ai_result(
-        client=client,
-        model=model,
-        instructions=AI_PHASE_EXPANSION_INSTRUCTIONS,
-        context={
-            "client_request": message,
-            "portfolio": portfolio,
-            "phase_plan": phase_plan,
-            "adjacent_phases": adjacent_phases,
-        },
-        schema=AI_PHASE_EXPANSION_SCHEMA,
-        schema_name="devready_phase_expansion",
-        max_output_tokens=8_000,
+    prior_attempt: dict[str, Any] = {}
+    issues: list[str] = []
+    for attempt in range(2):
+        try:
+            expanded = _structured_ai_result(
+                client=client,
+                model=model,
+                instructions=AI_PHASE_EXPANSION_INSTRUCTIONS,
+                context={
+                    "client_request": message,
+                    "portfolio": portfolio,
+                    "phase_plan": phase_plan,
+                    "adjacent_phases": adjacent_phases,
+                    "repair": {
+                        "attempt": attempt + 1,
+                        "validation_errors": issues,
+                        "prior_output": prior_attempt,
+                        "instruction": (
+                            "The prior output failed deterministic validation. Correct every listed error and return the full phase again."
+                            if issues
+                            else "Generate the phase and preserve every planned activity."
+                        ),
+                    },
+                },
+                schema=AI_PHASE_EXPANSION_SCHEMA,
+                schema_name="devready_phase_expansion",
+                max_output_tokens=8_000,
+            )
+        except ValueError as exc:
+            issues = [str(exc)]
+            prior_attempt = {}
+            if attempt == 1:
+                raise
+            continue
+        issues = _phase_expansion_issues(phase_plan, expanded)
+        if not issues:
+            return {
+                **{key: copy.deepcopy(value) for key, value in phase_plan.items() if key != "activity_names"},
+                "source_activity_names": copy.deepcopy(phase_plan.get("activity_names") or []),
+                "steps": expanded.get("steps") if isinstance(expanded.get("steps"), list) else [],
+                "connections": expanded.get("connections") if isinstance(expanded.get("connections"), list) else [],
+            }
+        prior_attempt = expanded
+    raise ValueError("phase output remained invalid after repair: " + "; ".join(issues[:12]))
+
+
+def _phase_expansion_issues(phase_plan: dict[str, Any], expanded: dict[str, Any]) -> list[str]:
+    steps = expanded.get("steps") if isinstance(expanded.get("steps"), list) else []
+    connections = expanded.get("connections") if isinstance(expanded.get("connections"), list) else []
+    issues: list[str] = []
+    ids = [_text(step.get("id"), 160) for step in steps if isinstance(step, dict)]
+    id_set = {item for item in ids if item}
+    if len(ids) != len(id_set):
+        issues.append("step IDs must be non-empty and unique")
+    types = {_text(step.get("type"), 80) for step in steps if isinstance(step, dict)}
+    if "start_event" not in types:
+        issues.append("add a start_event")
+    if "end_event" not in types:
+        issues.append("add an end_event")
+    combined_names = "\n".join(
+        _text(step.get("name"), 500).casefold() for step in steps if isinstance(step, dict)
     )
-    return {
-        **{key: copy.deepcopy(value) for key, value in phase_plan.items() if key != "activity_names"},
-        "steps": expanded.get("steps") if isinstance(expanded.get("steps"), list) else [],
-        "connections": expanded.get("connections") if isinstance(expanded.get("connections"), list) else [],
-    }
+    for activity in _string_list(phase_plan.get("activity_names"), limit=60, item_limit=500):
+        if activity.casefold() not in combined_names:
+            issues.append(f"include planned activity exactly: {activity}")
+    incoming = {step_id: 0 for step_id in id_set}
+    outgoing = {step_id: 0 for step_id in id_set}
+    for connection in connections:
+        if not isinstance(connection, dict):
+            issues.append("connections must be objects")
+            continue
+        source = _text(connection.get("from"), 160)
+        target = _text(connection.get("to"), 160)
+        if source not in id_set or target not in id_set:
+            issues.append(f"connection {_text(connection.get('id'), 160) or '?'} references a missing step")
+            continue
+        if source == target:
+            issues.append(f"connection {_text(connection.get('id'), 160) or '?'} cannot connect a step to itself")
+            continue
+        outgoing[source] += 1
+        incoming[target] += 1
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        step_id = _text(step.get("id"), 160)
+        step_type = _text(step.get("type"), 80)
+        if step_type != "start_event" and incoming.get(step_id, 0) == 0:
+            issues.append(f"connect an incoming flow to {step_id}")
+        if step_type != "end_event" and outgoing.get(step_id, 0) == 0:
+            issues.append(f"connect an outgoing flow from {step_id}")
+    return _string_list(issues, limit=50, item_limit=1_000)
 
 
 @router.get("/health")

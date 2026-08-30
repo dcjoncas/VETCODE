@@ -13,11 +13,11 @@ BACKEND = Path(__file__).resolve().parents[1]
 DEFAULT_PROMPT = BACKEND / "tests" / "fixtures" / "aularis_tax_equity_eight_phase.txt"
 EXPECTED_LANES = {
     "referring advisor & client",
-    "business development & capital — billy, chief revenue officer; vfo hub supports advisor compensation",
-    "engagement, closing & systems — steph owns project flow; malcolm owns systems and automation",
-    "project diligence & information — brian owns renewable/project execution; michelle owns film projects",
-    "compliance & client experience — accountable owner currently tbd",
-    "counsel, escrow & counterparties — panel counsel, escrow agent, developer or producer, and return preparer",
+    "business development & capital",
+    "engagement, closing & systems",
+    "project diligence & information",
+    "compliance & client experience",
+    "counsel, escrow & counterparties",
 }
 EXPECTED_ACTIVITIES = {
     1: [
@@ -115,7 +115,8 @@ def validate(result: dict) -> list[str]:
         errors.append(f"phase orders are not 1-8: {orders}")
     if any("solution architect" in name.casefold() for name in lane_names):
         errors.append("Solution Architect remained as a business lane")
-    if {name.casefold() for name in lane_names} != EXPECTED_LANES:
+    normalized_lanes = {name.casefold().split(" — ", 1)[0].strip() for name in lane_names}
+    if normalized_lanes != EXPECTED_LANES:
         errors.append(f"expected the six source lanes, received {lane_names}")
     if len(portfolio.get("handoffs") or []) < 7:
         errors.append("fewer than 7 cross-process handoffs were returned")

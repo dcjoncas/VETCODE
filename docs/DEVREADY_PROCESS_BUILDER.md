@@ -70,7 +70,8 @@ The agent uses the OpenAI Responses API with strict JSON schemas. Intake is stag
 
 1. A portfolio-planning pass identifies the explicitly named phases, recurring role lanes, ordered activity coverage, variants, entry/exit criteria, and cross-process handoffs.
 2. Bounded phase-expansion calls generate BPMN steps and internal connections for each planned phase.
-3. Deterministic normalization enforces unique phase IDs, adjacent predecessor/successor links, requested role removal, and minimum structural completeness.
+3. Each expansion is checked against the plan's source-activity inventory, start/end requirements, internal connection references, and incoming/outgoing connectivity. A failed phase gets one targeted repair pass and is rejected if it remains invalid.
+4. Deterministic normalization enforces unique phase IDs, adjacent and explicit-loop predecessor/successor links, requested role removal, and minimum structural completeness.
 
 For GPT-5, the builder requests low reasoning effort so the response budget is used primarily for the strict structured artifact. Open owner/control assumptions remain clarification and validation items; they do not erase an otherwise complete draft. Client facts must be preserved, unknown technical references stay empty, drafts are staged without saving, and the agent never claims client approval.
 
