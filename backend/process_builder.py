@@ -1,8 +1,9 @@
-"""DevReady Process Builder and AIReady Foundry APIs.
+"""aiReady Application Factory APIs.
 
 The browser owns BPMN rendering and manual editing. This module owns durable
-process records, reusable component reconciliation, deterministic validation,
-AI-assisted discovery, traceability, and a read-only MCP catalog surface.
+process records, reusable component reconciliation, application assembly plans,
+deterministic validation, AI-assisted discovery, traceability, and a read-only
+MCP catalog surface.
 """
 
 from __future__ import annotations
@@ -40,6 +41,64 @@ MAX_PROCESS_ELEMENTS = 250
 MAX_PROCESS_CONNECTIONS = 500
 MAX_AI_PROCESSES = 12
 MAX_AI_MESSAGE_CHARS = 30_000
+MAX_APPLICATION_REQUIREMENTS = 1_000
+
+STANDARD_FOUNDATION_REQUIREMENTS = [
+    {
+        "key": "multitenant-identity-access",
+        "name": "Multi-tenant Identity & Access",
+        "kind": "platform-service",
+        "description": "Tenant-isolated authentication, authorization, session security, role administration, and access audit evidence.",
+    },
+    {
+        "key": "general-administration",
+        "name": "General Administration",
+        "kind": "platform-service",
+        "description": "Tenant, user, role, environment, configuration, and operational administration controls.",
+    },
+    {
+        "key": "postgres-tenant-data",
+        "name": "PostgreSQL Multi-tenant Data",
+        "kind": "data-service",
+        "description": "PostgreSQL persistence with tenant keys, tenant-scoped access, migrations, backup, and recovery controls.",
+    },
+    {
+        "key": "agent-aware-context",
+        "name": "Agent-aware Context",
+        "kind": "agent-service",
+        "description": "Authenticated tenant, user, client, process, activity, and approval context for every agent request.",
+    },
+    {
+        "key": "rag-knowledge-retrieval",
+        "name": "RAG Knowledge Retrieval",
+        "kind": "rag-service",
+        "description": "Source-linked retrieval-augmented generation with tenant filtering, vector search, citations, and retention controls.",
+    },
+    {
+        "key": "meeting-invitation-orchestration",
+        "name": "Meeting Invitation Orchestration",
+        "kind": "integration-service",
+        "description": "Idempotent meeting creation, participant invitations, calendar publishing, agent consent, capture, and follow-up routing.",
+    },
+    {
+        "key": "signature-governance",
+        "name": "Signature Governance",
+        "kind": "integration-service",
+        "description": "Version-locked document preparation, governed fields, signer capacity, provider evidence, signed-artifact review, and human approval.",
+    },
+    {
+        "key": "api-mcp-administration",
+        "name": "API & MCP Administration",
+        "kind": "platform-service",
+        "description": "API and MCP catalog, connection health, permissions, rate controls, audit evidence, and environment configuration.",
+    },
+    {
+        "key": "human-approval-audit",
+        "name": "Human Approval & Audit",
+        "kind": "control-service",
+        "description": "Explicit approval gates and immutable evidence for consequential legal, tax, investment, signature, money-movement, and release actions.",
+    },
+]
 
 PROCESS_NODE_TYPES = {
     "bpmn:Task",
@@ -124,10 +183,11 @@ def _new_id(prefix: str) -> str:
 def _seed_store() -> dict[str, Any]:
     now = _utc_now()
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "updated_at": now,
         "portfolios": [],
         "processes": [],
+        "applications": [],
         "components": [
             {
                 "id": "cmp_devready_ai_intake",
@@ -283,9 +343,10 @@ def _read_store() -> dict[str, Any]:
                 database_data = _read_store_database()
                 if database_data is not None:
                     data = database_data
-                    data.setdefault("schema_version", 2)
+                    data["schema_version"] = max(3, int(data.get("schema_version") or 0))
                     data.setdefault("portfolios", [])
                     data.setdefault("processes", [])
+                    data.setdefault("applications", [])
                     data.setdefault("components", [])
                     if not data["components"]:
                         data["components"] = _seed_store()["components"]
@@ -304,9 +365,10 @@ def _read_store() -> dict[str, Any]:
             raise HTTPException(status_code=500, detail=f"Process Builder store is unreadable: {exc}") from exc
         if not isinstance(data, dict):
             raise HTTPException(status_code=500, detail="Process Builder store has an invalid root object.")
-        data.setdefault("schema_version", 2)
+        data["schema_version"] = max(3, int(data.get("schema_version") or 0))
         data.setdefault("portfolios", [])
         data.setdefault("processes", [])
+        data.setdefault("applications", [])
         data.setdefault("components", [])
         if not data["components"]:
             data["components"] = _seed_store()["components"]
@@ -531,8 +593,31 @@ def _sanitize_component_payload(payload: dict[str, Any], *, component_id: str = 
         "mcp_tools": _string_list(payload.get("mcp_tools") or payload.get("mcpTools")),
         "links": _string_list(payload.get("links")),
     }
+    provenance_raw = payload.get("provenance") if isinstance(payload.get("provenance"), dict) else {}
+    build_spec_raw = payload.get("build_spec") if isinstance(payload.get("build_spec"), dict) else {}
+    provenance = {
+        "source_application": _text(provenance_raw.get("source_application"), 240),
+        "source_repository": _text(provenance_raw.get("source_repository"), 1_000),
+        "source_commit": _text(provenance_raw.get("source_commit"), 160),
+        "manifest_version": _text(provenance_raw.get("manifest_version"), 80),
+        "verified_at": _text(provenance_raw.get("verified_at"), 80),
+    }
+    build_spec = {
+        "summary": _text(build_spec_raw.get("summary"), 4_000),
+        "acceptance_criteria": _string_list(build_spec_raw.get("acceptance_criteria"), limit=40, item_limit=1_000),
+        "data_entities": _string_list(build_spec_raw.get("data_entities"), limit=40, item_limit=500),
+        "api_contracts": _string_list(build_spec_raw.get("api_contracts"), limit=60, item_limit=1_000),
+        "mcp_contracts": _string_list(build_spec_raw.get("mcp_contracts"), limit=40, item_limit=1_000),
+        "security_controls": _string_list(build_spec_raw.get("security_controls"), limit=40, item_limit=1_000),
+        "test_scenarios": _string_list(build_spec_raw.get("test_scenarios"), limit=60, item_limit=1_000),
+        "dependencies": _string_list(build_spec_raw.get("dependencies"), limit=40, item_limit=500),
+        "generated_at": _text(build_spec_raw.get("generated_at"), 80),
+        "model": _text(build_spec_raw.get("model"), 120),
+    }
+    explicit_implementation_status = _text(payload.get("implementation_status"), 80)
     return {
         "id": component_id or _text(payload.get("id"), 160) or _new_id("cmp"),
+        "external_key": _text(payload.get("external_key") or payload.get("key"), 200),
         "name": name,
         "slug": _slug(name),
         "kind": _text(payload.get("kind"), 80) or "activity",
@@ -540,8 +625,26 @@ def _sanitize_component_payload(payload: dict[str, Any], *, component_id: str = 
         "version": _text(payload.get("version"), 40) or "0.1.0",
         "description": _text(payload.get("description"), 4_000),
         "aliases": _string_list(payload.get("aliases"), limit=20, item_limit=240),
-        "implementation_status": _text(payload.get("implementation_status"), 80)
+        "implementation_status": explicit_implementation_status
         or ("implemented" if any(refs.values()) else "design-only"),
+        "capabilities": _string_list(payload.get("capabilities"), limit=80, item_limit=500),
+        "supported_activities": _string_list(
+            payload.get("supported_activities") or payload.get("supportedActivities"),
+            limit=250,
+            item_limit=500,
+        ),
+        "dependencies": _string_list(payload.get("dependencies"), limit=60, item_limit=500),
+        "configuration_keys": _string_list(
+            payload.get("configuration_keys") or payload.get("configurationKeys"),
+            limit=80,
+            item_limit=240,
+        ),
+        "test_refs": _string_list(payload.get("test_refs") or payload.get("testRefs"), limit=80, item_limit=500),
+        "reuse_mode": _text(payload.get("reuse_mode"), 80) or "reference-implementation",
+        "standard_foundation": bool(payload.get("standard_foundation")),
+        "reusable_across_tenants": bool(payload.get("reusable_across_tenants")),
+        "provenance": provenance,
+        "build_spec": build_spec,
         **refs,
         "used_by_processes": _string_list(payload.get("used_by_processes"), limit=500, item_limit=160),
         "created_at": _text(payload.get("created_at"), 80) or now,
@@ -550,22 +653,59 @@ def _sanitize_component_payload(payload: dict[str, Any], *, component_id: str = 
 
 
 def _component_search_keys(component: dict[str, Any]) -> set[str]:
-    values = [component.get("name"), component.get("slug"), *(component.get("aliases") or [])]
+    values = [
+        component.get("name"),
+        component.get("slug"),
+        component.get("external_key"),
+        *(component.get("aliases") or []),
+        *(component.get("supported_activities") or []),
+    ]
     return {_slug(value) for value in values if _text(value)}
+
+
+def _component_is_implemented(component: dict[str, Any]) -> bool:
+    evidence = any(
+        component.get(field)
+        for field in ("code_refs", "api_endpoints", "mcp_tools", "test_refs")
+    )
+    return (
+        component.get("status") == "ready"
+        and component.get("implementation_status") == "implemented"
+        and evidence
+    )
+
+
+def _component_readiness(component: dict[str, Any]) -> dict[str, Any]:
+    evidence = {
+        "code": len(component.get("code_refs") or []),
+        "api": len(component.get("api_endpoints") or []),
+        "mcp": len(component.get("mcp_tools") or []),
+        "tests": len(component.get("test_refs") or []),
+        "links": len(component.get("links") or []),
+    }
+    return {
+        "implemented": _component_is_implemented(component),
+        "status": component.get("status") or "draft",
+        "implementation_status": component.get("implementation_status") or "design-only",
+        "evidence": evidence,
+        "provenance_verified": bool((component.get("provenance") or {}).get("verified_at")),
+    }
 
 
 def _find_component(components: list[dict[str, Any]], element: dict[str, Any]) -> dict[str, Any] | None:
     requested_id = _text(element.get("component_id"), 160)
+    direct = None
     if requested_id:
         direct = next((component for component in components if component.get("id") == requested_id), None)
-        if direct:
-            return direct
     key = _slug(element.get("name"))
     if key == "component":
         return None
     exact = [component for component in components if key in _component_search_keys(component)]
-    if len(exact) == 1:
+    if exact:
+        exact.sort(key=lambda item: (_component_is_implemented(item), item is direct), reverse=True)
         return exact[0]
+    if direct:
+        return direct
     element_refs = {
         "api_endpoints": {item.casefold() for item in element.get("api_endpoints") or []},
         "mcp_tools": {item.casefold() for item in element.get("mcp_tools") or []},
@@ -1551,21 +1691,352 @@ def _phase_expansion_issues(phase_plan: dict[str, Any], expanded: dict[str, Any]
     return _string_list(issues, limit=50, item_limit=1_000)
 
 
+COMPONENT_BUILD_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "summary": {"type": "string"},
+        "acceptance_criteria": {"type": "array", "items": {"type": "string"}, "maxItems": 40},
+        "data_entities": {"type": "array", "items": {"type": "string"}, "maxItems": 40},
+        "api_contracts": {"type": "array", "items": {"type": "string"}, "maxItems": 60},
+        "mcp_contracts": {"type": "array", "items": {"type": "string"}, "maxItems": 40},
+        "security_controls": {"type": "array", "items": {"type": "string"}, "maxItems": 40},
+        "test_scenarios": {"type": "array", "items": {"type": "string"}, "maxItems": 60},
+        "dependencies": {"type": "array", "items": {"type": "string"}, "maxItems": 40},
+    },
+    "required": [
+        "summary",
+        "acceptance_criteria",
+        "data_entities",
+        "api_contracts",
+        "mcp_contracts",
+        "security_controls",
+        "test_scenarios",
+        "dependencies",
+    ],
+    "additionalProperties": False,
+}
+
+COMPONENT_BUILD_INSTRUCTIONS = """You are the aiReady Application Factory component architect.
+Create an implementation contract for one missing reusable application component.
+The contract must be concrete enough for a coding agent and a human reviewer to implement and test.
+Preserve every supplied business rule, owner, approval, tenant, evidence, and integration constraint.
+Do not claim code, APIs, MCP tools, provider connections, credentials, or tests already exist.
+All consequential legal, tax, investment, signature, money-movement, and release actions require explicit human approval and audit evidence.
+Use tenant-scoped PostgreSQL data contracts, source-linked RAG when knowledge retrieval is needed, idempotent writes, least privilege, and observable failure states.
+Return only the requested structured object."""
+
+
+def _foundation_component(store: dict[str, Any], requirement: dict[str, str]) -> dict[str, Any]:
+    components = store.setdefault("components", [])
+    key = requirement["key"]
+    component = next(
+        (
+            item
+            for item in components
+            if item.get("external_key") == key
+            or item.get("slug") == key
+            or key in _component_search_keys(item)
+        ),
+        None,
+    )
+    if component:
+        return component
+    component = _sanitize_component_payload(
+        {
+            "external_key": key,
+            "name": requirement["name"],
+            "kind": requirement["kind"],
+            "description": requirement["description"],
+            "status": "draft",
+            "implementation_status": "missing",
+            "standard_foundation": True,
+            "reuse_mode": "shared-platform",
+        }
+    )
+    components.append(component)
+    return component
+
+
+def _implemented_component_for_name(
+    components: list[dict[str, Any]],
+    name: str,
+    preferred_id: str = "",
+) -> dict[str, Any] | None:
+    key = _slug(name)
+    candidates = [item for item in components if key in _component_search_keys(item)]
+    candidates.sort(
+        key=lambda item: (
+            _component_is_implemented(item),
+            item.get("id") == preferred_id,
+            bool((item.get("provenance") or {}).get("verified_at")),
+        ),
+        reverse=True,
+    )
+    return next((item for item in candidates if _component_is_implemented(item)), None)
+
+
+def _application_blueprint(
+    store: dict[str, Any],
+    portfolio: dict[str, Any],
+    payload: dict[str, Any],
+    *,
+    application_id: str,
+    prior: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    process_ids = set(portfolio.get("process_ids") or [])
+    processes = sorted(
+        [item for item in store.get("processes", []) if item.get("id") in process_ids],
+        key=lambda item: (item.get("phase_order") or 0, item.get("name") or ""),
+    )
+    components = store.setdefault("components", [])
+    requirements: list[dict[str, Any]] = []
+    for process in processes:
+        for element in process.get("elements", []):
+            if element.get("type") not in REUSABLE_NODE_TYPES or not element.get("name"):
+                continue
+            current = next(
+                (item for item in components if item.get("id") == element.get("component_id")),
+                None,
+            )
+            implemented = _implemented_component_for_name(
+                components,
+                element.get("name", ""),
+                element.get("component_id", ""),
+            )
+            chosen = implemented or current
+            requirements.append(
+                {
+                    "id": f"activity:{process.get('id')}:{element.get('id')}",
+                    "requirement_type": "process-activity",
+                    "process_id": process.get("id"),
+                    "process_name": process.get("name"),
+                    "phase_order": process.get("phase_order") or 0,
+                    "element_id": element.get("id"),
+                    "name": element.get("name"),
+                    "owner": element.get("owner"),
+                    "system": element.get("system"),
+                    "component_id": chosen.get("id") if chosen else "",
+                    "component_name": chosen.get("name") if chosen else "",
+                    "resolution": "reuse" if implemented else "build-required",
+                    "readiness": _component_readiness(chosen) if chosen else {
+                        "implemented": False,
+                        "status": "missing",
+                        "implementation_status": "missing",
+                        "evidence": {"code": 0, "api": 0, "mcp": 0, "tests": 0, "links": 0},
+                        "provenance_verified": False,
+                    },
+                }
+            )
+    for foundation in STANDARD_FOUNDATION_REQUIREMENTS:
+        current = _foundation_component(store, foundation)
+        implemented = _implemented_component_for_name(components, foundation["name"], current.get("id", ""))
+        chosen = implemented or current
+        requirements.append(
+            {
+                "id": f"foundation:{foundation['key']}",
+                "requirement_type": "standard-foundation",
+                "process_id": "",
+                "process_name": "Every application",
+                "phase_order": 0,
+                "element_id": "",
+                "name": foundation["name"],
+                "owner": "Platform owner",
+                "system": "aiReady platform",
+                "component_id": chosen.get("id"),
+                "component_name": chosen.get("name"),
+                "resolution": "reuse" if implemented else "build-required",
+                "readiness": _component_readiness(chosen),
+            }
+        )
+    requirements = requirements[:MAX_APPLICATION_REQUIREMENTS]
+    reused = [item for item in requirements if item["resolution"] == "reuse"]
+    gaps = [item for item in requirements if item["resolution"] == "build-required"]
+    selected_component_ids = {item.get("component_id") for item in requirements if item.get("component_id")}
+    selected_components = [item for item in components if item.get("id") in selected_component_ids]
+    integrations = {
+        "api_endpoints": sorted({ref for component in selected_components for ref in component.get("api_endpoints") or []}),
+        "mcp_tools": sorted({ref for component in selected_components for ref in component.get("mcp_tools") or []}),
+        "external_links": sorted({ref for component in selected_components for ref in component.get("links") or []}),
+        "decisions": payload.get("integration_decisions")
+        if isinstance(payload.get("integration_decisions"), dict)
+        else copy.deepcopy((prior or {}).get("integrations", {}).get("decisions", {})),
+    }
+    process_confirmed = bool(processes) and all(item.get("status") == "validated" for item in processes)
+    foundation_by_key = {item["id"].split(":", 1)[1]: item for item in requirements if item["requirement_type"] == "standard-foundation"}
+    release_gates = [
+        {
+            "key": "business-process-confirmed",
+            "label": "Business processes confirmed",
+            "passed": process_confirmed,
+            "detail": f"{sum(item.get('status') == 'validated' for item in processes)}/{len(processes)} processes validated",
+        },
+        {
+            "key": "components-implemented",
+            "label": "Required components implemented",
+            "passed": not gaps,
+            "detail": f"{len(reused)}/{len(requirements)} requirements have reusable implementation evidence",
+        },
+        {
+            "key": "postgres-multitenancy",
+            "label": "PostgreSQL tenant isolation verified",
+            "passed": foundation_by_key.get("postgres-tenant-data", {}).get("resolution") == "reuse",
+            "detail": "Requires code, API or migration evidence plus tests; a design-only catalog card does not pass.",
+        },
+        {
+            "key": "security-approval-audit",
+            "label": "Security and human approval controls verified",
+            "passed": all(
+                foundation_by_key.get(key, {}).get("resolution") == "reuse"
+                for key in ("multitenant-identity-access", "human-approval-audit")
+            ),
+            "detail": "Consequential actions remain human-approved and auditable.",
+        },
+        {
+            "key": "rag-context",
+            "label": "Agent context and source-linked RAG verified",
+            "passed": all(
+                foundation_by_key.get(key, {}).get("resolution") == "reuse"
+                for key in ("agent-aware-context", "rag-knowledge-retrieval")
+            ),
+            "detail": "RAG is required; CAG-only context does not pass this gate.",
+        },
+    ]
+    now = _utc_now()
+    name = _text(payload.get("name"), 240) or f"{portfolio.get('client_name') or 'Client'} application"
+    return {
+        "id": application_id,
+        "key": _slug(f"{portfolio.get('client_name')}-{name}"),
+        "name": name,
+        "client_name": _text(payload.get("client_name") or portfolio.get("client_name"), 240),
+        "portfolio_id": portfolio.get("id"),
+        "portfolio_name": portfolio.get("name"),
+        "status": "release-ready" if all(item["passed"] for item in release_gates) else "factory-planning",
+        "target_repository": _text(payload.get("target_repository") or (prior or {}).get("target_repository"), 1_000),
+        "target_environment": _text(payload.get("target_environment") or (prior or {}).get("target_environment"), 240),
+        "target_service": _text(payload.get("target_service") or (prior or {}).get("target_service"), 240),
+        "process_ids": [item.get("id") for item in processes],
+        "requirements": requirements,
+        "summary": {
+            "processes": len(processes),
+            "requirements": len(requirements),
+            "reused": len(reused),
+            "build_required": len(gaps),
+            "standard_foundations": len(STANDARD_FOUNDATION_REQUIREMENTS),
+        },
+        "assembly": {
+            "handoffs": copy.deepcopy(portfolio.get("handoffs") or []),
+            "sequence": [
+                {"process_id": item.get("id"), "phase_order": item.get("phase_order"), "name": item.get("name")}
+                for item in processes
+            ],
+        },
+        "integrations": integrations,
+        "release_gates": release_gates,
+        "created_at": (prior or {}).get("created_at") or now,
+        "updated_at": now,
+        "version": int((prior or {}).get("version") or 0) + 1,
+    }
+
+
 @router.get("/health")
 def process_builder_health() -> dict[str, Any]:
     store = _read_store()
     return {
         "ok": True,
-        "product": "DevReady Process Builder",
+        "product": "aiReady Application Factory",
+        "process_builder": "DevReady Process Builder",
         "foundry": "AIReady Foundry",
         "portfolios": len(store.get("portfolios", [])),
         "processes": len(store.get("processes", [])),
+        "applications": len(store.get("applications", [])),
         "components": len(store.get("components", [])),
         "ai_ready": bool(os.getenv("OPENAI_API_KEY", "").strip()),
         "model": _ai_model(),
         "rest_base": "/api/process-builder",
         "mcp_endpoint": "/api/process-builder/mcp",
         "storage": STORAGE_STATE,
+    }
+
+
+@router.get("/applications")
+def list_applications(client_name: str = Query(default="")) -> dict[str, Any]:
+    applications = _read_store().get("applications", [])
+    if client_name:
+        applications = [
+            item
+            for item in applications
+            if client_name.casefold() in str(item.get("client_name", "")).casefold()
+        ]
+    applications = sorted(applications, key=lambda item: item.get("updated_at", ""), reverse=True)
+    summaries = [
+        {
+            key: copy.deepcopy(item.get(key))
+            for key in (
+                "id", "key", "name", "client_name", "portfolio_id", "portfolio_name", "status",
+                "target_repository", "target_environment", "target_service", "summary", "release_gates",
+                "created_at", "updated_at", "version",
+            )
+        }
+        for item in applications
+    ]
+    return {"ok": True, "applications": summaries, "count": len(summaries)}
+
+
+@router.get("/applications/{application_id}")
+def get_application(application_id: str) -> dict[str, Any]:
+    application = next(
+        (item for item in _read_store().get("applications", []) if item.get("id") == application_id),
+        None,
+    )
+    if not application:
+        raise HTTPException(status_code=404, detail="Application blueprint not found.")
+    return {"ok": True, "application": application}
+
+
+@router.post("/applications", status_code=201)
+async def create_or_refresh_application(request: Request) -> dict[str, Any]:
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Application payload must be an object.")
+    portfolio_id = _text(payload.get("portfolio_id"), 160)
+    if not portfolio_id:
+        raise HTTPException(status_code=400, detail="Choose a confirmed process portfolio first.")
+    with STORE_LOCK:
+        store = _read_store()
+        portfolio = next(
+            (item for item in store.get("portfolios", []) if item.get("id") == portfolio_id),
+            None,
+        )
+        if not portfolio:
+            raise HTTPException(status_code=404, detail="Process portfolio not found.")
+        name = _text(payload.get("name"), 240) or f"{portfolio.get('client_name') or 'Client'} application"
+        key = _slug(f"{portfolio.get('client_name')}-{name}")
+        existing_index = next(
+            (
+                index
+                for index, item in enumerate(store.setdefault("applications", []))
+                if item.get("key") == key or item.get("id") == payload.get("id")
+            ),
+            None,
+        )
+        prior = store["applications"][existing_index] if existing_index is not None else None
+        application_id = (prior or {}).get("id") or _new_id("app")
+        application = _application_blueprint(
+            store,
+            portfolio,
+            {**payload, "name": name},
+            application_id=application_id,
+            prior=prior,
+        )
+        if existing_index is None:
+            store["applications"].append(application)
+        else:
+            store["applications"][existing_index] = application
+        _write_store_unlocked(store)
+    return {
+        "ok": True,
+        "created": existing_index is None,
+        "application": copy.deepcopy(application),
     }
 
 
@@ -1864,7 +2335,8 @@ def list_components(query: str = Query(default="")) -> dict[str, Any]:
             ).casefold()
         ]
     components = sorted(components, key=lambda item: (item.get("name") or "").casefold())
-    return {"ok": True, "components": components, "count": len(components)}
+    enriched = [{**copy.deepcopy(item), "readiness": _component_readiness(item)} for item in components]
+    return {"ok": True, "components": enriched, "count": len(enriched)}
 
 
 @router.post("/components", status_code=201)
@@ -1921,6 +2393,136 @@ def delete_component(component_id: str, confirmed: bool = Query(default=False)) 
         store["components"] = [item for item in store.get("components", []) if item.get("id") != component_id]
         _write_store_unlocked(store)
     return {"ok": True, "deleted": component_id}
+
+
+@router.post("/components/import")
+async def import_component_manifest(request: Request) -> dict[str, Any]:
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Component manifest must be an object.")
+    raw_components = payload.get("components")
+    if not isinstance(raw_components, list) or not raw_components:
+        raise HTTPException(status_code=400, detail="Component manifest must contain a components array.")
+    if len(raw_components) > 250:
+        raise HTTPException(status_code=400, detail="A component manifest can contain at most 250 components.")
+    source = payload.get("source") if isinstance(payload.get("source"), dict) else {}
+    manifest_provenance = {
+        "source_application": _text(source.get("application"), 240),
+        "source_repository": _text(source.get("repository"), 1_000),
+        "source_commit": _text(source.get("commit"), 160),
+        "manifest_version": _text(source.get("version"), 80),
+        "verified_at": _text(source.get("verified_at"), 80),
+    }
+    created: list[dict[str, Any]] = []
+    updated: list[dict[str, Any]] = []
+    with STORE_LOCK:
+        store = _read_store()
+        components = store.setdefault("components", [])
+        for index, raw in enumerate(raw_components):
+            if not isinstance(raw, dict):
+                raise HTTPException(status_code=400, detail=f"Manifest component {index + 1} must be an object.")
+            external_key = _text(raw.get("external_key") or raw.get("key"), 200)
+            incoming_slug = _slug(raw.get("name"))
+            existing_index = next(
+                (
+                    component_index
+                    for component_index, item in enumerate(components)
+                    if (external_key and item.get("external_key") == external_key)
+                    or item.get("slug") == incoming_slug
+                ),
+                None,
+            )
+            prior = components[existing_index] if existing_index is not None else {}
+            raw_provenance = raw.get("provenance") if isinstance(raw.get("provenance"), dict) else {}
+            merged = {
+                **prior,
+                **raw,
+                "external_key": external_key or prior.get("external_key"),
+                "provenance": {**(prior.get("provenance") or {}), **manifest_provenance, **raw_provenance},
+            }
+            component = _sanitize_component_payload(
+                merged,
+                component_id=prior.get("id", ""),
+            )
+            component["used_by_processes"] = prior.get("used_by_processes", [])
+            if existing_index is None:
+                components.append(component)
+                created.append(copy.deepcopy(component))
+            else:
+                components[existing_index] = component
+                updated.append(copy.deepcopy(component))
+        _write_store_unlocked(store)
+    ready = sum(_component_is_implemented(item) for item in [*created, *updated])
+    return {
+        "ok": True,
+        "created": created,
+        "updated": updated,
+        "ready": ready,
+        "count": len(created) + len(updated),
+    }
+
+
+@router.post("/components/{component_id}/build-spec")
+async def generate_component_build_spec(component_id: str, request: Request) -> dict[str, Any]:
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Build request must be an object.")
+    store = _read_store()
+    component = next((item for item in store.get("components", []) if item.get("id") == component_id), None)
+    if not component:
+        raise HTTPException(status_code=404, detail="Component not found.")
+    supplied_spec = payload.get("build_spec") if isinstance(payload.get("build_spec"), dict) else None
+    model = _ai_model()
+    if supplied_spec is None:
+        if not os.getenv("OPENAI_API_KEY", "").strip():
+            raise HTTPException(status_code=503, detail="AI component design needs OPENAI_API_KEY configured on the server.")
+        context = {
+            "component": {
+                key: component.get(key)
+                for key in (
+                    "id", "name", "kind", "description", "capabilities", "supported_activities",
+                    "dependencies", "configuration_keys", "code_refs", "api_endpoints", "mcp_tools", "test_refs",
+                )
+            },
+            "business_context": _text(payload.get("business_context"), 12_000),
+            "target_stack": _string_list(payload.get("target_stack"), limit=30, item_limit=500),
+            "application_id": _text(payload.get("application_id"), 160),
+        }
+        try:
+            supplied_spec = await asyncio.to_thread(
+                _structured_ai_result,
+                client=getOpenAPIClient(),
+                model=model,
+                instructions=COMPONENT_BUILD_INSTRUCTIONS,
+                context=context,
+                schema=COMPONENT_BUILD_SCHEMA,
+                schema_name="aiready_component_build_spec",
+                max_output_tokens=8_000,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"AI component design failed: {exc}") from exc
+    now = _utc_now()
+    with STORE_LOCK:
+        store = _read_store()
+        index = next(
+            (index for index, item in enumerate(store.get("components", [])) if item.get("id") == component_id),
+            None,
+        )
+        if index is None:
+            raise HTTPException(status_code=404, detail="Component not found.")
+        component = _sanitize_component_payload(
+            {
+                **store["components"][index],
+                "status": "review",
+                "implementation_status": "build-planned",
+                "build_spec": {**supplied_spec, "generated_at": now, "model": model if payload.get("build_spec") is None else "provided"},
+            },
+            component_id=component_id,
+        )
+        component["used_by_processes"] = store["components"][index].get("used_by_processes", [])
+        store["components"][index] = component
+        _write_store_unlocked(store)
+    return {"ok": True, "component": component, "build_spec": component["build_spec"]}
 
 
 @router.post("/components/check")
@@ -2063,6 +2665,25 @@ async def process_discovery_chat(request: Request) -> dict[str, Any]:
 def _mcp_tools() -> list[dict[str, Any]]:
     return [
         {
+            "name": "list_applications",
+            "description": "List aiReady application blueprints with component gap and release-gate summaries.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"client_name": {"type": "string"}},
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "get_application",
+            "description": "Get one process-driven application blueprint, component requirements, assembly sequence, integrations, and release gates.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"application_id": {"type": "string"}},
+                "required": ["application_id"],
+                "additionalProperties": False,
+            },
+        },
+        {
             "name": "list_portfolios",
             "description": "List connected DevReady client process portfolios and phase counts.",
             "inputSchema": {
@@ -2125,9 +2746,9 @@ def _mcp_tools() -> list[dict[str, Any]]:
 @router.get("/mcp/manifest")
 def mcp_manifest() -> dict[str, Any]:
     return {
-        "name": "devready-aiready-foundry",
-        "title": "DevReady AIReady Foundry",
-        "version": "1.1.0",
+        "name": "aiready-application-factory",
+        "title": "aiReady Application Factory",
+        "version": "2.0.0",
         "transport": "streamable-http-json-rpc",
         "endpoint": "/api/process-builder/mcp",
         "read_only": True,
@@ -2149,8 +2770,8 @@ async def mcp_endpoint(request: Request) -> Any:
         result = {
             "protocolVersion": "2025-06-18",
             "capabilities": {"tools": {"listChanged": False}},
-            "serverInfo": {"name": "devready-aiready-foundry", "version": "1.1.0"},
-            "instructions": "Read-only catalog for connected DevReady process portfolios, reusable components, and implementation traceability.",
+            "serverInfo": {"name": "aiready-application-factory", "version": "2.0.0"},
+            "instructions": "Read-only catalog for process-driven application blueprints, connected process portfolios, reusable components, implementation evidence, and release gates.",
         }
     elif method == "tools/list":
         result = {"tools": _mcp_tools()}
@@ -2158,7 +2779,30 @@ async def mcp_endpoint(request: Request) -> Any:
         tool_name = _text(params.get("name"), 120)
         arguments = params.get("arguments") if isinstance(params.get("arguments"), dict) else {}
         store = _read_store()
-        if tool_name == "list_portfolios":
+        if tool_name == "list_applications":
+            rows = store.get("applications", [])
+            if arguments.get("client_name"):
+                needle = str(arguments["client_name"]).casefold()
+                rows = [item for item in rows if needle in str(item.get("client_name", "")).casefold()]
+            value = [
+                {
+                    key: copy.deepcopy(item.get(key))
+                    for key in ("id", "name", "client_name", "portfolio_id", "status", "summary", "release_gates", "updated_at")
+                }
+                for item in rows
+            ]
+        elif tool_name == "get_application":
+            value = next(
+                (item for item in store.get("applications", []) if item.get("id") == arguments.get("application_id")),
+                None,
+            )
+            if not value:
+                return {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {"content": [{"type": "text", "text": "Application blueprint not found."}], "isError": True},
+                }
+        elif tool_name == "list_portfolios":
             rows = store.get("portfolios", [])
             if arguments.get("client_name"):
                 needle = str(arguments["client_name"]).casefold()
@@ -2247,6 +2891,7 @@ def process_builder_reference() -> dict[str, Any]:
     digest = hashlib.sha256(
         json.dumps(
             {
+                "applications": [item.get("id") for item in store.get("applications", [])],
                 "portfolios": [item.get("id") for item in store.get("portfolios", [])],
                 "processes": [item.get("id") for item in store.get("processes", [])],
                 "components": [item.get("id") for item in store.get("components", [])],
@@ -2257,13 +2902,16 @@ def process_builder_reference() -> dict[str, Any]:
     ).hexdigest()
     return {
         "ok": True,
-        "product": "DevReady Process Builder",
+        "product": "aiReady Application Factory",
+        "process_builder": "DevReady Process Builder",
         "foundry": "AIReady Foundry",
         "ui": "/ui/pages/process-builder.html?domain=dev",
         "rest_base": "/api/process-builder",
         "portfolio_api": "/api/process-builder/portfolios",
+        "application_api": "/api/process-builder/applications",
         "process_api": "/api/process-builder/processes",
         "component_api": "/api/process-builder/components",
+        "component_manifest_api": "/api/process-builder/components/import",
         "mcp": "/api/process-builder/mcp",
         "mcp_manifest": "/api/process-builder/mcp/manifest",
         "code": [

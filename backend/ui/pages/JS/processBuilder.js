@@ -18,8 +18,11 @@
 </bpmn:definitions>`;
 
   const state = {
+    applications: [],
+    portfolios: [],
     processes: [],
     components: [],
+    activeApplication: null,
     activeProcess: null,
     selectedElement: null,
     importing: false,
@@ -29,15 +32,15 @@
     portfolio: null,
     validation: null,
     clientChecks: {},
-    libraryTab: "processes",
-    toolTab: "intake",
+    libraryTab: "applications",
+    toolTab: "factory",
     toastTimer: null,
   };
 
   const ids = [
     "saveState", "aiStatus", "mcpStatus", "newProcess", "importProcess", "fileInput", "saveProcess", "validateProcess",
-    "undo", "redo", "zoomOut", "zoomIn", "fitDiagram", "exportBpmn", "exportSvg", "processCount", "componentCount",
-    "librarySearch", "processLibrary", "foundryLibrary", "createComponent", "diagramTitle", "processStatus", "diagramSubtitle",
+    "undo", "redo", "zoomOut", "zoomIn", "fitDiagram", "exportBpmn", "exportSvg", "applicationCount", "processCount", "componentCount",
+    "librarySearch", "applicationLibrary", "processLibrary", "foundryLibrary", "createComponent", "diagramTitle", "processStatus", "diagramSubtitle",
     "canvas", "canvasLoading", "canvasError", "clientName", "chatConversation", "draftProcesses", "chatForm", "chatPrompt",
     "sendChat", "clearChat", "processForm", "processName", "processOwner", "processPurpose", "processScope", "processTrigger",
     "processOutcome", "processInputs", "processOutputs", "processSystems", "processControls", "processKpis", "selectedElementTitle",
@@ -45,7 +48,11 @@
     "elementComponent", "elementCodeRefs", "elementApiEndpoints", "elementMcpTools", "elementLinks", "refreshTrace", "traceList",
     "qualityScore", "runValidation", "validationSummary", "validationIssues", "clientChecklist", "markValidated", "componentDialog",
     "componentForm", "componentDialogTitle", "componentId", "componentName", "componentKind", "componentStatus", "componentDescription",
+    "componentExternalKey", "componentImplementationStatus", "componentSupportedActivities", "componentTestRefs",
     "componentAliases", "componentCodeRefs", "componentApiEndpoints", "componentMcpTools", "componentLinks", "saveComponent", "deleteComponent", "toast",
+    "factoryStatus", "factoryForm", "factoryPortfolio", "factoryName", "factoryRepository", "factoryEnvironment", "factoryService",
+    "buildBlueprint", "factoryEmpty", "factoryResult", "factoryProcessCount", "factoryReuseCount", "factoryGapCount", "factoryGateCount",
+    "factoryGates", "refreshBlueprint", "factoryRequirementFilter", "factoryRequirements", "factoryIntegrations", "componentManifest", "importManifest",
   ];
   const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 
@@ -687,7 +694,7 @@ ${edgeXml}
       return null;
     } finally {
       el.saveProcess.disabled = false;
-      el.saveProcess.textContent = "Save + reconcile Foundry";
+      el.saveProcess.textContent = "Save process + check Foundry";
     }
   };
 
@@ -744,13 +751,17 @@ ${edgeXml}
     el.componentDialogTitle.textContent = component ? "Edit reusable component" : "Create reusable component";
     el.componentId.value = component?.id || "";
     el.componentName.value = component?.name || "";
+    el.componentExternalKey.value = component?.external_key || "";
     el.componentKind.value = component?.kind || "activity";
     el.componentStatus.value = component?.status || "draft";
+    el.componentImplementationStatus.value = component?.implementation_status || "design-only";
     el.componentDescription.value = component?.description || "";
     el.componentAliases.value = lineText(component?.aliases);
+    el.componentSupportedActivities.value = lineText(component?.supported_activities);
     el.componentCodeRefs.value = lineText(component?.code_refs);
     el.componentApiEndpoints.value = lineText(component?.api_endpoints);
     el.componentMcpTools.value = lineText(component?.mcp_tools);
+    el.componentTestRefs.value = lineText(component?.test_refs);
     el.componentLinks.value = lineText(component?.links);
     el.deleteComponent.hidden = !component;
     el.componentDialog.showModal();
@@ -784,22 +795,241 @@ ${edgeXml}
     }
   };
 
+  const loadApplication = async (applicationId) => {
+    try {
+      const data = await fetchJson(`${API}/applications/${encodeURIComponent(applicationId)}`);
+      state.activeApplication = data.application;
+      el.factoryPortfolio.value = data.application.portfolio_id || "";
+      el.factoryName.value = data.application.name || "";
+      el.factoryRepository.value = data.application.target_repository || "";
+      el.factoryEnvironment.value = data.application.target_environment || "";
+      el.factoryService.value = data.application.target_service || "";
+      renderFactoryApplication();
+      switchToolTab("factory");
+      switchLibraryTab("applications");
+    } catch (error) {
+      toast(`Could not open application blueprint: ${error.message}`, "error");
+    }
+  };
+
+  const renderApplicationLibrary = () => {
+    const query = el.librarySearch.value.trim().toLowerCase();
+    const rows = state.applications.filter((application) => !query || JSON.stringify(application).toLowerCase().includes(query));
+    el.applicationLibrary.replaceChildren();
+    if (!rows.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty-library";
+      empty.textContent = query ? "No application blueprint matches this search." : "No application blueprint yet. Save a process portfolio, then create one in the Factory tab.";
+      el.applicationLibrary.appendChild(empty);
+      return;
+    }
+    for (const application of rows) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `library-item${application.id === state.activeApplication?.id ? " active" : ""}`;
+      const title = document.createElement("strong");
+      title.textContent = application.name;
+      const detail = document.createElement("span");
+      detail.textContent = `${application.client_name || "Client"} · ${application.summary?.processes || 0} processes`;
+      const meta = document.createElement("small");
+      meta.className = "library-meta";
+      const ready = (application.release_gates || []).filter((gate) => gate.passed).length;
+      const total = (application.release_gates || []).length;
+      meta.innerHTML = `<span>${String(application.status || "planning").toUpperCase()}</span><span>${ready}/${total} gates</span>`;
+      button.append(title, detail, meta);
+      button.addEventListener("click", () => loadApplication(application.id));
+      el.applicationLibrary.appendChild(button);
+    }
+  };
+
+  const populatePortfolioSelect = () => {
+    const selected = el.factoryPortfolio.value || state.activeApplication?.portfolio_id || "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Choose a saved portfolio";
+    el.factoryPortfolio.replaceChildren(placeholder);
+    for (const portfolio of state.portfolios) {
+      const option = document.createElement("option");
+      option.value = portfolio.id;
+      option.textContent = `${portfolio.client_name || "Client"} · ${portfolio.name} · ${portfolio.process_count || 0} processes`;
+      option.selected = portfolio.id === selected;
+      el.factoryPortfolio.appendChild(option);
+    }
+  };
+
+  const buildSpecification = async (requirement) => {
+    if (!requirement.component_id) return;
+    const component = state.components.find((item) => item.id === requirement.component_id);
+    const existing = component?.build_spec?.summary;
+    if (existing) {
+      openComponentDialog(component);
+      return;
+    }
+    try {
+      const button = el.factoryRequirements.querySelector(`[data-build-component="${CSS.escape(requirement.component_id)}"]`);
+      if (button) { button.disabled = true; button.textContent = "Designing…"; }
+      await fetchJson(`${API}/components/${encodeURIComponent(requirement.component_id)}/build-spec`, {
+        method: "POST",
+        body: JSON.stringify({
+          application_id: state.activeApplication?.id || "",
+          business_context: `${requirement.process_name}: ${requirement.name}. Owner: ${requirement.owner || "to confirm"}. System: ${requirement.system || "to decide"}.`,
+          target_stack: ["FastAPI", "PostgreSQL", "tenant isolation", "source-linked RAG", "REST", "MCP"],
+        }),
+      });
+      await refreshLibraries();
+      await saveFactoryBlueprint();
+      toast(`AI build contract created for ${requirement.name}. It remains a gap until code and test evidence are imported.`);
+    } catch (error) {
+      toast(`Component build contract failed: ${error.message}`, "error");
+      renderFactoryApplication();
+    }
+  };
+
+  const renderFactoryApplication = () => {
+    const application = state.activeApplication;
+    el.factoryEmpty.hidden = Boolean(application);
+    el.factoryResult.hidden = !application;
+    if (!application) return;
+    const summary = application.summary || {};
+    const gates = application.release_gates || [];
+    const passed = gates.filter((gate) => gate.passed).length;
+    el.factoryStatus.textContent = application.status === "release-ready" ? "Release ready" : "Gates open";
+    el.factoryStatus.className = `human-gate${application.status === "release-ready" ? " ready" : ""}`;
+    el.factoryProcessCount.textContent = summary.processes || 0;
+    el.factoryReuseCount.textContent = summary.reused || 0;
+    el.factoryGapCount.textContent = summary.build_required || 0;
+    el.factoryGateCount.textContent = `${passed}/${gates.length}`;
+    el.factoryGates.replaceChildren();
+    for (const gate of gates) {
+      const row = document.createElement("article");
+      row.className = `factory-gate ${gate.passed ? "passed" : "open"}`;
+      const icon = document.createElement("span");
+      icon.textContent = gate.passed ? "✓" : "!";
+      const copy = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = gate.label;
+      const detail = document.createElement("small");
+      detail.textContent = gate.detail;
+      copy.append(title, detail);
+      row.append(icon, copy);
+      el.factoryGates.appendChild(row);
+    }
+    const filter = el.factoryRequirementFilter.value || "gaps";
+    const requirements = (application.requirements || []).filter((item) =>
+      filter === "all" || (filter === "gaps" ? item.resolution === "build-required" : item.resolution === "reuse"));
+    el.factoryRequirements.replaceChildren();
+    if (!requirements.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.textContent = filter === "gaps" ? "No component gaps remain." : "No requirements match this view.";
+      el.factoryRequirements.appendChild(empty);
+    }
+    for (const requirement of requirements) {
+      const card = document.createElement("article");
+      card.className = `factory-requirement ${requirement.resolution}`;
+      const heading = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = requirement.name;
+      const badge = document.createElement("span");
+      badge.className = `resolution-badge ${requirement.resolution}`;
+      badge.textContent = requirement.resolution === "reuse" ? "REUSE" : "BUILD";
+      heading.append(title, badge);
+      const context = document.createElement("small");
+      context.textContent = requirement.requirement_type === "standard-foundation"
+        ? "Every application · standard foundation"
+        : `Phase ${String(requirement.phase_order || 0).padStart(2, "0")} · ${requirement.process_name}`;
+      const component = document.createElement("span");
+      component.textContent = requirement.component_name || "No Foundry component yet";
+      card.append(heading, context, component);
+      if (requirement.resolution === "build-required" && requirement.component_id) {
+        const action = document.createElement("button");
+        action.type = "button";
+        action.className = "text-button";
+        action.dataset.buildComponent = requirement.component_id;
+        const foundry = state.components.find((item) => item.id === requirement.component_id);
+        action.textContent = foundry?.build_spec?.summary ? "Review AI build contract" : "Generate AI build contract";
+        action.addEventListener("click", () => buildSpecification(requirement));
+        card.appendChild(action);
+      }
+      el.factoryRequirements.appendChild(card);
+    }
+    const integrations = application.integrations || {};
+    el.factoryIntegrations.replaceChildren();
+    const integrationGroups = [
+      ["REST APIs", integrations.api_endpoints || []],
+      ["MCP tools", integrations.mcp_tools || []],
+      ["Connected links", integrations.external_links || []],
+      ["Process handoffs", application.assembly?.handoffs || []],
+    ];
+    for (const [label, items] of integrationGroups) {
+      const row = document.createElement("article");
+      const title = document.createElement("strong");
+      title.textContent = label;
+      const detail = document.createElement("span");
+      detail.textContent = `${items.length} connected`;
+      row.append(title, detail);
+      el.factoryIntegrations.appendChild(row);
+    }
+  };
+
+  const saveFactoryBlueprint = async () => {
+    const portfolioId = el.factoryPortfolio.value;
+    if (!portfolioId) {
+      toast("Choose a saved process portfolio first.", "error");
+      return null;
+    }
+    try {
+      el.buildBlueprint.disabled = true;
+      el.buildBlueprint.textContent = "Checking components…";
+      const data = await fetchJson(`${API}/applications`, {
+        method: "POST",
+        body: JSON.stringify({
+          id: state.activeApplication?.id || "",
+          portfolio_id: portfolioId,
+          name: el.factoryName.value.trim(),
+          target_repository: el.factoryRepository.value.trim(),
+          target_environment: el.factoryEnvironment.value.trim(),
+          target_service: el.factoryService.value.trim(),
+        }),
+      });
+      state.activeApplication = data.application;
+      await refreshLibraries(false);
+      renderFactoryApplication();
+      toast(`Blueprint refreshed: ${data.application.summary.reused} reusable requirements and ${data.application.summary.build_required} build gaps.`);
+      return data.application;
+    } catch (error) {
+      toast(`Application blueprint failed: ${error.message}`, "error");
+      return null;
+    } finally {
+      el.buildBlueprint.disabled = false;
+      el.buildBlueprint.textContent = "Create / refresh blueprint";
+    }
+  };
+
   const renderLibraries = () => {
+    el.applicationCount.textContent = state.applications.length;
     el.processCount.textContent = state.processes.length;
     el.componentCount.textContent = state.components.length;
+    renderApplicationLibrary();
     renderProcessLibrary();
     renderFoundryLibrary();
+    populatePortfolioSelect();
     populateComponentSelect(elementMetadata(state.selectedElement).metadata?.componentId || "");
   };
 
-  const refreshLibraries = async () => {
-    const [processData, componentData] = await Promise.all([
+  const refreshLibraries = async (renderFactory = true) => {
+    const [applicationData, portfolioData, processData, componentData] = await Promise.all([
+      fetchJson(`${API}/applications`),
+      fetchJson(`${API}/portfolios`),
       fetchJson(`${API}/processes`),
       fetchJson(`${API}/components`),
     ]);
+    state.applications = applicationData.applications || [];
+    state.portfolios = portfolioData.portfolios || [];
     state.processes = processData.processes || [];
     state.components = componentData.components || [];
     renderLibraries();
+    if (renderFactory) renderFactoryApplication();
   };
 
   const switchLibraryTab = (tab) => {
@@ -809,12 +1039,14 @@ ${edgeXml}
       button.classList.toggle("active", active);
       button.setAttribute("aria-selected", String(active));
     });
+    el.applicationLibrary.hidden = tab !== "applications";
     el.processLibrary.hidden = tab !== "processes";
     el.foundryLibrary.hidden = tab !== "foundry";
-    el.librarySearch.placeholder = tab === "foundry" ? "Search Foundry components" : "Search processes";
+    el.librarySearch.placeholder = tab === "foundry" ? "Search Foundry components" : (tab === "applications" ? "Search applications" : "Search processes");
     el.librarySearch.value = "";
     renderLibraries();
     if (tab === "foundry") history.replaceState(null, "", `${location.pathname}${location.search}#foundry`);
+    if (tab === "applications") history.replaceState(null, "", `${location.pathname}${location.search}#factory`);
   };
 
   const switchToolTab = (tab) => {
@@ -1184,13 +1416,17 @@ ${edgeXml}
     }
     const payload = {
       name,
+      external_key: el.componentExternalKey.value.trim(),
       kind: el.componentKind.value,
       status: el.componentStatus.value,
+      implementation_status: el.componentImplementationStatus.value,
       description: el.componentDescription.value.trim(),
       aliases: lines(el.componentAliases.value),
+      supported_activities: lines(el.componentSupportedActivities.value),
       code_refs: lines(el.componentCodeRefs.value),
       api_endpoints: lines(el.componentApiEndpoints.value),
       mcp_tools: lines(el.componentMcpTools.value),
+      test_refs: lines(el.componentTestRefs.value),
       links: lines(el.componentLinks.value),
     };
     try {
@@ -1222,11 +1458,39 @@ ${edgeXml}
 
   document.querySelectorAll("[data-library-tab]").forEach((button) => button.addEventListener("click", () => switchLibraryTab(button.dataset.libraryTab)));
   document.querySelectorAll("[data-tool-tab]").forEach((button) => button.addEventListener("click", () => switchToolTab(button.dataset.toolTab)));
+  document.querySelectorAll("[data-factory-stage]").forEach((stage) => stage.addEventListener("click", () => {
+    const target = ({ design: "intake", confirm: "validation", reconcile: "factory", build: "factory", assemble: "factory", integrate: "trace", release: "factory" })[stage.dataset.factoryStage] || "factory";
+    switchToolTab(target);
+  }));
   el.librarySearch.addEventListener("input", renderLibraries);
   el.createComponent.addEventListener("click", () => openComponentDialog());
   el.processForm.addEventListener("submit", (event) => { event.preventDefault(); applyProcessFormToModel(); updateHeader(); toast("Process details applied to the BPMN model. Save when ready."); });
   el.elementForm.addEventListener("submit", (event) => { event.preventDefault(); applyElementForm(); toast("Activity references applied. Save to reconcile the Foundry component."); });
   el.chatForm.addEventListener("submit", (event) => { event.preventDefault(); sendChat(); });
+  el.factoryForm.addEventListener("submit", (event) => { event.preventDefault(); saveFactoryBlueprint(); });
+  el.refreshBlueprint.addEventListener("click", saveFactoryBlueprint);
+  el.factoryRequirementFilter.addEventListener("change", renderFactoryApplication);
+  el.factoryPortfolio.addEventListener("change", () => {
+    const portfolio = state.portfolios.find((item) => item.id === el.factoryPortfolio.value);
+    if (portfolio && !el.factoryName.value.trim()) el.factoryName.value = `${portfolio.client_name || "Client"} application`;
+  });
+  el.importManifest.addEventListener("click", async () => {
+    try {
+      const manifest = JSON.parse(el.componentManifest.value.trim());
+      el.importManifest.disabled = true;
+      el.importManifest.textContent = "Importing evidence…";
+      const data = await fetchJson(`${API}/components/import`, { method: "POST", body: JSON.stringify(manifest) });
+      await refreshLibraries();
+      if (state.activeApplication) await saveFactoryBlueprint();
+      el.componentManifest.value = "";
+      toast(`Manifest imported: ${data.created.length} created, ${data.updated.length} updated, ${data.ready} implementation-ready.`);
+    } catch (error) {
+      toast(`Manifest import failed: ${error.message}`, "error");
+    } finally {
+      el.importManifest.disabled = false;
+      el.importManifest.textContent = "Import verified manifest";
+    }
+  });
   el.clearChat.addEventListener("click", clearChat);
   el.newProcess.addEventListener("click", () => { if (confirmDiscard()) { state.activeProcess = null; el.clientName.value = ""; loadXml(blankDiagram, null); } });
   el.importProcess.addEventListener("click", () => el.fileInput.click());
@@ -1315,12 +1579,13 @@ ${edgeXml}
     } catch (error) {
       el.aiStatus.className = "status-chip error";
       el.aiStatus.textContent = "API unavailable";
-      toast(`Process Builder API unavailable: ${error.message}`, "error");
+      toast(`Application Factory API unavailable: ${error.message}`, "error");
     }
     try { await refreshLibraries(); } catch (error) { toast(`Library load failed: ${error.message}`, "error"); }
     await loadXml(blankDiagram, null);
     if (location.hash === "#foundry") switchLibraryTab("foundry");
     if (location.hash === "#intake") switchToolTab("intake");
+    if (location.hash === "#factory" || !location.hash) { switchLibraryTab("applications"); switchToolTab("factory"); }
   };
 
   initialize();

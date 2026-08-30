@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DevReady - Process Builder</title>
+    <title>aiReady Application Factory</title>
     <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
     <link rel="stylesheet" href="process-builder-assets/diagram-js.css" />
     <link rel="stylesheet" href="process-builder-assets/bpmn-js.css" />
     <link rel="stylesheet" href="process-builder-assets/css/bpmn.css" />
-    <link rel="stylesheet" href="CSS/processBuilder.css?v=20260830-connected-portfolios" />
+    <link rel="stylesheet" href="CSS/processBuilder.css?v=20260830-application-factory" />
     <script>
       (function () {
         const params = new URLSearchParams(window.location.search);
@@ -38,9 +38,9 @@
       <main class="main process-main">
         <header class="process-topbar">
           <div>
-            <div class="eyebrow">DEVREADY · CLIENT PROCESS DISCOVERY</div>
-            <h1>Process Builder</h1>
-            <p>Turn a client's business description into validated process flows, then reuse or register every activity in AIReady Foundry.</p>
+            <div class="eyebrow">DEVREADY · PROCESS-DRIVEN APPLICATION DELIVERY</div>
+            <h1>aiReady Application Factory</h1>
+            <p>Design the business first. Confirm the process, reuse proven Foundry components, build only the gaps, assemble the application, and release with evidence.</p>
           </div>
           <div class="status-row" aria-label="Connection status">
             <span id="saveState" class="status-chip neutral">Not saved</span>
@@ -49,19 +49,21 @@
           </div>
         </header>
 
-        <section class="discovery-strip" aria-label="Recommended discovery sequence">
-          <div><strong>1</strong><span>Describe the client's major flows</span></div>
-          <div><strong>2</strong><span>Review the AI draft</span></div>
-          <div><strong>3</strong><span>Edit manually on the canvas</span></div>
-          <div><strong>4</strong><span>Reuse or build Foundry components</span></div>
-          <div><strong>5</strong><span>Validate with the client</span></div>
+        <section class="discovery-strip factory-stages" aria-label="Application factory sequence">
+          <div data-factory-stage="design"><strong>1</strong><span>Design processes</span><small>AI, import, or manual BPMN</small></div>
+          <div data-factory-stage="confirm"><strong>2</strong><span>Confirm business</span><small>Client and owner gates</small></div>
+          <div data-factory-stage="reconcile"><strong>3</strong><span>Check Foundry</span><small>Evidence-based reuse</small></div>
+          <div data-factory-stage="build"><strong>4</strong><span>Build gaps</span><small>AI contracts + code</small></div>
+          <div data-factory-stage="assemble"><strong>5</strong><span>Assemble</span><small>Connect process components</small></div>
+          <div data-factory-stage="integrate"><strong>6</strong><span>Integrate</span><small>API, MCP, RAG, models</small></div>
+          <div data-factory-stage="release"><strong>7</strong><span>Release</span><small>Test, approve, deploy</small></div>
         </section>
 
         <section class="process-toolbar" aria-label="Process actions">
           <button id="newProcess" class="pb-button secondary" type="button">New process</button>
           <button id="importProcess" class="pb-button secondary" type="button">Import BPMN</button>
           <input id="fileInput" type="file" accept=".bpmn,.xml" hidden />
-          <button id="saveProcess" class="pb-button primary" type="button">Save + reconcile Foundry</button>
+          <button id="saveProcess" class="pb-button primary" type="button">Save process + check Foundry</button>
           <button id="validateProcess" class="pb-button secondary" type="button">Validate</button>
           <span class="toolbar-spacer"></span>
           <button id="undo" class="icon-button" type="button" title="Undo" aria-label="Undo">↶</button>
@@ -76,18 +78,20 @@
         <section class="builder-shell">
           <aside class="library-panel panel-surface" aria-label="Process and Foundry libraries">
             <div class="panel-tabs" role="tablist" aria-label="Library">
-              <button class="panel-tab active" data-library-tab="processes" type="button" role="tab" aria-selected="true">Processes <span id="processCount">0</span></button>
+              <button class="panel-tab active" data-library-tab="applications" type="button" role="tab" aria-selected="true">Applications <span id="applicationCount">0</span></button>
+              <button class="panel-tab" data-library-tab="processes" type="button" role="tab" aria-selected="false">Processes <span id="processCount">0</span></button>
               <button class="panel-tab" data-library-tab="foundry" type="button" role="tab" aria-selected="false">AIReady Foundry <span id="componentCount">0</span></button>
             </div>
             <label class="library-search">
               <span class="sr-only">Search library</span>
               <input id="librarySearch" type="search" placeholder="Search processes" />
             </label>
-            <div id="processLibrary" class="library-list" role="listbox" aria-label="Saved client processes"></div>
+            <div id="applicationLibrary" class="library-list" role="listbox" aria-label="Application blueprints"></div>
+            <div id="processLibrary" class="library-list" role="listbox" aria-label="Saved client processes" hidden></div>
             <div id="foundryLibrary" class="library-list" role="listbox" aria-label="AIReady Foundry components" hidden></div>
             <div class="library-footer">
-              <strong>Reuse before build</strong>
-              <span>Saving checks every activity. Exact catalog matches are linked; missing activities become draft Foundry components.</span>
+              <strong>Evidence before reuse</strong>
+              <span>A named requirement is not a reusable implementation. Ready components require code or API/MCP evidence; every gap stays visible until implementation is imported and verified.</span>
               <button id="createComponent" class="text-button" type="button">Create component manually</button>
             </div>
           </aside>
@@ -110,20 +114,59 @@
             </header>
             <div class="canvas-wrap">
               <div id="canvas" class="bpmn-canvas" aria-label="Editable BPMN diagram"></div>
-              <div id="canvasLoading" class="canvas-message">Loading DevReady Process Builder…</div>
+              <div id="canvasLoading" class="canvas-message">Loading aiReady Application Factory…</div>
               <div id="canvasError" class="canvas-message error" hidden></div>
             </div>
           </section>
 
           <aside class="tools-panel panel-surface" aria-label="Process design tools">
             <div class="panel-tabs tool-tabs" role="tablist" aria-label="Design tools">
-              <button class="panel-tab active" data-tool-tab="intake" type="button" role="tab" aria-selected="true">AI Intake</button>
+              <button class="panel-tab active" data-tool-tab="factory" type="button" role="tab" aria-selected="true">Factory</button>
+              <button class="panel-tab" data-tool-tab="intake" type="button" role="tab" aria-selected="false">AI Intake</button>
               <button class="panel-tab" data-tool-tab="details" type="button" role="tab" aria-selected="false">Details</button>
               <button class="panel-tab" data-tool-tab="trace" type="button" role="tab" aria-selected="false">Trace</button>
               <button class="panel-tab" data-tool-tab="validation" type="button" role="tab" aria-selected="false">Validate</button>
             </div>
 
-            <section id="intakePane" class="tool-pane active" data-tool-pane="intake">
+            <section id="factoryPane" class="tool-pane active" data-tool-pane="factory">
+              <div class="pane-heading">
+                <div><span class="eyebrow">APPLICATION BLUEPRINT</span><h3>Build from the confirmed design</h3></div>
+                <span id="factoryStatus" class="human-gate">Planning</span>
+              </div>
+              <p class="pane-caption">Choose a process portfolio. The factory evaluates every activity and nine standard platform foundations, reuses only implementation-ready components, and keeps missing parts as explicit build work.</p>
+              <form id="factoryForm" class="stack-form">
+                <label class="form-field">Process portfolio<select id="factoryPortfolio"><option value="">Choose a saved portfolio</option></select></label>
+                <label class="form-field">Application name<input id="factoryName" type="text" maxlength="240" placeholder="Example: Aularis Process Operations" /></label>
+                <label class="form-field">Target repository<input id="factoryRepository" type="text" maxlength="1000" placeholder="https://github.com/company/application" /></label>
+                <div class="two-column">
+                  <label class="form-field">Environment<input id="factoryEnvironment" type="text" maxlength="240" placeholder="production" /></label>
+                  <label class="form-field">Service<input id="factoryService" type="text" maxlength="240" placeholder="Railway service" /></label>
+                </div>
+                <button id="buildBlueprint" class="pb-button primary" type="submit">Create / refresh blueprint</button>
+              </form>
+              <div id="factoryEmpty" class="empty-state">Select the eight-process portfolio to start the application assembly plan.</div>
+              <div id="factoryResult" hidden>
+                <div class="factory-metrics">
+                  <article><span>Processes</span><strong id="factoryProcessCount">0</strong></article>
+                  <article><span>Reusable</span><strong id="factoryReuseCount">0</strong></article>
+                  <article><span>Build gaps</span><strong id="factoryGapCount">0</strong></article>
+                  <article><span>Release gates</span><strong id="factoryGateCount">0/0</strong></article>
+                </div>
+                <div class="factory-section-heading"><h4>Release gates</h4><button id="refreshBlueprint" class="text-button" type="button">Refresh evidence</button></div>
+                <div id="factoryGates" class="factory-gates"></div>
+                <div class="factory-section-heading"><h4>Component plan</h4><select id="factoryRequirementFilter" aria-label="Filter component plan"><option value="gaps">Build gaps</option><option value="reused">Reusable</option><option value="all">All requirements</option></select></div>
+                <div id="factoryRequirements" class="factory-requirements"></div>
+                <div class="factory-section-heading"><h4>Assembly and integrations</h4></div>
+                <div id="factoryIntegrations" class="factory-integrations"></div>
+              </div>
+              <hr />
+              <div class="pane-heading"><div><span class="eyebrow">IMPLEMENTATION EVIDENCE</span><h3>Import component manifest</h3></div></div>
+              <p class="pane-caption">A target application publishes names, aliases, code paths, APIs, MCP tools, tests, source commit, and verification time. Importing that manifest upgrades matching Foundry requirements without pretending a design card is working code.</p>
+              <textarea id="componentManifest" class="manifest-input" rows="6" placeholder='{"source":{"application":"Aularis","repository":"https://github.com/...","commit":"...","verified_at":"..."},"components":[...]}'></textarea>
+              <button id="importManifest" class="pb-button secondary wide" type="button">Import verified manifest</button>
+            </section>
+
+            <section id="intakePane" class="tool-pane" data-tool-pane="intake" hidden>
               <div class="pane-heading">
                 <div>
                   <span class="eyebrow">CHAT-ENABLED DISCOVERY</span>
@@ -217,21 +260,25 @@
         <header><div><span class="eyebrow">AIREADY FOUNDRY</span><h2 id="componentDialogTitle">Create reusable component</h2></div><button class="dialog-close" type="button" value="cancel" aria-label="Close" onclick="this.closest('dialog').close()">×</button></header>
         <input id="componentId" type="hidden" />
         <label class="form-field">Component name<input id="componentName" type="text" maxlength="240" required /></label>
+        <label class="form-field">Stable component key<input id="componentExternalKey" type="text" maxlength="200" placeholder="tenant-security-admin" /></label>
         <div class="two-column">
-          <label class="form-field">Kind<select id="componentKind"><option>activity</option><option>human-task</option><option>service</option><option>business-rule</option><option>subprocess</option><option>agent</option><option>mcp-server</option></select></label>
+          <label class="form-field">Kind<select id="componentKind"><option>activity</option><option>human-task</option><option>service</option><option>business-rule</option><option>subprocess</option><option>agent</option><option>mcp-server</option><option>platform-service</option><option>data-service</option><option>agent-service</option><option>rag-service</option><option>integration-service</option><option>control-service</option><option>workflow-module</option></select></label>
           <label class="form-field">Status<select id="componentStatus"><option>draft</option><option>review</option><option>ready</option><option>deprecated</option></select></label>
         </div>
+        <label class="form-field">Implementation status<select id="componentImplementationStatus"><option value="missing">missing</option><option value="design-only">design-only</option><option value="build-planned">build-planned</option><option value="in-build">in-build</option><option value="implemented">implemented</option></select></label>
         <label class="form-field">Description<textarea id="componentDescription" rows="3"></textarea></label>
         <label class="form-field">Aliases <span>one per line</span><textarea id="componentAliases" rows="2"></textarea></label>
+        <label class="form-field">Supported process activities <span>one per line</span><textarea id="componentSupportedActivities" rows="3"></textarea></label>
         <label class="form-field">Code references <span>one per line</span><textarea id="componentCodeRefs" rows="2"></textarea></label>
         <label class="form-field">API endpoints <span>one per line</span><textarea id="componentApiEndpoints" rows="2"></textarea></label>
         <label class="form-field">MCP tools <span>one per line</span><textarea id="componentMcpTools" rows="2"></textarea></label>
+        <label class="form-field">Test references <span>one per line</span><textarea id="componentTestRefs" rows="2"></textarea></label>
         <label class="form-field">Links <span>one per line</span><textarea id="componentLinks" rows="2"></textarea></label>
         <footer><button id="deleteComponent" class="pb-button danger" type="button" hidden>Delete component</button><span class="toolbar-spacer"></span><button class="pb-button secondary" type="button" value="cancel" onclick="this.closest('dialog').close()">Cancel</button><button id="saveComponent" class="pb-button primary" type="submit" value="default">Save component</button></footer>
       </form>
     </dialog>
 
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-    <script src="JS/processBuilder.js?v=20260830-connected-portfolios"></script>
+    <script src="JS/processBuilder.js?v=20260830-application-factory"></script>
   </body>
 </html>

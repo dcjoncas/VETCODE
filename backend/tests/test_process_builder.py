@@ -71,7 +71,8 @@ class ProcessBuilderApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["product"], "DevReady Process Builder")
+        self.assertEqual(data["product"], "aiReady Application Factory")
+        self.assertEqual(data["process_builder"], "DevReady Process Builder")
         self.assertEqual(data["foundry"], "AIReady Foundry")
         self.assertGreaterEqual(data["components"], 3)
         self.assertNotIn("key", json.dumps(data).lower())
@@ -154,11 +155,13 @@ class ProcessBuilderApiTests(unittest.TestCase):
         )
 
         self.assertEqual(initialize.status_code, 200)
-        self.assertEqual(initialize.json()["result"]["serverInfo"]["name"], "devready-aiready-foundry")
+        self.assertEqual(initialize.json()["result"]["serverInfo"]["name"], "aiready-application-factory")
         tool_names = {item["name"] for item in tools.json()["result"]["tools"]}
         self.assertEqual(
             tool_names,
             {
+                "list_applications",
+                "get_application",
                 "list_portfolios",
                 "get_portfolio",
                 "list_processes",
@@ -169,6 +172,106 @@ class ProcessBuilderApiTests(unittest.TestCase):
         )
         manifest = self.client.get("/api/process-builder/mcp/manifest").json()
         self.assertTrue(manifest["read_only"])
+
+    def test_application_blueprint_separates_design_cards_from_reusable_implementations(self):
+        process = self.process_payload(name="Phase 01 Intake", activity="Review client intake")
+        process.update({"temp_id": "phase-01", "phase_id": "phase-01", "phase_name": "Intake", "phase_order": 1})
+        saved = self.client.post(
+            "/api/process-builder/portfolios",
+            json={
+                "client_name": "Aularis",
+                "portfolio": {"name": "Aularis lifecycle", "expected_process_count": 1, "lanes": [], "handoffs": []},
+                "processes": [process],
+            },
+        ).json()
+
+        blueprint = self.client.post(
+            "/api/process-builder/applications",
+            json={"portfolio_id": saved["portfolio"]["id"], "name": "Aularis Process Operations"},
+        )
+
+        self.assertEqual(blueprint.status_code, 201)
+        application = blueprint.json()["application"]
+        self.assertEqual(application["summary"]["processes"], 1)
+        self.assertGreaterEqual(application["summary"]["build_required"], 9)
+        review_requirement = next(item for item in application["requirements"] if item["name"] == "Review client intake")
+        self.assertEqual(review_requirement["resolution"], "build-required")
+        self.assertFalse(review_requirement["readiness"]["implemented"])
+        self.assertFalse(next(gate for gate in application["release_gates"] if gate["key"] == "components-implemented")["passed"])
+
+    def test_verified_component_manifest_upgrades_matching_application_requirement(self):
+        process = self.process_payload(name="Phase 01 Intake", activity="Review client intake")
+        process.update({"temp_id": "phase-01", "phase_id": "phase-01", "phase_name": "Intake", "phase_order": 1})
+        saved = self.client.post(
+            "/api/process-builder/portfolios",
+            json={
+                "client_name": "Aularis",
+                "portfolio": {"name": "Aularis lifecycle", "expected_process_count": 1, "lanes": [], "handoffs": []},
+                "processes": [process],
+            },
+        ).json()
+        imported = self.client.post(
+            "/api/process-builder/components/import",
+            json={
+                "source": {
+                    "application": "Aularis",
+                    "repository": "https://github.com/dcjoncas/AULARIS",
+                    "commit": "abc123",
+                    "version": "1.0.0",
+                    "verified_at": "2026-08-30T00:00:00Z",
+                },
+                "components": [
+                    {
+                        "key": "aularis-intake-review",
+                        "name": "Aularis Intake Review",
+                        "kind": "workflow-module",
+                        "status": "ready",
+                        "implementation_status": "implemented",
+                        "supported_activities": ["Review client intake"],
+                        "code_refs": ["server.py"],
+                        "api_endpoints": ["PATCH /api/intake-records/{intake_id}"],
+                        "test_refs": ["tests/test_app.py::test_intake_review"],
+                    }
+                ],
+            },
+        )
+        self.assertEqual(imported.status_code, 200)
+        self.assertEqual(imported.json()["ready"], 1)
+
+        application = self.client.post(
+            "/api/process-builder/applications",
+            json={"portfolio_id": saved["portfolio"]["id"], "name": "Aularis Process Operations"},
+        ).json()["application"]
+        requirement = next(item for item in application["requirements"] if item["name"] == "Review client intake")
+        self.assertEqual(requirement["resolution"], "reuse")
+        self.assertEqual(requirement["component_name"], "Aularis Intake Review")
+        self.assertTrue(requirement["readiness"]["provenance_verified"])
+
+    def test_component_build_spec_is_saved_but_does_not_claim_implementation(self):
+        component = self.client.post(
+            "/api/process-builder/components",
+            json={"name": "Missing workflow", "implementation_status": "missing"},
+        ).json()["component"]
+        response = self.client.post(
+            f"/api/process-builder/components/{component['id']}/build-spec",
+            json={
+                "build_spec": {
+                    "summary": "Implement the missing workflow.",
+                    "acceptance_criteria": ["Tenant-scoped result is retained"],
+                    "data_entities": ["workflow_record"],
+                    "api_contracts": ["POST /api/workflows"],
+                    "mcp_contracts": ["workflows.create"],
+                    "security_controls": ["Human approval"],
+                    "test_scenarios": ["Reject cross-tenant access"],
+                    "dependencies": ["PostgreSQL"],
+                }
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        updated = response.json()["component"]
+        self.assertEqual(updated["implementation_status"], "build-planned")
+        self.assertEqual(updated["status"], "review")
+        self.assertFalse(process_builder._component_is_implemented(updated))
 
     def test_ai_chat_uses_server_key_and_has_explicit_unconfigured_state(self):
         with patch.dict(os.environ, {"OPENAI_API_KEY": ""}):
@@ -571,12 +674,14 @@ class ProcessBuilderFrontendTests(unittest.TestCase):
     def test_page_is_devready_branded_and_keeps_manual_plus_ai_workflows(self):
         html = (PAGES / "process-builder.html").read_text(encoding="utf-8")
 
-        self.assertIn("DevReady - Process Builder", html)
+        self.assertIn("aiReady Application Factory", html)
         self.assertIn("AI Intake", html)
-        self.assertIn("Save + reconcile Foundry", html)
+        self.assertIn("Save process + check Foundry", html)
         self.assertIn('maxlength="30000"', html)
         self.assertIn("up to 12 named phases", html)
         self.assertIn("BPMN", html)
+        self.assertIn("Create / refresh blueprint", html)
+        self.assertIn("Import verified manifest", html)
         self.assertNotIn("Syntax Process Forge", html)
         self.assertNotIn("SAP Cloud ALM", html)
         self.assertNotIn("HPCC", html)
@@ -599,13 +704,13 @@ class ProcessBuilderFrontendTests(unittest.TestCase):
         self.assertIn("slice(0, 12)", script)
         self.assertIn("/mcp/manifest", (PAGES / "process-builder.html").read_text(encoding="utf-8"))
 
-    def test_shared_navigation_exposes_builder_and_foundry(self):
+    def test_shared_navigation_exposes_one_application_factory(self):
         navigation = (PAGES / "components" / "sideNav.html").read_text(encoding="utf-8")
 
         self.assertIn('href="process-builder.html"', navigation)
-        self.assertIn('href="process-builder.html#foundry"', navigation)
         self.assertIn('data-menu-key="process_builder"', navigation)
-        self.assertIn('data-menu-key="foundry"', navigation)
+        self.assertIn('>Application Factory</a', navigation)
+        self.assertNotIn('data-menu-key="foundry"', navigation)
 
 
 if __name__ == "__main__":
