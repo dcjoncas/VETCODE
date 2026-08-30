@@ -68,9 +68,22 @@ Creating or refreshing an application blueprint scans every activity in the sele
 - assembly sequence and cross-process handoffs;
 - third-party, API, MCP, RAG/vector, model, data, security, and configuration needs;
 - tests and implementation evidence; and
-- release gates for confirmed processes, implemented components, tenant-isolated PostgreSQL, security and human approval, and agent-aware RAG/context.
+- a governed source-to-production delivery architecture; and
+- release gates for confirmed processes, implemented components, tenant-isolated PostgreSQL, security and human approval, agent-aware RAG/context, repository governance, environment isolation, immutable artifact promotion, operational recovery, and live production acceptance.
 
 The standard foundations are multi-tenant identity, general administration, PostgreSQL multi-tenant data, agent-aware context, RAG knowledge retrieval, meeting orchestration, signature governance, API/MCP administration, and human approval/audit.
+
+## Delivery profiles
+
+Every application blueprint selects one delivery profile and records the repository model, runtime target, environment topology, CI/CD control, availability objective, container contract, observability, backup/restore, rollback, and production proof. The profiles are starting architectures, not marketing labels:
+
+| Profile | Default runtime | Environments | Intended use |
+| --- | --- | --- | --- |
+| Rapid Railway | Railway + Docker | development, production | A standard business application optimized for fast, governed delivery. |
+| Business Critical | Railway + Docker | development, staging, production | Operationally important applications that require staged promotion, high availability, failover, and recovery evidence. |
+| Enterprise Fabric | Kubernetes + Docker | development, staging, production | Applications whose measured scale, isolation, or resilience requirements justify orchestration and multi-zone operation. |
+
+All profiles use a build-once, promote-the-same-immutable-artifact contract. Kubernetes is not the default: it becomes required only for the Enterprise Fabric profile or an explicit hybrid/Kubernetes decision. A repository URL, environment name, successful container build, or successful deployment does not independently clear a release gate. Evidence must verify protected source control, isolated environments, the CI/CD path, monitoring, backup/restore, rollback, applicable failover, and production smoke/customer acceptance tests.
 
 ## Process-to-implementation traceability
 

@@ -199,6 +199,118 @@ class ProcessBuilderApiTests(unittest.TestCase):
         self.assertFalse(review_requirement["readiness"]["implemented"])
         self.assertFalse(next(gate for gate in application["release_gates"] if gate["key"] == "components-implemented")["passed"])
 
+    def test_rapid_delivery_blueprint_defaults_to_railway_without_unnecessary_kubernetes(self):
+        process = self.process_payload(name="Order operations", activity="Review customer order")
+        saved = self.client.post(
+            "/api/process-builder/portfolios",
+            json={
+                "client_name": "Northwind",
+                "portfolio": {"name": "Order lifecycle", "expected_process_count": 1, "lanes": [], "handoffs": []},
+                "processes": [process],
+            },
+        ).json()
+
+        application = self.client.post(
+            "/api/process-builder/applications",
+            json={
+                "portfolio_id": saved["portfolio"]["id"],
+                "name": "Northwind Operations",
+                "delivery_profile": "rapid",
+                "target_repository": "https://github.com/northwind/operations",
+            },
+        ).json()["application"]
+
+        delivery = application["delivery"]
+        self.assertEqual(delivery["profile_label"], "Rapid Railway")
+        self.assertEqual(delivery["deployment_target"], "railway")
+        self.assertEqual([item["name"] for item in delivery["environments"]], ["development", "production"])
+        self.assertTrue(delivery["container"]["docker_required"])
+        self.assertFalse(delivery["container"]["kubernetes_required"])
+        self.assertEqual(delivery["pipeline"]["artifact_strategy"], "build-once-promote-same-artifact")
+
+    def test_enterprise_delivery_profile_requires_resilience_and_production_evidence(self):
+        process = self.process_payload(name="Enterprise operations", activity="Review enterprise request")
+        saved = self.client.post(
+            "/api/process-builder/portfolios",
+            json={
+                "client_name": "Contoso",
+                "portfolio": {"name": "Enterprise lifecycle", "expected_process_count": 1, "lanes": [], "handoffs": []},
+                "processes": [process],
+            },
+        ).json()
+
+        application = self.client.post(
+            "/api/process-builder/applications",
+            json={
+                "portfolio_id": saved["portfolio"]["id"],
+                "name": "Contoso Control Plane",
+                "delivery_profile": "enterprise",
+                "repository_strategy": "new-repository",
+                "pipeline_provider": "github-actions",
+                "target_repository": "https://github.com/contoso/control-plane",
+                "delivery_evidence": {
+                    "repository_connected": True,
+                    "repository_protection_verified": True,
+                    "development_environment_verified": True,
+                    "staging_environment_verified": True,
+                    "production_environment_verified": True,
+                    "container_verified": True,
+                    "pipeline_verified": True,
+                    "same_artifact_promotion_verified": True,
+                    "observability_verified": True,
+                    "backup_restore_verified": True,
+                    "rollback_verified": True,
+                    "failover_verified": True,
+                    "production_acceptance_verified": True,
+                },
+            },
+        ).json()["application"]
+
+        delivery = application["delivery"]
+        self.assertEqual(delivery["deployment_target"], "kubernetes")
+        self.assertEqual(delivery["reliability"]["availability"], "multi-zone")
+        self.assertTrue(delivery["container"]["kubernetes_required"])
+        delivery_gates = {
+            gate["key"]: gate["passed"]
+            for gate in application["release_gates"]
+            if gate["key"] in {
+                "repository-governance", "environment-isolation", "container-pipeline",
+                "operational-readiness", "production-acceptance",
+            }
+        }
+        self.assertTrue(all(delivery_gates.values()))
+
+    def test_delivery_choices_are_allowlisted_and_evidence_is_not_in_application_summaries(self):
+        process = self.process_payload(name="Safe delivery", activity="Review safe delivery")
+        saved = self.client.post(
+            "/api/process-builder/portfolios",
+            json={
+                "client_name": "Fabrikam",
+                "portfolio": {"name": "Safe lifecycle", "expected_process_count": 1, "lanes": [], "handoffs": []},
+                "processes": [process],
+            },
+        ).json()
+        created = self.client.post(
+            "/api/process-builder/applications",
+            json={
+                "portfolio_id": saved["portfolio"]["id"],
+                "name": "Fabrikam Safe App",
+                "delivery_profile": "unknown-profile",
+                "deployment_target": "shell-command",
+                "availability": "infinite",
+                "repository_strategy": "delete-everything",
+                "pipeline_provider": "unknown-runner",
+            },
+        ).json()["application"]
+
+        self.assertEqual(created["delivery"]["profile"], "rapid")
+        self.assertEqual(created["delivery"]["deployment_target"], "railway")
+        self.assertEqual(created["delivery"]["repository"]["strategy"], "new-repository")
+        self.assertEqual(created["delivery"]["pipeline"]["provider"], "github-actions")
+        summary = self.client.get("/api/process-builder/applications").json()["applications"][0]
+        self.assertIn("delivery", summary)
+        self.assertNotIn("evidence", summary["delivery"])
+
     def test_verified_component_manifest_upgrades_matching_application_requirement(self):
         process = self.process_payload(name="Phase 01 Intake", activity="Review client intake")
         process.update({"temp_id": "phase-01", "phase_id": "phase-01", "phase_name": "Intake", "phase_order": 1})
@@ -682,6 +794,10 @@ class ProcessBuilderFrontendTests(unittest.TestCase):
         self.assertIn("BPMN", html)
         self.assertIn("Create / refresh blueprint", html)
         self.assertIn("Import verified manifest", html)
+        self.assertIn("Rapid Railway", html)
+        self.assertIn("Business Critical", html)
+        self.assertIn("Enterprise Fabric", html)
+        self.assertIn("BUILD ONCE · PROMOTE WITH PROOF", html)
         self.assertNotIn("Syntax Process Forge", html)
         self.assertNotIn("SAP Cloud ALM", html)
         self.assertNotIn("HPCC", html)
@@ -700,6 +816,8 @@ class ProcessBuilderFrontendTests(unittest.TestCase):
         self.assertIn("Save connected portfolio", script)
         self.assertIn("await loadXml(savedActive.bpmn_xml, savedActive)", script)
         self.assertIn("source_activity_names", script)
+        self.assertIn("factoryDeliveryArchitecture", script)
+        self.assertIn("build-once-promote-same-artifact", (PAGES.parent.parent / "process_builder.py").read_text(encoding="utf-8"))
         self.assertIn("slice(0, 60)", script)
         self.assertIn("slice(0, 12)", script)
         self.assertIn("/mcp/manifest", (PAGES / "process-builder.html").read_text(encoding="utf-8"))

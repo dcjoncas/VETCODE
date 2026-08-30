@@ -43,6 +43,40 @@ MAX_AI_PROCESSES = 12
 MAX_AI_MESSAGE_CHARS = 30_000
 MAX_APPLICATION_REQUIREMENTS = 1_000
 
+DELIVERY_PROFILES = {
+    "rapid": {
+        "label": "Rapid Railway",
+        "description": "Fast, governed delivery for a standard business application without unnecessary platform complexity.",
+        "deployment_target": "railway",
+        "availability": "standard",
+        "environment_names": ["development", "production"],
+        "release_strategy": "promote-one-artifact",
+    },
+    "business-critical": {
+        "label": "Business Critical",
+        "description": "Stronger availability, recovery, observability, and staged promotion for operationally important applications.",
+        "deployment_target": "railway",
+        "availability": "high-availability",
+        "environment_names": ["development", "staging", "production"],
+        "release_strategy": "progressive-promotion",
+    },
+    "enterprise": {
+        "label": "Enterprise Fabric",
+        "description": "Container-orchestrated delivery for applications whose measured scale, isolation, or resilience requirements justify Kubernetes.",
+        "deployment_target": "kubernetes",
+        "availability": "multi-zone",
+        "environment_names": ["development", "staging", "production"],
+        "release_strategy": "progressive-promotion",
+    },
+}
+
+DELIVERY_CHOICES = {
+    "repository_strategy": {"new-repository", "existing-repository", "monorepo"},
+    "deployment_target": {"railway", "kubernetes", "hybrid"},
+    "availability": {"standard", "high-availability", "multi-zone"},
+    "pipeline_provider": {"github-actions", "azure-devops", "gitlab-ci"},
+}
+
 STANDARD_FOUNDATION_REQUIREMENTS = [
     {
         "key": "multitenant-identity-access",
@@ -183,7 +217,7 @@ def _new_id(prefix: str) -> str:
 def _seed_store() -> dict[str, Any]:
     now = _utc_now()
     return {
-        "schema_version": 3,
+        "schema_version": 4,
         "updated_at": now,
         "portfolios": [],
         "processes": [],
@@ -343,7 +377,7 @@ def _read_store() -> dict[str, Any]:
                 database_data = _read_store_database()
                 if database_data is not None:
                     data = database_data
-                    data["schema_version"] = max(3, int(data.get("schema_version") or 0))
+                    data["schema_version"] = max(4, int(data.get("schema_version") or 0))
                     data.setdefault("portfolios", [])
                     data.setdefault("processes", [])
                     data.setdefault("applications", [])
@@ -365,7 +399,7 @@ def _read_store() -> dict[str, Any]:
             raise HTTPException(status_code=500, detail=f"Process Builder store is unreadable: {exc}") from exc
         if not isinstance(data, dict):
             raise HTTPException(status_code=500, detail="Process Builder store has an invalid root object.")
-        data["schema_version"] = max(3, int(data.get("schema_version") or 0))
+        data["schema_version"] = max(4, int(data.get("schema_version") or 0))
         data.setdefault("portfolios", [])
         data.setdefault("processes", [])
         data.setdefault("applications", [])
@@ -1775,6 +1809,113 @@ def _implemented_component_for_name(
     return next((item for item in candidates if _component_is_implemented(item)), None)
 
 
+def _delivery_choice(value: Any, choices: set[str], fallback: str) -> str:
+    candidate = _slug(value)
+    return candidate if candidate in choices else fallback
+
+
+def _application_delivery_plan(payload: dict[str, Any], prior: dict[str, Any] | None) -> dict[str, Any]:
+    previous = copy.deepcopy((prior or {}).get("delivery") or {})
+    previous_profile = previous.get("profile") or "rapid"
+    profile_key = _delivery_choice(
+        payload.get("delivery_profile") or previous_profile,
+        set(DELIVERY_PROFILES),
+        "rapid",
+    )
+    profile = DELIVERY_PROFILES[profile_key]
+    same_profile = profile_key == previous_profile
+    deployment_target = _delivery_choice(
+        payload.get("deployment_target") or (previous.get("deployment_target") if same_profile else None),
+        DELIVERY_CHOICES["deployment_target"],
+        profile["deployment_target"],
+    )
+    availability = _delivery_choice(
+        payload.get("availability") or (previous.get("reliability", {}).get("availability") if same_profile else None),
+        DELIVERY_CHOICES["availability"],
+        profile["availability"],
+    )
+    repository_strategy = _delivery_choice(
+        payload.get("repository_strategy") or previous.get("repository", {}).get("strategy"),
+        DELIVERY_CHOICES["repository_strategy"],
+        "new-repository",
+    )
+    pipeline_provider = _delivery_choice(
+        payload.get("pipeline_provider") or previous.get("pipeline", {}).get("provider"),
+        DELIVERY_CHOICES["pipeline_provider"],
+        "github-actions",
+    )
+    evidence_payload = payload.get("delivery_evidence")
+    evidence = copy.deepcopy(evidence_payload if isinstance(evidence_payload, dict) else previous.get("evidence") or {})
+    environment_names = list(profile["environment_names"])
+    environments = [
+        {
+            "name": name,
+            "purpose": {
+                "development": "Integration, automated tests, and client review before promotion.",
+                "staging": "Production-like verification, migration rehearsal, and release approval.",
+                "production": "Approved customer workload with monitoring, backup, and rollback evidence.",
+            }[name],
+            "isolated": True,
+            "required": True,
+            "evidence_verified": bool(evidence.get(f"{name}_environment_verified")),
+        }
+        for name in environment_names
+    ]
+    kubernetes_required = deployment_target in {"kubernetes", "hybrid"}
+    production_ready = bool(evidence.get("production_acceptance_verified"))
+    return {
+        "profile": profile_key,
+        "profile_label": profile["label"],
+        "description": profile["description"],
+        "deployment_target": deployment_target,
+        "repository": {
+            "provider": "github",
+            "strategy": repository_strategy,
+            "url": _text(payload.get("target_repository") or (prior or {}).get("target_repository"), 1_000),
+            "default_branch": "main",
+            "development_branch": "development",
+            "protected": bool(evidence.get("repository_protection_verified")),
+        },
+        "environments": environments,
+        "pipeline": {
+            "provider": pipeline_provider,
+            "artifact_strategy": "build-once-promote-same-artifact",
+            "release_strategy": profile["release_strategy"],
+            "required_checks": [
+                "unit-and-contract-tests",
+                "integration-and-security-tests",
+                "database-migration-check",
+                "container-health-check",
+                "human-production-approval",
+            ],
+        },
+        "container": {
+            "docker_required": True,
+            "kubernetes_required": kubernetes_required,
+            "orchestrator": "kubernetes" if kubernetes_required else "railway",
+            "immutable_image": True,
+        },
+        "reliability": {
+            "availability": availability,
+            "health_endpoint_required": True,
+            "observability": ["structured-logs", "metrics", "traces", "release-markers", "alert-routing"],
+            "data_protection": ["automated-backup", "point-in-time-recovery", "restore-drill"],
+            "failover_required": availability != "standard",
+            "rto_rpo_must_be_confirmed": availability != "standard",
+        },
+        "production_definition": [
+            "confirmed-business-processes",
+            "implementation-and-test-evidence",
+            "tenant-and-security-verification",
+            "same-artifact-promotion",
+            "rollback-and-restore-evidence",
+            "production-smoke-and-acceptance-tests",
+        ],
+        "evidence": evidence,
+        "production_ready": production_ready,
+    }
+
+
 def _application_blueprint(
     store: dict[str, Any],
     portfolio: dict[str, Any],
@@ -1783,6 +1924,7 @@ def _application_blueprint(
     application_id: str,
     prior: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    delivery = _application_delivery_plan(payload, prior)
     process_ids = set(portfolio.get("process_ids") or [])
     processes = sorted(
         [item for item in store.get("processes", []) if item.get("id") in process_ids],
@@ -1900,6 +2042,49 @@ def _application_blueprint(
             ),
             "detail": "RAG is required; CAG-only context does not pass this gate.",
         },
+        {
+            "key": "repository-governance",
+            "label": "Repository and branch governance verified",
+            "passed": bool(
+                delivery["repository"]["url"]
+                and delivery["repository"]["protected"]
+                and delivery["evidence"].get("repository_connected")
+            ),
+            "detail": f"{delivery['repository']['strategy']} on GitHub; protected production path and connection evidence required.",
+        },
+        {
+            "key": "environment-isolation",
+            "label": "Development and production isolation verified",
+            "passed": all(item["evidence_verified"] for item in delivery["environments"]),
+            "detail": f"{len(delivery['environments'])} isolated environments planned for {delivery['profile_label']}.",
+        },
+        {
+            "key": "container-pipeline",
+            "label": "Container and promotion pipeline verified",
+            "passed": all(
+                bool(delivery["evidence"].get(key))
+                for key in ("container_verified", "pipeline_verified", "same_artifact_promotion_verified")
+            ),
+            "detail": f"Docker through {delivery['pipeline']['provider']}; build once and promote the same immutable artifact.",
+        },
+        {
+            "key": "operational-readiness",
+            "label": "Operations, recovery, and failover verified",
+            "passed": all(
+                bool(delivery["evidence"].get(key))
+                for key in ("observability_verified", "backup_restore_verified", "rollback_verified")
+            ) and (
+                not delivery["reliability"]["failover_required"]
+                or bool(delivery["evidence"].get("failover_verified"))
+            ),
+            "detail": f"{delivery['reliability']['availability']} availability; monitoring, restore, rollback, and applicable failover proof required.",
+        },
+        {
+            "key": "production-acceptance",
+            "label": "Production smoke and customer acceptance verified",
+            "passed": delivery["production_ready"],
+            "detail": "A successful build is not delivery; the live production application must pass smoke and acceptance tests.",
+        },
     ]
     now = _utc_now()
     name = _text(payload.get("name"), 240) or f"{portfolio.get('client_name') or 'Client'} application"
@@ -1911,7 +2096,7 @@ def _application_blueprint(
         "portfolio_id": portfolio.get("id"),
         "portfolio_name": portfolio.get("name"),
         "status": "release-ready" if all(item["passed"] for item in release_gates) else "factory-planning",
-        "target_repository": _text(payload.get("target_repository") or (prior or {}).get("target_repository"), 1_000),
+        "target_repository": delivery["repository"]["url"],
         "target_environment": _text(payload.get("target_environment") or (prior or {}).get("target_environment"), 240),
         "target_service": _text(payload.get("target_service") or (prior or {}).get("target_service"), 240),
         "process_ids": [item.get("id") for item in processes],
@@ -1931,6 +2116,7 @@ def _application_blueprint(
             ],
         },
         "integrations": integrations,
+        "delivery": delivery,
         "release_gates": release_gates,
         "created_at": (prior or {}).get("created_at") or now,
         "updated_at": now,
@@ -1973,12 +2159,15 @@ def list_applications(client_name: str = Query(default="")) -> dict[str, Any]:
             key: copy.deepcopy(item.get(key))
             for key in (
                 "id", "key", "name", "client_name", "portfolio_id", "portfolio_name", "status",
-                "target_repository", "target_environment", "target_service", "summary", "release_gates",
+                "target_repository", "target_environment", "target_service", "delivery", "summary", "release_gates",
                 "created_at", "updated_at", "version",
             )
         }
         for item in applications
     ]
+    for summary in summaries:
+        if isinstance(summary.get("delivery"), dict):
+            summary["delivery"].pop("evidence", None)
     return {"ok": True, "applications": summaries, "count": len(summaries)}
 
 

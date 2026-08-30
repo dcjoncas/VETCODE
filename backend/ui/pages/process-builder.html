@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="process-builder-assets/diagram-js.css" />
     <link rel="stylesheet" href="process-builder-assets/bpmn-js.css" />
     <link rel="stylesheet" href="process-builder-assets/css/bpmn.css" />
-    <link rel="stylesheet" href="CSS/processBuilder.css?v=20260830-application-factory" />
+    <link rel="stylesheet" href="CSS/processBuilder.css?v=20260830-future-operations" />
     <script>
       (function () {
         const params = new URLSearchParams(window.location.search);
@@ -37,16 +37,19 @@
       <div id="siteSidebar"></div>
       <main class="main process-main">
         <header class="process-topbar">
-          <div>
-            <div class="eyebrow">DEVREADY · PROCESS-DRIVEN APPLICATION DELIVERY</div>
-            <h1>aiReady Application Factory</h1>
-            <p>Design the business first. Confirm the process, reuse proven Foundry components, build only the gaps, assemble the application, and release with evidence.</p>
+          <div class="process-hero-lockup">
+            <div class="brand-sigil" aria-hidden="true"><span></span><i></i></div>
+            <div>
+              <div class="eyebrow">DEVREADY · APPLICATION SYSTEM 01</div>
+              <h1>aiReady Application Factory</h1>
+              <p>Business truth becomes deployable software. Confirm the process, reuse proven Foundry components, build only the gaps, then release one tested artifact with operational evidence.</p>
+            </div>
           </div>
-          <div class="status-row" aria-label="Connection status">
+          <div class="status-cluster"><small>FACTORY SIGNALS</small><div class="status-row" aria-label="Connection status">
             <span id="saveState" class="status-chip neutral">Not saved</span>
             <span id="aiStatus" class="status-chip checking">AI checking</span>
             <a id="mcpStatus" class="status-chip ready" href="/api/process-builder/mcp/manifest" target="_blank" rel="noopener">MCP catalog</a>
-          </div>
+          </div></div>
         </header>
 
         <section class="discovery-strip factory-stages" aria-label="Application factory sequence">
@@ -137,10 +140,22 @@
               <form id="factoryForm" class="stack-form">
                 <label class="form-field">Process portfolio<select id="factoryPortfolio"><option value="">Choose a saved portfolio</option></select></label>
                 <label class="form-field">Application name<input id="factoryName" type="text" maxlength="240" placeholder="Example: Aularis Process Operations" /></label>
+                <fieldset class="delivery-profile-fieldset">
+                  <legend>Delivery profile</legend>
+                  <div class="delivery-profile-grid">
+                    <label><input type="radio" name="factoryDeliveryProfile" value="rapid" checked /><span><b>01</b><strong>Rapid Railway</strong><small>Dev + production. Fast governed delivery.</small></span></label>
+                    <label><input type="radio" name="factoryDeliveryProfile" value="business-critical" /><span><b>02</b><strong>Business Critical</strong><small>Staged release, HA, recovery evidence.</small></span></label>
+                    <label><input type="radio" name="factoryDeliveryProfile" value="enterprise" /><span><b>03</b><strong>Enterprise Fabric</strong><small>Kubernetes when scale or resilience justifies it.</small></span></label>
+                  </div>
+                </fieldset>
                 <label class="form-field">Target repository<input id="factoryRepository" type="text" maxlength="1000" placeholder="https://github.com/company/application" /></label>
                 <div class="two-column">
-                  <label class="form-field">Environment<input id="factoryEnvironment" type="text" maxlength="240" placeholder="production" /></label>
-                  <label class="form-field">Service<input id="factoryService" type="text" maxlength="240" placeholder="Railway service" /></label>
+                  <label class="form-field">Repository model<select id="factoryRepositoryStrategy"><option value="new-repository">New repository</option><option value="existing-repository">Existing repository</option><option value="monorepo">Governed monorepo</option></select></label>
+                  <label class="form-field">Delivery target<select id="factoryDeploymentTarget"><option value="railway">Railway</option><option value="kubernetes">Kubernetes</option><option value="hybrid">Hybrid</option></select></label>
+                  <label class="form-field">Availability<select id="factoryAvailability"><option value="standard">Standard</option><option value="high-availability">High availability</option><option value="multi-zone">Multi-zone</option></select></label>
+                  <label class="form-field">CI/CD control<select id="factoryPipelineProvider"><option value="github-actions">GitHub Actions</option><option value="azure-devops">Azure DevOps</option><option value="gitlab-ci">GitLab CI</option></select></label>
+                  <label class="form-field">Production environment<input id="factoryEnvironment" type="text" maxlength="240" placeholder="production" /></label>
+                  <label class="form-field">Deployment service<input id="factoryService" type="text" maxlength="240" placeholder="Railway service or cluster" /></label>
                 </div>
                 <button id="buildBlueprint" class="pb-button primary" type="submit">Create / refresh blueprint</button>
               </form>
@@ -152,6 +167,8 @@
                   <article><span>Build gaps</span><strong id="factoryGapCount">0</strong></article>
                   <article><span>Release gates</span><strong id="factoryGateCount">0/0</strong></article>
                 </div>
+                <div class="factory-section-heading"><div><span class="eyebrow">DELIVERY ARCHITECTURE</span><h4>From source to production</h4></div><span class="micro-label">BUILD ONCE · PROMOTE WITH PROOF</span></div>
+                <div id="factoryDeliveryArchitecture" class="delivery-architecture"></div>
                 <div class="factory-section-heading"><h4>Release gates</h4><button id="refreshBlueprint" class="text-button" type="button">Refresh evidence</button></div>
                 <div id="factoryGates" class="factory-gates"></div>
                 <div class="factory-section-heading"><h4>Component plan</h4><select id="factoryRequirementFilter" aria-label="Filter component plan"><option value="gaps">Build gaps</option><option value="reused">Reusable</option><option value="all">All requirements</option></select></div>
@@ -279,6 +296,6 @@
     </dialog>
 
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-    <script src="JS/processBuilder.js?v=20260830-application-factory"></script>
+    <script src="JS/processBuilder.js?v=20260830-future-operations"></script>
   </body>
 </html>

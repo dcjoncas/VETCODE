@@ -50,9 +50,10 @@
     "componentForm", "componentDialogTitle", "componentId", "componentName", "componentKind", "componentStatus", "componentDescription",
     "componentExternalKey", "componentImplementationStatus", "componentSupportedActivities", "componentTestRefs",
     "componentAliases", "componentCodeRefs", "componentApiEndpoints", "componentMcpTools", "componentLinks", "saveComponent", "deleteComponent", "toast",
-    "factoryStatus", "factoryForm", "factoryPortfolio", "factoryName", "factoryRepository", "factoryEnvironment", "factoryService",
+    "factoryStatus", "factoryForm", "factoryPortfolio", "factoryName", "factoryRepository", "factoryRepositoryStrategy",
+    "factoryDeploymentTarget", "factoryAvailability", "factoryPipelineProvider", "factoryEnvironment", "factoryService",
     "buildBlueprint", "factoryEmpty", "factoryResult", "factoryProcessCount", "factoryReuseCount", "factoryGapCount", "factoryGateCount",
-    "factoryGates", "refreshBlueprint", "factoryRequirementFilter", "factoryRequirements", "factoryIntegrations", "componentManifest", "importManifest",
+    "factoryDeliveryArchitecture", "factoryGates", "refreshBlueprint", "factoryRequirementFilter", "factoryRequirements", "factoryIntegrations", "componentManifest", "importManifest",
   ];
   const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 
@@ -69,6 +70,24 @@
     .filter((item, index, all) => item && all.findIndex((other) => other.toLowerCase() === item.toLowerCase()) === index);
 
   const lineText = (value) => Array.isArray(value) ? value.join("\n") : String(value || "");
+
+  const selectedDeliveryProfile = () => document.querySelector('input[name="factoryDeliveryProfile"]:checked')?.value || "rapid";
+
+  const selectDeliveryProfile = (profile) => {
+    const input = document.querySelector(`input[name="factoryDeliveryProfile"][value="${CSS.escape(profile || "rapid")}"]`)
+      || document.querySelector('input[name="factoryDeliveryProfile"][value="rapid"]');
+    if (input) input.checked = true;
+  };
+
+  const applyDeliveryProfileDefaults = (profile) => {
+    const defaults = {
+      rapid: { target: "railway", availability: "standard" },
+      "business-critical": { target: "railway", availability: "high-availability" },
+      enterprise: { target: "kubernetes", availability: "multi-zone" },
+    }[profile] || { target: "railway", availability: "standard" };
+    el.factoryDeploymentTarget.value = defaults.target;
+    el.factoryAvailability.value = defaults.availability;
+  };
 
   const safeFilename = (value, extension) => {
     const base = String(value || "devready-process")
@@ -802,6 +821,11 @@ ${edgeXml}
       el.factoryPortfolio.value = data.application.portfolio_id || "";
       el.factoryName.value = data.application.name || "";
       el.factoryRepository.value = data.application.target_repository || "";
+      selectDeliveryProfile(data.application.delivery?.profile || "rapid");
+      el.factoryRepositoryStrategy.value = data.application.delivery?.repository?.strategy || "new-repository";
+      el.factoryDeploymentTarget.value = data.application.delivery?.deployment_target || "railway";
+      el.factoryAvailability.value = data.application.delivery?.reliability?.availability || "standard";
+      el.factoryPipelineProvider.value = data.application.delivery?.pipeline?.provider || "github-actions";
       el.factoryEnvironment.value = data.application.target_environment || "";
       el.factoryService.value = data.application.target_service || "";
       renderFactoryApplication();
@@ -899,6 +923,51 @@ ${edgeXml}
     el.factoryReuseCount.textContent = summary.reused || 0;
     el.factoryGapCount.textContent = summary.build_required || 0;
     el.factoryGateCount.textContent = `${passed}/${gates.length}`;
+    const delivery = application.delivery || {};
+    el.factoryDeliveryArchitecture.replaceChildren();
+    const route = document.createElement("div");
+    route.className = "delivery-route";
+    const routeSteps = [
+      ["01", "Source", delivery.repository?.strategy || "repository"],
+      ["02", "Verify", delivery.pipeline?.provider || "CI/CD"],
+      ["03", "Package", delivery.container?.docker_required ? "Docker image" : "artifact"],
+      ["04", "Promote", `${delivery.environments?.length || 0} environments`],
+      ["05", "Operate", delivery.reliability?.availability || "standard"],
+    ];
+    for (const [number, label, detailText] of routeSteps) {
+      const step = document.createElement("article");
+      const marker = document.createElement("b");
+      marker.textContent = number;
+      const copy = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = label;
+      const detail = document.createElement("small");
+      detail.textContent = detailText;
+      copy.append(title, detail);
+      step.append(marker, copy);
+      route.appendChild(step);
+    }
+    el.factoryDeliveryArchitecture.appendChild(route);
+    const deliveryFacts = [
+      ["PROFILE", delivery.profile_label || "Rapid Railway", delivery.description || "Governed application delivery."],
+      ["RUNTIME", String(delivery.deployment_target || "railway").toUpperCase(), delivery.container?.kubernetes_required ? "Kubernetes justified by selected enterprise requirements." : "Railway-first; Kubernetes is not added without need."],
+      ["ENVIRONMENTS", (delivery.environments || []).map((item) => item.name).join(" → ") || "development → production", "Each environment is isolated; the same immutable artifact is promoted."],
+      ["RESILIENCE", String(delivery.reliability?.availability || "standard").replaceAll("-", " ").toUpperCase(), delivery.reliability?.failover_required ? "Failover, recovery objectives, and restore drill require evidence." : "Health, monitoring, backup, restore, and rollback still require evidence."],
+    ];
+    const facts = document.createElement("div");
+    facts.className = "delivery-facts";
+    for (const [caption, value, detailText] of deliveryFacts) {
+      const card = document.createElement("article");
+      const captionElement = document.createElement("small");
+      captionElement.textContent = caption;
+      const valueElement = document.createElement("strong");
+      valueElement.textContent = value;
+      const detail = document.createElement("span");
+      detail.textContent = detailText;
+      card.append(captionElement, valueElement, detail);
+      facts.appendChild(card);
+    }
+    el.factoryDeliveryArchitecture.appendChild(facts);
     el.factoryGates.replaceChildren();
     for (const gate of gates) {
       const row = document.createElement("article");
@@ -987,6 +1056,11 @@ ${edgeXml}
           id: state.activeApplication?.id || "",
           portfolio_id: portfolioId,
           name: el.factoryName.value.trim(),
+          delivery_profile: selectedDeliveryProfile(),
+          repository_strategy: el.factoryRepositoryStrategy.value,
+          deployment_target: el.factoryDeploymentTarget.value,
+          availability: el.factoryAvailability.value,
+          pipeline_provider: el.factoryPipelineProvider.value,
           target_repository: el.factoryRepository.value.trim(),
           target_environment: el.factoryEnvironment.value.trim(),
           target_service: el.factoryService.value.trim(),
@@ -1468,6 +1542,9 @@ ${edgeXml}
   el.elementForm.addEventListener("submit", (event) => { event.preventDefault(); applyElementForm(); toast("Activity references applied. Save to reconcile the Foundry component."); });
   el.chatForm.addEventListener("submit", (event) => { event.preventDefault(); sendChat(); });
   el.factoryForm.addEventListener("submit", (event) => { event.preventDefault(); saveFactoryBlueprint(); });
+  document.querySelectorAll('input[name="factoryDeliveryProfile"]').forEach((input) => input.addEventListener("change", () => {
+    applyDeliveryProfileDefaults(input.value);
+  }));
   el.refreshBlueprint.addEventListener("click", saveFactoryBlueprint);
   el.factoryRequirementFilter.addEventListener("change", renderFactoryApplication);
   el.factoryPortfolio.addEventListener("change", () => {
