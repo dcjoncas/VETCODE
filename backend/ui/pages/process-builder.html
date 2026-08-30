@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevReady - Process Builder</title>
+    <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
+    <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <link rel="stylesheet" href="process-builder-assets/diagram-js.css" />
+    <link rel="stylesheet" href="process-builder-assets/bpmn-js.css" />
+    <link rel="stylesheet" href="process-builder-assets/css/bpmn.css" />
+    <link rel="stylesheet" href="CSS/processBuilder.css?v=20260829-devready-foundry" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law", "dental"].includes(requested) ? requested : "dev");
+        sessionStorage.setItem("domain", domain);
+        document.documentElement.dataset.domain = domain;
+        document.documentElement.dataset.embed = params.get("embed") === "1" ? "true" : "false";
+        const css = document.getElementById("domainCss");
+        if (css) css.href = `../assets/${domain}Styles.css`;
+      })();
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="process-builder-assets/bpmn-modeler.min.js"></script>
+    <script>
+      $(function () {
+        if (document.documentElement.dataset.embed !== "true") {
+          $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow");
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <div class="container process-container">
+      <div id="siteSidebar"></div>
+      <main class="main process-main">
+        <header class="process-topbar">
+          <div>
+            <div class="eyebrow">DEVREADY · CLIENT PROCESS DISCOVERY</div>
+            <h1>Process Builder</h1>
+            <p>Turn a client's business description into validated process flows, then reuse or register every activity in AIReady Foundry.</p>
+          </div>
+          <div class="status-row" aria-label="Connection status">
+            <span id="saveState" class="status-chip neutral">Not saved</span>
+            <span id="aiStatus" class="status-chip checking">AI checking</span>
+            <a id="mcpStatus" class="status-chip ready" href="/api/process-builder/mcp/manifest" target="_blank" rel="noopener">MCP catalog</a>
+          </div>
+        </header>
+
+        <section class="discovery-strip" aria-label="Recommended discovery sequence">
+          <div><strong>1</strong><span>Describe the client's major flows</span></div>
+          <div><strong>2</strong><span>Review the AI draft</span></div>
+          <div><strong>3</strong><span>Edit manually on the canvas</span></div>
+          <div><strong>4</strong><span>Reuse or build Foundry components</span></div>
+          <div><strong>5</strong><span>Validate with the client</span></div>
+        </section>
+
+        <section class="process-toolbar" aria-label="Process actions">
+          <button id="newProcess" class="pb-button secondary" type="button">New process</button>
+          <button id="importProcess" class="pb-button secondary" type="button">Import BPMN</button>
+          <input id="fileInput" type="file" accept=".bpmn,.xml" hidden />
+          <button id="saveProcess" class="pb-button primary" type="button">Save + reconcile Foundry</button>
+          <button id="validateProcess" class="pb-button secondary" type="button">Validate</button>
+          <span class="toolbar-spacer"></span>
+          <button id="undo" class="icon-button" type="button" title="Undo" aria-label="Undo">↶</button>
+          <button id="redo" class="icon-button" type="button" title="Redo" aria-label="Redo">↷</button>
+          <button id="zoomOut" class="icon-button" type="button" title="Zoom out" aria-label="Zoom out">−</button>
+          <button id="zoomIn" class="icon-button" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+          <button id="fitDiagram" class="icon-button" type="button" title="Fit diagram" aria-label="Fit diagram">□</button>
+          <button id="exportBpmn" class="pb-button secondary" type="button">BPMN</button>
+          <button id="exportSvg" class="pb-button secondary" type="button">SVG</button>
+        </section>
+
+        <section class="builder-shell">
+          <aside class="library-panel panel-surface" aria-label="Process and Foundry libraries">
+            <div class="panel-tabs" role="tablist" aria-label="Library">
+              <button class="panel-tab active" data-library-tab="processes" type="button" role="tab" aria-selected="true">Processes <span id="processCount">0</span></button>
+              <button class="panel-tab" data-library-tab="foundry" type="button" role="tab" aria-selected="false">AIReady Foundry <span id="componentCount">0</span></button>
+            </div>
+            <label class="library-search">
+              <span class="sr-only">Search library</span>
+              <input id="librarySearch" type="search" placeholder="Search processes" />
+            </label>
+            <div id="processLibrary" class="library-list" role="listbox" aria-label="Saved client processes"></div>
+            <div id="foundryLibrary" class="library-list" role="listbox" aria-label="AIReady Foundry components" hidden></div>
+            <div class="library-footer">
+              <strong>Reuse before build</strong>
+              <span>Saving checks every activity. Exact catalog matches are linked; missing activities become draft Foundry components.</span>
+              <button id="createComponent" class="text-button" type="button">Create component manually</button>
+            </div>
+          </aside>
+
+          <section class="canvas-panel panel-surface" aria-label="BPMN process canvas">
+            <header class="canvas-heading">
+              <div>
+                <div class="canvas-title-row">
+                  <h2 id="diagramTitle">Untitled client process</h2>
+                  <span id="processStatus" class="process-badge">Draft</span>
+                </div>
+                <p id="diagramSubtitle">Use the BPMN palette for manual editing or open AI Intake to describe the flow.</p>
+              </div>
+              <div class="legend" aria-label="Diagram reference badges">
+                <span><i class="legend-foundry">F</i> Foundry</span>
+                <span><i class="legend-code">&lt;/&gt;</i> Code</span>
+                <span><i class="legend-api">API</i> API</span>
+                <span><i class="legend-mcp">MCP</i> MCP</span>
+              </div>
+            </header>
+            <div class="canvas-wrap">
+              <div id="canvas" class="bpmn-canvas" aria-label="Editable BPMN diagram"></div>
+              <div id="canvasLoading" class="canvas-message">Loading DevReady Process Builder…</div>
+              <div id="canvasError" class="canvas-message error" hidden></div>
+            </div>
+          </section>
+
+          <aside class="tools-panel panel-surface" aria-label="Process design tools">
+            <div class="panel-tabs tool-tabs" role="tablist" aria-label="Design tools">
+              <button class="panel-tab active" data-tool-tab="intake" type="button" role="tab" aria-selected="true">AI Intake</button>
+              <button class="panel-tab" data-tool-tab="details" type="button" role="tab" aria-selected="false">Details</button>
+              <button class="panel-tab" data-tool-tab="trace" type="button" role="tab" aria-selected="false">Trace</button>
+              <button class="panel-tab" data-tool-tab="validation" type="button" role="tab" aria-selected="false">Validate</button>
+            </div>
+
+            <section id="intakePane" class="tool-pane active" data-tool-pane="intake">
+              <div class="pane-heading">
+                <div>
+                  <span class="eyebrow">CHAT-ENABLED DISCOVERY</span>
+                  <h3>Describe the business</h3>
+                </div>
+                <span class="human-gate">Review required</span>
+              </div>
+              <p class="pane-caption">Use everyday language. The agent can map up to five major flows, ask one clarification at a time, and stage drafts without saving them.</p>
+              <label class="form-field">Client or business name<input id="clientName" type="text" maxlength="240" placeholder="Example: Northwind Manufacturing" /></label>
+              <div id="chatConversation" class="chat-conversation" aria-live="polite">
+                <article class="chat-message assistant">
+                  <strong>DevReady Process Agent</strong>
+                  <p>Tell me what the client does and describe their major business flows from trigger to outcome. Include people, systems, decisions, exceptions, controls, and any known code, API, MCP, or URL references.</p>
+                </article>
+              </div>
+              <div id="draftProcesses" class="draft-processes" hidden></div>
+              <form id="chatForm" class="chat-form">
+                <label for="chatPrompt" class="sr-only">Business flow description</label>
+                <textarea id="chatPrompt" rows="5" maxlength="8000" placeholder="Example: We have five flows: lead intake, client approval, project kickoff, delivery review, and invoicing. A sales manager receives…"></textarea>
+                <div class="chat-actions">
+                  <button id="sendChat" class="pb-button primary" type="submit">Build process draft</button>
+                  <button id="clearChat" class="pb-button secondary" type="button">Clear chat</button>
+                </div>
+              </form>
+            </section>
+
+            <section id="detailsPane" class="tool-pane" data-tool-pane="details" hidden>
+              <div class="pane-heading"><div><span class="eyebrow">PROCESS GOVERNANCE</span><h3>Process details</h3></div></div>
+              <form id="processForm" class="stack-form">
+                <label class="form-field">Process name<input id="processName" type="text" maxlength="240" required /></label>
+                <label class="form-field">Accountable owner<input id="processOwner" type="text" maxlength="240" /></label>
+                <label class="form-field">Purpose<textarea id="processPurpose" rows="3"></textarea></label>
+                <label class="form-field">Scope and exclusions<textarea id="processScope" rows="3"></textarea></label>
+                <label class="form-field">Trigger<input id="processTrigger" type="text" maxlength="1000" /></label>
+                <label class="form-field">End outcome<input id="processOutcome" type="text" maxlength="1000" /></label>
+                <label class="form-field">Inputs <span>one per line</span><textarea id="processInputs" rows="2"></textarea></label>
+                <label class="form-field">Outputs <span>one per line</span><textarea id="processOutputs" rows="2"></textarea></label>
+                <label class="form-field">Systems <span>one per line</span><textarea id="processSystems" rows="2"></textarea></label>
+                <label class="form-field">Controls <span>one per line</span><textarea id="processControls" rows="2"></textarea></label>
+                <label class="form-field">KPIs / SLAs <span>one per line</span><textarea id="processKpis" rows="2"></textarea></label>
+                <button class="pb-button primary" type="submit">Apply process details</button>
+              </form>
+              <hr />
+              <div class="pane-heading"><div><span class="eyebrow">SELECTED ACTIVITY</span><h3 id="selectedElementTitle">No activity selected</h3></div></div>
+              <div id="elementEmpty" class="empty-state">Select a BPMN activity on the canvas to connect its owner, system, Foundry component, code, API, MCP tools, and links.</div>
+              <form id="elementForm" class="stack-form" hidden>
+                <label class="form-field">Activity name<input id="elementName" type="text" maxlength="240" /></label>
+                <div class="two-column">
+                  <label class="form-field">Owner<input id="elementOwner" type="text" maxlength="240" /></label>
+                  <label class="form-field">System<input id="elementSystem" type="text" maxlength="240" /></label>
+                </div>
+                <label class="form-field">Description<textarea id="elementDescription" rows="3"></textarea></label>
+                <label class="form-field">Control / evidence<input id="elementControl" type="text" maxlength="1000" /></label>
+                <label class="form-field">SLA / timing<input id="elementSla" type="text" maxlength="240" /></label>
+                <label class="form-field">Foundry component<select id="elementComponent"><option value="">Check by activity name when saved</option></select></label>
+                <label class="form-field">Code references <span>one per line</span><textarea id="elementCodeRefs" rows="2" placeholder="backend/module.py · frontend/component.tsx"></textarea></label>
+                <label class="form-field">API endpoints <span>one per line</span><textarea id="elementApiEndpoints" rows="2" placeholder="POST /api/orders"></textarea></label>
+                <label class="form-field">MCP server / tools <span>one per line</span><textarea id="elementMcpTools" rows="2" placeholder="crm.search_accounts"></textarea></label>
+                <label class="form-field">External links <span>one per line</span><textarea id="elementLinks" rows="2" placeholder="https://…"></textarea></label>
+                <button class="pb-button primary" type="submit">Apply activity references</button>
+              </form>
+            </section>
+
+            <section id="tracePane" class="tool-pane" data-tool-pane="trace" hidden>
+              <div class="pane-heading"><div><span class="eyebrow">IMPLEMENTATION MAP</span><h3>Connected code and tools</h3></div><button id="refreshTrace" class="text-button" type="button">Refresh</button></div>
+              <p class="pane-caption">Every BPMN activity stays connected to its reusable Foundry component and implementation evidence.</p>
+              <div class="trace-endpoints">
+                <a href="/api/process-builder/reference" target="_blank" rel="noopener"><strong>REST reference</strong><span>/api/process-builder/reference</span></a>
+                <a href="/api/process-builder/mcp/manifest" target="_blank" rel="noopener"><strong>MCP manifest</strong><span>/api/process-builder/mcp/manifest</span></a>
+              </div>
+              <div id="traceList" class="trace-list"></div>
+            </section>
+
+            <section id="validationPane" class="tool-pane" data-tool-pane="validation" hidden>
+              <div class="pane-heading"><div><span class="eyebrow">MODEL + CLIENT VALIDATION</span><h3>Review before approval</h3></div><strong id="qualityScore" class="quality-score">--</strong></div>
+              <p class="pane-caption">Automated checks catch structural and traceability gaps. The client checklist remains a human approval gate.</p>
+              <button id="runValidation" class="pb-button primary wide" type="button">Run validation</button>
+              <div id="validationSummary" class="validation-summary neutral"><strong>Not checked</strong><span>Run validation after the draft is reviewed.</span></div>
+              <div id="validationIssues" class="validation-issues"></div>
+              <h4>Client validation checklist</h4>
+              <div id="clientChecklist" class="client-checklist"></div>
+              <button id="markValidated" class="pb-button secondary wide" type="button" disabled>Mark process validated</button>
+            </section>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="componentDialog" class="pb-dialog">
+      <form id="componentForm" method="dialog" class="dialog-card">
+        <header><div><span class="eyebrow">AIREADY FOUNDRY</span><h2 id="componentDialogTitle">Create reusable component</h2></div><button class="dialog-close" type="button" value="cancel" aria-label="Close" onclick="this.closest('dialog').close()">×</button></header>
+        <input id="componentId" type="hidden" />
+        <label class="form-field">Component name<input id="componentName" type="text" maxlength="240" required /></label>
+        <div class="two-column">
+          <label class="form-field">Kind<select id="componentKind"><option>activity</option><option>human-task</option><option>service</option><option>business-rule</option><option>subprocess</option><option>agent</option><option>mcp-server</option></select></label>
+          <label class="form-field">Status<select id="componentStatus"><option>draft</option><option>review</option><option>ready</option><option>deprecated</option></select></label>
+        </div>
+        <label class="form-field">Description<textarea id="componentDescription" rows="3"></textarea></label>
+        <label class="form-field">Aliases <span>one per line</span><textarea id="componentAliases" rows="2"></textarea></label>
+        <label class="form-field">Code references <span>one per line</span><textarea id="componentCodeRefs" rows="2"></textarea></label>
+        <label class="form-field">API endpoints <span>one per line</span><textarea id="componentApiEndpoints" rows="2"></textarea></label>
+        <label class="form-field">MCP tools <span>one per line</span><textarea id="componentMcpTools" rows="2"></textarea></label>
+        <label class="form-field">Links <span>one per line</span><textarea id="componentLinks" rows="2"></textarea></label>
+        <footer><button id="deleteComponent" class="pb-button danger" type="button" hidden>Delete component</button><span class="toolbar-spacer"></span><button class="pb-button secondary" type="button" value="cancel" onclick="this.closest('dialog').close()">Cancel</button><button id="saveComponent" class="pb-button primary" type="submit" value="default">Save component</button></footer>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <script src="JS/processBuilder.js?v=20260829-devready-foundry"></script>
+  </body>
+</html>

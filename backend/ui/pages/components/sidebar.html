@@ -684,6 +684,10 @@
       allowed.add("admin");
       allowed.add("agents");
     }
+    if (allowed.has("agents")) {
+      allowed.add("process_builder");
+      allowed.add("foundry");
+    }
     if (allowed.has("interviews")) {
       allowed.add("status");
     }

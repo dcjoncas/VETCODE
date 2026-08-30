@@ -279,6 +279,8 @@ MENU_ITEMS = [
     {"key": "test_challenge", "label": "Test Challenge", "href": "test-challenge.html"},
     {"key": "ai_cert", "label": "Certification", "href": "ai-cert.html"},
     {"key": "badges", "label": "View Badges", "href": "badge-catalog.html"},
+    {"key": "process_builder", "label": "Process Builder", "href": "process-builder.html"},
+    {"key": "foundry", "label": "AIReady Foundry", "href": "process-builder.html#foundry"},
     {"key": "meridian", "label": "Meridian", "href": "https://meridian-mvp-production.up.railway.app/"},
     {"key": "admin", "label": "Admin", "href": "admin.html"},
     {"key": "agents", "label": "Agents", "href": "agents.html"},
@@ -307,6 +309,8 @@ DEFAULT_INTERNAL_MENU = [
     "test_challenge",
     "ai_cert",
     "badges",
+    "process_builder",
+    "foundry",
     "meridian",
     "admin",
     "agents",
@@ -10819,12 +10823,14 @@ def get_time_entries(token: str):
 from azureUtils.routes import azureEndpoints, aiChatEndpoints, azureJobEndpoints
 from openAI.routes import aiEndpoints
 from calendar_router import router as calendar_router
+from process_builder import router as process_builder_router
 
 app.include_router(azureEndpoints.router)
 app.include_router(aiChatEndpoints.router)
 app.include_router(azureJobEndpoints.router)
 app.include_router(aiEndpoints.router)
 app.include_router(calendar_router)
+app.include_router(process_builder_router)
 
 @app.get("/", response_class=HTMLResponse)
 def root():
