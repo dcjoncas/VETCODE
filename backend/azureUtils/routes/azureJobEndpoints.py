@@ -3812,6 +3812,11 @@ def _pending_external_match(notice: str = "Profile is enriched and ready for an 
 
 def _external_profile_metadata(candidate: dict, source: str, enrichment: dict) -> dict:
     score_details = candidate.get("score_details") if isinstance(candidate.get("score_details"), dict) else {}
+    interest_workflow = (
+        candidate.get("interest_workflow")
+        if isinstance(candidate.get("interest_workflow"), dict)
+        else {}
+    )
     is_court_lead = source == "courtlistener" and candidate.get("result_type") == "court_attorney_lead"
     profile_validation = (
         candidate.get("profile_validation")
@@ -3858,6 +3863,15 @@ def _external_profile_metadata(candidate: dict, source: str, enrichment: dict) -
         "yearsExperience": candidate.get("years_experience") or 0,
         "lastVerified": _external_text(candidate.get("job_last_verified"), 80),
     }
+    if interest_workflow.get("status"):
+        metadata["interestWorkflow"] = {
+            "status": _external_text(interest_workflow.get("status"), 40),
+            "jobId": _external_text(interest_workflow.get("jobId"), 80),
+            "startedAt": _external_text(interest_workflow.get("startedAt"), 80),
+            "confirmedAt": _external_text(interest_workflow.get("confirmedAt"), 80),
+            "updatedAt": _external_text(interest_workflow.get("updatedAt"), 80),
+            "source": "Recruiter-confirmed candidate response",
+        }
     if is_court_lead:
         metadata["verification"] = {
             "identityStatus": _external_text(verification.get("identity_status") or "not_verified", 80),
@@ -4632,6 +4646,23 @@ def external_candidate_linkedin_results_export(domain: str = "dev"):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.post("/external/temp/{person_id}/interest")
+def external_candidate_update_temp_interest(person_id: str, payload: dict = Body(default={})):
+    domain = _domain_key(payload.get("domain") or "dev")
+    status = _external_text(payload.get("status"), 40).lower()
+    if status not in {"contacting", "interested", "not_interested"}:
+        raise HTTPException(status_code=400, detail="Candidate interest status is invalid.")
+    workflow = {
+        "status": status,
+        "jobId": _external_text(payload.get("job_id"), 80),
+        "startedAt": _external_text(payload.get("started_at"), 80),
+        "confirmedAt": _external_text(payload.get("confirmed_at"), 80),
+        "updatedAt": datetime.now(timezone.utc).isoformat(),
+        "source": "Recruiter-confirmed candidate response",
+    }
+    return candidates.updateTemporaryExternalProfileInterest(person_id, domain, workflow)
 
 
 @router.post("/external/temp/{person_id}/calculate-match")

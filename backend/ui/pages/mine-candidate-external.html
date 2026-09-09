@@ -831,6 +831,40 @@
         flex-wrap: wrap;
       }
 
+      .interest-lane {
+        display: grid;
+        gap: 8px;
+        margin-top: 9px;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface, #f7f8fa);
+      }
+
+      .interest-lane-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .interest-lane-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .interest-state-interested {
+        border-color: #73a952;
+        background: #eef7e8;
+      }
+
+      .interest-state-not-interested {
+        border-color: #c6cbd3;
+        background: #f2f3f5;
+      }
+
       .match-dialog {
         width: min(760px, calc(100vw - 32px));
         max-height: calc(100vh - 48px);
@@ -1103,7 +1137,7 @@
             <label>Pick place to mine</label>
             <div class="source-guide" id="sourceGuide">
               Select a configured professional source, then search outside sources. After results return,
-              enrich all linked profiles without creating TEMP records, then keep only the candidates you choose. Calculate a JD match separately when the saved professional evidence is ready.
+              contact the candidates you choose to determine interest. Only confirmed interested candidates enter the active process. Enrichment and TEMP profile creation remain available when needed.
             </div>
             <div class="source-toggle">
               <button class="btn active" type="button" data-source="pdl" aria-pressed="true">
@@ -1147,7 +1181,7 @@
               Find Candidates (Out)
             </button>
             <button class="btn" type="button" id="btnImportSelected">
-              Create selected TEMP profiles
+              Create selected TEMP profiles (not active)
             </button>
             <a class="btn secondary" href="temp-profiles.html" id="btnViewTempProfiles">
               Open TEMP Profiles
@@ -2101,6 +2135,213 @@
         </div>`;
       }
 
+      function candidateHasContactMethod(candidate) {
+        const email = candidatePrimaryEmail(candidate);
+        const phoneDigits = candidatePrimaryPhone(candidate).replace(/\D/g, "");
+        return (email && email.includes("@")) || phoneDigits.length >= 7 || Boolean(candidateLinkedInUrl(candidate));
+      }
+
+      function candidateInterestStorageKey() {
+        return `externalCandidateInterest:${currentDomain()}`;
+      }
+
+      function readCandidateInterestStates() {
+        try {
+          const stored = JSON.parse(sessionStorage.getItem(candidateInterestStorageKey()) || "{}");
+          return stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
+        } catch {
+          return {};
+        }
+      }
+
+      function candidateInterestState(candidate) {
+        const embedded = candidate?.interest_workflow;
+        if (embedded && typeof embedded === "object" && embedded.status) return embedded;
+        return readCandidateInterestStates()[candidateResultKey(candidate)] || { status: "not_started" };
+      }
+
+      function saveCandidateInterestState(candidate, status, extra = {}) {
+        const key = candidateResultKey(candidate);
+        if (!key) return { status };
+        const states = readCandidateInterestStates();
+        const prior = states[key] && typeof states[key] === "object" ? states[key] : {};
+        const next = {
+          ...prior,
+          ...extra,
+          status,
+          candidateName: candidate?.name || prior.candidateName || "Candidate",
+          jobId: selectedWorkflowJobId(),
+          updatedAt: new Date().toISOString(),
+        };
+        states[key] = next;
+        sessionStorage.setItem(candidateInterestStorageKey(), JSON.stringify(states));
+        if (candidate) candidate.interest_workflow = next;
+        return next;
+      }
+
+      function candidateInterestLabel(status) {
+        return {
+          contacting: "Determining interest · awaiting reply",
+          interested: "Interested · entered into process",
+          not_interested: "Not interested · kept out of process",
+        }[status] || "Interest not started";
+      }
+
+      function candidateInterestControls(candidate, index) {
+        if (!candidateHasContactMethod(candidate)) return "";
+        const state = candidateInterestState(candidate);
+        const status = String(state.status || "not_started");
+        if (status === "not_started") {
+          return `<div class="interest-lane">
+            <div class="interest-lane-head">
+              <div><strong>Recruiter interest check</strong><div class="muted">Contact this candidate first. They stay outside the active process until they confirm.</div></div>
+              <button class="btn primary" type="button" onclick="beginCandidateInterest(${index})">Determine interest</button>
+            </div>
+          </div>`;
+        }
+        const stateClass = status === "interested"
+          ? "interest-state-interested"
+          : status === "not_interested"
+            ? "interest-state-not-interested"
+            : "";
+        return `<div class="interest-lane ${stateClass}">
+          <div class="interest-lane-head">
+            <div><strong>${escapeHtml(candidateInterestLabel(status))}</strong><div class="muted">${status === "contacting" ? "Use the contact buttons above, then record the candidate's answer." : status === "interested" ? "This candidate is now in the active recruiting queue." : "This result remains available in search history but was not added to the active queue."}</div></div>
+            <div class="interest-lane-actions">
+              ${status !== "interested" ? `<button class="btn primary" type="button" onclick="recordExternalCandidateInterest(${index}, 'interested')">Interested — enter process</button>` : ""}
+              ${status !== "not_interested" ? `<button class="btn secondary" type="button" onclick="recordExternalCandidateInterest(${index}, 'not_interested')">Not interested</button>` : ""}
+              ${status !== "contacting" ? `<button class="btn secondary" type="button" onclick="beginCandidateInterest(${index})">Reopen interest check</button>` : ""}
+            </div>
+          </div>
+        </div>`;
+      }
+
+      function beginCandidateInterest(index) {
+        const candidate = latestExternalResults[index];
+        if (!candidate || !candidateHasContactMethod(candidate)) {
+          return alert("This result does not have an email, phone number, or LinkedIn profile for an interest check.");
+        }
+        saveCandidateInterestState(candidate, "contacting", {
+          startedAt: candidateInterestState(candidate).startedAt || new Date().toISOString(),
+        });
+        const preservedCandidateKeys = selectedCandidateKeys();
+        renderResults(latestExternalResults, { preservedCandidateKeys });
+        document.getElementById(`candidate-card-${index}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        document.getElementById("mineStatus").textContent =
+          `${candidate.name || "Candidate"} is marked Awaiting reply. Use Email, Call, or LinkedIn above; VETCODE will not send anything automatically.`;
+      }
+
+      function addInterestedCandidateToProcess(candidate, profileId, profileName) {
+        const id = String(profileId || candidate?.devready_profile_id || "");
+        if (!id) return null;
+        const recordedAt = candidateInterestState(candidate).confirmedAt || new Date().toISOString();
+        const name = profileName || candidate?.name || "Candidate";
+        const temporaryStatus = candidate?.source === "courtlistener" && candidate?.profile_validation?.status !== "confirmed_profile_match"
+          ? "Temporary Research Profile - Identity Unverified"
+          : "Temporary Profile";
+        sessionStorage.setItem(`candidateInterest:${currentDomain()}:${id}`, "interested");
+        sessionStorage.setItem("candidateId", id);
+        sessionStorage.setItem("candidateName", name);
+        sessionStorage.setItem("candidateStatus", "Interested - Profile Build next");
+        sessionStorage.setItem("candidateProfileType", "Temporary Profile");
+        sessionStorage.setItem("candidateTopMatches", (candidate?.top_matches || []).join(", "));
+        sessionStorage.setItem("externalCandidateSource", candidate?.source_label || candidate?.source || "External");
+        return window.DevReadyShortlist.add(
+          {
+            id,
+            name,
+            title: candidate?.title || "",
+            email: candidatePrimaryEmail(candidate),
+            status: temporaryStatus,
+            profileType: "Temporary Profile",
+            source: candidate?.source_label || candidate?.source || "External",
+            score: candidate?.score,
+            skills: candidate?.top_matches || candidate?.skills || [],
+            top_matches: candidate?.top_matches || [],
+            candidateInterest: "interested",
+            candidateInterestRecordedAt: recordedAt,
+            workflowStatus: "Interested - Profile Build next",
+          },
+          {
+            stage: "3* - Interest confirmed",
+            source: candidate?.source_label || candidate?.source || "External",
+            candidateInterest: "interested",
+            candidateInterestRecordedAt: recordedAt,
+            workflowStatus: "Interested - Profile Build next",
+          },
+        );
+      }
+
+      async function persistCandidateInterestToProfile(candidate, profileId, status) {
+        const state = candidateInterestState(candidate);
+        return api(`/api/azureJobs/external/temp/${encodeURIComponent(profileId)}/interest`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            domain: currentDomain(),
+            status,
+            job_id: selectedWorkflowJobId(),
+            started_at: state.startedAt || "",
+            confirmed_at: state.confirmedAt || "",
+          }),
+        });
+      }
+
+      async function recordExternalCandidateInterest(index, decision) {
+        let candidate = latestExternalResults[index];
+        if (!candidate) return;
+        if (decision === "not_interested") {
+          saveCandidateInterestState(candidate, "not_interested", { decidedAt: new Date().toISOString() });
+          let persistenceWarning = "";
+          if (candidate.devready_profile_id) {
+            try {
+              await persistCandidateInterestToProfile(candidate, candidate.devready_profile_id, "not_interested");
+            } catch (error) {
+              persistenceWarning = ` The browser tag is set, but the TEMP profile could not be updated: ${error.message || error}.`;
+            }
+            window.DevReadyShortlist.remove(String(candidate.devready_profile_id));
+            sessionStorage.setItem(`candidateInterest:${currentDomain()}:${candidate.devready_profile_id}`, "not-interested");
+          }
+          const preservedCandidateKeys = selectedCandidateKeys();
+          renderResults(latestExternalResults, { preservedCandidateKeys });
+          document.getElementById("mineStatus").textContent =
+            `${candidate.name || "Candidate"} is tagged Not interested and was not added to the active process.${persistenceWarning}`;
+          return;
+        }
+        if (decision !== "interested") return;
+
+        const priorState = candidateInterestState(candidate);
+        const originalCandidateKey = candidateResultKey(candidate);
+        const confirmedAt = new Date().toISOString();
+        saveCandidateInterestState(candidate, "interested", { confirmedAt });
+        if (!candidate.devready_profile_complete || !candidate.devready_profile_id) {
+          const response = await importExternalCandidate(index, { addToProcess: true });
+          if (!response) {
+            saveCandidateInterestState(candidate, priorState.status || "contacting", priorState);
+            renderResults(latestExternalResults);
+            return;
+          }
+          candidate = latestExternalResults.find(
+            (item) => String(item.devready_profile_id || "") === String(response.personid || "")
+              || candidateResultKey(item) === originalCandidateKey,
+          ) || candidate;
+        } else {
+          addInterestedCandidateToProcess(candidate, candidate.devready_profile_id, candidate.name);
+        }
+        saveCandidateInterestState(candidate, "interested", { confirmedAt });
+        let persistenceWarning = "";
+        try {
+          await persistCandidateInterestToProfile(candidate, candidate.devready_profile_id, "interested");
+        } catch (error) {
+          persistenceWarning = ` The active queue is updated, but the TEMP profile tag could not be saved: ${error.message || error}.`;
+        }
+        const preservedCandidateKeys = selectedCandidateKeys();
+        renderResults(latestExternalResults, { preservedCandidateKeys });
+        document.getElementById("mineStatus").textContent =
+          `${candidate.name || "Candidate"} is confirmed Interested and is now in the active process. Profile Build / Role & Match is next.${persistenceWarning}`;
+        updateWorkflowGuidance();
+      }
+
       function candidateLegalCredentials(candidate) {
         if (!isLawDomain()) return [];
         const certifications = Array.isArray(candidate?.profile_data?.certifications)
@@ -2319,8 +2560,12 @@
         const directSearch = document.getElementById("externalSearchInput")?.value.trim() || "";
         const selected = selectedCandidateIndexes();
         const completedCount = latestExternalResults.filter((candidate) => candidate.devready_profile_complete).length;
+        const contactReadyCount = latestExternalResults.filter(candidateHasContactMethod).length;
+        const awaitingInterestCount = latestExternalResults.filter(
+          (candidate) => candidateInterestState(candidate).status === "contacting",
+        ).length;
         const eligibleLinkedProfiles = linkedProfileEnrichmentIndexes();
-        const hasCandidate = completedCount > 0 || workflowShortlistCount() > 0;
+        const hasCandidate = workflowShortlistCount() > 0;
         const provider = externalProviderStatus[selectedSource];
         const providerBlocked = provider?.ready === false;
         const canFind = Boolean(jobId || directSearch)
@@ -2400,6 +2645,14 @@
           actionLabel = "Adjust the search";
           actionTarget = directSearch ? "externalSearchInput" : "job-picker";
           currentTarget = findButton;
+        } else if (!hasCandidate && contactReadyCount) {
+          title = awaitingInterestCount ? "Waiting for candidate interest" : "Determine candidate interest";
+          message = awaitingInterestCount
+            ? `${awaitingInterestCount} candidate${awaitingInterestCount === 1 ? " is" : "s are"} marked Awaiting reply. Record Interested only after the candidate confirms; that is when they enter the active process.`
+            : `Choose from ${contactReadyCount} contact-ready candidate${contactReadyCount === 1 ? "" : "s"}. Use Email, Call, or LinkedIn, then mark only confirmed candidates Interested.`;
+          actionLabel = "Go to interest checks";
+          actionTarget = "candidate-results";
+          currentTarget = document.getElementById("results");
         } else if (eligibleLinkedProfiles.length && !selected.length && completedCount === 0) {
           title = "Returned linked profiles are ready to enrich";
           message = `Enrich all ${eligibleLinkedProfiles.length} returned linked profile${eligibleLinkedProfiles.length === 1 ? "" : "s"} without creating TEMP records, or select an individual candidate below.`;
@@ -2426,7 +2679,7 @@
           actionTarget = "job-picker";
         } else {
           title = "Role & Match is locked";
-          message = "Create or select a candidate profile before continuing to Role & Match.";
+          message = "Confirm a candidate is interested before continuing to Role & Match.";
           actionLabel = "Go to candidate results";
           actionTarget = "candidate-results";
         }
@@ -3001,6 +3254,7 @@
               ? `<a class="btn secondary" href="${escapeHtml(candidate.profile_url)}" target="_blank" rel="noopener">${isCourtAttorneyLead ? "Open supporting court record" : isCourtRecord ? "Open CourtListener Record" : escapeHtml(candidateExternalProfileLabel(candidate))}</a>`
               : "";
             const contactActions = candidateContactActions(candidate);
+            const interestControls = candidateInterestControls(candidate, globalIndex);
             const verification = candidate.verification || {};
             const lawTarget = lawVerificationTarget(currentLawCriteria().region, candidate.name);
             const barLink = isLawDomain() && !isCourtRecord
@@ -3148,6 +3402,7 @@
                 </div>
               </div>
               ${contactActions}
+              ${interestControls}
               <div class="skills">${skills}</div>
               ${enrichmentFailure}
               <div class="row-actions">
@@ -3427,33 +3682,12 @@
         candidate = markCandidateDevReadyProfile(candidate, response);
         latestExternalResults[index] = candidate;
 
-        sessionStorage.setItem("candidateId", response.personid);
-        sessionStorage.setItem("candidateName", response.name);
-        const temporaryStatus = isCourtLead && !courtProfileConfirmed
-          ? "Temporary Research Profile - Identity Unverified"
-          : "Temporary Profile";
         const displayTitle = isCourtLead && !courtProfileConfirmed
           ? "Court-record attorney lead - identity unverified"
           : candidate.title || "";
-        sessionStorage.setItem("candidateStatus", temporaryStatus);
-        sessionStorage.setItem("candidateProfileType", "Temporary Profile");
-        sessionStorage.setItem("candidateTopMatches", (candidate.top_matches || []).join(", "));
-        sessionStorage.setItem("externalCandidateSource", candidate.source_label || candidate.source);
-        window.DevReadyShortlist.add(
-          {
-            id: response.personid,
-            name: response.name,
-            title: displayTitle,
-            email: candidate.email || "",
-            status: temporaryStatus,
-            profileType: "Temporary Profile",
-            source: candidate.source_label || candidate.source,
-            score: candidate.score,
-            skills: candidate.top_matches || candidate.skills || [],
-            top_matches: candidate.top_matches || [],
-          },
-          { stage: "2* - Find (Out)", source: candidate.source_label || candidate.source },
-        );
+        if (options.addToProcess === true) {
+          addInterestedCandidateToProcess(candidate, response.personid, response.name);
+        }
         const temporaryProfiles = JSON.parse(
           sessionStorage.getItem("temporaryProfiles") || "{}",
         );
@@ -3475,14 +3709,18 @@
           duplicate: response.duplicate === true,
         });
         document.getElementById("mineStatus").textContent = response.duplicate
-          ? "This selected candidate already has a TEMP profile, so no additional enrichment credit was used."
+          ? options.addToProcess === true
+            ? "This candidate already had a TEMP profile. Interest is confirmed and the candidate is now in the active process; no additional enrichment credit was used."
+            : "This selected candidate already has a TEMP profile, so no additional enrichment credit was used. It remains outside the active process until interest is confirmed."
           : response.enrichmentReused
-            ? `TEMP profile created for ${response.name} from the saved professional enrichment. No additional provider enrichment call was made. Use Calculate JD match when ready.`
+            ? options.addToProcess === true
+              ? `TEMP profile created for ${response.name} from saved professional enrichment. Interest is confirmed and Profile Build / Role & Match is next.`
+              : `TEMP profile created for ${response.name} from the saved professional enrichment. No additional provider enrichment call was made. It remains outside the active process until interest is confirmed.`
           : response.identityUnverified
-            ? `TEMP research profile created for ${response.name}. Identity and qualifications remain unverified; open the profile to review ${Number(response.courtEvidence?.evidenceCount || 0)} supporting court records and continue verification.`
+            ? `TEMP research profile created for ${response.name}. Identity and qualifications remain unverified; open the profile to review ${Number(response.courtEvidence?.evidenceCount || 0)} supporting court records and continue verification.${options.addToProcess === true ? " Candidate interest is confirmed and the record is in the active process." : " It remains outside the active process until interest is confirmed."}`
           : response.enrichment?.status === "completed"
-            ? `${isCourtLead ? "Combined professional and court-evidence TEMP profile" : "TEMP profile"} enriched and saved. Match percentage was not calculated. Use Calculate JD match next to the candidate's name when ready.`
-            : "TEMP profile created. Open the TEMP Profiles page to enrich it, calculate a JD match, make it permanent, or delete it.";
+            ? `${isCourtLead ? "Combined professional and court-evidence TEMP profile" : "TEMP profile"} enriched and saved. Match percentage was not calculated.${options.addToProcess === true ? " Interest is confirmed and Profile Build / Role & Match is next." : " It remains outside the active process until interest is confirmed."}`
+            : `TEMP profile created.${options.addToProcess === true ? " Interest is confirmed and the candidate is now in the active process." : " It remains outside the active process until interest is confirmed."} Open the TEMP Profiles page to enrich it, calculate a JD match, make it permanent, or delete it.`;
         if (options.deferRender !== true) {
           const preservedCandidateKeys = selectedCandidateKeys();
           const importedCandidateKey = candidateResultKey(candidate);

@@ -11,7 +11,7 @@ class TempProfilesWorkflowTests(unittest.TestCase):
         html = (PAGES / "temp-profiles.html").read_text(encoding="utf-8")
 
         self.assertIn("/api/azureJobs/external/temp?domain=", html)
-        self.assertIn("Use in current process", html)
+        self.assertIn("Confirm interest & use in process", html)
         self.assertIn("Make permanent", html)
         self.assertIn("Delete", html)
         self.assertIn("LinkedIn-enriched TEMP results", html)

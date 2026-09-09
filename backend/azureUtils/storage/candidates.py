@@ -1816,6 +1816,7 @@ def listTemporaryExternalProfiles(domain: str = "dev", limit: int = 50):
             match_status = str(match.get("status") or "not_run").strip().lower()
             match_calculated = match_status == "calculated"
             court_evidence = external_profile.get("courtEvidence") or {}
+            interest_workflow = external_profile.get("interestWorkflow") or {}
             profiles.append({
                 "personid": row[0],
                 "name": f"{row[1] or ''} {row[2] or ''}".strip() or "Temporary Profile",
@@ -1850,6 +1851,9 @@ def listTemporaryExternalProfiles(domain: str = "dev", limit: int = 50):
                 ) if match_calculated else 0,
                 "matchEvidenceSources": (match.get("evidenceSources") or []) if match_calculated else [],
                 "courtEvidenceCount": court_evidence.get("evidenceCount") or match.get("courtEvidenceCount") or 0,
+                "interestStatus": interest_workflow.get("status") or "",
+                "interestConfirmedAt": interest_workflow.get("confirmedAt") or "",
+                "interestJobId": interest_workflow.get("jobId") or "",
             })
         return {"status": "success", "profiles": profiles}
     finally:
@@ -1916,6 +1920,54 @@ def getTemporaryExternalProfileForEnrichment(personId: str, domain: str = "dev")
             },
             "externalProfile": metadata,
         }
+    finally:
+        conn.close()
+
+
+def updateTemporaryExternalProfileInterest(personId: str, domain: str, interestWorkflow: dict):
+    try:
+        person_id = int(personId)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid profile id.")
+
+    conn = client.getConnection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            SELECT prof.id, prof.maindescription
+            FROM person
+            JOIN professional prof ON person.id = prof.personid
+            WHERE person.id = %s AND person.domain = %s
+            ORDER BY prof.modifieddate DESC NULLS LAST, prof.id DESC
+            LIMIT 1
+            """,
+            (person_id, domain),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Temporary profile not found in this environment.")
+        clean_description, metadata = splitExternalProfileDescription(row[1])
+        if "Temporary external profile" not in clean_description:
+            raise HTTPException(status_code=400, detail="Profile is already permanent.")
+        metadata["interestWorkflow"] = dict(interestWorkflow or {})
+        updated_description = attachExternalProfileMetadata(clean_description, metadata)
+        cur.execute(
+            "UPDATE professional SET maindescription = %s, modifieddate = NOW() WHERE id = %s",
+            (updated_description, row[0]),
+        )
+        conn.commit()
+        return {
+            "status": "success",
+            "personid": person_id,
+            "interestWorkflow": metadata["interestWorkflow"],
+        }
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to save candidate interest: {exc}")
     finally:
         conn.close()
 

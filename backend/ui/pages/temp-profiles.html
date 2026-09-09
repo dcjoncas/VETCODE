@@ -479,6 +479,11 @@
           const courtEvidenceIndicator = Number(profile.courtEvidenceCount || 0)
             ? `<span class="pill">${Number(profile.courtEvidenceCount).toLocaleString()} CourtListener / RECAP record${Number(profile.courtEvidenceCount) === 1 ? "" : "s"} stored</span>`
             : "";
+          const interestIndicator = profile.interestStatus === "interested"
+            ? '<span class="pill">Interested · confirmed by recruiter</span>'
+            : profile.interestStatus === "not_interested"
+              ? '<span class="pill">Not interested</span>'
+              : '<span class="pill">Interest not confirmed</span>';
           const canCalculate = Boolean(currentJobId() && isRichTempProfile(profile));
           const currentMatch = profileMatchesCurrentJob(profile);
           const nameMatchButton = currentMatch
@@ -497,10 +502,11 @@
               <strong>${escapeHtml(matchLabel(profile))}</strong>
               <span>${indicator}</span>
               ${courtEvidenceIndicator}
+              ${interestIndicator}
             </div>
             <div class="temp-profile-actions">
               ${currentMatch ? `<button class="btn secondary" type="button" onclick="calculateTempMatch('${escapeHtml(personId)}')">Recalculate JD match</button>` : ""}
-              <button class="btn primary" type="button" onclick="useTempProfile('${escapeHtml(personId)}')">Use in current process</button>
+              <button class="btn primary" type="button" onclick="useTempProfile('${escapeHtml(personId)}')">${profile.interestStatus === "interested" ? "Use interested candidate in process" : "Confirm interest & use in process"}</button>
               <button class="btn secondary" type="button" onclick="reviewTempProfile('${escapeHtml(personId)}')">Review profile</button>
               ${profileUrl ? `<a class="btn secondary" href="${escapeHtml(profileUrl)}" target="_blank" rel="noopener">${isLinkedIn ? "Open LinkedIn" : "Open professional profile"}</a>` : ""}
               <button class="btn secondary" type="button" onclick="makeTempPermanent('${escapeHtml(personId)}')">Make permanent</button>
@@ -578,14 +584,40 @@
         window.location.href = `profile-preview.html?domain=${encodeURIComponent(currentDomain())}`;
       }
 
-      function useTempProfile(personId) {
+      async function useTempProfile(personId) {
         const profile = profileById(personId);
         if (!profile) return alert("That TEMP profile is no longer available. Refresh the list.");
         const matchWarning = currentJobId() && !profileMatchesCurrentJob(profile)
           ? " This profile has not been matched to the current JD yet."
           : "";
-        if (!confirm(`Use ${profile.name || "this TEMP profile"} in the current process? This makes the person active and adds them to the shortlist.${matchWarning}`)) return;
+        const alreadyInterested = profile.interestStatus === "interested";
+        const prompt = alreadyInterested
+          ? `Use ${profile.name || "this TEMP profile"} in the current process? This makes the person active and adds them to the shortlist.${matchWarning}`
+          : `Confirm that ${profile.name || "this candidate"} has personally said they are interested in this role. This will tag the confirmation and add them to the active process.${matchWarning}`;
+        if (!confirm(prompt)) return;
+        if (!alreadyInterested) {
+          try {
+            await api(`/api/azureJobs/external/temp/${encodeURIComponent(personId)}/interest`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                domain: currentDomain(),
+                status: "interested",
+                job_id: currentJobId(),
+                confirmed_at: new Date().toISOString(),
+              }),
+            });
+            profile.interestStatus = "interested";
+            profile.interestConfirmedAt = new Date().toISOString();
+          } catch (error) {
+            document.getElementById("tempProfileStatus").textContent =
+              `Candidate was not added because the interest confirmation could not be saved: ${error.message || error}`;
+            return;
+          }
+        }
         setActiveTempProfile(profile);
+        sessionStorage.setItem(`candidateInterest:${currentDomain()}:${personId}`, "interested");
+        sessionStorage.setItem("candidateStatus", "Interested - Profile Build next");
         window.DevReadyShortlist.add({
           id: profile.personid,
           name: profile.name,
@@ -596,7 +628,16 @@
           source: profile.source || "External",
           score: profileMatchesCurrentJob(profile) ? profile.matchScore : "",
           top_matches: profileMatchesCurrentJob(profile) ? (profile.matchMatched || []) : [],
-        }, { stage: "2* - Find (Out)", source: profile.source || "External" });
+          candidateInterest: "interested",
+          candidateInterestRecordedAt: profile.interestConfirmedAt || new Date().toISOString(),
+          workflowStatus: "Interested - Profile Build next",
+        }, {
+          stage: "3* - Interest confirmed",
+          source: profile.source || "External",
+          candidateInterest: "interested",
+          candidateInterestRecordedAt: profile.interestConfirmedAt || new Date().toISOString(),
+          workflowStatus: "Interested - Profile Build next",
+        });
         window.location.href = `profile-preview.html?domain=${encodeURIComponent(currentDomain())}`;
       }
 
