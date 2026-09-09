@@ -19,6 +19,7 @@ class PeopleSearchTests(unittest.TestCase):
         )
 
         query = payload["query"]["bool"]
+        self.assertIn({"exists": {"field": "linkedin_url"}}, query["must"])
         self.assertIn({"term": {"location_country": "united states"}}, query["must"])
         self.assertIn({"terms": {"location_locality": ["denver"]}}, query["must"])
         self.assertIn({"range": {"inferred_years_experience": {"gte": 5}}}, query["must"])
@@ -47,6 +48,20 @@ class PeopleSearchTests(unittest.TestCase):
         )
 
         self.assertNotIn("none required", str(payload).lower())
+
+    def test_ignored_role_filters_do_not_create_an_empty_title_clause(self):
+        payload = peopleSearch.build_candidate_search_payload(
+            titles=[],
+            must_have_skills=[],
+            locations=[],
+            experience_ranges=[],
+            licenses_or_certifications=[],
+            workforce_location="either",
+        )
+
+        query = payload["query"]["bool"]
+        self.assertEqual(query["must"], [{"exists": {"field": "linkedin_url"}}])
+        self.assertNotIn("should", query)
 
     def test_multi_select_experience_and_credentials_are_or_filters(self):
         payload = peopleSearch.build_candidate_search_payload(

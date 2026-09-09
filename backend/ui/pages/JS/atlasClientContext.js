@@ -298,6 +298,7 @@
       .atlas-client-warning { margin-top:10px; color:#8a4d12; background:#fff7e8; border:1px solid #ecc98a; border-radius:9px; padding:9px 10px; font-size:12px; }
       .atlas-client-empty { margin-top:10px; color:var(--muted); font-size:13px; }
       .atlas-client-check { color:#217a43; font-weight:800; }
+      .atlas-client-head-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
       @media (max-width:700px) { .atlas-client-actions, .atlas-client-picker-row { align-items:stretch; flex-direction:column; } .atlas-client-actions .btn, .atlas-client-picker-row .btn { width:100%; text-align:center; } }
     `;
     document.head.appendChild(style);
@@ -325,7 +326,7 @@
   function renderHost(host, records = state.recordsByDomain.get(currentDomain()) || []) {
     const domain = currentDomain();
     const client = getAttachedClient(domain);
-    const pickerOpen = !client || state.pickerOpen.has(domain);
+    const pickerOpen = state.pickerOpen.has(domain);
     const warning = mismatchMessage(client);
     const picker = pickerHtml(records);
     const noRecordsMessage = domain === "law"
@@ -338,7 +339,10 @@
             <h2>${client ? '<span class="atlas-client-check">&#10003;</span> ' : ""}Client for this sourcing process</h2>
             <p>Attach one ${escapeHtml(domainLabel(domain))} Atlas record so client, contact, and relationship context follow Find Talent, shortlist communication, and meeting invites.</p>
           </div>
-          <a class="btn secondary" href="${escapeHtml(atlasUrl(client, domain))}">${client ? "Open Atlas record" : "Open Atlas"}</a>
+          <div class="atlas-client-head-actions">
+            <button class="btn secondary" type="button" data-atlas-toggle>${pickerOpen ? "Hide client picker" : (client ? "Change client" : "Attach client")}</button>
+            <a class="btn secondary" href="${escapeHtml(atlasUrl(client, domain))}">${client ? "Open Atlas record" : "Open Atlas"}</a>
+          </div>
         </div>
         ${client ? `
           <div class="atlas-client-summary">
@@ -348,7 +352,6 @@
               <span>${escapeHtml([client.dealStage, client.owner ? `Owner: ${client.owner}` : ""].filter(Boolean).join(" - ") || "Atlas client attached")}</span>
             </div>
             <div class="atlas-client-actions">
-              <button class="btn secondary" type="button" data-atlas-change>${pickerOpen ? "Cancel change" : "Change client"}</button>
               <button class="btn secondary" type="button" data-atlas-remove>Remove link</button>
             </div>
           </div>
@@ -365,7 +368,7 @@
       </section>
     `;
 
-    host.querySelector("[data-atlas-change]")?.addEventListener("click", () => {
+    host.querySelector("[data-atlas-toggle]")?.addEventListener("click", () => {
       if (state.pickerOpen.has(domain)) state.pickerOpen.delete(domain);
       else state.pickerOpen.add(domain);
       renderAll();

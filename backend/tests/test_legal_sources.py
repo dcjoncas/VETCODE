@@ -265,6 +265,7 @@ class LegalSourceRouteTests(unittest.TestCase):
                     "company_name": "Example LLP",
                     "location": "Los Angeles, California",
                     "country": "United States",
+                    "profile_url": "https://www.linkedin.com/in/sample-attorney",
                 }
             ],
             "total": 24,

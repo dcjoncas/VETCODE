@@ -95,6 +95,48 @@
     opacity: 0.86;
   }
 
+  #pageNavInner .nav-secondary-workflow {
+    margin: 2px 0 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 4px;
+  }
+
+  #pageNavInner .nav-secondary-workflow summary {
+    min-height: 34px;
+    border-radius: 9px;
+    padding: 8px 10px;
+    color: rgba(255, 255, 255, 0.72);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 750;
+    list-style: none;
+  }
+
+  #pageNavInner .nav-secondary-workflow summary::-webkit-details-marker {
+    display: none;
+  }
+
+  #pageNavInner .nav-secondary-workflow summary::after {
+    content: "+";
+    float: right;
+  }
+
+  #pageNavInner .nav-secondary-workflow[open] summary::after {
+    content: "−";
+  }
+
+  #pageNavInner .nav-secondary-workflow summary:hover,
+  #pageNavInner .nav-secondary-workflow summary:focus-visible {
+    background: rgba(255, 255, 255, 0.075);
+    color: #fff;
+  }
+
+  #pageNavInner .nav-secondary-workflow-links {
+    display: grid;
+    gap: 3px;
+    padding-top: 3px;
+  }
+
   #pageNavInner a.active .nav-icon,
   #pageNavInner a:hover .nav-icon {
     opacity: 1;
@@ -492,11 +534,16 @@
     <a href="job-descriptions.html" class="nav-jds" data-menu-key="job_descriptions" data-hint="Manage job descriptions for the active domain. Save or select the role requirements here before ranking internal candidates or starting outside search."><svg class="nav-icon"><use href="#nav-briefcase"></use></svg>Job Descriptions</a>
     <a href="match-role.html" class="nav-find-in" data-menu-key="find_in" data-hint="Compare candidates already in this domain against the selected job description, then rank matches and build the shortlist without searching outside the database."><svg class="nav-icon"><use href="#nav-user-search"></use></svg>Find Candidates (In)</a>
     <a href="mine-candidate-external.html" class="nav-find-out" data-menu-key="find_out" data-hint="Use the outside-search workflow when internal matches are weak. Results come in as temporary profiles so you can review them before adding anything permanent."><svg class="nav-icon"><use href="#nav-search-out"></use></svg>Find Candidates (Out)</a>
-    <a href="saved-searches.html" class="nav-saved-searches" data-menu-key="saved_searches" data-hint="Return to every saved outside-sourcing query in the active domain. Reopen results without provider credits or export the ranked Excel report."><svg class="nav-icon"><use href="#nav-saved-search"></use></svg>Saved Searches</a>
-    <a href="temp-profiles.html" class="nav-temp-profiles" data-menu-key="temp_profiles" data-hint="Review saved external TEMP profiles for this domain. Use one in the active process, enrich it, make it permanent, delete it, or export LinkedIn-enriched results."><svg class="nav-icon"><use href="#nav-profile"></use></svg>TEMP Profiles</a>
+    <details class="nav-secondary-workflow">
+      <summary>More talent tools</summary>
+      <div class="nav-secondary-workflow-links">
+        <a href="saved-searches.html" class="nav-saved-searches" data-menu-key="saved_searches" data-hint="Return to every saved outside-sourcing query in the active domain. Reopen results without provider credits or export the ranked Excel report."><svg class="nav-icon"><use href="#nav-saved-search"></use></svg>Saved Searches</a>
+        <a href="temp-profiles.html" class="nav-temp-profiles" data-menu-key="temp_profiles" data-hint="Review saved external TEMP profiles for this domain. Use one in the active process, enrich it, make it permanent, delete it, or export LinkedIn-enriched results."><svg class="nav-icon"><use href="#nav-profile"></use></svg>TEMP Profiles</a>
+        <a href="meet.html" class="recordings-link" data-menu-key="meet" data-hint="Open the meeting workspace for recordings, notes, summaries, and Atlas handoff in the current domain."><svg class="nav-icon"><use href="#nav-interview"></use></svg>Meeting</a>
+        <a href="mobile.html" class="mobile-link" data-menu-key="talent" data-hint="Open the phone-first module launcher for trimmed workflows: talent, JD, matching, Atlas, invoices, meetings, Egeria, and onboarding."><svg class="nav-icon"><use href="#nav-agents"></use></svg>Mobile Modules</a>
+      </div>
+    </details>
     <a href="profile-preview.html" class="nav-profiles" data-menu-key="profiles" data-hint="Open the current candidate profile to inspect resume data, portfolio roles, personality results, badges, public profile status, and missing completion pieces."><svg class="nav-icon"><use href="#nav-profile"></use></svg>Profiles</a>
-    <a href="meet.html" class="recordings-link" data-menu-key="meet" data-hint="Open the meeting workspace for recordings, notes, summaries, and Atlas handoff in the current domain."><svg class="nav-icon"><use href="#nav-interview"></use></svg>Meeting</a>
-    <a href="mobile.html" class="mobile-link" data-menu-key="talent" data-hint="Open the phone-first module launcher for trimmed workflows: talent, JD, matching, Atlas, invoices, meetings, Egeria, and onboarding."><svg class="nav-icon"><use href="#nav-agents"></use></svg>Mobile Modules</a>
   </div>
   <div class="nav-group nav-finance-section" aria-label="Finance and operations">
     <a
@@ -722,6 +769,7 @@
 
     if (currentNavPath === linkPath && (!linkUrl.hash || linkUrl.hash === currentNavHash)) {
       link.classList.add("active");
+      link.closest("details")?.setAttribute("open", "");
     }
   });
   document.querySelector("#pageNavInner .admin-link")?.addEventListener("click", (event) => {

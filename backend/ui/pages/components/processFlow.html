@@ -700,6 +700,38 @@
     margin-top: 2px;
   }
 
+  #processFlow .workflow-history-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+
+  #processFlow .workflow-history-button {
+    min-height: 30px;
+    border: 1px solid var(--line, #dfe7e2);
+    border-radius: 8px;
+    padding: 6px 10px;
+    background: #fff;
+    color: var(--text, #102018);
+    cursor: pointer;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  #processFlow .workflow-history-button:hover,
+  #processFlow .workflow-history-button:focus-visible {
+    border-color: var(--primary-2, #2f7d4b);
+    color: var(--primary-2, #2f7d4b);
+  }
+
+  #processFlow .workflow-location-label {
+    color: var(--muted, #5b6b62);
+    font-size: 10px;
+    font-weight: 850;
+  }
+
   #processFlow .workflow-status-legend {
     display: flex;
     gap: 12px;
@@ -876,12 +908,17 @@
     </div>
     </div>
     <div class="workflow-status-foot">
-      <div class="workflow-status-legend" aria-label="Workflow status legend">
-        <span class="is-complete"><i aria-hidden="true"></i>Complete</span>
-        <span class="is-current"><i aria-hidden="true"></i>Current</span>
-        <span><i aria-hidden="true"></i>Remaining</span>
+      <div class="workflow-history-nav" aria-label="Page history navigation">
+        <button class="workflow-history-button" type="button" onclick="processGoBack()" title="Return to the exact page and position you just left">← Back</button>
+        <span id="processLocationLabel" class="workflow-location-label">You are here</span>
+        <button class="workflow-history-button" type="button" onclick="processGoForward()" title="Move forward again after going back">Forward →</button>
       </div>
       <a id="processNextStepLink" class="workflow-next-link" href="#">Next step</a>
+    </div>
+    <div class="workflow-status-legend" aria-label="Workflow status legend">
+      <span class="is-complete"><i aria-hidden="true"></i>Complete</span>
+      <span class="is-current"><i aria-hidden="true"></i>Current</span>
+      <span><i aria-hidden="true"></i>Remaining</span>
     </div>
   </div>
 </div>
@@ -1098,6 +1135,46 @@
     "client-interview": "Schedule the candidate, client, and DevReady agent together.",
     status: "Record the outcome, follow-up, and next action for this candidate.",
   };
+  const workflowPositionDomain = sessionStorage.getItem("domain") || processParams.get("domain") || "dev";
+  const workflowLocationId = `${window.location.pathname}${window.location.search}`;
+  const workflowPositionKey = `workflowPosition:${workflowPositionDomain}:${workflowLocationId}`;
+  const workflowRestoreRequestKey = `workflowRestoreRequested:${workflowPositionDomain}`;
+
+  function persistWorkflowPosition() {
+    try {
+      sessionStorage.setItem(
+        workflowPositionKey,
+        JSON.stringify({ x: window.scrollX, y: window.scrollY }),
+      );
+    } catch {}
+  }
+
+  function restoreWorkflowPosition() {
+    const navigation = performance.getEntriesByType?.("navigation")?.[0];
+    const requested = sessionStorage.getItem(workflowRestoreRequestKey) === "1";
+    if (!requested && navigation?.type !== "back_forward") return;
+    sessionStorage.removeItem(workflowRestoreRequestKey);
+    try {
+      const position = JSON.parse(sessionStorage.getItem(workflowPositionKey) || "null");
+      if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return;
+      requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(position.x, position.y)));
+    } catch {}
+  }
+
+  function processGoBack() {
+    persistWorkflowPosition();
+    sessionStorage.setItem(workflowRestoreRequestKey, "1");
+    window.history.back();
+  }
+
+  function processGoForward() {
+    persistWorkflowPosition();
+    sessionStorage.setItem(workflowRestoreRequestKey, "1");
+    window.history.forward();
+  }
+
+  window.addEventListener("pagehide", persistWorkflowPosition);
+  window.addEventListener("pageshow", restoreWorkflowPosition, { once: true });
 
   function renderWorkflowStatus() {
     const statusTitle = document.getElementById("processStatusTitle");
@@ -1106,6 +1183,7 @@
     const progressTrack = document.getElementById("processProgressTrack");
     const progressFill = document.getElementById("processProgressFill");
     const nextLink = document.getElementById("processNextStepLink");
+    const locationLabel = document.getElementById("processLocationLabel");
     if (!statusTitle || !statusDetail || !progressCopy || !progressTrack || !progressFill || !nextLink) return;
 
     const currentIndex = currentFlowStep === "find-out" ? 2 : flowOrder.indexOf(currentFlowStep);
@@ -1115,6 +1193,7 @@
     const currentLabel = flowLabels[currentFlowStep] || "Choose a workflow step";
 
     statusTitle.textContent = currentFlowStep ? `Current: ${currentLabel}` : "Choose where to begin";
+    if (locationLabel) locationLabel.textContent = `You are here: ${currentLabel}`;
     statusDetail.textContent = waitingForCandidateDecision
       ? "Record whether the candidate is interested before the client interview can be scheduled."
       : (flowDetails[currentFlowStep] || "Start with Talent to select the candidate and domain.");
@@ -1127,8 +1206,10 @@
       return;
     }
     const nextNode = document.querySelector(`#processFlow [data-flow-step="${nextFlowStep}"]`);
+    const nextUrl = new URL(nextNode?.href || "#", window.location.href);
+    nextUrl.searchParams.set("domain", workflowPositionDomain);
     nextLink.hidden = false;
-    nextLink.href = nextNode?.href || "#";
+    nextLink.href = nextUrl.href;
     nextLink.textContent = `Next: ${flowLabels[nextFlowStep] || nextFlowStep} →`;
   }
 
@@ -1997,6 +2078,8 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
     closeProcessMap,
     clearProcessTrail,
     updateProcessTrailState,
+    processGoBack,
+    processGoForward,
     startQuickHitFlow,
     closeQuickHitFlow,
     quickHitDraftJob,

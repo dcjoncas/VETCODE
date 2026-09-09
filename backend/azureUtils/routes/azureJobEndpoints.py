@@ -399,6 +399,15 @@ LAWYER_SUPPORTING_TERMS = {
 }
 SEARCH_WORK_ARRANGEMENTS = {"remote", "onsite", "hybrid"}
 SEARCH_WORKFORCE_LOCATIONS = {"onshore", "offshore", "either"}
+SEARCH_CRITERIA_GROUPS = (
+    "titles",
+    "skills",
+    "cities",
+    "experience",
+    "licenses",
+    "arrangements",
+    "workforce",
+)
 LAWYER_WORK_ARRANGEMENTS = SEARCH_WORK_ARRANGEMENTS
 LAWYER_WORKFORCE_LOCATIONS = SEARCH_WORKFORCE_LOCATIONS
 DOMAIN_TITLE_DEFAULTS = {
@@ -659,8 +668,14 @@ def _candidate_search_criteria(
     work_arrangements=None,
     workforce_location: str = "",
     workforce_locations=None,
+    ignored_criteria=None,
 ) -> dict:
     clean_domain = _domain_key(domain)
+    ignored = {
+        value.lower()
+        for value in _split_external_terms(ignored_criteria, len(SEARCH_CRITERIA_GROUPS))
+        if value.lower() in SEARCH_CRITERIA_GROUPS
+    }
     law_base = _lawyer_search_criteria(
         jd,
         titles=titles,
@@ -677,24 +692,24 @@ def _candidate_search_criteria(
     )
     lower = combined.lower()
 
-    resolved_titles = _split_external_terms(titles, 8)
-    if not resolved_titles:
+    resolved_titles = [] if "titles" in ignored else _split_external_terms(titles, 8)
+    if not resolved_titles and "titles" not in ignored:
         if law_base:
             resolved_titles = law_base["titles"]
         else:
             jd_title = _candidate_title_from_jd(jd.get("title") or "")
             resolved_titles = [jd_title] if jd_title else list(DOMAIN_TITLE_DEFAULTS[clean_domain])
 
-    resolved_skills = _split_external_terms(required_skills, 12)
-    if not resolved_skills:
+    resolved_skills = [] if "skills" in ignored else _split_external_terms(required_skills, 12)
+    if not resolved_skills and "skills" not in ignored:
         resolved_skills = (
             law_base.get("requiredSkills", [])
             if law_base
             else _searchable_job_skills(job_skills or [], 12)
         )
 
-    resolved_locations = _split_external_terms(locations, 12)
-    if not resolved_locations:
+    resolved_locations = [] if "cities" in ignored else _split_external_terms(locations, 12)
+    if not resolved_locations and "cities" not in ignored:
         resolved_locations = law_base.get("locations", []) or _candidate_locations_from_jd(jd)
 
     resolved_region = str(region or law_base.get("region") or "").strip()
@@ -702,19 +717,23 @@ def _candidate_search_criteria(
         resolved_years = max(0, min(int(min_years or 0), 60))
     except (TypeError, ValueError):
         resolved_years = 0
-    if not resolved_years:
+    if not resolved_years and "experience" not in ignored:
         if law_base:
             resolved_years = int(law_base.get("minYears") or 0)
         else:
             years_match = re.search(r"\b(\d{1,2})\s*\+?\s*years?\b", combined, flags=re.IGNORECASE)
             resolved_years = min(int(years_match.group(1)), 60) if years_match else 0
-    resolved_years = max(1, resolved_years)
-    resolved_experience_ranges = _experience_ranges(experience_ranges, resolved_years)
-    resolved_years = min(
-        EXPERIENCE_RANGE_BOUNDS[label][0] for label in resolved_experience_ranges
-    )
+    if "experience" in ignored:
+        resolved_years = 0
+        resolved_experience_ranges = []
+    else:
+        resolved_years = max(1, resolved_years)
+        resolved_experience_ranges = _experience_ranges(experience_ranges, resolved_years)
+        resolved_years = min(
+            EXPERIENCE_RANGE_BOUNDS[label][0] for label in resolved_experience_ranges
+        )
 
-    resolved_work_arrangements = [
+    resolved_work_arrangements = [] if "arrangements" in ignored else [
         item.lower()
         for item in _split_external_terms(
             work_arrangements or work_arrangement or law_base.get("workArrangements") or law_base.get("workArrangement"),
@@ -722,7 +741,7 @@ def _candidate_search_criteria(
         )
         if item.lower() in SEARCH_WORK_ARRANGEMENTS
     ]
-    if not resolved_work_arrangements:
+    if not resolved_work_arrangements and "arrangements" not in ignored:
         has_remote = bool(re.search(r"\bremote\b", lower))
         has_onsite = bool(re.search(r"\b(?:on[ -]?site|in[ -]?office)\b", lower))
         if "hybrid" in lower or "combination" in lower or (has_remote and has_onsite):
@@ -733,30 +752,36 @@ def _candidate_search_criteria(
             resolved_work_arrangements = ["onsite"]
     resolved_work_arrangement = resolved_work_arrangements[0] if resolved_work_arrangements else ""
 
-    resolved_workforce_locations = [
+    resolved_workforce_locations = [] if "workforce" in ignored else [
         item.lower()
         for item in _split_external_terms(
             workforce_locations or workforce_location or law_base.get("workforceLocations") or law_base.get("workforceLocation"),
             3,
         )
         if item.lower() in SEARCH_WORKFORCE_LOCATIONS
-    ] or ["onshore"]
-    if "either" in resolved_workforce_locations or {
+    ]
+    if not resolved_workforce_locations and "workforce" not in ignored:
+        resolved_workforce_locations = ["onshore"]
+    if not resolved_workforce_locations:
+        resolved_workforce_location = ""
+    elif "either" in resolved_workforce_locations or {
         "onshore", "offshore"
     }.issubset(set(resolved_workforce_locations)):
         resolved_workforce_location = "either"
     else:
         resolved_workforce_location = resolved_workforce_locations[0]
 
-    if strict_locations is None:
+    if "cities" in ignored:
+        resolved_strict_locations = False
+    elif strict_locations is None:
         resolved_strict_locations = bool(resolved_locations)
     else:
         resolved_strict_locations = bool(strict_locations)
-    resolved_credentials = _split_external_terms(
+    resolved_credentials = [] if "licenses" in ignored else _split_external_terms(
         licenses_or_certifications or license_or_certification,
         12,
     )
-    if not resolved_credentials:
+    if not resolved_credentials and "licenses" not in ignored:
         derived_credential = _candidate_credential_from_jd(jd, clean_domain, resolved_region)
         resolved_credentials = [derived_credential] if derived_credential else []
     if len(resolved_credentials) > 1:
@@ -767,7 +792,7 @@ def _candidate_search_criteria(
     credential = resolved_credentials[0] if resolved_credentials else ""
 
     criteria = {
-        "policyVersion": 4,
+        "policyVersion": 5,
         "domain": clean_domain,
         "titles": resolved_titles,
         "mustHaveSkills": resolved_skills,
@@ -783,6 +808,7 @@ def _candidate_search_criteria(
         "workArrangements": resolved_work_arrangements,
         "workforceLocation": resolved_workforce_location,
         "workforceLocations": resolved_workforce_locations,
+        "ignoredCriteria": [group for group in SEARCH_CRITERIA_GROUPS if group in ignored],
     }
     if law_base:
         criteria["practiceAreas"] = law_base.get("practiceAreas", [])
@@ -818,27 +844,31 @@ def _candidate_search_criteria_from_payload(
         work_arrangements=",".join(_safe_list(supplied.get("workArrangements"))),
         workforce_location=_external_text(supplied.get("workforceLocation"), 40),
         workforce_locations=",".join(_safe_list(supplied.get("workforceLocations"))),
+        ignored_criteria=",".join(_safe_list(supplied.get("ignoredCriteria"))),
     )
 
 
 def _candidate_search_criteria_errors(criteria: dict) -> list[str]:
     errors = []
-    if not _safe_list(criteria.get("titles")):
+    ignored = set(_safe_list(criteria.get("ignoredCriteria")))
+    if "titles" not in ignored and not _safe_list(criteria.get("titles")):
         errors.append("Current titles")
-    if not _safe_list(criteria.get("mustHaveSkills") or criteria.get("requiredSkills")):
+    if "skills" not in ignored and not _safe_list(criteria.get("mustHaveSkills") or criteria.get("requiredSkills")):
         errors.append("Must-have skills")
-    if not _safe_list(criteria.get("locations")):
+    if "cities" not in ignored and not _safe_list(criteria.get("locations")):
         errors.append("Target cities")
     experience_ranges = _safe_list(criteria.get("experienceRanges"))
-    if not experience_ranges or any(value not in EXPERIENCE_RANGE_BOUNDS for value in experience_ranges):
+    if "experience" not in ignored and (
+        not experience_ranges or any(value not in EXPERIENCE_RANGE_BOUNDS for value in experience_ranges)
+    ):
         errors.append("Experience range")
-    if not _safe_list(
+    if "licenses" not in ignored and not _safe_list(
         criteria.get("licensesOrCertifications") or criteria.get("licenseOrCertification")
     ):
         errors.append("License or certification name (or None required)")
-    if not _safe_list(criteria.get("workArrangements") or criteria.get("workArrangement")):
+    if "arrangements" not in ignored and not _safe_list(criteria.get("workArrangements") or criteria.get("workArrangement")):
         errors.append("Remote, onsite, or hybrid")
-    if not _safe_list(criteria.get("workforceLocations") or criteria.get("workforceLocation")):
+    if "workforce" not in ignored and not _safe_list(criteria.get("workforceLocations") or criteria.get("workforceLocation")):
         errors.append("Onshore, offshore, or either")
     return errors
 
@@ -1933,6 +1963,45 @@ def _people_data_row(
             },
         },
     }
+
+
+def _candidate_contact_channels(candidate: dict) -> list[str]:
+    contact = candidate.get("contact") if isinstance(candidate.get("contact"), dict) else {}
+    email = str(candidate.get("email") or contact.get("primaryEmail") or "").strip()
+    phone = str(candidate.get("phone") or contact.get("primaryPhone") or "").strip()
+    profile_url = str(
+        candidate.get("professional_profile_url")
+        or candidate.get("profile_url")
+        or candidate.get("linkedin_url")
+        or ""
+    ).strip()
+    if profile_url and "://" not in profile_url:
+        profile_url = f"https://{profile_url.lstrip('/')}"
+    try:
+        profile_host = urlparse(profile_url).netloc.lower()
+    except ValueError:
+        profile_host = ""
+    channels = []
+    if "@" in email:
+        channels.append("email")
+    if len(re.sub(r"\D", "", phone)) >= 7:
+        channels.append("phone")
+    if profile_host == "linkedin.com" or profile_host.endswith(".linkedin.com"):
+        channels.append("linkedin")
+    return channels
+
+
+def _contact_ready_external_results(results: list[dict]) -> tuple[list[dict], int]:
+    ready = []
+    for candidate in results:
+        channels = _candidate_contact_channels(candidate)
+        if not channels:
+            continue
+        candidate["contact_ready"] = True
+        candidate["contact_channels"] = channels
+        ready.append(candidate)
+    return ready, len(results) - len(ready)
+
 
 def _github_headers():
     headers = {"Accept": "application/vnd.github+json"}
@@ -3043,6 +3112,7 @@ def external_candidate_search(
     work_arrangements: str = Form(default=""),
     workforce_location: str = Form(default=""),
     workforce_locations: str = Form(default=""),
+    ignored_criteria: str = Form(default=""),
     scroll_token: str = Form(default=""),
     client_name: str = Form(default=""),
     history_root_id: str = Form(default=""),
@@ -3054,6 +3124,7 @@ def external_candidate_search(
     licenses_or_certifications = licenses_or_certifications if isinstance(licenses_or_certifications, str) else ""
     work_arrangements = work_arrangements if isinstance(work_arrangements, str) else ""
     workforce_locations = workforce_locations if isinstance(workforce_locations, str) else ""
+    ignored_criteria = ignored_criteria if isinstance(ignored_criteria, str) else ""
     top_k = _external_result_limit(top_k)
     jd, job_skills = _get_job_skills(jd_id, domain)
     search_skills = _searchable_job_skills(job_skills, 12)
@@ -3077,12 +3148,13 @@ def external_candidate_search(
         work_arrangements=work_arrangements,
         workforce_location=workforce_location,
         workforce_locations=workforce_locations,
+        ignored_criteria=ignored_criteria,
     )
     _require_candidate_search_criteria(criteria)
     resolved_client_name = str(jd.get("company") or client_name or "").strip()
     jd_name = str(jd.get("title") or "").strip()
     history_query = {
-        "version": 4,
+        "version": 5,
         "domain": domain,
         "source": selected_source,
         "queryMode": "job_description",
@@ -3108,17 +3180,18 @@ def external_candidate_search(
 
     try:
         if selected_source == "pdl":
+            ignored = set(criteria.get("ignoredCriteria") or [])
             pdl_response = peopleDataLabs.searchCandidates(
                 titles=criteria["titles"],
                 must_have_skills=criteria["requiredSkills"],
                 locations=criteria["locations"],
-                region=criteria["region"],
+                region="" if "cities" in ignored else criteria["region"],
                 min_years=criteria["minYears"],
                 experience_ranges=criteria["experienceRanges"],
                 strict_locations=criteria["strictLocations"],
                 license_or_certification=criteria["licenseOrCertification"],
                 licenses_or_certifications=criteria["licensesOrCertifications"],
-                workforce_location=criteria["workforceLocation"],
+                workforce_location="either" if "workforce" in ignored else criteria["workforceLocation"],
                 size=top_k,
                 scroll_token=scroll_token,
             )
@@ -3130,13 +3203,14 @@ def external_candidate_search(
             source_audit = _pdl_source_audit(pdl_response, criteria, "candidate_criteria", domain)
             pagination = _pdl_pagination(pdl_response, top_k)
         elif selected_source == "coresignal":
+            ignored = set(criteria.get("ignoredCriteria") or [])
             page = _provider_page(scroll_token, 1, 100)
             core_response = coreSignal.search_people(
                 titles=criteria["titles"] if criteria else search_skills,
                 practice_areas=criteria["requiredSkills"] if criteria else search_skills,
                 locations=criteria["locations"] if criteria else [],
-                region=criteria["region"] if criteria else "",
-                workforce_location=criteria["workforceLocation"] if criteria else "either",
+                region="" if "cities" in ignored else criteria["region"],
+                workforce_location="either" if "workforce" in ignored else criteria["workforceLocation"],
                 strict_locations=criteria["strictLocations"] if criteria else False,
                 license_or_certification=criteria["licenseOrCertification"] if criteria else "",
                 licenses_or_certifications=criteria["licensesOrCertifications"] if criteria else [],
@@ -3249,6 +3323,21 @@ def external_candidate_search(
             extra={"jobSkills": job_skills},
         )
 
+    contact_unavailable = 0
+    if selected_source in {"pdl", "coresignal"}:
+        results, contact_unavailable = _contact_ready_external_results(results)
+        source_audit["contactRequirement"] = "email_phone_or_linkedin"
+        source_audit["contactUnavailableRejected"] = contact_unavailable
+        source_audit["recordsReturned"] = len(results)
+        if contact_unavailable:
+            contact_status = (
+                f"{contact_unavailable} provider result"
+                f"{' was' if contact_unavailable == 1 else 's were'} excluded because no email, "
+                "phone number, or LinkedIn profile was available."
+            )
+            source_audit["statusMessage"] = " ".join(
+                value for value in [source_audit.get("statusMessage", ""), contact_status] if value
+            )
     results.sort(key=lambda row: row.get("score", 0), reverse=True)
     response_payload = {
         "jd": {
@@ -3439,6 +3528,21 @@ def external_candidate_search_direct(
     for row in results:
         row["search_mode"] = "direct"
 
+    contact_unavailable = 0
+    if selected_source in {"pdl", "coresignal"}:
+        results, contact_unavailable = _contact_ready_external_results(results)
+        source_audit["contactRequirement"] = "email_phone_or_linkedin"
+        source_audit["contactUnavailableRejected"] = contact_unavailable
+        source_audit["recordsReturned"] = len(results)
+        if contact_unavailable:
+            contact_status = (
+                f"{contact_unavailable} provider result"
+                f"{' was' if contact_unavailable == 1 else 's were'} excluded because no email, "
+                "phone number, or LinkedIn profile was available."
+            )
+            source_audit["statusMessage"] = " ".join(
+                value for value in [source_audit.get("statusMessage", ""), contact_status] if value
+            )
     results.sort(key=lambda row: row.get("score", 0), reverse=True)
     response_payload = {
         "source": selected_source,

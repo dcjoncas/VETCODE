@@ -101,6 +101,39 @@ class TempProfilesWorkflowTests(unittest.TestCase):
         self.assertIn('formData.append("licenses_or_certifications"', html)
         self.assertIn("Complete the non-negotiable candidate search criteria", html)
 
+    def test_external_criteria_are_grouped_and_each_can_be_ignored(self):
+        html = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")
+
+        self.assertIn("Role and expertise", html)
+        self.assertIn("Location and availability", html)
+        self.assertIn("Credentials", html)
+        self.assertEqual(html.count('class="btn secondary criteria-ignore"'), 7)
+        self.assertIn('id="criteriaIgnoreAll"', html)
+        self.assertIn('formData.append("ignored_criteria"', html)
+        self.assertIn("function setCriteriaGroupIgnored", html)
+
+    def test_external_results_expose_contact_ready_actions_without_auto_messaging(self):
+        html = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")
+
+        self.assertIn("function candidateContactActions", html)
+        self.assertIn(">Email</a>", html)
+        self.assertIn(">Call</a>", html)
+        self.assertIn(">Open LinkedIn</a>", html)
+        self.assertNotIn("autoSendCandidateMessage", html)
+
+    def test_shared_workflow_preserves_location_and_hides_secondary_clutter(self):
+        flow = (PAGES / "components" / "processFlow.html").read_text(encoding="utf-8")
+        nav = (PAGES / "components" / "sideNav.html").read_text(encoding="utf-8")
+        atlas = (PAGES / "JS" / "atlasClientContext.js").read_text(encoding="utf-8")
+
+        self.assertIn("processGoBack", flow)
+        self.assertIn("processGoForward", flow)
+        self.assertIn("workflowPosition:", flow)
+        self.assertIn("You are here:", flow)
+        self.assertIn('<summary>More talent tools</summary>', nav)
+        self.assertIn('link.closest("details")?.setAttribute("open", "")', nav)
+        self.assertEqual(atlas.count("const pickerOpen = state.pickerOpen.has(domain);"), 1)
+
     def test_courtlistener_and_professional_sources_share_combined_profile_evidence(self):
         html = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")
         routes = (BACKEND / "azureUtils" / "routes" / "azureJobEndpoints.py").read_text(encoding="utf-8")

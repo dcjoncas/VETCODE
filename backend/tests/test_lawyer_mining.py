@@ -2,8 +2,10 @@ import unittest
 from unittest.mock import patch
 
 from azureUtils.routes.azureJobEndpoints import (
+    _candidate_contact_channels,
     _candidate_search_criteria,
     _candidate_search_criteria_errors,
+    _contact_ready_external_results,
     _lawyer_match_score,
     _lawyer_search_criteria,
     _lawyer_search_criteria_errors,
@@ -128,6 +130,80 @@ class LawyerMiningTests(unittest.TestCase):
         self.assertEqual(criteria["licenseOrCertification"], "None required")
         self.assertEqual(_candidate_search_criteria_errors(criteria), [])
 
+    def test_every_search_criterion_can_be_explicitly_ignored(self):
+        criteria = _candidate_search_criteria(
+            {
+                "title": "Senior Software Engineer (5+ years) in Denver",
+                "description": "Denver, CO | Hybrid",
+            },
+            job_skills=["Python", "AWS"],
+            domain="technology",
+            ignored_criteria=(
+                "titles,skills,cities,experience,licenses,arrangements,workforce"
+            ),
+        )
+
+        self.assertEqual(criteria["policyVersion"], 5)
+        self.assertEqual(
+            criteria["ignoredCriteria"],
+            [
+                "titles",
+                "skills",
+                "cities",
+                "experience",
+                "licenses",
+                "arrangements",
+                "workforce",
+            ],
+        )
+        self.assertEqual(criteria["titles"], [])
+        self.assertEqual(criteria["mustHaveSkills"], [])
+        self.assertEqual(criteria["locations"], [])
+        self.assertEqual(criteria["experienceRanges"], [])
+        self.assertEqual(criteria["licensesOrCertifications"], [])
+        self.assertEqual(criteria["workArrangements"], [])
+        self.assertEqual(criteria["workforceLocations"], [])
+        self.assertFalse(criteria["strictLocations"])
+        self.assertEqual(_candidate_search_criteria_errors(criteria), [])
+
+    def test_ignored_criteria_do_not_hide_missing_active_requirements(self):
+        criteria = _candidate_search_criteria(
+            {"title": "Software Engineer", "description": ""},
+            job_skills=[],
+            domain="technology",
+            ignored_criteria="skills,licenses",
+        )
+
+        errors = _candidate_search_criteria_errors(criteria)
+        self.assertNotIn("Must-have skills", errors)
+        self.assertNotIn("License or certification", errors)
+        self.assertIn("Target cities", errors)
+        self.assertIn("Remote, onsite, or hybrid", errors)
+
+    def test_contact_ready_results_require_email_phone_or_linkedin(self):
+        self.assertEqual(_candidate_contact_channels({"email": "person@example.com"}), ["email"])
+        self.assertEqual(_candidate_contact_channels({"phone": "+1 (303) 555-0100"}), ["phone"])
+        self.assertEqual(
+            _candidate_contact_channels({"profile_url": "https://linkedin.com/in/person"}),
+            ["linkedin"],
+        )
+        self.assertEqual(
+            _candidate_contact_channels({"profile_url": "https://example.com/person"}),
+            [],
+        )
+
+        kept, rejected = _contact_ready_external_results(
+            [
+                {"id": "email", "email": "person@example.com"},
+                {"id": "phone", "phone": "+1 303 555 0100"},
+                {"id": "linkedin", "linkedin_url": "linkedin.com/in/person"},
+                {"id": "none", "name": "No Contact"},
+            ]
+        )
+        self.assertEqual([row["id"] for row in kept], ["email", "phone", "linkedin"])
+        self.assertTrue(all(row["contact_ready"] for row in kept))
+        self.assertEqual(rejected, 1)
+
     @patch("azureUtils.routes.azureJobEndpoints._get_job_skills")
     def test_criteria_endpoint_returns_the_shared_contract_for_build_domain(self, get_job):
         get_job.return_value = (
@@ -142,7 +218,7 @@ class LawyerMiningTests(unittest.TestCase):
         response = external_candidate_criteria("202", "build")
 
         self.assertEqual(response["domain"], "engineer")
-        self.assertEqual(response["criteria"]["policyVersion"], 4)
+        self.assertEqual(response["criteria"]["policyVersion"], 5)
         self.assertEqual(response["criteria"]["licenseOrCertification"], "Professional Engineer (PE) license")
         self.assertEqual(response["criteriaStatus"]["missing"], [])
         self.assertTrue(response["criteriaStatus"]["complete"])

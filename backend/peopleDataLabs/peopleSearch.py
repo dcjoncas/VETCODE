@@ -366,15 +366,18 @@ def build_candidate_search_payload(
         workforce_term = "onshore"
     years = max(0, min(int(min_years or 0), 60))
 
-    title_query = {
-        "bool": {
-            "should": [
-                {"match_phrase": {"job_title.text": title}}
-                for title in title_terms
-            ],
-        }
-    }
-    must_clauses: list[dict[str, Any]] = [title_query]
+    must_clauses: list[dict[str, Any]] = []
+    if title_terms:
+        must_clauses.append(
+            {
+                "bool": {
+                    "should": [
+                        {"match_phrase": {"job_title.text": title}}
+                        for title in title_terms
+                    ],
+                }
+            }
+        )
 
     if region_term and workforce_term == "onshore":
         must_clauses.append({"term": {"location_region": region_term}})
@@ -440,7 +443,11 @@ def build_candidate_search_payload(
             }
         )
 
-    should_clauses: list[dict[str, Any]] = [{"exists": {"field": "linkedin_url"}}]
+    # Discovery responses intentionally exclude paid contact fields. Requiring a
+    # LinkedIn URL guarantees every preview has an immediately usable outreach
+    # or enrichment path without increasing provider cost or exposing PII.
+    must_clauses.append({"exists": {"field": "linkedin_url"}})
+    should_clauses: list[dict[str, Any]] = []
     if location_terms:
         location_query = {"terms": {"location_locality": location_terms}}
         if strict_locations:
@@ -448,10 +455,9 @@ def build_candidate_search_payload(
         else:
             should_clauses.append(location_query)
 
-    bool_query: dict[str, Any] = {
-        "must": must_clauses,
-        "should": should_clauses,
-    }
+    bool_query: dict[str, Any] = {"must": must_clauses}
+    if should_clauses:
+        bool_query["should"] = should_clauses
     if must_not_clauses:
         bool_query["must_not"] = must_not_clauses
     return {

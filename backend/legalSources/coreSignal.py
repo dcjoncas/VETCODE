@@ -103,7 +103,7 @@ def search_people(
 ) -> dict[str, Any]:
     page_size = max(1, min(int(size or 10), 20))
     page_number = max(1, min(int(page or 1), 100))
-    clean_titles = _clean_terms(titles) or ["Professional"]
+    clean_titles = _clean_terms(titles)
     clean_practice = _clean_terms(practice_areas)
     clean_credentials = _clean_terms(
         licenses_or_certifications or [license_or_certification],
@@ -134,10 +134,11 @@ def search_people(
         }
     else:
         payload = {
-            "experience_title": _or_filter(clean_titles),
             "active_experience": True,
             "deleted": False,
         }
+        if clean_titles:
+            payload["experience_title"] = _or_filter(clean_titles)
         if location_terms:
             payload["location"] = _or_filter(location_terms)
         if clean_workforce_location == "onshore":
