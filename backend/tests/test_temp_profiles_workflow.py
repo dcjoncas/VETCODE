@@ -130,6 +130,8 @@ class TempProfilesWorkflowTests(unittest.TestCase):
         self.assertIn("processGoForward", flow)
         self.assertIn("workflowPosition:", flow)
         self.assertIn("You are here:", flow)
+        self.assertIn("Saved Searches - external sourcing records", flow)
+        self.assertIn("TEMP Profiles - external candidate review", flow)
         self.assertIn('<summary>More talent tools</summary>', nav)
         self.assertIn('link.closest("details")?.setAttribute("open", "")', nav)
         self.assertEqual(atlas.count("const pickerOpen = state.pickerOpen.has(domain);"), 1)

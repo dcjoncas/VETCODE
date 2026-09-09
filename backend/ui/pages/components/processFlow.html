@@ -1060,6 +1060,8 @@
     if (currentProcessPath.endsWith("/job-descriptions.html")) return "job-descriptions";
     if (currentProcessPath.endsWith("/match-role.html")) return "find-in";
     if (currentProcessPath.endsWith("/mine-candidate-external.html")) return "find-out";
+    if (currentProcessPath.endsWith("/saved-searches.html")) return "find-out";
+    if (currentProcessPath.endsWith("/temp-profiles.html")) return "find-out";
     if (currentProcessPath.endsWith("/profile-preview.html")) return "profile";
     if (currentProcessPath.endsWith("/profile-preview-edit.html")) return "profile";
     if (currentProcessPath.endsWith("/profile-public.html")) return "profile";
@@ -1135,6 +1137,21 @@
     "client-interview": "Schedule the candidate, client, and DevReady agent together.",
     status: "Record the outcome, follow-up, and next action for this candidate.",
   };
+  const workflowPageContext = (() => {
+    if (currentProcessPath.endsWith("/saved-searches.html")) {
+      return {
+        label: "Saved Searches - external sourcing records",
+        detail: "Reopen a saved provider result without spending another search credit, or start a new outside search.",
+      };
+    }
+    if (currentProcessPath.endsWith("/temp-profiles.html")) {
+      return {
+        label: "TEMP Profiles - external candidate review",
+        detail: "Review, enrich, contact, or promote saved external candidates before continuing to Profile Build.",
+      };
+    }
+    return null;
+  })();
   const workflowPositionDomain = sessionStorage.getItem("domain") || processParams.get("domain") || "dev";
   const workflowLocationId = `${window.location.pathname}${window.location.search}`;
   const workflowPositionKey = `workflowPosition:${workflowPositionDomain}:${workflowLocationId}`;
@@ -1191,12 +1208,13 @@
     const totalSteps = flowOrder.length;
     const completionPercent = Math.round((completedCount / totalSteps) * 100);
     const currentLabel = flowLabels[currentFlowStep] || "Choose a workflow step";
+    const pageLabel = workflowPageContext?.label || currentLabel;
 
-    statusTitle.textContent = currentFlowStep ? `Current: ${currentLabel}` : "Choose where to begin";
-    if (locationLabel) locationLabel.textContent = `You are here: ${currentLabel}`;
+    statusTitle.textContent = currentFlowStep ? `Current: ${pageLabel}` : "Choose where to begin";
+    if (locationLabel) locationLabel.textContent = `You are here: ${pageLabel}`;
     statusDetail.textContent = waitingForCandidateDecision
       ? "Record whether the candidate is interested before the client interview can be scheduled."
-      : (flowDetails[currentFlowStep] || "Start with Talent to select the candidate and domain.");
+      : (workflowPageContext?.detail || flowDetails[currentFlowStep] || "Start with Talent to select the candidate and domain.");
     progressCopy.textContent = `${completedCount} of ${totalSteps} steps complete`;
     progressTrack.setAttribute("aria-valuenow", String(completedCount));
     progressFill.style.width = `${completionPercent}%`;
