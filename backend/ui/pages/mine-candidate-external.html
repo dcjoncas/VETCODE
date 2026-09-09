@@ -1228,7 +1228,7 @@
 
           <div id="enrichmentSelectionStatus" class="selection-status-bar">
             <span id="selectedEnrichmentCount" class="pill">0 / 5 selected</span>
-            <span class="muted">After enrichment, use each blue Create TEMP profile button or check up to five candidates for batch creation.</span>
+            <span class="muted">TEMP profile creation saves research only. A candidate enters the active process only after you mark them Interested.</span>
           </div>
 
           <div id="jobSkillPanel" class="muted" style="margin-top: 12px"></div>
@@ -1804,7 +1804,7 @@
           document.getElementById("githubSourceButton").hidden = true;
           document.getElementById("courtListenerSourceButton").hidden = true;
           document.getElementById("sourceGuide").textContent =
-            "Use PDL or Coresignal for professional discovery, then review dental boards and staffing portals from the source directory when a manual channel is needed.";
+            "Use PDL or Coresignal for professional discovery, contact the candidates you choose, and mark only confirmed interested candidates into the active process. Review dental boards and staffing portals when a manual channel is needed.";
           document.getElementById("directSearchHelp").textContent =
             "Try role plus location, such as EFDA Denver, RDH Phoenix, dental treatment coordinator, or a known professional profile URL.";
           document.getElementById("resultsLimitHelp").textContent =
@@ -1825,8 +1825,8 @@
           "Exact name, work email, or public profile URL";
         document.getElementById("githubSourceButton").hidden = true;
         document.getElementById("courtListenerSourceButton").hidden = false;
-        document.getElementById("sourceGuide").textContent =
-          "Choose a configured discovery source, enrich returned linked profiles without creating TEMP records, then create TEMP profiles only for the candidates you select. Calculate each JD match separately when ready. License and standing verification remains required before permanent use or outreach.";
+          document.getElementById("sourceGuide").textContent =
+          "Choose a configured discovery source, contact the candidates you select, and add only confirmed interested candidates to the active process. Enrichment and TEMP profiles remain available; license and standing verification is still required before permanent use or outreach.";
         document.getElementById("resultsLimitHelp").textContent =
           "Provider usage is shown before each additional page is requested.";
         updateLawVerificationSource();
@@ -2045,12 +2045,12 @@
           );
           button.disabled = selected.length === 0;
           button.textContent = selectedSource === "courtlistener"
-            ? "Create selected TEMP research profiles"
+            ? "Create selected TEMP research profiles (not active)"
             : selectedNeedEnrichment
-              ? "Enrich and create selected TEMP profiles"
-              : "Create selected TEMP profiles";
+              ? "Enrich and create selected TEMP profiles (not active)"
+              : "Create selected TEMP profiles (not active)";
           button.title = selected.length
-            ? `${selectedNeedEnrichment ? "Enrich and create" : "Create"} ${selected.length} selected DevReady TEMP profile${selected.length === 1 ? "" : "s"}`
+            ? `${selectedNeedEnrichment ? "Enrich and create" : "Create"} ${selected.length} selected DevReady TEMP profile${selected.length === 1 ? "" : "s"}; this does not add candidates to the active process`
             : completed
               ? `${completed} result${completed === 1 ? " is" : "s are"} already complete. Select another result to enrich.`
               : "Select one or more results to enrich and create DevReady TEMP profiles";
