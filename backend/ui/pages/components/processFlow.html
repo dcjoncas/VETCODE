@@ -1214,6 +1214,9 @@
   }
 
   renderWorkflowStatus();
+  // This shared component is injected after the page's native `pageshow`
+  // event, so restore again as soon as the component has mounted.
+  restoreWorkflowPosition();
 
   const egeriaPilotKeys = [
     "activeCandidateId",
