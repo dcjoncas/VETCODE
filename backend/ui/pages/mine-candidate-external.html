@@ -1534,6 +1534,7 @@
           cumulativeSourceAudit = { ...(response.sourceAudit || {}) };
           setActiveSavedSearch(response.savedSearch || {}, latestExternalResults.length);
           if (response.source) setSource(response.source);
+          applySavedQueryToPage(response.savedQuery || {}, response);
           if (response.jd?.jd_id) {
             rememberJob(String(response.jd.jd_id), response.jd);
             externalJobPicker?.setSelection(String(response.jd.jd_id), response.jd, { dispatch: false });
@@ -1546,6 +1547,7 @@
             : `Saved direct search: ${response.savedQuery?.directQuery || (response.searchSkills || []).join(", ")}`;
           document.getElementById("mineStatus").textContent =
             `Loaded ${latestExternalResults.length} saved result${latestExternalResults.length === 1 ? "" : "s"} from ${response.savedSearch?.queryName || "the saved query"}. The provider was not contacted and 0 search credits were used.`;
+          persistSourcingViewState();
         } catch (error) {
           document.getElementById("mineStatus").textContent = `Saved search could not be opened: ${error.message || error}`;
         } finally {
@@ -1926,6 +1928,132 @@
 
       function currentLawCriteria() {
         return currentSearchCriteria();
+      }
+
+      function sourcingViewStorageKey() {
+        return `externalSourcingView:${currentDomain()}`;
+      }
+
+      function criteriaPickerOpenGroups() {
+        return [...document.querySelectorAll("#searchCriteriaPanel [data-criteria-card]")]
+          .filter((card) => card.querySelector("details.criteria-picker")?.open)
+          .map((card) => String(card.dataset.criteriaCard || ""))
+          .filter(Boolean);
+      }
+
+      function persistSourcingViewState() {
+        const searchId = String(activeSavedSearch?.rootId || activeSavedSearch?.id || "");
+        if (!latestExternalResults.length && !searchId) {
+          sessionStorage.removeItem(sourcingViewStorageKey());
+          return;
+        }
+        const snapshot = {
+          version: 1,
+          domain: currentDomain(),
+          savedAt: new Date().toISOString(),
+          selectedSource,
+          directSearch: document.getElementById("externalSearchInput")?.value || "",
+          topK: document.getElementById("topK")?.value || "10",
+          criteria: currentSearchCriteria(),
+          openCriteriaGroups: criteriaPickerOpenGroups(),
+          selectedCandidateKeys: [...selectedCandidateKeys()],
+          results: latestExternalResults,
+          activeExternalSearch,
+          activeSavedSearch,
+          nextExternalScrollToken,
+          cumulativeSourceAudit,
+          externalSearchCompleted,
+          jobSkillText: document.getElementById("jobSkillPanel")?.textContent || "",
+          statusText: document.getElementById("mineStatus")?.textContent || "",
+          scroll: { x: window.scrollX, y: window.scrollY },
+        };
+        try {
+          sessionStorage.setItem(sourcingViewStorageKey(), JSON.stringify(snapshot));
+        } catch {
+          try {
+            sessionStorage.removeItem(sourcingViewStorageKey());
+            sessionStorage.setItem(sourcingViewStorageKey(), JSON.stringify({
+              ...snapshot,
+              results: [],
+              activeExternalSearch: null,
+              storageLimited: true,
+            }));
+          } catch {}
+        }
+      }
+
+      function readSourcingViewState() {
+        try {
+          const snapshot = JSON.parse(sessionStorage.getItem(sourcingViewStorageKey()) || "null");
+          return snapshot?.version === 1 && snapshot.domain === currentDomain() ? snapshot : null;
+        } catch {
+          return null;
+        }
+      }
+
+      function restoreSourcingScroll(snapshot) {
+        const x = Number(snapshot?.scroll?.x);
+        const y = Number(snapshot?.scroll?.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        const restore = () => window.scrollTo(x, y);
+        requestAnimationFrame(() => requestAnimationFrame(restore));
+        window.setTimeout(restore, 120);
+        window.setTimeout(() => {
+          restore();
+          window.dispatchEvent(new Event("devready-page-content-restored"));
+        }, 400);
+      }
+
+      function restoreSourcingViewState(snapshot = readSourcingViewState()) {
+        if (!snapshot || !Array.isArray(snapshot.results) || !snapshot.results.length) return false;
+        if (snapshot.selectedSource) setSource(snapshot.selectedSource);
+        const directInput = document.getElementById("externalSearchInput");
+        if (directInput) directInput.value = snapshot.directSearch || "";
+        const topK = document.getElementById("topK");
+        if (topK && [...topK.options].some((option) => option.value === String(snapshot.topK || ""))) {
+          topK.value = String(snapshot.topK);
+        }
+        if (snapshot.criteria && typeof snapshot.criteria === "object") {
+          setSearchCriteria(snapshot.criteria);
+        }
+        latestExternalResults = snapshot.results;
+        activeExternalSearch = snapshot.activeExternalSearch || null;
+        nextExternalScrollToken = snapshot.nextExternalScrollToken || "";
+        cumulativeSourceAudit = snapshot.cumulativeSourceAudit || null;
+        externalSearchCompleted = snapshot.externalSearchCompleted !== false;
+        setActiveSavedSearch(snapshot.activeSavedSearch || null, latestExternalResults.length);
+        renderSourceAudit(cumulativeSourceAudit || {});
+        renderResults(latestExternalResults, {
+          preservedCandidateKeys: new Set(snapshot.selectedCandidateKeys || []),
+        });
+        renderResultPager();
+        const jobSkillPanel = document.getElementById("jobSkillPanel");
+        if (jobSkillPanel) jobSkillPanel.textContent = snapshot.jobSkillText || "";
+        const status = document.getElementById("mineStatus");
+        if (status && snapshot.statusText) status.textContent = snapshot.statusText;
+        const openGroups = new Set(snapshot.openCriteriaGroups || []);
+        document.querySelectorAll("#searchCriteriaPanel [data-criteria-card]").forEach((card) => {
+          const details = card.querySelector("details.criteria-picker");
+          if (details) details.open = openGroups.has(String(card.dataset.criteriaCard || ""));
+        });
+        updateSelectedEnrichmentCount();
+        restoreSourcingScroll(snapshot);
+        return true;
+      }
+
+      function applySavedQueryToPage(savedQuery = {}, response = {}) {
+        if (!savedQuery || typeof savedQuery !== "object") return;
+        if (savedQuery.source) setSource(savedQuery.source);
+        const topK = document.getElementById("topK");
+        if (topK && [...topK.options].some((option) => option.value === String(savedQuery.topK || ""))) {
+          topK.value = String(savedQuery.topK);
+        }
+        const directInput = document.getElementById("externalSearchInput");
+        if (directInput) {
+          directInput.value = savedQuery.queryMode === "direct" ? String(savedQuery.directQuery || "") : "";
+        }
+        const savedCriteria = savedQuery.criteria || response.criteria;
+        if (savedCriteria && typeof savedCriteria === "object") setSearchCriteria(savedCriteria);
       }
 
       function searchCriteriaErrors() {
@@ -3046,7 +3174,7 @@
         updateJob();
       }
 
-      async function hydrateSavedJobSelection() {
+      async function hydrateSavedJobSelection(options = {}) {
         const savedJdId =
           sessionStorage.getItem("selectedJdId") ||
           sessionStorage.getItem("jdId") ||
@@ -3066,11 +3194,12 @@
             document.getElementById("jdSelect").appendChild(option);
             document.getElementById("jdSelect").value = savedJdId;
           }
-          loadSavedSearchHistory().catch(() => {});
           rememberJob(savedJdId, jd);
-          await loadSearchCriteria(savedJdId);
-          document.getElementById("mineStatus").textContent =
-            `JD loaded: ${label}. Choose a configured source, then Find Candidates (Out).`;
+          if (options.preserveView !== true) {
+            await loadSearchCriteria(savedJdId);
+            document.getElementById("mineStatus").textContent =
+              `JD loaded: ${label}. Choose a configured source, then Find Candidates (Out).`;
+          }
         } catch (error) {
           console.log("Could not auto-load selected JD: " + (error.message || error));
         } finally {
@@ -3906,11 +4035,23 @@
           updateWorkflowGuidance();
         });
         window.addEventListener("devready-active-candidate-changed", updateWorkflowGuidance);
-        updateSelectedEnrichmentCount();
-        hydrateSavedJobSelection();
-        loadSavedSearchHistory()
+        window.addEventListener("pagehide", persistSourcingViewState);
+        window.addEventListener("pageshow", (event) => {
+          if (event.persisted) restoreSourcingScroll(readSourcingViewState());
+        });
+        const savedView = readSourcingViewState();
+        const restoredView = restoreSourcingViewState(savedView);
+        if (!restoredView) updateSelectedEnrichmentCount();
+        hydrateSavedJobSelection({ preserveView: restoredView })
+          .then(() => loadSavedSearchHistory())
           .then(async () => {
-            const requestedSearchId = new URLSearchParams(window.location.search).get("savedSearchId") || "";
+            if (restoredView) {
+              renderSavedSearches();
+              return;
+            }
+            const requestedSearchId = new URLSearchParams(window.location.search).get("savedSearchId")
+              || sessionStorage.getItem(`activeSourcingSearch:${currentDomain()}`)
+              || "";
             if (!requestedSearchId) return;
             const selected = savedExternalSearches.find(
               (search) => String(search.rootId || search.id) === String(requestedSearchId),
@@ -3922,6 +4063,7 @@
             document.getElementById("savedSearchSelect").value = String(selected.rootId || selected.id);
             setActiveSavedSearch(selected);
             await openSavedSearch();
+            restoreSourcingScroll(savedView);
           })
           .catch((error) => {
             document.getElementById("savedSearchSelect").innerHTML = '<option value="">Saved searches unavailable</option>';

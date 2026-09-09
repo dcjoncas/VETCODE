@@ -909,7 +909,7 @@
     </div>
     <div class="workflow-status-foot">
       <div class="workflow-history-nav" aria-label="Page history navigation">
-        <button class="workflow-history-button" type="button" onclick="processGoBack()" title="Return to the exact page and position you just left">← Back</button>
+        <button class="workflow-history-button" type="button" onclick="processGoBack()" title="Browser Back with the prior page state and position restored">← Back</button>
         <span id="processLocationLabel" class="workflow-location-label">You are here</span>
         <button class="workflow-history-button" type="button" onclick="processGoForward()" title="Move forward again after going back">Forward →</button>
       </div>
@@ -1192,6 +1192,7 @@
 
   window.addEventListener("pagehide", persistWorkflowPosition);
   window.addEventListener("pageshow", restoreWorkflowPosition, { once: true });
+  window.addEventListener("devready-page-content-restored", restoreWorkflowPosition);
 
   function renderWorkflowStatus() {
     const statusTitle = document.getElementById("processStatusTitle");
@@ -2025,6 +2026,8 @@ Top matches: ${quickHitEscape((best.top_matches || []).slice(0, 8).join(", ") ||
       `talentCounts:${keepDomain}`,
       `atlasSourcingClient:${keepDomain}`,
       `activeSourcingSearch:${keepDomain}`,
+      `externalSourcingView:${keepDomain}`,
+      `externalCandidateInterest:${keepDomain}`,
     ].forEach((key) => sessionStorage.removeItem(key));
     const workflowPrefixes = [
       `interviewSchedulingProgress:${keepDomain}:`,
