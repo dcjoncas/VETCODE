@@ -1273,12 +1273,12 @@
     const domain = sessionStorage.getItem("domain") || document.getElementById("domainSelect")?.value || "dev";
     const domainName =
       domain === "law"
-        ? "Law Domain"
+        ? "Law"
         : domain === "engineer"
-          ? "Engineer Domain"
+          ? "Engineer"
           : domain === "dental"
-            ? "Dental Domain"
-          : "Technology Domain";
+            ? "Dental"
+          : "Technology";
     const now = new Date().toLocaleString([], {
       year: "numeric",
       month: "short",
@@ -1324,7 +1324,7 @@
 
     const statusRows = [
       { label: "Updated", value: now },
-      { label: "Domain", value: domainName },
+      { label: "Workspace", value: domainName },
       { label: "Database", value: databaseName },
       { label: "DB host", value: databaseHost },
       { label: "Storage", value: storageContainer },
