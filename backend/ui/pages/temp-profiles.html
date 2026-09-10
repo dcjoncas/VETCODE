@@ -81,9 +81,64 @@
 
       .temp-profile-actions {
         display: flex;
+        align-items: center;
         justify-content: flex-end;
         gap: 8px;
         flex-wrap: wrap;
+      }
+
+      .compact-action-menu {
+        position: relative;
+      }
+
+      .compact-action-menu > summary {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 36px;
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface, #fff);
+        color: var(--text);
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 700;
+        list-style: none;
+      }
+
+      .compact-action-menu > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .compact-action-menu > summary::after {
+        content: "\25BE";
+        font-size: 12px;
+      }
+
+      .compact-action-menu[open] > summary {
+        border-color: var(--primary);
+        color: var(--primary-2);
+      }
+
+      .compact-action-list {
+        position: absolute;
+        right: 0;
+        z-index: 20;
+        display: grid;
+        gap: 7px;
+        min-width: 220px;
+        margin-top: 6px;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface, #fff);
+        box-shadow: 0 14px 34px rgb(14 23 38 / 18%);
+      }
+
+      .compact-action-list .btn {
+        justify-content: flex-start;
+        width: 100%;
       }
 
       .profile-contact,
@@ -241,6 +296,11 @@
         .temp-profile-actions {
           grid-column: 2;
           justify-content: flex-start;
+        }
+
+        .compact-action-list {
+          right: auto;
+          left: 0;
         }
       }
 
@@ -505,12 +565,17 @@
               ${interestIndicator}
             </div>
             <div class="temp-profile-actions">
-              ${currentMatch ? `<button class="btn secondary" type="button" onclick="calculateTempMatch('${escapeHtml(personId)}')">Recalculate JD match</button>` : ""}
               <button class="btn primary" type="button" onclick="useTempProfile('${escapeHtml(personId)}')">${profile.interestStatus === "interested" ? "Use interested candidate in process" : "Confirm interest & use in process"}</button>
               <button class="btn secondary" type="button" onclick="reviewTempProfile('${escapeHtml(personId)}')">Review profile</button>
-              ${profileUrl ? `<a class="btn secondary" href="${escapeHtml(profileUrl)}" target="_blank" rel="noopener">${isLinkedIn ? "Open LinkedIn" : "Open professional profile"}</a>` : ""}
-              <button class="btn secondary" type="button" onclick="makeTempPermanent('${escapeHtml(personId)}')">Make permanent</button>
-              <button class="btn danger" type="button" onclick="deleteTempProfile('${escapeHtml(personId)}')">Delete</button>
+              <details class="compact-action-menu">
+                <summary>More actions</summary>
+                <div class="compact-action-list">
+                  ${currentMatch ? `<button class="btn secondary" type="button" onclick="calculateTempMatch('${escapeHtml(personId)}')">Recalculate JD match</button>` : ""}
+                  ${profileUrl ? `<a class="btn secondary" href="${escapeHtml(profileUrl)}" target="_blank" rel="noopener">${isLinkedIn ? "Open LinkedIn" : "Open professional profile"}</a>` : ""}
+                  <button class="btn secondary" type="button" onclick="makeTempPermanent('${escapeHtml(personId)}')">Make permanent</button>
+                  <button class="btn danger" type="button" onclick="deleteTempProfile('${escapeHtml(personId)}')">Delete</button>
+                </div>
+              </details>
             </div>
           </article>`;
         }).join("");

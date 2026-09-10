@@ -198,7 +198,7 @@
           linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(var(--primary-rgb), 0.08)),
           #fff;
         box-shadow: 0 8px 16px rgba(16, 32, 24, 0.055);
-        cursor: pointer;
+        cursor: default;
         transition:
           border-color 160ms ease,
           box-shadow 160ms ease,
@@ -488,6 +488,70 @@
       .jd-card-actions .btn {
         min-height: 32px;
         padding: 7px 10px;
+      }
+
+      .compact-action-menu {
+        position: relative;
+      }
+
+      .compact-action-menu > summary {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 32px;
+        padding: 7px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface, #fff);
+        color: var(--text);
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 700;
+        list-style: none;
+      }
+
+      .compact-action-menu > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .compact-action-menu > summary::after {
+        content: "\25BE";
+        font-size: 12px;
+      }
+
+      .compact-action-menu[open] > summary {
+        border-color: var(--primary);
+        color: var(--primary-2);
+      }
+
+      .compact-action-list {
+        position: absolute;
+        left: 0;
+        z-index: 20;
+        display: grid;
+        gap: 7px;
+        min-width: 180px;
+        margin-top: 6px;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface, #fff);
+        box-shadow: 0 14px 34px rgb(14 23 38 / 18%);
+      }
+
+      .compact-action-list .btn {
+        justify-content: flex-start;
+        width: 100%;
+      }
+
+      .client-group:has(.compact-action-menu[open]),
+      .jd-card-grid:has(.compact-action-menu[open]) {
+        max-height: none;
+        overflow: visible;
+      }
+
+      .jd-row:has(.compact-action-menu[open]) {
+        max-height: none;
       }
 
       @media (max-width: 760px) {
@@ -817,8 +881,13 @@
                   <span>${escapeHtml(company)} &bull; JD ${escapeHtml(ask.jd_id)}</span>
                   <div class="row-actions">
                     <button class="btn" type="button" onclick="selectJd('${escapeHtml(ask.jd_id)}')">Use JD</button>
-                    <button class="btn secondary" type="button" onclick="editJd('${escapeHtml(ask.jd_id)}')">Edit</button>
-                    <button class="btn secondary" type="button" onclick="toggleJd('${escapeHtml(ask.jd_id)}')">View</button>
+                    <details class="compact-action-menu">
+                      <summary>More actions</summary>
+                      <div class="compact-action-list">
+                        <button class="btn secondary" type="button" onclick="editJd('${escapeHtml(ask.jd_id)}')">Edit</button>
+                        <button class="btn secondary" type="button" onclick="toggleJd('${escapeHtml(ask.jd_id)}')">View</button>
+                      </div>
+                    </details>
                   </div>
                 </div>
               `;
@@ -1017,7 +1086,7 @@
         const words = wordCount(text);
         const updated = jd.updated_at || jd.created_at || jd.createdAt;
         return `
-          <article class="jd-row" id="jd-row-${escapeHtml(id)}" onclick="editJd('${escapeHtml(id)}')">
+          <article class="jd-row" id="jd-row-${escapeHtml(id)}">
             <div class="jd-card-head">
               <div>
                 <h4 class="jd-title">${escapeHtml(jd.title || "Role title to be confirmed")}</h4>
@@ -1044,19 +1113,24 @@
             <div class="jd-skills" id="jd-skills-${escapeHtml(id)}">
               ${skillPreview || `<span class="skill-pill">Skills pending</span>`}
             </div>
-            <div class="jd-card-actions" onclick="event.stopPropagation()">
+            <div class="jd-card-actions">
               <button class="btn" type="button" onclick="selectJd('${escapeHtml(id)}')">
                 Use JD
               </button>
-              <button class="btn secondary" type="button" onclick="editJd('${escapeHtml(id)}')">
-                Edit
-              </button>
-              <button class="btn secondary" type="button" onclick="toggleJd('${escapeHtml(id)}')">
-                View
-              </button>
-              <button class="btn secondary btn-danger" type="button" onclick="deleteJd('${escapeHtml(id)}')">
-                Delete
-              </button>
+              <details class="compact-action-menu">
+                <summary>More actions</summary>
+                <div class="compact-action-list">
+                  <button class="btn secondary" type="button" onclick="editJd('${escapeHtml(id)}')">
+                    Edit
+                  </button>
+                  <button class="btn secondary" type="button" onclick="toggleJd('${escapeHtml(id)}')">
+                    View
+                  </button>
+                  <button class="btn secondary btn-danger" type="button" onclick="deleteJd('${escapeHtml(id)}')">
+                    Delete
+                  </button>
+                </div>
+              </details>
             </div>
             <div class="jd-details" id="jd-details-${escapeHtml(id)}">
               <div class="jd-meta">Loading details...</div>

@@ -125,6 +125,8 @@ class TempProfilesWorkflowTests(unittest.TestCase):
         flow = (PAGES / "components" / "processFlow.html").read_text(encoding="utf-8")
         nav = (PAGES / "components" / "sideNav.html").read_text(encoding="utf-8")
         atlas = (PAGES / "JS" / "atlasClientContext.js").read_text(encoding="utf-8")
+        temp_profiles = (PAGES / "temp-profiles.html").read_text(encoding="utf-8")
+        job_descriptions = (PAGES / "job-descriptions.html").read_text(encoding="utf-8")
 
         self.assertIn("processGoBack", flow)
         self.assertIn("processGoForward", flow)
@@ -135,6 +137,19 @@ class TempProfilesWorkflowTests(unittest.TestCase):
         self.assertIn('<summary>More talent tools</summary>', nav)
         self.assertIn('link.closest("details")?.setAttribute("open", "")', nav)
         self.assertEqual(atlas.count("const pickerOpen = state.pickerOpen.has(domain);"), 1)
+        self.assertIn('<details class="compact-action-menu">', temp_profiles)
+        self.assertIn('<summary>More actions</summary>', temp_profiles)
+        self.assertIn("Confirm interest & use in process", temp_profiles)
+        self.assertIn("Recalculate JD match", temp_profiles)
+        self.assertIn("Make permanent", temp_profiles)
+        self.assertIn('<article class="jd-row" id="jd-row-${escapeHtml(id)}">', job_descriptions)
+        self.assertNotIn(
+            '<article class="jd-row" id="jd-row-${escapeHtml(id)}" onclick="editJd',
+            job_descriptions,
+        )
+        self.assertEqual(job_descriptions.count('<summary>More actions</summary>'), 2)
+        self.assertIn("Use JD", job_descriptions)
+        self.assertIn("deleteJd", job_descriptions)
 
     def test_courtlistener_and_professional_sources_share_combined_profile_evidence(self):
         html = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")
