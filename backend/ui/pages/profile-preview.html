@@ -87,22 +87,25 @@
       .profile-contact-strip {
         display: flex;
         flex-wrap: wrap;
-        gap: 7px;
-        margin-top: 10px;
+        gap: 8px;
+        flex: 1 1 100%;
       }
 
       .profile-contact-item {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        min-height: 32px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 4px;
+        min-width: 0;
+        min-height: 48px;
         max-width: 100%;
         border: 1px solid rgba(var(--primary-rgb), 0.24);
         border-radius: 9px;
-        padding: 6px 9px;
+        padding: 8px 11px;
         background: rgba(var(--primary-rgb), 0.055);
         color: var(--text);
-        font-size: 12px;
+        font-size: 14px;
         font-weight: 800;
         text-decoration: none;
         overflow-wrap: anywhere;
@@ -124,7 +127,7 @@
 
       .profile-contact-label {
         color: var(--muted);
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 900;
         letter-spacing: 0.04em;
         text-transform: uppercase;
@@ -661,8 +664,12 @@
                   No Candidate Loaded
                 </div>
                 <span id="profileIdChip" class="profile-id-chip" style="display: none"></span>
+                <div id="profileContactStrip" class="profile-contact-strip" aria-label="Candidate contact information" aria-live="polite">
+                  <span class="profile-contact-item missing"><span class="profile-contact-label">Phone</span> Not available</span>
+                  <span class="profile-contact-item missing"><span class="profile-contact-label">Email</span> Not available</span>
+                  <span class="profile-contact-item missing"><span class="profile-contact-label">LinkedIn</span> Not available</span>
+                </div>
               </div>
-              <div id="profileContactStrip" class="profile-contact-strip" aria-label="Candidate contact information"></div>
               <div
                 id="profileSubHeader"
                 style="color: var(--muted); margin-top: 6px"
@@ -1604,12 +1611,18 @@
       }
 
       function safeLinkedInProfileUrl(...values) {
-        for (const value of values) {
-          const href = safeProfileHttpUrl(value);
+        for (const value of profileContactValues(values, ["url", "value"])) {
+          const normalized = /^(?:[a-z0-9-]+\.)*linkedin\.com\//i.test(value)
+            ? `https://${value}`
+            : value.startsWith("//") ? `https:${value}` : value;
+          const href = safeProfileHttpUrl(normalized);
           if (!href) continue;
           try {
-            const host = new URL(href).hostname.toLowerCase();
-            if (host === "linkedin.com" || host.endsWith(".linkedin.com")) return href;
+            const url = new URL(href);
+            const host = url.hostname.toLowerCase();
+            if (!url.username && !url.password
+              && (host === "linkedin.com" || host.endsWith(".linkedin.com"))
+              && /^\/(in|pub)\/[^/]+/i.test(url.pathname)) return href;
           } catch (_error) {
             // Ignore malformed provider values and continue to the next source.
           }
@@ -1617,9 +1630,17 @@
         return "";
       }
 
-      function renderProfileHeaderContacts(profileData = {}) {
-        const target = document.getElementById("profileContactStrip");
-        if (!target) return;
+      function profileContactValues(values, keys) {
+        return values.flatMap((value) => {
+          if (Array.isArray(value)) return profileContactValues(value, keys);
+          if (value && typeof value === "object") return profileContactValues(keys.map((key) => value[key]), keys);
+          if (typeof value !== "string") return [];
+          const text = value.trim();
+          return text && !/^(n\/?a|none|null|undefined|unknown|not (available|provided|returned))$/i.test(text) ? [text] : [];
+        });
+      }
+
+      function profileHeaderContacts(profileData = {}) {
         const profile = profileData.profile || {};
         const metadata = profileData.externalProfile && typeof profileData.externalProfile === "object"
           ? profileData.externalProfile
@@ -1628,40 +1649,53 @@
         const validation = metadata.profileValidation && typeof metadata.profileValidation === "object"
           ? metadata.profileValidation
           : {};
-        const professionalEmails = Array.isArray(contact.professionalEmails)
-          ? contact.professionalEmails.map((item) => typeof item === "string" ? item : item?.email)
-          : [];
-        const emails = [
+        const emails = profileContactValues([
+          profile.email,
+          contact.primaryEmail,
           contact.workEmail,
           contact.recommendedPersonalEmail,
-          profile.email,
-          ...professionalEmails,
-          ...(Array.isArray(contact.personalEmails) ? contact.personalEmails : []),
-        ].map((value) => String(value || "").trim()).filter(Boolean);
-        const phones = [
-          contact.mobilePhone,
+          contact.professionalEmails,
+          contact.personalEmails,
+        ], ["email", "address", "value"]).filter((value) => /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value));
+        const phones = profileContactValues([
+          profile.phone,
+          profile.phoneNumber,
+          profile.mobilePhone,
+          profile.contact?.phone,
           contact.primaryPhone,
-          ...(Array.isArray(contact.phoneNumbers) ? contact.phoneNumbers : []),
-        ].map((value) => String(value || "").trim()).filter(Boolean);
+          contact.mobilePhone,
+          contact.phone,
+          contact.phoneNumbers,
+        ], ["number", "phone", "phoneNumber", "value"]).filter((value) => value.replace(/(?:ext\.?|x|#)\s*\d+$/i, "").replace(/\D/g, "").length >= 7 && /^[+\d\s().\-/]+(?:(?:ext\.?|x|#)\s*\d+)?$/i.test(value));
         const email = emails[0] || "";
         const phone = phones[0] || "";
         const linkedin = safeLinkedInProfileUrl(
-          validation.profileUrl,
           profile.linkedinUrl,
+          profile.linkedin_url,
+          validation.profileUrl,
           metadata.linkedinUrl,
           metadata.profileUrl,
         );
+        return { email, phone, linkedin };
+      }
+
+      function renderProfileHeaderContacts(profileData = {}) {
+        const target = document.getElementById("profileContactStrip");
+        if (!target) return;
+        const { email, phone, linkedin } = profileHeaderContacts(profileData);
         const item = (label, value, href, options = {}) => {
           if (!value) {
-            return `<span class="profile-contact-item missing"><span class="profile-contact-label">${profileEscapeHtml(label)}</span> Not returned</span>`;
+            return `<span class="profile-contact-item missing"><span class="profile-contact-label">${profileEscapeHtml(label)}</span> Not available</span>`;
           }
           const external = options.external ? ' target="_blank" rel="noopener"' : "";
           return `<a class="profile-contact-item" href="${profileEscapeHtml(href)}"${external}><span class="profile-contact-label">${profileEscapeHtml(label)}</span> ${profileEscapeHtml(value)}</a>`;
         };
+        const phoneParts = phone.split(/(?:ext\.?|x|#)\s*/i);
+        const phoneHref = `tel:${phoneParts[0].replace(/[^+\d]/g, "")}${phoneParts[1] ? `;ext=${phoneParts[1].replace(/\D/g, "")}` : ""}`;
         target.innerHTML = [
+          item("Phone", phone, phoneHref),
           item("Email", email, `mailto:${encodeURIComponent(email)}`),
-          item("Phone", phone, `tel:${encodeURIComponent(phone)}`),
-          item("LinkedIn", linkedin ? "Open profile" : "", linkedin, { external: true }),
+          item("LinkedIn", linkedin ? linkedin.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "") : "", linkedin, { external: true }),
         ].join("");
       }
 
@@ -2003,6 +2037,7 @@
           profileData = await loadProfileForActiveDomain(candidateId);
           if (!profileData) return;
           const loadedProfile = profileData.profile || {};
+          renderProfileHeaderContacts(profileData);
           const loadedName = [loadedProfile.firstName, loadedProfile.lastName]
             .filter((part) => part && String(part).trim())
             .join(" ");
@@ -2035,7 +2070,6 @@
               : [],
           };
           if (typeof updateCandidate === "function") updateCandidate();
-          renderProfileHeaderContacts(profileData);
           renderProfileCompensation(profileData);
           if (profileData.domain) {
             sessionStorage.setItem("candidateDomain", profileData.domain);
