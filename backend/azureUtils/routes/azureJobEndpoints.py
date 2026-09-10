@@ -16,6 +16,7 @@ from openAI import externalPeopleSearch
 import peopleDataLabs.peopleSearch as peopleDataLabs
 from legalSources import coreSignal, courtListener
 from resumeProcessing.processing import ingest
+from external_evidence_match import build_professional_match
 
 def top_matches_from_parts(parts: dict, limit: int = 8):
     """
@@ -999,7 +1000,13 @@ def _pdl_source_audit(
         "recordsReturned": len(rows) if isinstance(rows, list) else 0,
         "recordsReviewed": len(rows) if isinstance(rows, list) else 0,
         "estimatedCreditsUsed": len(rows) if isinstance(rows, list) else 0,
-        "costLabel": "record credits",
+        "estimatedCreditsBasis": "One Person Search credit per raw provider record; estimate only, not an account balance.",
+        "providerUsage": (
+            response["provider_usage"]
+            if isinstance(response.get("provider_usage"), dict)
+            else peopleDataLabs.summarize_search_usage([{}])
+        ),
+        "costLabel": "estimated record credits",
         "creditLimited": credit_limited,
         "requestedPageSize": requested_size,
         "effectivePageSize": effective_size,
@@ -1128,6 +1135,11 @@ def _provider_search_error_response(
         },
     }
     content.update(extra or {})
+    if source == "pdl":
+        usage = getattr(error, "provider_usage", None)
+        content["sourceAudit"]["providerUsage"] = usage if isinstance(usage, dict) else peopleDataLabs.summarize_search_usage([{}] if query_executed else [])
+        content["sourceAudit"]["costLabel"] = "estimated record credits"
+        content["sourceAudit"]["estimatedCreditsBasis"] = "No records returned; provider-reported charges may be unavailable after an error."
     return JSONResponse(status_code=status_code, content=content)
 
 
@@ -1916,7 +1928,8 @@ def _people_data_row(
         "avatar_url": "",
         "summary": row.get("summary") or row.get("headline") or "",
         "skills": skills,
-        "years_experience": row.get("inferred_years_experience") or 0,
+        "years_experience": row.get("inferred_years_experience"),
+        "years_experience_known": row.get("inferred_years_experience") is not None,
         "job_last_verified": row.get("job_last_verified") or "",
         "score": score,
         "match_band": score_details["band"],
@@ -2310,13 +2323,13 @@ def _github_direct_search(search_query: str, search_terms: list[str], size: int 
     enriched_rows.sort(key=lambda row: row["score"], reverse=True)
     return enriched_rows
 
-def _get_job_skills(jd_id: str, domain: str = "dev"):
+def _get_job_skills(jd_id: str, domain: str = "dev", allow_generation: bool = True):
     domain = _domain_key(domain)
     jd = jobs.getJob(jd_id, domain)
     if not jd:
         raise HTTPException(status_code=400, detail="No job description found for this domain.")
     job_skills = list(dict.fromkeys(_safe_list(jd.get("skills"))))
-    if not job_skills:
+    if not job_skills and allow_generation:
         job_skills = externalPeopleSearch.getPeopleSkills(jd.get("description") or "")
     return jd, job_skills
 
@@ -3025,6 +3038,8 @@ def _saved_search_cache_hit(cached: dict) -> dict:
     response = json.loads(json.dumps((cached or {}).get("response") or {}, default=str))
     metadata = dict((cached or {}).get("metadata") or {})
     audit = dict(response.get("sourceAudit") or {})
+    if response.get("source") == "pdl" or audit.get("provider") == "People Data Labs":
+        _mark_pdl_saved_usage(audit)
     audit.update(
         {
             "queryExecuted": False,
@@ -3044,6 +3059,23 @@ def _saved_search_cache_hit(cached: dict) -> dict:
     response["pagination"] = pagination
     response["savedSearch"] = metadata
     return response
+
+
+def _mark_pdl_saved_usage(audit: dict, original_calls: list[dict] | None = None, original_estimate: int | None = None) -> None:
+    """A saved lookup costs zero now; its stored provider balance is historical."""
+    original_usage = dict(audit.get("originalProviderUsage") or audit.get("providerUsage") or {})
+    if original_calls is not None:
+        original_usage = peopleDataLabs.summarize_search_usage(original_calls)
+    elif not original_usage:
+        original_usage = peopleDataLabs.summarize_search_usage([{}])
+    if original_usage.get("balanceStatus") == "reported":
+        original_usage["balanceStatus"] = "historical"
+    audit["originalProviderUsage"] = original_usage
+    audit["originalEstimatedCreditsUsed"] = (
+        original_estimate if original_estimate is not None
+        else audit.get("originalEstimatedCreditsUsed", audit.get("estimatedCreditsUsed"))
+    )
+    audit["providerUsage"] = peopleDataLabs.summarize_search_usage([], source="local_cache")
 
 
 def _prepare_external_search_history(query_payload: dict):
@@ -3169,7 +3201,12 @@ def external_candidate_search(
     }
     history_cache_key, cached_search = _prepare_external_search_history(history_query)
     if cached_search:
-        return _saved_search_cache_hit(cached_search)
+        cached_response = _saved_search_cache_hit(cached_search)
+        if selected_source in {"pdl", "coresignal"}:
+            cached_response["results"] = [_apply_external_evidence_match(row, jd, criteria, job_skills) for row in cached_response.get("results", [])]
+            cached_response["results"].sort(key=lambda row: row.get("score") if row.get("score") is not None else -1, reverse=True)
+            cached_response["matchRefreshedFromCurrentJob"] = True
+        return cached_response
     source_audit = {}
     pagination = {
         "pageSize": top_k,
@@ -3338,7 +3375,9 @@ def external_candidate_search(
             source_audit["statusMessage"] = " ".join(
                 value for value in [source_audit.get("statusMessage", ""), contact_status] if value
             )
-    results.sort(key=lambda row: row.get("score", 0), reverse=True)
+    if selected_source in {"pdl", "coresignal"}:
+        results = [_apply_external_evidence_match(row, jd, criteria, job_skills) for row in results]
+    results.sort(key=lambda row: row.get("score") if row.get("score") is not None else -1, reverse=True)
     response_payload = {
         "jd": {
             "jd_id": jd["jd_id"],
@@ -3597,7 +3636,8 @@ def _external_year(value):
 
 
 def _external_candidate_skills(candidate: dict, limit: int = 30) -> list[str]:
-    ordered = _safe_list(candidate.get("top_matches")) + _safe_list(candidate.get("skills"))
+    # Derived JD matches are never source-provided skills.
+    ordered = _safe_list(candidate.get("skills"))
     clean = []
     seen = set()
     for value in ordered:
@@ -3801,13 +3841,108 @@ def _external_court_evidence(candidate: dict) -> dict:
     }
 
 
-def _pending_external_match(notice: str = "Profile is enriched and ready for an explicit JD match calculation.") -> dict:
+def _pending_external_match(notice: str = "Profile is enriched and ready for an explicit JD match calculation.", previous_match: dict | None = None) -> dict:
+    previous = previous_match if isinstance(previous_match, dict) else {}
+    prior_criteria = previous.get("criteriaSnapshot") if isinstance(previous.get("criteriaSnapshot"), dict) else {}
+    criteria_keys = {
+        "titles", "mustHaveSkills", "requiredSkills", "locations", "minYears", "experienceRanges",
+        "licensesOrCertifications", "licenseOrCertification", "workArrangements", "workArrangement",
+        "workforceLocations", "workforceLocation", "ignoredCriteria", "ignoreAll", "strictLocations", "region",
+    }
+    criteria_snapshot = {
+        key: list(value) if isinstance(value, list) else value
+        for key, value in prior_criteria.items() if key in criteria_keys
+    }
     return {
         "status": "not_run",
         "score": None,
-        "jobId": "",
+        "jobId": _external_text(previous.get("jobId"), 80),
+        "criteriaSnapshot": criteria_snapshot,
         "notice": notice,
     }
+
+
+def _external_match_snapshot(candidate: dict) -> dict:
+    """Keep source evidence separate from derived match labels and contact data."""
+    details = candidate.get("profile_data") if isinstance(candidate.get("profile_data"), dict) else {}
+    experiences = details.get("experience") if isinstance(details.get("experience"), list) else []
+    return {
+        "source_label": _external_text(candidate.get("source_label") or candidate.get("source"), 120),
+        "title": _external_position_title(candidate.get("title") or candidate.get("job_title")),
+        "summary": _external_text(candidate.get("summary"), 4000),
+        "skills": _safe_list(candidate.get("skills")),
+        "years_experience": candidate.get("years_experience"),
+        "years_experience_known": candidate.get("years_experience_known") is True,
+        "location": _external_text(candidate.get("location"), 300),
+        "profile_data": {
+            "headline": _external_text(details.get("headline"), 600),
+            "job_summary": _external_text(details.get("job_summary"), 4000),
+            "experience": [
+                {"title": _external_position_title(item.get("title")), "summary": _external_text(item.get("summary"), 4000)}
+                for item in experiences if isinstance(item, dict)
+            ],
+            "certifications": [
+                {"name": _external_text(item.get("name") or item.get("title"), 240),
+                 "expiration_date": _external_text(item.get("expiration_date") or item.get("expires_on") or item.get("end_date") or item.get("expires_at"), 40),
+                 "status": _external_text(item.get("status"), 40)} if isinstance(item, dict)
+                else _external_text(item, 240)
+                for item in details.get("certifications", [])
+            ] if isinstance(details.get("certifications"), list) else [],
+            "education": [
+                {"degrees": _safe_list(item.get("degrees")), "majors": _safe_list(item.get("majors"))}
+                for item in details.get("education", []) if isinstance(item, dict)
+            ] if isinstance(details.get("education"), list) else [],
+            "location": {
+                key: _external_text((details.get("location") or {}).get(key), 200)
+                for key in ("name", "locality", "region", "country")
+            } if isinstance(details.get("location"), dict) else {},
+        },
+    }
+
+
+def _stored_external_match_candidate(stored: dict) -> dict:
+    metadata = stored.get("externalProfile") if isinstance(stored.get("externalProfile"), dict) else {}
+    snapshot = metadata.get("professionalEvidenceSnapshot")
+    if isinstance(snapshot, dict) and snapshot:
+        return snapshot
+    # Legacy providerSkills may contain top_matches. Do not reinforce that
+    # contaminated list. Use independently retained professional facts instead.
+    return {
+        "source_label": _external_text(metadata.get("source"), 120),
+        "title": _external_text(stored.get("title"), 200),
+        "summary": ". ".join(_safe_list(metadata.get("professionalEvidence"))),
+        "skills": [],
+        "years_experience": metadata.get("yearsExperience"),
+        "profile_data": {"certifications": _safe_list(metadata.get("certifications"))},
+    }
+
+
+def _calculate_external_evidence_match(jd_id: str, domain: str, candidate: dict, supplied_criteria: dict | None = None) -> dict:
+    if not jd_id:
+        raise HTTPException(status_code=400, detail="Choose an active job description before calculating a match.")
+    # Never fall back to generated skills or a provider call in the local score action.
+    jd, job_skills = _get_job_skills(jd_id, domain, allow_generation=False)
+    criteria = supplied_criteria if isinstance(supplied_criteria, dict) else {}
+    # A missing criteria payload means compare the stored JD itself, not default
+    # domain titles/experience constraints invented by the discovery form.
+    match = build_professional_match(jd, candidate, criteria, job_skills)
+    match.update({"jobId": str(jd.get("jd_id") or jd_id), "calculationMode": "explicit_user_action", "calculatedAt": datetime.now(timezone.utc).isoformat()})
+    return match
+
+
+def _apply_external_evidence_match(candidate: dict, jd: dict, criteria: dict, job_skills: list[str]) -> dict:
+    candidate = dict(candidate)
+    match = build_professional_match(jd, candidate, criteria, job_skills)
+    candidate["match"] = match
+    candidate["score"] = match["score"]
+    candidate["match_band"] = match["band"]
+    candidate["top_matches"] = match["matched"]
+    candidate["score_details"] = {
+        **match, "band": match["band"], "matched_count": match["matchedCount"],
+        "required_count": match["requiredCount"], "scoring_skills": job_skills,
+        "evidence_sources": match["evidenceSources"],
+    }
+    return candidate
 
 
 def _external_profile_metadata(candidate: dict, source: str, enrichment: dict) -> dict:
@@ -3853,7 +3988,8 @@ def _external_profile_metadata(candidate: dict, source: str, enrichment: dict) -
         "recordType": _external_text(candidate.get("result_type"), 80),
         "enrichment": enrichment,
         "searchPreviewMatch": search_preview_match,
-        "match": _pending_external_match("Use Calculate JD match after enrichment to save match statistics."),
+        "match": _pending_external_match("Calculate JD match from the saved professional evidence; contact enrichment is optional."),
+        "professionalEvidenceSnapshot": {} if is_court_lead and not court_profile_confirmed else _external_match_snapshot(candidate),
         "education": _external_education(candidate),
         "certifications": _external_certifications(candidate),
         "contact": candidate.get("contact") if isinstance(candidate.get("contact"), dict) else {},
@@ -3921,6 +4057,67 @@ def _reusable_external_result_enrichment(candidate: dict) -> dict:
     return {}
 
 
+def _external_contact_value(value, kind: str) -> str:
+    if not isinstance(value, str):
+        return ""
+    value = value.strip()
+    if kind == "email":
+        return value if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value) else ""
+    if kind == "phone":
+        return value if 7 <= len(re.sub(r"\D", "", value)) <= 20 else ""
+    if not value:
+        return ""
+    if "://" not in value:
+        value = value.lstrip("/")
+        value = ("https://www." if value.startswith("linkedin.com/") else "https://") + value
+    try:
+        parsed = urlparse(value)
+        valid = parsed.scheme in {"http", "https"} and parsed.hostname and "." in parsed.hostname
+        valid = valid and not re.search(r"\s", parsed.netloc) and not parsed.username and not parsed.password
+        return value if valid else ""
+    except ValueError:
+        return ""
+
+
+def _merge_external_contact_fields(candidate: dict, mapped: dict) -> dict:
+    """Keep known contact details when a later provider response omits them."""
+    original = candidate.get("contact") if isinstance(candidate.get("contact"), dict) else {}
+    incoming = mapped.get("contact") if isinstance(mapped.get("contact"), dict) else {}
+    contact = {**original, **{key: value for key, value in incoming.items() if value is not None and value not in ("", [], {})}}
+    for kind, keys in (
+        ("email", ("primaryEmail", "workEmail", "recommendedPersonalEmail")),
+        ("phone", ("primaryPhone", "mobilePhone")),
+    ):
+        for key in keys:
+            contact[key] = _external_contact_value(incoming.get(key), kind) or _external_contact_value(original.get(key), kind)
+    for key, kind in (("personalEmails", "email"), ("professionalEmails", "email"), ("phoneNumbers", "phone")):
+        values = []
+        for source in (incoming, original):
+            for item in source.get(key, []) if isinstance(source.get(key), list) else []:
+                if isinstance(item, dict):
+                    item = item.get("address") or item.get("email") or item.get("number")
+                clean = _external_contact_value(item, kind)
+                if clean and clean.lower() not in {existing.lower() for existing in values}:
+                    values.append(clean)
+        contact[key] = values
+    merged = {**candidate, **mapped, "contact": contact}
+    merged["email"] = next((value for value in (
+        _external_contact_value(mapped.get("email"), "email"),
+        _external_contact_value(candidate.get("email"), "email"),
+        contact["primaryEmail"], contact["workEmail"], contact["recommendedPersonalEmail"],
+        *(contact["professionalEmails"] + contact["personalEmails"]),
+    ) if value), "")
+    merged["phone"] = next((value for value in (
+        _external_contact_value(mapped.get("phone"), "phone"),
+        _external_contact_value(candidate.get("phone"), "phone"),
+        contact["primaryPhone"], contact["mobilePhone"], *contact["phoneNumbers"],
+    ) if value), "")
+    merged["profile_url"] = _external_contact_value(mapped.get("profile_url"), "url") or _external_contact_value(candidate.get("profile_url"), "url")
+    contact["primaryEmail"] = merged["email"]
+    contact["primaryPhone"] = merged["phone"]
+    return merged
+
+
 def _enrich_external_pdl_result(candidate: dict) -> tuple[dict, dict]:
     source_id = _external_text(candidate.get("source_id"), 180)
     profile_url = _external_text(candidate.get("profile_url"), 500)
@@ -3963,6 +4160,7 @@ def _enrich_external_pdl_result(candidate: dict) -> tuple[dict, dict]:
     )
     court_practice_signals = _safe_list(original_profile_data.get("matched_practice_areas"))
     enrichment_row = dict(response["data"])
+    enrichment_row["linkedin_url"] = _external_contact_value(enrichment_row.get("linkedin_url"), "url")
     if court_practice_signals:
         enrichment_row["skills"] = list(
             dict.fromkeys(_safe_list(enrichment_row.get("skills")) + court_practice_signals)
@@ -3972,7 +4170,7 @@ def _enrich_external_pdl_result(candidate: dict) -> tuple[dict, dict]:
         **original_profile_data,
         **(mapped.get("profile_data") if isinstance(mapped.get("profile_data"), dict) else {}),
     }
-    enriched_candidate = {**candidate, **mapped, "profile_data": merged_profile_data}
+    enriched_candidate = {**_merge_external_contact_fields(candidate, mapped), "profile_data": merged_profile_data}
     enriched_candidate.update(discovery_match)
     enriched_candidate["source"] = "pdl"
     enriched_candidate["source_label"] = (
@@ -4067,7 +4265,7 @@ def _enrich_external_coresignal_result(candidate: dict) -> tuple[dict, dict]:
             else {}
         ),
     }
-    enriched_candidate = {**candidate, **mapped}
+    enriched_candidate = _merge_external_contact_fields(candidate, mapped)
     enriched_candidate.update(discovery_match)
     enriched_candidate["source"] = "coresignal"
     collected_dataset = str(response.get("dataset") or dataset).lower()
@@ -4149,6 +4347,8 @@ def external_candidate_import(payload: dict = Body(...)):
         raise HTTPException(status_code=400, detail="Candidate data is required.")
     source = candidate.get("source") or payload.get("source") or "external"
     _assert_external_source_allowed(source, domain)
+    if source == "pdl":
+        candidate = _merge_external_contact_fields(candidate, {})
     result_type = candidate.get("result_type")
     is_court_lead = source == "courtlistener" and result_type == "court_attorney_lead"
     profile_validation = (
@@ -4192,11 +4392,15 @@ def external_candidate_import(payload: dict = Body(...)):
         return duplicate
 
     jd_id = _external_text(payload.get("jd_id"), 80)
-    job_skills = _safe_list(candidate.get("top_matches") or candidate.get("skills"))
+    job_skills = _safe_list(candidate.get("skills"))
     search_skills = list(job_skills)
     criteria = None
+    prior_match = candidate.get("match") if isinstance(candidate.get("match"), dict) else {}
+    import_match_criteria = payload.get("criteria")
+    if not isinstance(import_match_criteria, dict):
+        import_match_criteria = prior_match.get("criteriaSnapshot") if str(prior_match.get("jobId") or "") == jd_id else {}
     if jd_id:
-        jd, job_skills = _get_job_skills(jd_id, domain)
+        jd, job_skills = _get_job_skills(jd_id, domain, allow_generation=False)
         search_skills = _searchable_job_skills(job_skills, 12)
         supplied_criteria = payload.get("criteria") if isinstance(payload.get("criteria"), dict) else {}
         if domain == "law":
@@ -4241,7 +4445,7 @@ def external_candidate_import(payload: dict = Body(...)):
     if reusable_enrichment:
         enrichment.update(reusable_enrichment)
         enrichment_reused = True
-    if source == "pdl" and not enrichment_reused:
+    if source == "pdl" and not enrichment_reused and payload.get("enrich_contacts") is True:
         try:
             response = peopleDataLabs.enrichPerson(profile=profile_url, pdl_id=source_id)
         except peopleDataLabs.PeopleDataLabsError as exc:
@@ -4267,6 +4471,7 @@ def external_candidate_import(payload: dict = Body(...)):
             )
             court_practice_signals = _safe_list(original_profile_data.get("matched_practice_areas"))
             enrichment_row = dict(response["data"])
+            enrichment_row["linkedin_url"] = _external_contact_value(enrichment_row.get("linkedin_url"), "url")
             if court_practice_signals:
                 enrichment_row["skills"] = list(
                     dict.fromkeys(_safe_list(enrichment_row.get("skills")) + court_practice_signals)
@@ -4276,7 +4481,7 @@ def external_candidate_import(payload: dict = Body(...)):
                 **original_profile_data,
                 **(mapped.get("profile_data") if isinstance(mapped.get("profile_data"), dict) else {}),
             }
-            candidate = {**candidate, **mapped, "profile_data": merged_profile_data}
+            candidate = {**_merge_external_contact_fields(candidate, mapped), "profile_data": merged_profile_data}
             candidate.update(discovery_match)
             candidate["source"] = "pdl"
             candidate["source_label"] = (
@@ -4319,6 +4524,11 @@ def external_candidate_import(payload: dict = Body(...)):
     full_name = candidate.get("name") or "External Candidate"
     profile_url = candidate.get("profile_url") or profile_url
     metadata = _external_profile_metadata(candidate, source, enrichment)
+    if jd_id:
+        metadata["match"] = _pending_external_match(
+            "Calculate JD match from the saved professional evidence; contact enrichment is optional.",
+            {"jobId": jd_id, "criteriaSnapshot": import_match_criteria},
+        )
     summary = _external_text(
         candidate.get("summary")
         or ((candidate.get("profile_data") or {}).get("job_summary") if isinstance(candidate.get("profile_data"), dict) else ""),
@@ -4425,9 +4635,15 @@ def _combined_saved_search_response(group: dict) -> dict:
     returned = 0
     reviewed = 0
     total_matches = 0
+    pdl_original_calls = []
+    pdl_original_estimate = 0
     for page in pages:
         page_response = page.get("response") if isinstance(page.get("response"), dict) else {}
         page_audit = page_response.get("sourceAudit") if isinstance(page_response.get("sourceAudit"), dict) else {}
+        if page_response.get("source") == "pdl" or page_audit.get("provider") == "People Data Labs":
+            page_usage = page_audit.get("originalProviderUsage") or page_audit.get("providerUsage") or {}
+            pdl_original_calls.extend(page_usage.get("calls") or [{}])
+            pdl_original_estimate += int(page_audit.get("originalEstimatedCreditsUsed", page_audit.get("estimatedCreditsUsed")) or 0)
         returned += int(page_audit.get("recordsReturned") or len(page_response.get("results") or []))
         reviewed += int(page_audit.get("recordsReviewed") or len(page_response.get("results") or []))
         total_matches = max(total_matches, int(page_audit.get("totalMatches") or 0))
@@ -4441,6 +4657,8 @@ def _combined_saved_search_response(group: dict) -> dict:
             all_results.append(candidate)
     all_results.sort(key=lambda row: float(row.get("score") or 0), reverse=True)
     audit = dict(response.get("sourceAudit") or {})
+    if pdl_original_calls:
+        _mark_pdl_saved_usage(audit, pdl_original_calls, pdl_original_estimate)
     audit.update(
         {
             "queryExecuted": False,
@@ -4592,7 +4810,22 @@ def external_candidate_open_saved_search(search_id: str, domain: str = "dev"):
         raise HTTPException(status_code=503, detail=f"Saved-search storage is unavailable. ({type(exc).__name__})") from exc
     if not group:
         raise HTTPException(status_code=404, detail="Saved search not found in this domain.")
-    return _combined_saved_search_response(group)
+    response = _combined_saved_search_response(group)
+    if response.get("source") in {"pdl", "coresignal"}:
+        saved_query = response.get("savedQuery") or {}
+        jd_id = _external_text(saved_query.get("jdId") or (response.get("jd") or {}).get("jd_id"), 80)
+        if jd_id:
+            try:
+                jd, job_skills = _get_job_skills(jd_id, domain, allow_generation=False)
+            except Exception:
+                # History remains readable if its job is gone or unavailable,
+                # but old scores cannot masquerade as a current JD comparison.
+                jd, job_skills = {}, []
+            criteria = response.get("criteria") or saved_query.get("criteria") or {}
+            response["results"] = [_apply_external_evidence_match(row, jd, criteria, job_skills) for row in response.get("results", [])]
+            response["results"].sort(key=lambda row: row.get("score") if row.get("score") is not None else -1, reverse=True)
+            response["matchRefreshedFromCurrentJob"] = bool(jd)
+    return response
 
 
 @router.get("/external/search-history/{search_id}/export")
@@ -4665,102 +4898,32 @@ def external_candidate_update_temp_interest(person_id: str, payload: dict = Body
     return candidates.updateTemporaryExternalProfileInterest(person_id, domain, workflow)
 
 
+@router.post("/external/calculate-match")
+def external_candidate_calculate_discovery_match(payload: dict = Body(default={})):
+    domain = _domain_key(payload.get("domain") or "dev")
+    candidate = payload.get("candidate")
+    if not isinstance(candidate, dict):
+        raise HTTPException(status_code=400, detail="Select a returned candidate to compare with the job.")
+    match = _calculate_external_evidence_match(_external_text(payload.get("jd_id"), 80), domain, candidate, payload.get("criteria"))
+    return {"status": "success", "match": match, "providerCreditsUsed": 0, "providerContacted": False, "linkedinScraped": False}
+
+
 @router.post("/external/temp/{person_id}/calculate-match")
 def external_candidate_calculate_temp_match(person_id: str, payload: dict = Body(default={})):
     domain = _domain_key(payload.get("domain") or "dev")
     jd_id = _external_text(payload.get("jd_id"), 80)
     if not jd_id:
         raise HTTPException(status_code=400, detail="Choose an active job description before calculating a match.")
-
     stored = candidates.getTemporaryExternalProfileForEnrichment(person_id, domain)
-    metadata = stored.get("externalProfile") if isinstance(stored.get("externalProfile"), dict) else {}
-    enrichment = metadata.get("enrichment") if isinstance(metadata.get("enrichment"), dict) else {}
-    try:
-        enrichment_version = int(enrichment.get("profileVersion") or 1)
-    except (TypeError, ValueError):
-        enrichment_version = 1
-    if enrichment.get("status") != "completed" or enrichment_version < 2:
-        raise HTTPException(
-            status_code=409,
-            detail="Enrich this TEMP profile with licensed professional data before calculating its JD match.",
-        )
-
-    jd, job_skills = _get_job_skills(jd_id, domain)
-    scoring_skills = _searchable_job_skills(job_skills, 12)
-    supplied_criteria = payload.get("criteria") if isinstance(payload.get("criteria"), dict) else {}
-    criteria = None
-    if domain == "law":
-        criteria = _lawyer_search_criteria_from_payload(jd, supplied_criteria)
-
-    stored_skills = _safe_list(metadata.get("providerSkills"))
-    stored_evidence = stored_skills + [
-        _external_text(stored.get("title"), 200),
-        _external_text(stored.get("description"), 2400),
-        *(_safe_list(metadata.get("certifications"))),
-        *(_safe_list(metadata.get("professionalEvidence"))),
-    ]
-    if criteria:
-        score, matched, score_details = _lawyer_match_score(
-            {
-                "job_title": stored.get("title") or "",
-                "skills": stored_skills,
-                "summary": stored.get("description") or "",
-                "location_name": ", ".join(
-                    str(value or "") for value in (stored.get("location") or {}).values() if value
-                ),
-                "inferred_years_experience": metadata.get("yearsExperience") or 0,
-            },
-            criteria,
-        )
-    else:
-        score, matched, score_details = _rank_external_skill_match(
-            stored_evidence,
-            job_skills,
-            scoring_skills,
-        )
-
-    reason = _deterministic_fit_reason(
-        stored.get("name") or "Candidate",
-        score,
-        matched,
-        score_details,
-    )
-    evidence_sources = [
-        _external_text(metadata.get("source"), 120),
-        _external_text(enrichment.get("provider"), 120),
-    ]
-    court_evidence = metadata.get("courtEvidence") if isinstance(metadata.get("courtEvidence"), dict) else {}
-    if int(court_evidence.get("evidenceCount") or 0):
-        evidence_sources.append("CourtListener / RECAP")
-    calculated_at = datetime.now(timezone.utc).isoformat()
-    match = {
-        "status": "calculated",
-        "score": score,
-        "band": score_details.get("band") or _score_band(score),
-        "decision": reason.get("fit_decision") or "Review",
-        "reason": reason.get("fit_reason") or "",
-        "formula": score_details.get("formula") or reason.get("score_formula") or "weighted matched JD signals / weighted searchable JD signals",
-        "matched": matched,
-        "missing": _safe_list(score_details.get("missing"))[:12],
-        "matchedCount": score_details.get("matched_count") or len(matched),
-        "requiredCount": score_details.get("required_count") or len(scoring_skills),
-        "components": score_details.get("components") if isinstance(score_details.get("components"), dict) else {},
-        "evidenceSources": list(dict.fromkeys(source for source in evidence_sources if source)),
-        "courtEvidenceCount": int(court_evidence.get("evidenceCount") or 0),
-        "jobId": str(jd.get("jd_id") or jd_id),
-        "jobTitle": _external_text(jd.get("title"), 240),
-        "clientName": _external_text(jd.get("company"), 240),
-        "calculationMode": "explicit_user_action",
-        "calculatedAt": calculated_at,
-    }
+    criteria = payload.get("criteria")
+    if not isinstance(criteria, dict):
+        previous = (stored.get("externalProfile") or {}).get("match") or {}
+        criteria = previous.get("criteriaSnapshot") if isinstance(previous, dict) and str(previous.get("jobId") or "") == jd_id else None
+    match = _calculate_external_evidence_match(jd_id, domain, _stored_external_match_candidate(stored), criteria)
+    # Persist unavailable/null as well, so a previous score cannot survive a
+    # recalculation that no longer has a usable JD/evidence basis.
     result = candidates.saveTemporaryExternalProfileMatch(person_id, domain, match)
-    result.update(
-        {
-            "providerCreditsUsed": 0,
-            "providerContacted": False,
-            "linkedinScraped": False,
-        }
-    )
+    result.update({"match": match, "providerCreditsUsed": 0, "providerContacted": False, "linkedinScraped": False})
     return result
 
 
@@ -4771,6 +4934,12 @@ def external_candidate_enrich_temp_profile(person_id: str, payload: dict = Body(
     current_metadata = (
         stored.get("externalProfile") if isinstance(stored.get("externalProfile"), dict) else {}
     )
+    stored_contacts = _merge_external_contact_fields({
+        "email": stored.get("email"),
+        "phone": stored.get("phone"),
+        "profile_url": stored.get("profileUrl") or current_metadata.get("profileUrl"),
+        "contact": current_metadata.get("contact"),
+    }, {})
     current_enrichment = (
         current_metadata.get("enrichment")
         if isinstance(current_metadata.get("enrichment"), dict)
@@ -4798,6 +4967,9 @@ def external_candidate_enrich_temp_profile(person_id: str, payload: dict = Body(
             "personid": stored.get("personid"),
             "name": stored.get("name"),
             "profileUrl": stored.get("profileUrl") or current_metadata.get("profileUrl") or "",
+            "email": stored_contacts["email"],
+            "phone": stored_contacts["phone"],
+            "contact": stored_contacts["contact"],
             "enrichment": current_enrichment,
             "reused": True,
             "creditsUsed": 0,
@@ -4848,6 +5020,7 @@ def external_candidate_enrich_temp_profile(person_id: str, payload: dict = Body(
                 ),
             )
 
+        mapped = _merge_external_contact_fields(stored_contacts, mapped)
         enriched_at = datetime.now(timezone.utc).isoformat()
         collected_dataset = str(response.get("dataset") or coresignal_dataset).lower()
         is_multi_source = collected_dataset == "multi_source"
@@ -4893,7 +5066,8 @@ def external_candidate_enrich_temp_profile(person_id: str, payload: dict = Body(
             "certifications": _external_certifications(mapped),
             "professionalEvidence": _external_professional_evidence(mapped),
             "professionalDetails": _external_professional_details(mapped),
-            "match": _pending_external_match("Professional enrichment changed the profile. Calculate the JD match when ready."),
+            "professionalEvidenceSnapshot": _external_match_snapshot(mapped),
+            "match": _pending_external_match("Professional enrichment changed the profile. Calculate the JD match when ready.", current_metadata.get("match")),
         }
         mapped["profile_url"] = matched_profile_url
         mapped["portfolio"] = _external_portfolio(mapped)
@@ -4911,6 +5085,9 @@ def external_candidate_enrich_temp_profile(person_id: str, payload: dict = Body(
                 "matchPending": True,
                 "linkedinScraped": False,
                 "contactDataIncluded": bool((mapped.get("contact") or {}).get("primaryEmail")),
+                "email": mapped["email"],
+                "phone": mapped["phone"],
+                "contact": mapped["contact"],
             }
         )
         return result
@@ -4936,7 +5113,9 @@ def external_candidate_enrich_temp_profile(person_id: str, payload: dict = Body(
             detail="People Data Labs could not find a LinkedIn-linked professional profile for this TEMP record.",
         )
 
-    mapped = _people_data_row(response["data"], [], [], None)
+    enrichment_row = dict(response["data"])
+    enrichment_row["linkedin_url"] = _external_contact_value(enrichment_row.get("linkedin_url"), "url")
+    mapped = _people_data_row(enrichment_row, [], [], None)
     returned_name = _external_text(mapped.get("name"), 160)
     try:
         likelihood = max(0, min(int(response.get("likelihood") or 0), 10))
@@ -4952,6 +5131,7 @@ def external_candidate_enrich_temp_profile(person_id: str, payload: dict = Body(
             ),
         )
 
+    mapped = _merge_external_contact_fields(stored_contacts, mapped)
     enriched_at = datetime.now(timezone.utc).isoformat()
     enrichment = {
         "status": "completed",
@@ -4976,7 +5156,8 @@ def external_candidate_enrich_temp_profile(person_id: str, payload: dict = Body(
         "certifications": _external_certifications(mapped),
         "professionalEvidence": _external_professional_evidence(mapped),
         "professionalDetails": _external_professional_details(mapped),
-        "match": _pending_external_match("Professional enrichment changed the profile. Calculate the JD match when ready."),
+        "professionalEvidenceSnapshot": _external_match_snapshot(mapped),
+        "match": _pending_external_match("Professional enrichment changed the profile. Calculate the JD match when ready.", current_metadata.get("match")),
     }
     mapped["portfolio"] = _external_portfolio(mapped)
     result = candidates.applyTemporaryExternalProfileEnrichment(
@@ -4992,6 +5173,9 @@ def external_candidate_enrich_temp_profile(person_id: str, payload: dict = Body(
             "match": updated_metadata.get("match") or {},
             "matchPending": True,
             "linkedinScraped": False,
+            "email": mapped["email"],
+            "phone": mapped["phone"],
+            "contact": mapped["contact"],
         }
     )
     return result

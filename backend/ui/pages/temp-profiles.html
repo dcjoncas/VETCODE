@@ -246,6 +246,20 @@
         margin-top: 14px;
       }
 
+      .match-stat-card blockquote {
+        margin: 8px 0;
+        padding: 7px 9px;
+        border-left: 3px solid var(--primary-2);
+        background: var(--surface, #f7f8fa);
+        overflow-wrap: anywhere;
+      }
+
+      .match-stat-card footer {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
       .linkedin-enriched-pill {
         background: #eaf7ef;
         border-color: #8ec7a3;
@@ -339,7 +353,7 @@
             <div>
               <h2 id="tempProfilesTitle">TEMP Profiles</h2>
               <p class="muted">
-                This is the persistent review library for the current domain. Starting over clears the active workflow, but it does not delete these saved records.
+                This is the persistent review library for this workspace. Starting over clears the active workflow, but it does not delete these saved records.
               </p>
             </div>
             <a class="btn secondary" href="mine-candidate-external.html">Back to Find Candidates (Out)</a>
@@ -354,6 +368,7 @@
             <button class="btn secondary" id="btnRefreshTempProfiles" type="button">Refresh TEMP Profiles</button>
           </div>
 
+          <p class="muted">JD fit uses saved professional evidence without provider credits. Optional contact enrichment applies only to checked profiles and may use credits.</p>
           <div id="providerStatus" class="muted" style="margin-top: 10px"></div>
           <div id="tempProfileStatus" class="notice" style="margin-top: 10px" aria-live="polite">
             Loading TEMP profiles...
@@ -400,6 +415,7 @@
     </div>
 
     <script src="JS/apiScripts.js"></script>
+    <script src="JS/professionalMatch.js?v=20260910"></script>
     <script src="JS/updateProcessFlow.js?v=20260819-active-candidate"></script>
     <script src="JS/shortlist.js?v=20260819-active-candidate"></script>
     <script src="JS/atlasClientContext.js"></script>
@@ -409,6 +425,10 @@
 
       function currentDomain() {
         return sessionStorage.getItem("domain") || "dev";
+      }
+
+      function workspaceLabel() {
+        return { dev: "Technology", engineer: "Engineering", law: "Law", dental: "Dental" }[currentDomain()] || "Technology";
       }
 
       function currentJobId() {
@@ -443,31 +463,32 @@
       }
 
       function profileMatchesCurrentJob(profile = {}) {
-        const jobId = currentJobId();
-        return Boolean(profile.matchCalculated === true
-          && jobId
-          && profile.matchJobId
-          && String(profile.matchJobId) === String(jobId));
+        return profileMatchView(profile).current;
+      }
+
+      function profileMatchView(profile = {}) {
+        return window.DevReadyProfessionalMatch.view(profile, currentJobId());
       }
 
       function matchLabel(profile = {}) {
-        const score = profile.matchScore === null || profile.matchScore === "" ? Number.NaN : Number(profile.matchScore);
-        const matchedCount = Array.isArray(profile.matchMatched) ? profile.matchMatched.length : 0;
-        const requiredCount = Number(profile.matchRequiredCount || 0);
-        if (!currentJobId()) return "Choose a JD before calculating a match";
-        if (!isRichTempProfile(profile)) return "Enrich professional data before calculating the JD match";
-        if (!profileMatchesCurrentJob(profile)) return "JD match not calculated for the current job";
-        return Number.isFinite(score)
-          ? `${Math.round(score)}% saved JD match${requiredCount ? ` (${matchedCount}/${requiredCount} JD signals)` : ""}`
-          : "JD match calculation needs review";
+        return profileMatchView(profile).label;
+      }
+
+      function tempMatchPayload(profile = {}) {
+        const payload = { domain: currentDomain(), jd_id: currentJobId() };
+        if (String(profile.match?.jobId || "") === String(currentJobId())
+          && profile.match?.criteriaSnapshot && typeof profile.match.criteriaSnapshot === "object") {
+          payload.criteria = profile.match.criteriaSnapshot;
+        }
+        return payload;
       }
 
       function renderWorkflowContext() {
         const jobId = currentJobId();
         const context = document.getElementById("workflowContext");
         context.innerHTML = jobId
-          ? `<div class="context-line"><div><strong>Active sourcing job:</strong> ${escapeHtml(currentJobLabel())}</div><span class="pill">JD ${escapeHtml(jobId)}</span></div><div class="muted" style="margin-top:5px">Enrichment and matching are separate steps. Enrich a profile first, then use Calculate JD match next to the candidate's name. The saved percentage is never recalculated automatically.</div>`
-          : `<strong>No active sourcing job.</strong><div class="muted" style="margin-top:5px">You can enrich TEMP profiles now. To calculate and save match statistics, first choose a JD in Job Descriptions or Find Candidates (Out).</div>`;
+          ? `<div class="context-line"><div><strong>Active sourcing job:</strong> ${escapeHtml(currentJobLabel())}</div><span class="pill">JD ${escapeHtml(jobId)}</span></div><div class="muted" style="margin-top:5px">Use Calculate JD match beside a name to review supported requirements, unknowns, and evidence coverage. Contact enrichment is optional; fit calculation uses no provider credits.</div>`
+          : `<strong>No active sourcing job.</strong><div class="muted" style="margin-top:5px">Choose a JD in Job Descriptions or Find Candidates (Out) to compare the saved professional evidence.</div>`;
       }
 
       async function loadProviderStatus() {
@@ -507,12 +528,8 @@
           const rightCurrent = profileMatchesCurrentJob(right) ? 1 : 0;
           if (leftCurrent !== rightCurrent) return rightCurrent - leftCurrent;
           if (leftCurrent && rightCurrent) {
-            const leftScore = left.matchScore === null || left.matchScore === "" || left.matchScore === undefined
-              ? Number.NaN
-              : Number(left.matchScore);
-            const rightScore = right.matchScore === null || right.matchScore === "" || right.matchScore === undefined
-              ? Number.NaN
-              : Number(right.matchScore);
+            const leftScore = profileMatchView(left).score ?? Number.NaN;
+            const rightScore = profileMatchView(right).score ?? Number.NaN;
             const safeLeftScore = Number.isFinite(leftScore) ? leftScore : -1;
             const safeRightScore = Number.isFinite(rightScore) ? rightScore : -1;
             if (safeLeftScore !== safeRightScore) return safeRightScore - safeLeftScore;
@@ -524,8 +541,8 @@
         });
         const list = document.getElementById("tempProfileList");
         document.getElementById("tempProfileStatus").textContent = latestTempProfiles.length
-          ? `${latestTempProfiles.length} saved TEMP profile${latestTempProfiles.length === 1 ? "" : "s"} in the ${currentDomain()} domain.`
-          : `No saved TEMP profiles were found in the ${currentDomain()} domain.`;
+          ? `${latestTempProfiles.length} saved TEMP profile${latestTempProfiles.length === 1 ? "" : "s"} in the ${workspaceLabel()} workspace.`
+          : `No saved TEMP profiles were found in the ${workspaceLabel()} workspace.`;
         list.innerHTML = latestTempProfiles.map((profile) => {
           const personId = String(profile.personid || "").replace(/[^0-9-]/g, "");
           const profileUrl = safeHttpUrl(profile.profileUrl);
@@ -544,11 +561,12 @@
             : profile.interestStatus === "not_interested"
               ? '<span class="pill">Not interested</span>'
               : '<span class="pill">Interest not confirmed</span>';
-          const canCalculate = Boolean(currentJobId() && isRichTempProfile(profile));
+          const canCalculate = Boolean(currentJobId());
+          const fit = profileMatchView(profile);
           const currentMatch = profileMatchesCurrentJob(profile);
           const nameMatchButton = currentMatch
-            ? `<button class="btn secondary match-action" type="button" onclick="showMatchStatsById('${escapeHtml(personId)}')">View ${Math.round(Number(profile.matchScore) || 0)}% match</button>`
-            : `<button class="btn primary match-action" type="button" onclick="calculateTempMatch('${escapeHtml(personId)}')" ${canCalculate ? "" : "disabled"} title="${escapeHtml(!currentJobId() ? "Choose a JD first" : !isRichTempProfile(profile) ? "Enrich this TEMP profile first" : "Calculate and save this JD match")}">Calculate JD match</button>`;
+            ? `<button class="btn secondary match-action" type="button" onclick="showMatchStatsById('${escapeHtml(personId)}')">${fit.score === null ? "Review available evidence" : `View ${Math.round(fit.score)}% support`}</button>`
+            : `<button class="btn primary match-action" type="button" onclick="calculateTempMatch('${escapeHtml(personId)}')" ${canCalculate ? "" : "disabled"} title="${escapeHtml(!currentJobId() ? "Choose a JD first" : "Compare saved professional evidence without provider credits")}">Calculate JD match</button>`;
           return `<article class="temp-profile-row" data-person-id="${escapeHtml(personId)}">
             <input class="temp-profile-check" type="checkbox" data-person-id="${escapeHtml(personId)}" aria-label="Select ${escapeHtml(profile.name || "Temporary Profile")} for enrichment" />
             <div class="profile-contact">
@@ -560,6 +578,7 @@
             <div class="profile-source muted">
               <span>${escapeHtml(profile.source || "External")}</span>
               <strong>${escapeHtml(matchLabel(profile))}</strong>
+              ${currentMatch ? `<span>${typeof fit.match.coveragePercent === "number" ? `${Math.round(fit.match.coveragePercent)}% evidence coverage` : "Evidence coverage unavailable"} · not a hiring probability</span>` : ""}
               <span>${indicator}</span>
               ${courtEvidenceIndicator}
               ${interestIndicator}
@@ -612,7 +631,7 @@
       }
 
       async function loadTempProfiles() {
-        document.getElementById("tempProfileStatus").textContent = `Loading TEMP profiles for ${currentDomain()}...`;
+        document.getElementById("tempProfileStatus").textContent = `Loading TEMP profiles for ${workspaceLabel()}...`;
         try {
           const response = await api(`/api/azureJobs/external/temp?domain=${encodeURIComponent(currentDomain())}&limit=500`);
           renderTempProfiles(response.profiles || []);
@@ -630,8 +649,8 @@
         sessionStorage.setItem("candidateProfileType", "Temporary Profile");
         sessionStorage.setItem("candidateDomain", currentDomain());
         sessionStorage.setItem("externalCandidateSource", profile.source || "External");
-        if (profileMatchesCurrentJob(profile) && Array.isArray(profile.matchMatched)) {
-          sessionStorage.setItem("candidateTopMatches", profile.matchMatched.join(", "));
+        if (profileMatchesCurrentJob(profile) && Array.isArray(profile.match?.matched)) {
+          sessionStorage.setItem("candidateTopMatches", profile.match.matched.join(", "));
         } else {
           sessionStorage.removeItem("candidateTopMatches");
         }
@@ -674,8 +693,8 @@
           status: "Temporary Profile",
           profileType: "Temporary Profile",
           source: profile.source || "External",
-          score: profileMatchesCurrentJob(profile) ? profile.matchScore : "",
-          top_matches: profileMatchesCurrentJob(profile) ? (profile.matchMatched || []) : [],
+          score: profileMatchView(profile).score ?? "",
+          top_matches: profileMatchesCurrentJob(profile) ? (profile.match?.matched || []) : [],
           candidateInterest: "interested",
           candidateInterestRecordedAt: profile.interestConfirmedAt || new Date().toISOString(),
           workflowStatus: "Interested - Profile Build next",
@@ -722,63 +741,22 @@
         const summary = [];
         if (enriched) summary.push(`Enriched ${enriched}.`);
         if (reused) summary.push(`Reused ${reused} without another collection credit.`);
-        if (enriched || reused) summary.push("Professional data is ready. Use Calculate JD match next to a candidate's name when you want a saved percentage and breakdown.");
+        if (enriched || reused) summary.push("Professional data is ready. Recalculate JD match to review supported requirements and unknowns in the updated evidence.");
         if (failures.length) summary.push(`${failures.length} failed: ${failures[0]}`);
         status.textContent = summary.join(" ") || "No TEMP profiles were changed.";
-      }
-
-      function readableMatchComponent(value) {
-        return String(value || "")
-          .replace(/([a-z])([A-Z])/g, "$1 $2")
-          .replace(/[_-]+/g, " ")
-          .replace(/^./, (letter) => letter.toUpperCase());
-      }
-
-      function matchList(items, emptyText) {
-        const values = Array.isArray(items) ? items.filter(Boolean) : [];
-        return values.length
-          ? `<ul>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>`
-          : `<div class="muted">${escapeHtml(emptyText)}</div>`;
       }
 
       function showMatchStats(profile = {}) {
         if (!profileMatchesCurrentJob(profile)) {
           return alert("Calculate this profile's match to the active JD before viewing statistics.");
         }
-        const score = Number(profile.matchScore);
-        const components = profile.matchComponents && typeof profile.matchComponents === "object"
-          ? Object.entries(profile.matchComponents)
-          : [];
-        const calculatedAt = profile.matchCalculatedAt
-          ? new Date(profile.matchCalculatedAt).toLocaleString()
+        const match = profileMatchView(profile).match;
+        const calculatedAt = match.calculatedAt
+          ? new Date(match.calculatedAt).toLocaleString()
           : "Saved time unavailable";
-        const sources = Array.isArray(profile.matchEvidenceSources) ? profile.matchEvidenceSources.filter(Boolean) : [];
-        document.getElementById("matchStatsTitle").textContent = `${profile.name || "Candidate"} — JD match`;
+        document.getElementById("matchStatsTitle").textContent = `${profile.name || "Candidate"} — JD evidence review`;
         document.getElementById("matchStatsSubtitle").textContent = `${currentJobLabel()} · calculated ${calculatedAt}`;
-        document.getElementById("matchStatsBody").innerHTML = `
-          <div class="match-score-summary">
-            <div class="match-score-number">${Number.isFinite(score) ? `${Math.round(score)}%` : "Review"}</div>
-            <div>
-              <strong>${escapeHtml(profile.matchBand || profile.matchDecision || "Saved match")}</strong>
-              <div style="margin-top:5px">${escapeHtml(profile.matchReason || "The score is based only on evidence saved in the enriched TEMP profile.")}</div>
-            </div>
-          </div>
-          <div class="match-stat-grid">
-            <section class="match-stat-card">
-              <h4>What matched</h4>
-              ${matchList(profile.matchMatched, "No JD signals were confirmed in the stored evidence.")}
-            </section>
-            <section class="match-stat-card">
-              <h4>What is missing</h4>
-              ${matchList(profile.matchMissing, "No missing JD signals were recorded.")}
-            </section>
-          </div>
-          ${components.length ? `<section class="match-stat-card match-component-list"><h4>Score components</h4><ul>${components.map(([name, points]) => `<li>${escapeHtml(readableMatchComponent(name))}: <strong>${escapeHtml(String(points))} points</strong></li>`).join("")}</ul></section>` : ""}
-          <section class="match-stat-card match-component-list">
-            <h4>How this was calculated</h4>
-            <div>${escapeHtml(profile.matchFormula || "Weighted matched JD signals divided by weighted searchable JD signals.")}</div>
-            <div class="muted" style="margin-top:7px">Evidence sources: ${escapeHtml(sources.join(", ") || "Stored TEMP professional profile")}. Match calculation uses no provider credits and does not scrape LinkedIn.</div>
-          </section>`;
+        document.getElementById("matchStatsBody").innerHTML = window.DevReadyProfessionalMatch.details(match);
         document.getElementById("matchStatsDialog").showModal();
       }
 
@@ -797,18 +775,21 @@
         const profile = profileById(personId);
         if (!profile) return alert("That TEMP profile is no longer available. Refresh the list.");
         if (!currentJobId()) return alert("Choose an active job description before calculating a match.");
-        if (!isRichTempProfile(profile)) return alert("Enrich this TEMP profile with professional data before calculating its JD match.");
         const status = document.getElementById("tempProfileStatus");
         status.textContent = `Calculating ${profile.name || "candidate"}'s match to ${currentJobLabel()} from stored evidence...`;
         try {
-          await api(`/api/azureJobs/external/temp/${encodeURIComponent(personId)}/calculate-match`, {
+          const response = await api(`/api/azureJobs/external/temp/${encodeURIComponent(personId)}/calculate-match`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ domain: currentDomain(), jd_id: currentJobId() }),
+            body: JSON.stringify(tempMatchPayload(profile)),
           });
           await loadTempProfiles();
           const refreshed = profileById(personId);
-          status.textContent = `${profile.name || "Candidate"}'s JD match was calculated and saved. No provider credits were used.`;
+          if (refreshed && response.match) {
+            refreshed.match = response.match;
+            renderTempProfiles(latestTempProfiles);
+          }
+          status.textContent = `${profile.name || "Candidate"}'s professional evidence was reviewed. No provider credits were used.`;
           if (refreshed) showMatchStats(refreshed);
         } catch (error) {
           status.textContent = error.message || String(error);
@@ -826,7 +807,7 @@
         const exportLink = document.getElementById("btnExportLinkedInResults");
         document.getElementById("linkedinResultsStatus").textContent = profiles.length
           ? `${profiles.length} LinkedIn-enriched TEMP profile${profiles.length === 1 ? "" : "s"} can be reviewed or exported.`
-          : `No LinkedIn-enriched TEMP profiles are available in ${currentDomain()} yet.`;
+          : `No LinkedIn-enriched TEMP profiles are available in ${workspaceLabel()} yet.`;
         exportLink.setAttribute("aria-disabled", profiles.length ? "false" : "true");
         if (profiles.length) {
           exportLink.href = `${API_BASE}/api/azureJobs/external/temp/linkedin-results/export?domain=${encodeURIComponent(currentDomain())}`;

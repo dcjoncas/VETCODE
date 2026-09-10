@@ -49,7 +49,8 @@ class TempProfilesWorkflowTests(unittest.TestCase):
         self.assertIn('/api/azureJobs/external/enrich-result', html)
         self.assertIn("This step does not create any TEMP profiles", html)
         self.assertIn("enriched-temp-action", html)
-        self.assertIn('linkedProfileEnriched ? "Create TEMP profile"', html)
+        self.assertIn('onclick="requestCandidateContacts(${globalIndex})"', html)
+        self.assertIn('enrich_contacts: false', html)
         self.assertIn('@router.post("/external/enrich-result")', routes)
         self.assertIn('"temporaryProfileCreated": False', routes)
         self.assertIn('created["enrichmentReused"] = enrichment_reused', routes)
@@ -60,8 +61,8 @@ class TempProfilesWorkflowTests(unittest.TestCase):
 
         self.assertIn("function rankExternalResults", find_out)
         self.assertIn("latestExternalResults = rankExternalResults", find_out)
-        self.assertIn("discovery preview", find_out)
-        self.assertIn("saved JD match", find_out)
+        self.assertIn("DevReadyProfessionalMatch.view", find_out)
+        self.assertIn("View fit evidence", find_out)
         self.assertIn("profileMatchesCurrentJob(left)", temp_profiles)
         self.assertIn("safeRightScore - safeLeftScore", temp_profiles)
         self.assertIn("LinkedIn link stored", temp_profiles)
@@ -116,8 +117,8 @@ class TempProfilesWorkflowTests(unittest.TestCase):
         html = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")
 
         self.assertIn("function candidateContactActions", html)
-        self.assertIn(">Email</a>", html)
-        self.assertIn(">Call</a>", html)
+        self.assertIn('>Email: ${escapeHtml(email)}</a>', html)
+        self.assertIn('>Call: ${escapeHtml(phone)}</a>', html)
         self.assertIn(">Open LinkedIn</a>", html)
         self.assertNotIn("autoSendCandidateMessage", html)
 
@@ -169,8 +170,14 @@ class TempProfilesWorkflowTests(unittest.TestCase):
         self.assertIn('"matchJobId": match.get("jobId", "")', candidates)
         self.assertIn('"matchCalculated": match_calculated', candidates)
         self.assertIn('"courtEvidenceCount": court_evidence.get("evidenceCount")', candidates)
-        self.assertIn("profile.matchJobId", html)
-        self.assertIn("JD match not calculated for the current job", html)
+        match_helper = (PAGES / "JS" / "professionalMatch.js").read_text(encoding="utf-8")
+        self.assertIn("window.DevReadyProfessionalMatch.view(profile, currentJobId())", html)
+        self.assertIn("window.DevReadyProfessionalMatch.details(match)", html)
+        self.assertIn('match.evidenceType === "structured_professional_profile"', match_helper)
+        self.assertIn('String(match.jobId || "") === String(jobId)', match_helper)
+        self.assertIn("Fit not yet assessable", match_helper)
+        self.assertNotIn("Number(profile.matchScore)", html)
+        self.assertNotIn("Enrich this TEMP profile first", html)
 
     def test_enrichment_and_manual_matching_are_separate_guided_actions(self):
         find_out = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")
@@ -178,7 +185,8 @@ class TempProfilesWorkflowTests(unittest.TestCase):
         routes = (BACKEND / "azureUtils" / "routes" / "azureJobEndpoints.py").read_text(encoding="utf-8")
 
         self.assertIn('/external/temp/{person_id}/calculate-match', routes)
-        self.assertIn('"status": "calculated"', routes)
+        self.assertIn('build_professional_match', routes)
+        self.assertIn('/external/calculate-match', routes)
         self.assertIn('"calculationMode": "explicit_user_action"', routes)
         self.assertIn("function calculateCandidateMatch", find_out)
         self.assertIn('id="candidateMatchDialog"', find_out)

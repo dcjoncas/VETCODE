@@ -10827,6 +10827,8 @@ from process_builder import router as process_builder_router
 app.include_router(azureEndpoints.router)
 app.include_router(aiChatEndpoints.router)
 app.include_router(azureJobEndpoints.router)
+from azureUtils.routes.externalInterested import create_router as create_interested_report_router
+app.include_router(create_interested_report_router(_require_admin_token), prefix="/api/azureJobs")
 app.include_router(aiEndpoints.router)
 app.include_router(calendar_router)
 app.include_router(process_builder_router)

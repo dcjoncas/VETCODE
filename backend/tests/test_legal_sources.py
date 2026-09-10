@@ -980,6 +980,7 @@ class LegalSourceRouteTests(unittest.TestCase):
             {
                 "domain": "law",
                 "source": "pdl",
+                "enrich_contacts": True,
                 "jd_id": "85",
                 "criteria": {
                     "titles": ["Associate Attorney", "Attorney"],
@@ -1213,6 +1214,7 @@ class LegalSourceRouteTests(unittest.TestCase):
                 {
                     "domain": "law",
                     "source": "pdl",
+                    "enrich_contacts": True,
                     "criteria": {"minYears": "not-a-number"},
                     "candidate": {
                         "source": "pdl",
@@ -1568,7 +1570,11 @@ class LegalSourceRouteTests(unittest.TestCase):
         self.assertEqual(saved_match["status"], "calculated")
         self.assertEqual(saved_match["jobId"], "jd-dental-1")
         self.assertGreater(saved_match["score"], 0)
-        self.assertIn("Digital Radiography", saved_match["matched"])
+        # Legacy narrative is surfaced for review, not promoted to a confirmed
+        # qualification; legacy providerSkills may include earlier derived matches.
+        self.assertIn("Digital Radiography", saved_match["unknown"])
+        radiography = next(item for item in saved_match["criteria"] if item["label"] == "Digital Radiography")
+        self.assertTrue(radiography["evidence"])
         self.assertEqual(saved_match["calculationMode"], "explicit_user_action")
         self.assertEqual(result["providerCreditsUsed"], 0)
         self.assertFalse(result["providerContacted"])

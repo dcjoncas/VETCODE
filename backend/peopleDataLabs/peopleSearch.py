@@ -1,5 +1,7 @@
 import math
 import os
+from collections.abc import Mapping
+from datetime import datetime, timezone
 from typing import Any
 
 import requests
@@ -67,9 +69,63 @@ PDL_ENRICH_FIELDS = ",".join(
 
 
 class PeopleDataLabsError(RuntimeError):
-    def __init__(self, message: str, status_code: int | None = None):
+    def __init__(self, message: str, status_code: int | None = None, provider_usage: dict | None = None):
         super().__init__(message)
         self.status_code = status_code
+        self.provider_usage = provider_usage
+
+
+def _credit_count(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    text = str(value).strip() if isinstance(value, (str, int)) else ""
+    return int(text) if text.isascii() and text.isdigit() else None
+
+
+def _search_usage_call(response: requests.Response | None) -> dict[str, Any]:
+    # PDL documents these headers at https://docs.peopledatalabs.com/docs/usage-limits.
+    # Keep the allowlist narrow; never retain API keys or other response headers.
+    raw_headers = getattr(response, "headers", None)
+    headers = {str(key).lower(): value for key, value in raw_headers.items()} if isinstance(raw_headers, Mapping) else {}
+    credit_type = headers.get("x-call-credits-type")
+    if not isinstance(credit_type, str) or credit_type not in {
+        "enrich", "search", "search_company", "enrich_company", "enrich_skill",
+        "enrich_job_title", "preview_search", "person_identify",
+    }:
+        credit_type = None
+    return {
+        "creditsUsed": _credit_count(headers.get("x-call-credits-spent")),
+        "creditType": credit_type,
+        "accountRemainingCredits": _credit_count(headers.get("x-totallimit-remaining")),
+        "purchasedRemainingCredits": _credit_count(headers.get("x-totallimit-purchased-remaining")),
+        "overageRemainingCredits": _credit_count(headers.get("x-totallimit-overages-remaining")),
+        "observedAt": datetime.now(timezone.utc).isoformat() if response is not None else None,
+        "apiStatus": getattr(response, "status_code", None),
+    }
+
+
+def summarize_search_usage(calls: list[dict], source: str = "response_headers") -> dict[str, Any]:
+    """Sum reported per-call charges; account balance is only the latest response snapshot."""
+    reported = [call for call in calls if _credit_count(call.get("creditsUsed")) is not None]
+    complete = bool(calls) and len(reported) == len(calls)
+    reported_total = sum(_credit_count(call["creditsUsed"]) for call in reported) if reported else None
+    latest = calls[-1] if calls else {}
+    credit_types = {call.get("creditType") for call in calls if call.get("creditType")}
+    return {
+        "status": "not_called" if not calls else "reported" if complete else "partial" if reported else "unavailable",
+        "creditsUsed": 0 if not calls else reported_total if complete else None,
+        "reportedCreditsUsed": reported_total,
+        "requests": len(calls),
+        "reportedRequests": len(reported),
+        "creditType": next(iter(credit_types)) if len(credit_types) == 1 else None,
+        "accountRemainingCredits": _credit_count(latest.get("accountRemainingCredits")),
+        "purchasedRemainingCredits": _credit_count(latest.get("purchasedRemainingCredits")),
+        "overageRemainingCredits": _credit_count(latest.get("overageRemainingCredits")),
+        "balanceStatus": "reported" if _credit_count(latest.get("accountRemainingCredits")) is not None else "unavailable",
+        "observedAt": latest.get("observedAt"),
+        "source": source,
+        "calls": calls,
+    }
 
 
 def _clean_terms(values: list[str] | tuple[str, ...] | None, limit: int = 20) -> list[str]:
@@ -142,6 +198,7 @@ def _post_search(payload: dict[str, Any]) -> dict[str, Any]:
         attempt_sizes.append(1)
     response = None
     effective_size = requested_size
+    usage_calls = []
     for attempt_size in attempt_sizes:
         request_payload["size"] = attempt_size
         effective_size = attempt_size
@@ -153,24 +210,28 @@ def _post_search(payload: dict[str, Any]) -> dict[str, Any]:
                 timeout=PDL_TIMEOUT,
             )
         except requests.Timeout as exc:
-            raise PeopleDataLabsError("People Data Labs timed out before returning results.") from exc
+            usage_calls.append(_search_usage_call(None))
+            raise PeopleDataLabsError("People Data Labs timed out before returning results.", provider_usage=summarize_search_usage(usage_calls)) from exc
         except requests.RequestException as exc:
-            raise PeopleDataLabsError("People Data Labs could not be reached.") from exc
+            usage_calls.append(_search_usage_call(None))
+            raise PeopleDataLabsError("People Data Labs could not be reached.", provider_usage=summarize_search_usage(usage_calls)) from exc
+        usage_calls.append(_search_usage_call(response))
         if response.status_code != 402 or attempt_size == 1:
             break
 
+    provider_usage = summarize_search_usage(usage_calls)
     if response.status_code == 404:
-        return {"status": 404, "total": 0, "data": [], "scroll_token": None}
+        return {"status": 404, "total": 0, "data": [], "scroll_token": None, "provider_usage": provider_usage}
     if response.status_code != 200:
-        raise PeopleDataLabsError(_error_message(response), response.status_code)
+        raise PeopleDataLabsError(_error_message(response), response.status_code, provider_usage)
 
     try:
         result = response.json()
     except ValueError as exc:
-        raise PeopleDataLabsError("People Data Labs returned an invalid response.") from exc
+        raise PeopleDataLabsError("People Data Labs returned an invalid response.", provider_usage=provider_usage) from exc
 
     if not isinstance(result, dict):
-        raise PeopleDataLabsError("People Data Labs returned an unexpected response.")
+        raise PeopleDataLabsError("People Data Labs returned an unexpected response.", provider_usage=provider_usage)
     if not isinstance(result.get("data", []), list):
         result["data"] = []
     try:
@@ -180,6 +241,7 @@ def _post_search(payload: dict[str, Any]) -> dict[str, Any]:
     result["requested_size"] = requested_size
     result["effective_size"] = effective_size
     result["credit_limited"] = effective_size < requested_size
+    result["provider_usage"] = provider_usage
     return result
 
 

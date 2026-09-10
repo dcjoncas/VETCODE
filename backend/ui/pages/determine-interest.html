@@ -246,9 +246,59 @@
         background: rgba(var(--primary-rgb), 0.07);
       }
 
+      .match-score-summary {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 12px;
+        margin: 12px 0;
+      }
+
+      .match-score-number {
+        font-size: 25px;
+        font-weight: 850;
+      }
+
+      .match-stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 9px;
+        margin-bottom: 9px;
+      }
+
+      .match-stat-card {
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--card, #fff);
+        overflow-wrap: anywhere;
+      }
+
+      .match-stat-card h4 {
+        margin: 0 0 7px;
+      }
+
+      .match-stat-card p {
+        margin: 7px 0;
+      }
+
+      .match-stat-card blockquote {
+        margin: 8px 0;
+        padding: 7px 9px;
+        border-left: 3px solid var(--primary-2);
+        background: var(--surface, #f7f8fa);
+      }
+
+      .match-stat-card footer {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
       @media (max-width: 820px) {
         .interest-summary,
-        .contact-channel-grid {
+        .contact-channel-grid,
+        .match-stat-grid,
+        .match-score-summary {
           grid-template-columns: 1fr;
         }
 
@@ -317,6 +367,7 @@
     </div>
 
     <script src="JS/apiScripts.js"></script>
+    <script src="JS/professionalMatch.js?v=20260910"></script>
     <script src="JS/updateProcessFlow.js?v=20260819-active-candidate"></script>
     <script src="JS/shortlist.js?v=20260819-active-candidate"></script>
     <script src="JS/atlasClientContext.js"></script>
@@ -447,43 +498,51 @@
       }
 
       function profileMatchesCurrentJob(profile = {}) {
-        const jobId = currentJobId();
-        return Boolean(profile.matchCalculated === true
-          && jobId
-          && profile.matchJobId
-          && String(profile.matchJobId) === String(jobId));
+        return profileMatchView(profile).current;
+      }
+
+      function profileMatchView(profile = {}) {
+        return window.DevReadyProfessionalMatch.view(profile, currentJobId());
+      }
+
+      function interestMatchPayload(profile = {}) {
+        const payload = { domain: currentDomain(), jd_id: currentJobId() };
+        if (String(profile.match?.jobId || "") === String(currentJobId())
+          && profile.match?.criteriaSnapshot && typeof profile.match.criteriaSnapshot === "object") {
+          payload.criteria = profile.match.criteriaSnapshot;
+        }
+        return payload;
       }
 
       function qualificationBrief(profile = {}) {
-        if (profileMatchesCurrentJob(profile) && profile.matchReason) return profile.matchReason;
-        const matched = Array.isArray(profile.matchMatched) ? profile.matchMatched.filter(Boolean) : [];
-        if (matched.length) return `Relevant evidence includes ${matched.slice(0, 3).join(", ")}.`;
+        const fit = profileMatchView(profile);
+        if (fit.current && fit.match.reason) return fit.match.reason;
         return [profile.title, profile.location].filter(Boolean).join(" in ") || "Professional qualifications are available in the TEMP profile.";
       }
 
       function matchEvaluation(profile = {}) {
-        const currentMatch = profileMatchesCurrentJob(profile);
-        const numericScore = currentMatch ? Number(profile.matchScore) : Number.NaN;
-        const matched = currentMatch && Array.isArray(profile.matchMatched) ? profile.matchMatched.filter(Boolean).slice(0, 5) : [];
-        const missing = currentMatch && Array.isArray(profile.matchMissing) ? profile.matchMissing.filter(Boolean).slice(0, 6) : [];
+        const fit = profileMatchView(profile);
+        const currentMatch = fit.current;
+        const matched = currentMatch && Array.isArray(fit.match.matched) ? fit.match.matched.filter(Boolean).slice(0, 5) : [];
         const failure = interestMatchFailures.get(String(profile.personid));
-        const score = Number.isFinite(numericScore) ? `${Math.round(numericScore)}%` : currentJobId() ? "Pending" : "No JD";
-        const label = currentMatch ? (profile.matchBand || "Job match") : "Match unavailable";
+        const score = fit.score === null ? "—" : `${Math.round(fit.score)}%`;
+        const label = currentMatch ? fit.score === null ? "Not assessable" : "Requirement support" : "Not calculated";
         const explanation = currentMatch
           ? qualificationBrief(profile)
-          : failure || (currentJobId()
-            ? "This profile needs completed professional enrichment before its job match can be calculated."
-            : "Choose an active job to calculate a meaningful match percentage.");
+          : failure || fit.detail;
+        const coverage = typeof fit.match.coveragePercent === "number" && Number.isFinite(fit.match.coveragePercent)
+          ? `${Math.round(fit.match.coveragePercent)}% evidence coverage` : "Evidence coverage unavailable";
         return `<div class="interest-evaluation">
-          <div class="interest-match-score ${currentMatch ? "" : "is-pending"}" aria-label="${escapeHtml(score)} match to active job">
+          <div class="interest-match-score ${fit.score === null ? "is-pending" : ""}" aria-label="${escapeHtml(fit.label)}">
             <strong>${escapeHtml(score)}</strong><span>${escapeHtml(label)}</span>
           </div>
           <div class="interest-qualification-brief">
             <div><span class="muted">Compared with</span><br /><strong>${escapeHtml(currentJobLabel())}</strong></div>
             <p><strong>Qualification brief:</strong> ${escapeHtml(explanation)}</p>
+            ${currentMatch ? `<span class="muted">${escapeHtml(coverage)} · not a hiring probability</span>` : ""}
             ${matched.length ? `<div class="qualification-highlights" aria-label="Qualification highlights">${matched.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>` : ""}
-            ${missing.length ? `<details><summary>Review ${missing.length} gap${missing.length === 1 ? "" : "s"}</summary><div class="muted" style="margin-top:6px">${escapeHtml(missing.join(" · "))}</div></details>` : ""}
-            ${!currentMatch && currentJobId() ? `<div><button class="btn secondary" type="button" onclick="calculateCandidateMatch('${escapeHtml(String(profile.personid))}')">Retry match</button></div>` : ""}
+            ${currentMatch ? `<details><summary>Review criterion evidence and unknowns</summary>${window.DevReadyProfessionalMatch.details(fit.match)}</details>` : ""}
+            ${currentJobId() ? `<div><button class="btn secondary" type="button" onclick="calculateCandidateMatch('${escapeHtml(String(profile.personid))}')">${currentMatch ? "Recalculate JD match" : "Calculate JD match"}</button></div>` : ""}
           </div>
         </div>`;
       }
@@ -514,8 +573,8 @@
           status: "Temporary Profile",
           profileType: "Temporary Profile",
           source: profile.source || "External",
-          score: profileMatchesCurrentJob(profile) ? profile.matchScore : "",
-          top_matches: profileMatchesCurrentJob(profile) ? (profile.matchMatched || []) : [],
+          score: profileMatchView(profile).score ?? "",
+          top_matches: profileMatchesCurrentJob(profile) ? (profile.match?.matched || []) : [],
           candidateInterest: "interested",
           candidateInterestRecordedAt: profile.interestConfirmedAt || new Date().toISOString(),
           workflowStatus: "Interested - Profile Build next",
@@ -555,7 +614,7 @@
         }
 
         document.getElementById("interestStatus").textContent =
-          `${selected} contact-ready candidate${selected === 1 ? " is" : "s are"} in this interest batch. ${currentJobId() ? `${interestProfiles.filter(profileMatchesCurrentJob).length}/${selected} current-job match${selected === 1 ? " is" : "es are"} visible; calculations use saved evidence without provider credits.` : "Choose an active job to show match percentages."} VETCODE opens the contact channel you choose but does not send messages automatically.`;
+          `${selected} contact-ready candidate${selected === 1 ? " is" : "s are"} in this interest batch. ${currentJobId() ? `${interestProfiles.filter(profileMatchesCurrentJob).length}/${selected} profile comparisons are available; review the evidence and unknowns. Calculations use saved evidence without provider credits.` : "Choose an active job to review requirement support."} VETCODE opens the contact channel you choose but does not send messages automatically.`;
         list.innerHTML = interestProfiles.map((profile) => {
           const personId = String(profile.personid);
           const email = String(profile.email || "").trim();
@@ -646,7 +705,7 @@
           await api(`/api/azureJobs/external/temp/${encodeURIComponent(personId)}/calculate-match`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ domain: currentDomain(), jd_id: currentJobId() }),
+            body: JSON.stringify(interestMatchPayload(profile)),
           });
           interestMatchFailures.delete(String(personId));
         } catch (error) {
@@ -668,7 +727,7 @@
             await api(`/api/azureJobs/external/temp/${encodeURIComponent(profile.personid)}/calculate-match`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ domain: currentDomain(), jd_id: currentJobId() }),
+              body: JSON.stringify(interestMatchPayload(profile)),
             });
             interestMatchFailures.delete(String(profile.personid));
             changed = true;

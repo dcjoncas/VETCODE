@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Review All Interested Candidates</title>
+  <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" type="image/svg+xml" />
+  <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+  <script>
+    (() => {
+      const raw = new URLSearchParams(location.search).get("domain") || sessionStorage.getItem("domain") || "dev";
+      const aliases = { dev: "dev", technology: "dev", tech: "dev", devready: "dev", engineer: "engineer", engineering: "engineer", build: "engineer", buildready: "engineer", law: "law", legal: "law", legalready: "law", dental: "dental", dentalready: "dental" };
+      const domain = aliases[raw.toLowerCase().trim()];
+      document.documentElement.dataset.domain = domain || "";
+      if (domain) { sessionStorage.setItem("domain", domain); document.getElementById("domainCss").href = `../assets/${domain}Styles.css`; }
+    })();
+  </script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script>$(function () { $("#siteSidebar").load("components/sidebar.html?v=20260818-talent-jd-flow"); $("#searchBar").load("components/searchBar.html"); });</script>
+  <style>
+    [hidden] { display: none !important; }
+    .report-head, .report-toolbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; }
+    .report-head h1 { margin:0 0 8px; font-size:1.6rem; }
+    .report-head p, .interested-row h3 { margin:0 0 8px; }
+    .report-scope { margin:18px 0; padding:14px; border:1px solid var(--border); border-radius:10px; background:var(--surface, #f7f8fa); }
+    .report-toolbar { margin:14px 0; }
+    .interested-row { display:grid; grid-template-columns:minmax(0, 1.6fr) minmax(240px, 1fr); gap:24px; padding:22px 0; border-bottom:1px solid var(--border); }
+    .interest-details { padding:16px; background:var(--surface, #f7f8fa); border:1px solid var(--border); border-radius:10px; }
+    .interest-details p { margin:10px 0; }
+    .contact-lines { display:grid; gap:8px; overflow-wrap:anywhere; }
+    .candidate-details details { margin-top:14px; }
+    .candidate-details summary { cursor:pointer; color:var(--primary); }
+    .candidate-details details p { white-space:pre-line; overflow-wrap:anywhere; }
+    #unlockForm { display:grid; gap:12px; max-width:420px; margin:16px 0; }
+    #unlockForm label { display:grid; gap:6px; }
+    .report-foot { margin-top:18px; }
+    @media(max-width:760px) { .interested-row { grid-template-columns:1fr; gap:14px; } }
+  </style>
+</head>
+<body>
+  <div class="container"><div id="siteSidebar"></div><main class="main">
+    <div class="topbar"><div><div class="page-title">Interested candidates</div><div class="breadcrumb">Recruiting / Confirmed interest / Saved candidate report</div></div><div id="searchBar"></div></div>
+    <section class="card">
+      <div class="report-head"><div><h1>Review All Interested Candidates</h1><p class="muted">One saved-candidate report, independent of your current search results or selected batch.</p></div><a id="findOutLink" class="btn secondary" href="mine-candidate-external.html">Find Candidates (Out)</a></div>
+      <div class="report-scope"><strong id="scopeLabel">Current workspace</strong><p>All saved candidates marked interested, including TEMP and promoted profiles. All jobs are included, even when no job or contact details were saved.</p><p class="muted">Administrator access required. This report reads saved data only: no contact lookup, scoring, provider credits, or automatic outreach.</p></div>
+      <div id="unlockPanel"><h2>Unlock saved contact report</h2><p>Use the existing Administrator account to view this workspace-wide contact list. Regular recruiter report access is not enabled yet.</p>
+        <form id="unlockForm"><label>Username<input name="username" value="Administrator" autocomplete="username" required /></label><label>Password<input name="password" type="password" autocomplete="current-password" required /></label><button class="btn primary" type="submit">Unlock report</button></form>
+        <p id="unlockStatus" class="muted" role="status"></p>
+      </div>
+      <div id="reportPanel" hidden>
+        <div class="report-toolbar"><strong id="reportCount">No report loaded</strong><button class="btn secondary" id="refreshReport" type="button">Refresh saved report</button></div>
+        <p class="notice" id="reportStatus" role="status" aria-live="polite"></p>
+        <div id="candidateRows"></div>
+        <div class="report-foot"><button class="btn secondary" id="loadMore" type="button" hidden>Load more interested candidates</button></div>
+        <p class="muted">Next: review a candidate profile to continue their current recruiting stage. Saved contact links open your email/phone app or LinkedIn only when you click them; nothing is sent by this report.</p>
+      </div>
+    </section>
+  </main></div>
+  <script src="JS/apiScripts.js"></script>
+  <script src="JS/interestedCandidates.js"></script>
+  <script>
+    (() => {
+      const domain = document.documentElement.dataset.domain;
+      const ui = window.DevReadyInterestedCandidates;
+      const el = (id) => document.getElementById(id);
+      let token = "";
+      if (!ui.scopeNames[domain]) { el("unlockForm").hidden = true; el("unlockStatus").textContent = "Choose a supported workspace using the menu before opening this report."; return; }
+      el("scopeLabel").textContent = `${ui.scopeNames[domain]} workspace · All saved interested candidates · All jobs`;
+      el("findOutLink").href = `mine-candidate-external.html?domain=${encodeURIComponent(domain)}`;
+      const loader = ui.createLoader((path) => api(path, { headers: { "X-DevReady-Admin-Token": token }, cache: "no-store" }), domain);
+      function lock(message) {
+        token = ""; loader.clear(); el("candidateRows").replaceChildren(); el("reportPanel").hidden = true;
+        el("unlockPanel").hidden = false; el("unlockStatus").textContent = message;
+      }
+      async function load(reset) {
+        el("refreshReport").disabled = true; el("loadMore").disabled = true;
+        if (reset) { el("candidateRows").replaceChildren(); el("loadMore").hidden = true; el("reportCount").textContent = "Loading saved report…"; }
+        el("reportStatus").textContent = "Reading saved interested candidates…";
+        try {
+          const data = await loader.load(reset);
+          if (!data) return;
+          el("candidateRows").innerHTML = ui.renderRows(data.profiles, domain);
+          el("reportCount").textContent = `${data.profiles.length} interested candidate${data.profiles.length === 1 ? "" : "s"} loaded${data.hasMore ? " · More saved records available" : " · Complete report"}`;
+          el("reportStatus").textContent = data.hasMore ? "Load more to continue through every saved interested candidate in this workspace." : data.profiles.length ? "All saved interested candidates have been loaded. Contact details reflect saved data and may need verification." : "No saved candidates are currently marked interested in this workspace.";
+          el("loadMore").hidden = !data.hasMore;
+        } catch (error) {
+          if (error.status === 403) { sessionStorage.removeItem("devreadyAdminUnlock"); lock("Administrator session expired. Unlock the report again."); }
+          else el("reportStatus").textContent = `Could not complete the report. ${error.message || "Try again."} No provider request was made.`;
+        } finally { el("refreshReport").disabled = false; el("loadMore").disabled = false; }
+      }
+      async function unlock(savedToken) {
+        await api("/api/access/admin-check", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ token: savedToken }).toString() });
+        token = savedToken; el("unlockPanel").hidden = true; el("reportPanel").hidden = false; await load(true);
+      }
+      el("unlockForm").addEventListener("submit", async (event) => {
+        event.preventDefault(); const form = event.currentTarget; const submit = form.querySelector("button"); submit.disabled = true;
+        el("unlockStatus").textContent = "Verifying Administrator access…";
+        try {
+          const data = await api("/api/access/admin-login", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(new FormData(form)).toString() });
+          sessionStorage.setItem("devreadyAdminUnlock", JSON.stringify({ token: data.token, user: data.user, unlocked_at: new Date().toISOString() }));
+          await unlock(data.token);
+        } catch (error) { lock(error.message || "Administrator unlock failed."); }
+        finally { form.elements.password.value = ""; submit.disabled = false; }
+      });
+      el("refreshReport").addEventListener("click", () => load(true));
+      el("loadMore").addEventListener("click", () => load(false));
+      try { const saved = JSON.parse(sessionStorage.getItem("devreadyAdminUnlock") || "null"); if (saved?.token) unlock(saved.token).catch(() => { sessionStorage.removeItem("devreadyAdminUnlock"); lock("Unlock the report to continue."); }); } catch (_) { lock("Unlock the report to continue."); }
+    })();
+  </script>
+</body>
+</html>

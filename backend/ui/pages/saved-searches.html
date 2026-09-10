@@ -190,7 +190,7 @@
           <div class="library-head">
             <div>
               <h2 id="savedSearchLibraryTitle">Saved sourcing search library</h2>
-              <p class="muted">Return to every saved outside search in the current domain without paying to query the provider again.</p>
+              <p class="muted">Return to saved outside searches in this workspace without querying the provider again.</p>
             </div>
             <div class="library-actions">
               <button class="btn secondary" id="btnRefreshSearches" type="button">Refresh library</button>
@@ -211,7 +211,7 @@
             <div class="summary-card"><span>Saved queries</span><strong id="summarySearches">0</strong></div>
             <div class="summary-card"><span>Returned records</span><strong id="summaryRecords">0</strong></div>
             <div class="summary-card"><span>Provider calls avoided</span><strong id="summaryReuses">0</strong></div>
-            <div class="summary-card"><span>Current domain</span><strong id="summaryDomain">Dev</strong></div>
+            <div class="summary-card"><span>Workspace</span><strong id="summaryDomain">Technology</strong></div>
           </div>
 
           <div class="library-filters">
@@ -324,7 +324,7 @@
         document.getElementById("btnLoadOlder").hidden = !hasMoreSavedSearches;
         document.getElementById("savedSearchStatus").textContent = savedSearches.length
           ? `Showing ${filtered.length.toLocaleString()} of ${savedSearchTotal.toLocaleString()} saved ${domainLabel()} quer${savedSearchTotal === 1 ? "y" : "ies"}. Opening one uses the stored results and 0 provider credits.`
-          : `No saved searches have been created in the ${domainLabel()} domain yet.`;
+          : `No saved searches have been created in the ${domainLabel()} workspace yet.`;
         document.getElementById("savedSearchRows").innerHTML = filtered.map((search) => {
           const id = savedSearchId(search);
           const records = Number(search.recordCount || 0);
@@ -422,7 +422,7 @@
             if (!await loadSavedSearches()) throw new Error("The complete saved-search register could not be loaded.");
           }
           if (!savedSearches.length) return alert("There are no saved searches to export.");
-          const headers = ["Query Name", "Domain", "JD", "JD ID", "Client", "Source", "Query Mode", "Records", "Pages", "Created", "Last Opened", "Provider Calls Avoided"];
+          const headers = ["Query Name", "Workspace", "JD", "JD ID", "Client", "Source", "Query Mode", "Records", "Pages", "Created", "Last Opened", "Provider Calls Avoided"];
           const rows = savedSearches.map((search) => [search.queryName, domainLabel(search.domain), search.jdName || "Not Found", search.jdId, search.clientName || "Not Found", sourceLabel(search.source), search.queryMode, search.recordCount, search.pageCount, search.createdAt, search.lastOpenedAt, search.reuseCount]);
           const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
           const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });

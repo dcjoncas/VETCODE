@@ -302,7 +302,7 @@
       }
 
       .criteria-workspace-body {
-        padding: 13px;
+        padding: 10px;
         background: var(--card, #fff);
       }
 
@@ -335,12 +335,12 @@
       .criteria-grid {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 12px;
-        margin-top: 12px;
+        gap: 8px;
+        margin-top: 10px;
       }
 
       .criteria-section {
-        padding: 12px;
+        padding: 9px;
         border: 1px solid var(--border);
         border-radius: 10px;
         background: color-mix(in srgb, var(--card) 90%, var(--primary) 10%);
@@ -351,7 +351,7 @@
         align-items: baseline;
         justify-content: space-between;
         gap: 10px;
-        margin-bottom: 10px;
+        margin-bottom: 7px;
       }
 
       .criteria-section-head h4,
@@ -368,15 +368,15 @@
       .criteria-section-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(220px, 1fr));
-        gap: 10px;
+        gap: 8px;
       }
 
       .criteria-card {
         display: grid;
         align-content: start;
-        gap: 7px;
+        gap: 6px;
         min-width: 0;
-        padding: 10px;
+        padding: 7px;
         border: 1px solid var(--border);
         border-radius: 9px;
         background: var(--card);
@@ -388,8 +388,28 @@
       }
 
       .criteria-card.is-ignored details,
-      .criteria-card.is-ignored .criteria-toggle {
-        opacity: 0.52;
+      .criteria-card.is-ignored .criteria-toggle,
+      .criteria-card.is-ignored .criteria-help {
+        display: none;
+      }
+
+      .criteria-card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .criteria-card-title {
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .criteria-card.is-ignored .criteria-card-title::after {
+        content: " · ignored";
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 400;
       }
 
       .criteria-grid .field {
@@ -397,9 +417,11 @@
       }
 
       .criteria-ignore {
-        width: 100%;
-        margin-top: 2px;
+        min-height: 30px;
+        padding: 4px 8px;
+        flex: 0 0 auto;
         border-style: dashed;
+        font-size: 12px;
       }
 
       .criteria-ignore[aria-pressed="true"] {
@@ -420,8 +442,8 @@
         align-items: center;
         justify-content: space-between;
         gap: 10px;
-        min-height: 40px;
-        padding: 8px 10px;
+        min-height: 34px;
+        padding: 6px 8px;
         cursor: pointer;
         font-size: 13px;
         font-weight: 700;
@@ -437,6 +459,17 @@
         font-size: 12px;
         font-weight: 700;
         text-align: right;
+        overflow-wrap: anywhere;
+      }
+
+      .criteria-picker summary .criteria-picker-summary {
+        text-align: left;
+      }
+
+      .criteria-picker-edit {
+        flex: 0 0 auto;
+        font-size: 11px;
+        color: var(--muted);
       }
 
       .criteria-picker-body {
@@ -1036,7 +1069,7 @@
             </summary>
             <div class="criteria-workspace-body">
             <div class="criteria-head">
-              <p class="muted">Start with the JD suggestions, then keep, change, or ignore each criterion. Ignored criteria are not sent to the search provider as requirements.</p>
+              <p class="muted">Edit the JD suggestions or ignore requirements you do not need.</p>
               <div class="criteria-head-actions">
                 <button id="criteriaIgnoreAll" class="btn secondary" type="button" aria-pressed="false">Ignore all criteria</button>
               </div>
@@ -1045,13 +1078,15 @@
               <section class="criteria-section" aria-labelledby="criteriaRoleHeading">
                 <div class="criteria-section-head">
                   <h4 id="criteriaRoleHeading">Role and expertise</h4>
-                  <p>Who they are and what they must know</p>
                 </div>
                 <div class="criteria-section-grid">
                   <div class="field criteria-card" data-criteria-card="titles">
-                    <label>Current titles</label>
-                    <details class="criteria-picker" open>
-                      <summary>Choose current titles <span id="criteriaTitlesSummary" class="criteria-picker-summary">0 selected</span></summary>
+                    <div class="criteria-card-head">
+                      <span id="criteriaTitlesLabel" class="criteria-card-title">Current titles</span>
+                      <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="titles" aria-pressed="false" aria-label="Ignore current titles">Ignore</button>
+                    </div>
+                    <details class="criteria-picker">
+                      <summary aria-labelledby="criteriaTitlesLabel criteriaTitlesSummary"><span id="criteriaTitlesSummary" class="criteria-picker-summary">0 selected</span><span class="criteria-picker-edit" aria-hidden="true">Edit ▾</span></summary>
                       <div class="criteria-picker-body">
                         <input id="criteriaTitlesFilter" class="criteria-filter" type="search" placeholder="Filter title choices" data-criteria-filter="titles" />
                         <div id="criteriaTitlesOptions" class="criteria-option-grid"></div>
@@ -1061,12 +1096,14 @@
                         </div>
                       </div>
                     </details>
-                    <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="titles" aria-pressed="false">Ignore this criterion</button>
                   </div>
                   <div class="field criteria-card" data-criteria-card="skills">
-                    <label>Must-have skills</label>
+                    <div class="criteria-card-head">
+                      <span id="criteriaSkillsLabel" class="criteria-card-title">Must-have skills</span>
+                      <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="skills" aria-pressed="false" aria-label="Ignore must-have skills">Ignore</button>
+                    </div>
                     <details class="criteria-picker">
-                      <summary>Choose must-have skills <span id="criteriaSkillsSummary" class="criteria-picker-summary">0 selected</span></summary>
+                      <summary aria-labelledby="criteriaSkillsLabel criteriaSkillsSummary"><span id="criteriaSkillsSummary" class="criteria-picker-summary">0 selected</span><span class="criteria-picker-edit" aria-hidden="true">Edit ▾</span></summary>
                       <div class="criteria-picker-body">
                         <input class="criteria-filter" type="search" placeholder="Filter skill choices" data-criteria-filter="skills" />
                         <div id="criteriaSkillsOptions" class="criteria-option-grid"></div>
@@ -1076,17 +1113,18 @@
                         </div>
                       </div>
                     </details>
-                    <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="skills" aria-pressed="false">Ignore this criterion</button>
                   </div>
                   <div class="field criteria-card" data-criteria-card="experience">
-                    <label>Experience ranges</label>
+                    <div class="criteria-card-head">
+                      <span id="criteriaExperienceLabel" class="criteria-card-title">Experience</span>
+                      <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="experience" aria-pressed="false" aria-label="Ignore experience">Ignore</button>
+                    </div>
                     <details class="criteria-picker">
-                      <summary>Choose experience ranges <span id="criteriaExperienceSummary" class="criteria-picker-summary">0 selected</span></summary>
+                      <summary aria-labelledby="criteriaExperienceLabel criteriaExperienceSummary"><span id="criteriaExperienceSummary" class="criteria-picker-summary">0 selected</span><span class="criteria-picker-edit" aria-hidden="true">Edit ▾</span></summary>
                       <div class="criteria-picker-body">
                         <div id="criteriaExperienceOptions" class="criteria-option-grid"></div>
                       </div>
                     </details>
-                    <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="experience" aria-pressed="false">Ignore this criterion</button>
                   </div>
                 </div>
               </section>
@@ -1094,13 +1132,15 @@
               <section class="criteria-section" aria-labelledby="criteriaLocationHeading">
                 <div class="criteria-section-head">
                   <h4 id="criteriaLocationHeading">Location and availability</h4>
-                  <p>Where they work and how the role is delivered</p>
                 </div>
                 <div class="criteria-section-grid">
                   <div class="field criteria-card" data-criteria-card="cities">
-                    <label>Target cities in the U.S. and Canada</label>
+                    <div class="criteria-card-head">
+                      <span id="criteriaCitiesLabel" class="criteria-card-title">Target cities</span>
+                      <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="cities" aria-pressed="false" aria-label="Ignore target cities">Ignore</button>
+                    </div>
                     <details class="criteria-picker">
-                      <summary>Choose major cities <span id="criteriaCitiesSummary" class="criteria-picker-summary">0 selected</span></summary>
+                      <summary aria-labelledby="criteriaCitiesLabel criteriaCitiesSummary"><span id="criteriaCitiesSummary" class="criteria-picker-summary">0 selected</span><span class="criteria-picker-edit" aria-hidden="true">Edit ▾</span></summary>
                       <div class="criteria-picker-body">
                         <input class="criteria-filter" type="search" placeholder="Filter major cities" data-criteria-filter="cities" />
                         <div id="criteriaCitiesOptions" class="criteria-option-grid"></div>
@@ -1112,31 +1152,34 @@
                     </details>
                     <label class="criteria-toggle" for="criteriaStrictLocations">
                       <input id="criteriaStrictLocations" type="checkbox" checked />
-                      <span id="criteriaStrictLocationsHelp">Require the current profile location to match a target city. Uncheck to treat target cities as preferred.</span>
+                      <span id="criteriaStrictLocationsHelp">Require selected cities; uncheck for preference only.</span>
                     </label>
-                    <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="cities" aria-pressed="false">Ignore this criterion</button>
                   </div>
                   <div class="field criteria-card" data-criteria-card="arrangements">
-                    <label>Work arrangement</label>
+                    <div class="criteria-card-head">
+                      <span id="criteriaArrangementLabel" class="criteria-card-title">Work arrangement</span>
+                      <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="arrangements" aria-pressed="false" aria-label="Ignore work arrangement">Ignore</button>
+                    </div>
                     <details class="criteria-picker">
-                      <summary>Choose accepted arrangements <span id="criteriaArrangementSummary" class="criteria-picker-summary">0 selected</span></summary>
+                      <summary aria-labelledby="criteriaArrangementLabel criteriaArrangementSummary"><span id="criteriaArrangementSummary" class="criteria-picker-summary">0 selected</span><span class="criteria-picker-edit" aria-hidden="true">Edit ▾</span></summary>
                       <div class="criteria-picker-body">
                         <div id="criteriaArrangementOptions" class="criteria-option-grid"></div>
                       </div>
                     </details>
-                    <small>Role requirement; confirm candidate availability before outreach.</small>
-                    <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="arrangements" aria-pressed="false">Ignore this criterion</button>
+                    <small class="criteria-help">Confirm availability with the candidate.</small>
                   </div>
                   <div class="field criteria-card" data-criteria-card="workforce">
-                    <label>Workforce location</label>
+                    <div class="criteria-card-head">
+                      <span id="criteriaWorkforceLabel" class="criteria-card-title">Workforce location</span>
+                      <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="workforce" aria-pressed="false" aria-label="Ignore workforce location">Ignore</button>
+                    </div>
                     <details class="criteria-picker">
-                      <summary>Choose workforce locations <span id="criteriaWorkforceSummary" class="criteria-picker-summary">0 selected</span></summary>
+                      <summary aria-labelledby="criteriaWorkforceLabel criteriaWorkforceSummary"><span id="criteriaWorkforceSummary" class="criteria-picker-summary">0 selected</span><span class="criteria-picker-edit" aria-hidden="true">Edit ▾</span></summary>
                       <div class="criteria-picker-body">
                         <div id="criteriaWorkforceOptions" class="criteria-option-grid"></div>
                       </div>
                     </details>
-                    <small>Applied to the candidate's current profile country where the provider supports it.</small>
-                    <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="workforce" aria-pressed="false">Ignore this criterion</button>
+                    <small class="criteria-help">Based on the current profile country.</small>
                   </div>
                 </div>
               </section>
@@ -1144,13 +1187,15 @@
               <section class="criteria-section" aria-labelledby="criteriaCredentialsHeading">
                 <div class="criteria-section-head">
                   <h4 id="criteriaCredentialsHeading">Credentials</h4>
-                  <p>Licenses and certifications that matter for this role</p>
                 </div>
                 <div class="criteria-section-grid">
                   <div class="field criteria-card" data-criteria-card="licenses">
-                    <label>Licenses or certifications</label>
+                    <div class="criteria-card-head">
+                      <span id="criteriaLicensesLabel" class="criteria-card-title">Licenses or certifications</span>
+                      <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="licenses" aria-pressed="false" aria-label="Ignore licenses or certifications">Ignore</button>
+                    </div>
                     <details class="criteria-picker">
-                      <summary>Choose accepted credentials <span id="criteriaLicensesSummary" class="criteria-picker-summary">0 selected</span></summary>
+                      <summary aria-labelledby="criteriaLicensesLabel criteriaLicensesSummary"><span id="criteriaLicensesSummary" class="criteria-picker-summary">0 selected</span><span class="criteria-picker-edit" aria-hidden="true">Edit ▾</span></summary>
                       <div class="criteria-picker-body">
                         <input class="criteria-filter" type="search" placeholder="Filter license and certification choices" data-criteria-filter="licenses" />
                         <div id="criteriaLicensesOptions" class="criteria-option-grid"></div>
@@ -1160,8 +1205,6 @@
                         </div>
                       </div>
                     </details>
-                    <small>Choose every accepted credential, select “None required,” or ignore this criterion.</small>
-                    <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="licenses" aria-pressed="false">Ignore this criterion</button>
                   </div>
                 </div>
               </section>
@@ -1233,6 +1276,7 @@
             <a class="btn secondary" href="temp-profiles.html" id="btnViewTempProfiles">
               Open TEMP Profiles
             </a>
+            <a class="btn secondary" id="reviewAllInterestedCandidates" href="interested-candidates.html">Review All Interested Candidates</a>
             <a class="btn secondary" id="btnExportCurrentReport" aria-disabled="true">Export current report</a>
           </div>
 
@@ -1256,21 +1300,25 @@
             <div class="source-audit-item"><span>Total matches</span><strong id="auditTotal">0</strong></div>
             <div class="source-audit-item"><span>Records retrieved</span><strong id="auditReturned">0</strong></div>
             <div class="source-audit-item"><span>Records reviewed</span><strong id="auditReviewed">0</strong></div>
-            <div class="source-audit-item"><span>Provider usage</span><strong id="auditCost">Not run</strong></div>
+            <div class="source-audit-item"><span>Search credits used</span><strong id="auditCost">Not run</strong></div>
+            <div class="source-audit-item"><span>Account credits remaining</span><strong id="auditBalance">Unavailable</strong></div>
             <div class="source-audit-item"><span>Provider contacted</span><strong id="auditExecuted">No</strong></div>
             <div class="source-audit-item"><span>Request completed</span><strong id="auditCompleted">No</strong></div>
           </div>
           <div id="sourceAuditNote" class="verification-note" hidden></div>
 
-          <div id="bulkLinkedProfileActions" class="selection-status-bar bulk-enrichment-panel" hidden>
+          <details id="bulkLinkedProfileActions" class="bulk-enrichment-panel" hidden>
+            <summary>Optional bulk enrichment — uses provider credits</summary>
+            <div class="selection-status-bar">
             <div>
               <strong>Returned linked profiles</strong>
-              <div id="bulkLinkedProfileStatus" class="muted">Enrich every eligible returned profile before choosing TEMP candidates.</div>
+              <div id="bulkLinkedProfileStatus" class="muted">Review JD fit first. You can request contact details for individual candidates instead.</div>
             </div>
             <button class="btn primary" type="button" id="btnEnrichAllLinkedProfiles">
               Enrich all LinkedIn-linked profiles
             </button>
           </div>
+          </details>
 
           <div id="enrichmentSelectionStatus" class="selection-status-bar">
             <span id="selectedEnrichmentCount" class="pill">0 / 10 selected</span>
@@ -1306,6 +1354,8 @@
     </div>
 
     <script src="JS/apiScripts.js"></script>
+    <script src="JS/providerUsage.js?v=20260910"></script>
+    <script src="JS/professionalMatch.js?v=20260910"></script>
     <script src="JS/jobDescriptionPicker.js?v=20260824-jd-compact-grid"></script>
     <script src="JS/updateProcessFlow.js?v=20260819-active-candidate"></script>
     <script src="JS/shortlist.js?v=20260819-active-candidate"></script>
@@ -1697,17 +1747,21 @@
           card?.querySelectorAll("details input, details button").forEach((control) => {
             control.disabled = ignored;
           });
-          if (ignored) {
-            const details = card?.querySelector("details");
-            if (details) details.open = false;
+          const details = card?.querySelector("details");
+          if (details) {
+            details.hidden = ignored;
+            if (ignored) details.open = false;
           }
+          card?.querySelectorAll(".criteria-toggle, .criteria-help").forEach((help) => { help.hidden = ignored; });
           if (group === "cities") {
             const strictLocations = document.getElementById("criteriaStrictLocations");
             if (strictLocations) strictLocations.disabled = ignored;
           }
           if (button) {
             button.setAttribute("aria-pressed", ignored ? "true" : "false");
-            button.textContent = ignored ? "Use this criterion" : "Ignore this criterion";
+            button.textContent = ignored ? "Use" : "Ignore";
+            const label = card?.querySelector(".criteria-card-title")?.textContent || group;
+            button.setAttribute("aria-label", `${ignored ? "Use" : "Ignore"} ${label.toLowerCase()}`);
           }
           updateCriteriaSummary(group);
         });
@@ -1719,10 +1773,8 @@
         const compactSummary = document.getElementById("criteriaCompactSummary");
         if (compactSummary) {
           compactSummary.textContent = allIgnored
-            ? "All criteria are ignored; this search will use the selected JD broadly."
-            : ignoredCount
-              ? `${groups.length - ignoredCount} requirements will restrict the search; ${ignoredCount} will be ignored.`
-              : `${groups.length} requirements will restrict the provider search.`;
+            ? "Using the JD without these extra requirements."
+            : "Review selections or ignore requirements you do not need.";
         }
         const ignoreAll = document.getElementById("criteriaIgnoreAll");
         if (ignoreAll) {
@@ -1737,6 +1789,7 @@
         else ignoredCriteriaGroups.delete(group);
         syncCriteriaIgnoreControls();
         updateSearchLocationHelp();
+        window.invalidateDiscoveryMatches?.();
         if (refresh) refreshSearchCriteriaStatus();
       }
 
@@ -1744,6 +1797,7 @@
         ignoredCriteriaGroups = new Set(ignored ? Object.keys(CRITERIA_PICKER_META) : []);
         syncCriteriaIgnoreControls();
         updateSearchLocationHelp();
+        window.invalidateDiscoveryMatches?.();
         refreshSearchCriteriaStatus();
       }
 
@@ -1764,6 +1818,7 @@
         }
         updateCriteriaSummary(group);
         if (group === "workforce") updateSearchLocationHelp();
+        window.invalidateDiscoveryMatches?.();
         refreshSearchCriteriaStatus();
       }
 
@@ -1799,6 +1854,7 @@
         const selected = uniqueCriteriaValues([...selectedCriteriaValues(group), ...additions]);
         renderCriteriaGroup(group, selected);
         input.value = "";
+        window.invalidateDiscoveryMatches?.();
         refreshSearchCriteriaStatus();
       }
 
@@ -1834,11 +1890,12 @@
             : workforceLocations[0] || "onshore";
         if (!locationHelp) return;
         locationHelp.textContent = workforceLocation === "offshore"
-          ? "Require the current profile location to match a target city. Uncheck to treat the cities as preferred while searching outside the United States."
-          : "Require the current profile location to match a target city. Uncheck to treat the target cities as preferred.";
+          ? "Require selected cities outside the U.S.; uncheck for preference only."
+          : "Require selected cities; uncheck for preference only.";
       }
 
       function configureDomainPage() {
+        document.getElementById("reviewAllInterestedCandidates").href = `interested-candidates.html?domain=${encodeURIComponent(currentDomain())}`;
         setSearchCriteria({
           titles: [],
           mustHaveSkills: [],
@@ -1891,32 +1948,35 @@
 
       function setSearchCriteria(criteria = {}) {
         document.getElementById("searchCriteriaPanel").hidden = false;
+        document.querySelectorAll("#searchCriteriaPanel .criteria-picker").forEach((picker) => { picker.open = false; });
         ignoredCriteriaGroups = new Set(
           uniqueCriteriaValues(criteria.ignoredCriteria || []).filter((group) => CRITERIA_PICKER_META[group]),
         );
-        renderCriteriaGroup("titles", criteria.titles || []);
+        const selectedValues = (group, fallback) => Array.isArray(criteria.selectedValues?.[group])
+          ? criteria.selectedValues[group] : fallback;
+        renderCriteriaGroup("titles", selectedValues("titles", criteria.titles || []));
         renderCriteriaGroup(
           "skills",
-          criteria.mustHaveSkills || criteria.requiredSkills || criteria.requiredPracticeAreas || [],
+          selectedValues("skills", criteria.mustHaveSkills || criteria.requiredSkills || criteria.requiredPracticeAreas || []),
         );
-        renderCriteriaGroup("cities", criteria.locations || []);
+        renderCriteriaGroup("cities", selectedValues("cities", criteria.locations || []));
         renderCriteriaGroup(
           "experience",
-          criteria.experienceRanges || [experienceRangeForYears(criteria.minYears || 1)],
+          selectedValues("experience", criteria.experienceRanges || [experienceRangeForYears(criteria.minYears || 1)]),
         );
         renderCriteriaGroup(
           "licenses",
-          criteria.licensesOrCertifications || (criteria.licenseOrCertification ? [criteria.licenseOrCertification] : []),
+          selectedValues("licenses", criteria.licensesOrCertifications || (criteria.licenseOrCertification ? [criteria.licenseOrCertification] : [])),
         );
         renderCriteriaGroup(
           "arrangements",
-          criteria.workArrangements || (criteria.workArrangement ? [criteria.workArrangement] : []),
+          selectedValues("arrangements", criteria.workArrangements || (criteria.workArrangement ? [criteria.workArrangement] : [])),
         );
         renderCriteriaGroup(
           "workforce",
-          criteria.workforceLocations || (criteria.workforceLocation ? [criteria.workforceLocation] : ["onshore"]),
+          selectedValues("workforce", criteria.workforceLocations || (criteria.workforceLocation ? [criteria.workforceLocation] : ["onshore"])),
         );
-        document.getElementById("criteriaStrictLocations").checked = criteria.strictLocations !== false;
+        document.getElementById("criteriaStrictLocations").checked = criteria.strictLocationsSelection ?? (criteria.strictLocations !== false);
         searchCriteriaRegion = criteria.region || (isLawDomain() ? "California" : "");
         syncCriteriaIgnoreControls();
         updateSearchLocationHelp();
@@ -1970,6 +2030,7 @@
           minYears: experienceRanges.length ? minimumYearsForRanges(experienceRanges) : 0,
           experienceRanges,
           strictLocations: !criterionIgnored("cities") && document.getElementById("criteriaStrictLocations").checked,
+          strictLocationsSelection: document.getElementById("criteriaStrictLocations").checked,
           licenseOrCertification: licensesOrCertifications[0] || "",
           licensesOrCertifications,
           workArrangement: workArrangements[0] || "",
@@ -1977,6 +2038,7 @@
           workforceLocation,
           workforceLocations,
           ignoredCriteria: Object.keys(CRITERIA_PICKER_META).filter((group) => criterionIgnored(group)),
+          selectedValues: Object.fromEntries(Object.keys(CRITERIA_PICKER_META).map((group) => [group, checkedCriteriaValues(group)])),
         };
       }
 
@@ -2231,7 +2293,7 @@
           button.disabled = selected.length === 0;
           button.textContent = "Determine interest for selected";
           button.title = selected.length
-            ? `Prepare ${selected.length} selected candidate${selected.length === 1 ? "" : "s"} and open one contact workspace${selectedNeedEnrichment ? "; unenriched PDL records will be enriched first" : ""}`
+            ? `Prepare ${selected.length} selected candidate${selected.length === 1 ? "" : "s"} from saved discovery data and open one contact workspace. No paid contact lookup.`
             : completed
               ? `${completed} result${completed === 1 ? " already has" : "s already have"} a TEMP profile. Select any contact-ready results to check interest.`
               : "Select one or more contact-ready results to determine interest";
@@ -2285,6 +2347,12 @@
         return String(candidate?.phone || candidate?.contact?.primaryPhone || "").trim();
       }
 
+      function candidateHasDirectContacts(candidate) {
+        const phone = candidatePrimaryPhone(candidate);
+        return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(candidatePrimaryEmail(candidate))
+          && /^[\d\s+().xX-]+$/.test(phone) && phone.replace(/\D/g, "").length >= 7;
+      }
+
       function candidateLinkedInUrl(candidate) {
         const url = String(candidate?.professional_profile_url || candidate?.profile_url || "").trim();
         return /https?:\/\/([^/]+\.)?linkedin\.com\//i.test(url) ? url : "";
@@ -2297,12 +2365,12 @@
         const phone = candidatePrimaryPhone(candidate);
         const linkedinUrl = candidateLinkedInUrl(candidate);
         if (email && email.includes("@")) {
-          actions.push(`<a class="btn primary" href="mailto:${encodeURIComponent(email)}">Email</a>`);
+          actions.push(`<a class="btn primary" href="mailto:${encodeURIComponent(email)}">Email: ${escapeHtml(email)}</a>`);
           labels.push("email");
         }
         const phoneDigits = phone.replace(/\D/g, "");
         if (phoneDigits.length >= 7) {
-          actions.push(`<a class="btn primary" href="tel:${escapeHtml(phone.replace(/[^+\d]/g, ""))}">Call</a>`);
+          actions.push(`<a class="btn primary" href="tel:${escapeHtml(phone.replace(/[^+\d]/g, ""))}">Call: ${escapeHtml(phone)}</a>`);
           labels.push("phone");
         }
         if (linkedinUrl) {
@@ -2550,6 +2618,7 @@
             required_count: matchCalculated ? (match.requiredCount ?? candidate.score_details?.required_count) : candidate.score_details?.required_count,
             components: matchCalculated ? (match.components || {}) : (candidate.score_details?.components || {}),
           },
+          match: match.evidenceType ? match : candidate.match,
           enriched_match_complete: matchCalculated,
           professional_enrichment_complete: professionalEnrichmentComplete,
           match_pending: professionalEnrichmentComplete && !matchCalculated,
@@ -2582,30 +2651,13 @@
 
       function showCandidateMatchStats(index) {
         const candidate = latestExternalResults[index];
-        const match = candidate?.saved_match && typeof candidate.saved_match === "object"
-          ? candidate.saved_match
-          : {};
-        if (!candidate || match.status !== "calculated" || String(match.jobId || "") !== String(selectedWorkflowJobId())) {
-          return alert("Calculate this TEMP profile's match to the selected JD before viewing statistics.");
-        }
-        const components = match.components && typeof match.components === "object"
-          ? Object.entries(match.components)
-          : [];
+        const view = window.DevReadyProfessionalMatch.view(candidate, selectedWorkflowJobId(), currentLawCriteria());
+        const match = view.match;
+        if (!candidate || !view.current) return alert("Calculate this candidate's current JD fit before reviewing the evidence.");
         const calculatedAt = match.calculatedAt ? new Date(match.calculatedAt).toLocaleString() : "Saved time unavailable";
-        const sources = Array.isArray(match.evidenceSources) ? match.evidenceSources.filter(Boolean) : [];
         document.getElementById("candidateMatchTitle").textContent = `${candidate.name || "Candidate"} — JD match`;
         document.getElementById("candidateMatchSubtitle").textContent = `${match.jobTitle || selectedJobLabel()} · calculated ${calculatedAt}`;
-        document.getElementById("candidateMatchBody").innerHTML = `
-          <div class="match-score-summary">
-            <div class="match-score-number">${Number.isFinite(Number(match.score)) ? `${Math.round(Number(match.score))}%` : "Review"}</div>
-            <div><strong>${escapeHtml(match.band || match.decision || "Saved match")}</strong><div style="margin-top:5px">${escapeHtml(match.reason || "The score is based only on evidence saved in the enriched TEMP profile.")}</div></div>
-          </div>
-          <div class="match-stat-grid">
-            <section class="match-stat-card"><h4>What matched</h4>${candidateMatchList(match.matched, "No JD signals were confirmed in the stored evidence.")}</section>
-            <section class="match-stat-card"><h4>What is missing</h4>${candidateMatchList(match.missing, "No missing JD signals were recorded.")}</section>
-          </div>
-          ${components.length ? `<section class="match-stat-card match-component-list"><h4>Score components</h4><ul>${components.map(([name, points]) => `<li>${escapeHtml(readableMatchComponent(name))}: <strong>${escapeHtml(String(points))} points</strong></li>`).join("")}</ul></section>` : ""}
-          <section class="match-stat-card match-component-list"><h4>How this was calculated</h4><div>${escapeHtml(match.formula || "Weighted matched JD signals divided by weighted searchable JD signals.")}</div><div class="muted" style="margin-top:7px">Evidence sources: ${escapeHtml(sources.join(", ") || "Stored TEMP professional profile")}. No provider credits were used, and LinkedIn was not scraped.</div></section>`;
+        document.getElementById("candidateMatchBody").innerHTML = window.DevReadyProfessionalMatch.details(match);
         document.getElementById("candidateMatchDialog").showModal();
       }
 
@@ -2617,23 +2669,26 @@
       async function calculateCandidateMatch(index) {
         const candidate = latestExternalResults[index];
         const jdId = selectedWorkflowJobId();
-        if (!candidate?.devready_profile_id) return alert("Create the DevReady TEMP profile first.");
-        if (!candidate.professional_enrichment_complete) return alert("Complete professional enrichment before calculating the JD match.");
+        if (!candidate) return;
         if (!jdId) return alert("Choose a job description before calculating the match.");
         const candidateKey = candidateResultKey(candidate);
         const status = document.getElementById("mineStatus");
         status.textContent = `Calculating ${candidate.name || "candidate"}'s match to ${selectedJobLabel()} from saved evidence...`;
         try {
-          const response = await api(`/api/azureJobs/external/temp/${encodeURIComponent(candidate.devready_profile_id)}/calculate-match`, {
+          const matchEndpoint = candidate.devready_profile_id
+            ? `/api/azureJobs/external/temp/${encodeURIComponent(candidate.devready_profile_id)}/calculate-match`
+            : "/api/azureJobs/external/calculate-match";
+          const response = await api(matchEndpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ domain: currentDomain(), jd_id: jdId, criteria: currentLawCriteria() }),
+            body: JSON.stringify({ domain: currentDomain(), jd_id: jdId, criteria: currentLawCriteria(), candidate }),
           });
-          latestExternalResults[index] = markCandidateDevReadyProfile(candidate, response);
+          latestExternalResults[index] = response.personid ? markCandidateDevReadyProfile(candidate, response)
+            : { ...candidate, match: response.match, score: response.match?.score ?? null };
           latestExternalResults = rankExternalResults(latestExternalResults);
           const rankedIndex = latestExternalResults.findIndex((item) => candidateResultKey(item) === candidateKey);
           renderResults(latestExternalResults);
-          status.textContent = `${candidate.name || "Candidate"}'s JD match was calculated and saved. No provider credits were used.`;
+          status.textContent = `${candidate.name || "Candidate"}'s JD fit was reviewed from returned professional evidence. No provider credits were used.`;
           if (rankedIndex >= 0) showCandidateMatchStats(rankedIndex);
         } catch (error) {
           status.textContent = error.message || String(error);
@@ -2641,23 +2696,20 @@
         }
       }
 
+      window.invalidateDiscoveryMatches = () => {
+        if (latestExternalResults.length) renderResults(latestExternalResults, { preservedCandidateKeys: selectedCandidateKeys() });
+      };
+
       function rankExternalResults(results = []) {
         return results
           .map((candidate, originalIndex) => ({ candidate, originalIndex }))
           .sort((left, right) => {
-            const leftScore = left.candidate.score === null || left.candidate.score === "" || left.candidate.score === undefined
-              ? Number.NaN
-              : Number(left.candidate.score);
-            const rightScore = right.candidate.score === null || right.candidate.score === "" || right.candidate.score === undefined
-              ? Number.NaN
-              : Number(right.candidate.score);
+            const leftScore = window.DevReadyProfessionalMatch.view(left.candidate, selectedWorkflowJobId(), currentLawCriteria()).score;
+            const rightScore = window.DevReadyProfessionalMatch.view(right.candidate, selectedWorkflowJobId(), currentLawCriteria()).score;
             const safeLeftScore = Number.isFinite(leftScore) ? leftScore : -1;
             const safeRightScore = Number.isFinite(rightScore) ? rightScore : -1;
             if (safeLeftScore !== safeRightScore) return safeRightScore - safeLeftScore;
 
-            const leftEnriched = left.candidate.enriched_match_complete === true ? 1 : 0;
-            const rightEnriched = right.candidate.enriched_match_complete === true ? 1 : 0;
-            if (leftEnriched !== rightEnriched) return rightEnriched - leftEnriched;
             return left.originalIndex - right.originalIndex;
           })
           .map(({ candidate }) => candidate);
@@ -2801,11 +2853,11 @@
           actionTarget = "determine-interest";
           ready = true;
         } else if (eligibleLinkedProfiles.length) {
-          title = "Returned linked profiles are ready to enrich";
-          message = `Select the candidates you want for the interest check. Optional bulk enrichment is still available for all ${eligibleLinkedProfiles.length} linked profile${eligibleLinkedProfiles.length === 1 ? "" : "s"}.`;
-          actionLabel = "Go to Enrich all linked profiles";
-          actionTarget = "btnEnrichAllLinkedProfiles";
-          currentTarget = bulkEnrichButton;
+          title = "Review fit and choose candidates";
+          message = "Review requirement support and evidence, then select candidates for Determine Interest. Contact lookup is optional.";
+          actionLabel = "Review candidate results";
+          actionTarget = "candidate-results";
+          currentTarget = document.getElementById("results");
         } else if (contactReadyCount) {
           title = "Choose candidates for the interest check";
           message = `All ${contactReadyCount} returned candidate${contactReadyCount === 1 ? " has" : "s have"} at least one usable contact method. Select up to ten, then open them together.`;
@@ -2935,13 +2987,13 @@
           : Number(audit.totalMatches || 0).toLocaleString();
         document.getElementById("auditReturned").textContent = Number(audit.recordsReturned || 0).toLocaleString();
         document.getElementById("auditReviewed").textContent = Number(audit.recordsReviewed || 0).toLocaleString();
-        document.getElementById("auditCost").textContent = audit.costLabel
-          ? `${Number(audit.estimatedCreditsUsed || 0).toLocaleString()} - ${audit.costLabel}`
-          : Number(audit.estimatedCreditsUsed || 0).toLocaleString();
+        const usageDisplay = window.DevReadyProviderUsage.describe(audit);
+        document.getElementById("auditCost").textContent = usageDisplay.used;
+        document.getElementById("auditBalance").textContent = usageDisplay.remaining;
         document.getElementById("auditExecuted").textContent = audit.queryExecuted ? "Yes" : "No";
         document.getElementById("auditCompleted").textContent =
           (audit.queryCompleted ?? audit.queryExecuted) ? "Yes" : "No";
-        const notes = [audit.statusMessage, audit.legalReadiness, audit.linkedInMode].filter(Boolean);
+        const notes = [audit.statusMessage, ...usageDisplay.notes, audit.legalReadiness, audit.linkedInMode].filter(Boolean);
         note.textContent = notes.join(" ");
         note.hidden = !notes.length;
       }
@@ -3006,6 +3058,7 @@
           totalMatches: Number(previous.totalMatches || pageAudit.totalMatches || 0),
           recordsReturned: Number(previous.recordsReturned || 0) + Number(pageAudit.recordsReturned || 0),
           recordsReviewed: Number(previous.recordsReviewed || 0) + Number(pageAudit.recordsReviewed || 0),
+          providerUsage: window.DevReadyProviderUsage.merge(previous, pageAudit),
           estimatedCreditsUsed:
             Number(previous.estimatedCreditsUsed || 0) + Number(pageAudit.estimatedCreditsUsed || 0),
         };
@@ -3371,6 +3424,10 @@
         const startIndex = Number(options.startIndex || 0);
         const preservedCandidateKeys = options.preservedCandidateKeys
           || (options.preserveSelection ? selectedCandidateKeys() : new Set());
+        if (results === latestExternalResults && !options.append) {
+          latestExternalResults = rankExternalResults(results);
+          results = latestExternalResults;
+        }
         const html = results
           .map((candidate, index) => {
             const globalIndex = startIndex + index;
@@ -3431,7 +3488,7 @@
               : hasDevReadyProfile
                 ? `<a class="btn primary" href="${escapeHtml(devReadyProfileUrl)}">Open DevReady Profile</a>`
                 : `<button class="btn primary ${linkedProfileEnriched ? "enriched-temp-action" : ""}" type="button" onclick="importExternalCandidate(${globalIndex})">
-                    ${isCourtAttorneyLead ? (courtProfileConfirmed ? "Create combined TEMP profile" : "Create identity-unverified TEMP profile") : linkedProfileEnriched ? "Create TEMP profile" : candidate.source === "pdl" ? "Enrich and create TEMP profile" : "Create TEMP profile from this candidate"}
+                    ${isCourtAttorneyLead ? (courtProfileConfirmed ? "Create combined TEMP profile" : "Create identity-unverified TEMP profile") : "Create TEMP profile"}
                   </button>`;
             const profileStatusBadge = isResearchOnly
               ? ""
@@ -3453,39 +3510,22 @@
                     )
                     .join(" | ")}</div>`
                 : "";
-            const scoreBand = candidate.match_band || candidate.score_details?.band || "Below threshold";
-            const hasEnrichedMatch = candidate.enriched_match_complete === true;
-            const savedMatch = candidate.saved_match && typeof candidate.saved_match === "object" ? candidate.saved_match : {};
-            const matchIsCurrent = hasEnrichedMatch
-              && Boolean(selectedWorkflowJobId())
-              && String(savedMatch.jobId || "") === String(selectedWorkflowJobId());
-            const canCalculateMatch = hasDevReadyProfile
-              && candidate.professional_enrichment_complete === true
-              && Boolean(selectedWorkflowJobId());
-            const matchAction = !hasDevReadyProfile
-              ? ""
-              : matchIsCurrent
-                ? `<button class="btn secondary" type="button" onclick="showCandidateMatchStats(${globalIndex})">View ${Math.round(Number(savedMatch.score) || 0)}% match</button>`
-                : `<button class="btn primary" type="button" onclick="calculateCandidateMatch(${globalIndex})" ${canCalculateMatch ? "" : "disabled"} title="${escapeHtml(!selectedWorkflowJobId() ? "Choose a JD first" : "Professional enrichment must be complete first")}">Calculate JD match</button>`;
-            const matchedCount = Number(candidate.score_details?.matched_count || (candidate.top_matches || []).length || 0);
-            const requiredCount = Number(candidate.score_details?.required_count || 0);
-            const matchTypeLabel = matchIsCurrent ? "saved JD match" : "discovery preview";
+            const matchView = window.DevReadyProfessionalMatch.view(candidate, selectedWorkflowJobId(), currentLawCriteria());
+            const savedMatch = matchView.match;
+            const matchIsCurrent = matchView.current;
+            const canCalculateMatch = !isResearchOnly && !isCourtResearch && Boolean(selectedWorkflowJobId());
+            const matchAction = isResearchOnly || isCourtResearch ? "" : matchIsCurrent
+              ? `<button class="btn secondary" type="button" onclick="showCandidateMatchStats(${globalIndex})">View fit evidence</button>`
+              : `<button class="btn primary" type="button" onclick="calculateCandidateMatch(${globalIndex})" ${canCalculateMatch ? "" : "disabled"}>Calculate JD match</button>`;
             const isDirectResult = candidate.search_mode === "direct";
             const scoreLabel =
               isCourtAttorneyLead && !courtProfileConfirmed
                 ? "Court-data lawyer lead - verify identity"
                 : isCourtRecord
                 ? "Court record - identity unverified"
-                : hasEnrichedMatch && !matchIsCurrent
-                ? "JD match not calculated for the selected job"
-                : isDirectResult && !(candidate.top_matches || []).length
-                ? "Direct result"
-                : `${Math.round(candidate.score || 0)}% ${matchTypeLabel} - ${escapeHtml(scoreBand)}`;
-            const matchExplanation = !isCourtResearch && !isDirectResult
-              ? hasEnrichedMatch && !matchIsCurrent
-                ? `<div class="meta match-explanation"><strong>Saved match belongs to another JD.</strong> Use Calculate JD match to create statistics for the selected job.</div>`
-                : `<div class="meta match-explanation"><strong>${matchIsCurrent ? "Saved JD match" : "Discovery preview"}:</strong> ${matchedCount}${requiredCount ? ` of ${requiredCount}` : ""} JD signals matched.${matchIsCurrent ? ` Calculated deliberately from the saved ${escapeHtml(candidate.enrichment_provider || "provider")} evidence.` : hasDevReadyProfile && candidate.professional_enrichment_complete ? " Professional data is saved; use Calculate JD match when you want to replace this preview with saved statistics." : linkedProfileEnriched ? " Linked professional data is ready; create a TEMP profile only if you choose this candidate." : " Enrich and create the TEMP profile before calculating a saved match."}</div>`
-              : "";
+                : escapeHtml(matchView.label);
+            const matchExplanation = !isCourtResearch
+              ? `<div class="meta match-explanation">${escapeHtml(matchView.detail)}${matchIsCurrent && typeof savedMatch.coveragePercent === "number" ? ` Evidence coverage: ${Math.round(savedMatch.coveragePercent)}%.` : ""}</div>` : "";
             const enrichmentFailure = candidate.bulk_enrichment_error
               ? `<div class="verification-note">Enrichment did not complete: ${escapeHtml(candidate.bulk_enrichment_error)}</div>`
               : "";
@@ -3507,9 +3547,8 @@
               : (verification.license_status || verification.california_bar_status) === "not_verified"
               ? `<span class="pill">${escapeHtml(verification.license_jurisdiction || currentLawCriteria().region || "License")} standing not verified</span>`
               : "";
-            const missingSkills = candidate.score_details?.missing?.length
-              && !isDirectResult
-              ? `<div class="meta">Missing: ${candidate.score_details.missing.slice(0, 4).map(escapeHtml).join(", ")}</div>`
+            const missingSkills = matchIsCurrent && savedMatch.mustHaveUnknown?.length
+              ? `<div class="meta">Required evidence to confirm: ${savedMatch.mustHaveUnknown.slice(0, 4).map(escapeHtml).join(", ")}</div>`
               : "";
 
             return `<div class="candidate-card ${linkedProfileEnriched && !hasDevReadyProfile ? "linked-profile-enriched" : ""}" id="candidate-card-${globalIndex}">
@@ -3536,11 +3575,13 @@
                 </div>
               </div>
               ${contactActions}
+              ${candidate.source === "pdl" ? `<div class="meta contact-discovery-note">${candidateHasReusableEnrichment(candidate) ? "Contact lookup completed. Missing fields were not returned by the provider; availability depends on coverage and your plan. Verify details before outreach." : "Discovery includes professional data and LinkedIn. Email and phone are requested only if you choose a contact lookup."}</div>` : ""}
               ${interestControls}
               <div class="skills">${skills}</div>
               ${enrichmentFailure}
               <div class="row-actions">
                 ${importButton}
+                ${candidate.source === "pdl" && !linkedProfileEnriched && !candidateHasDirectContacts(candidate) ? `<button class="btn secondary" type="button" onclick="requestCandidateContacts(${globalIndex})" ${pdlReady ? "" : "disabled"}>Get contact details…</button>` : ""}
                   ${matchIsCurrent ? `<button class="btn secondary" type="button" onclick="calculateCandidateMatch(${globalIndex})">Recalculate JD match</button>` : ""}
                   ${barLink}
                   ${profileLink}
@@ -3685,10 +3726,29 @@
         }
       }
 
+      async function requestCandidateContacts(index) {
+        const candidate = latestExternalResults[index];
+        if (!candidate || candidateHasReusableEnrichment(candidate)) return;
+        if (!confirm(`Look up contact details for ${candidate.name || "this candidate"}? This makes one PDL Person Enrichment request, billed per successful matched record (normally 1 enrichment credit). Your plan controls available fields; email or phone is not guaranteed. Review the JD fit first. Continue?`)) return;
+        const status = document.getElementById("mineStatus");
+        status.textContent = `Requesting contact details for ${candidate.name || "candidate"}…`;
+        try {
+          await enrichExternalResultCandidate(index);
+          renderResults(latestExternalResults, { preservedCandidateKeys: selectedCandidateKeys() });
+          status.textContent = "Contact lookup finished. Review the returned details before outreach; missing fields were not supplied by the provider.";
+          persistSourcingViewState();
+        } catch (error) {
+          status.textContent = error.message || "Contact lookup failed.";
+        }
+      }
+
       async function enrichExternalResultCandidate(index) {
         const candidate = latestExternalResults[index];
         if (!candidate || candidateHasReusableEnrichment(candidate)) return { reused: true };
-        const response = await api("/api/azureJobs/external/enrich-result", {
+        const endpoint = candidate.devready_profile_id
+          ? `/api/azureJobs/external/temp/${encodeURIComponent(candidate.devready_profile_id)}/enrich-professional`
+          : "/api/azureJobs/external/enrich-result";
+        const response = await api(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -3697,15 +3757,18 @@
             candidate,
           }),
         });
-        if (!response?.candidate || response.enrichment?.status !== "completed") {
+        if ((!response?.candidate && !response?.personid) || response.enrichment?.status !== "completed") {
           throw new Error("The provider did not return a completed professional enrichment.");
         }
         latestExternalResults[index] = {
-          ...response.candidate,
+          ...candidate,
+          ...(response.candidate || {}),
+          ...(response.personid ? { email: response.email, phone: response.phone, contact: response.contact, profile_url: response.profileUrl || candidate.profile_url } : {}),
           bulk_enrichment_error: "",
           professional_enrichment_complete: true,
           external_enrichment: response.enrichment,
-          enrichment_provider: response.enrichment.provider || response.candidate.enrichment_provider || "",
+          enrichment_provider: response.enrichment.provider || response.candidate?.enrichment_provider || "",
+          match: null, saved_match: null, score: null,
           match_pending: true,
         };
         return response;
@@ -3764,8 +3827,8 @@
           const alreadyEnriched = candidateHasReusableEnrichment(candidate);
           const approved = confirm(
             alreadyEnriched
-              ? "Create a TEMP profile from this already enriched professional result? The saved provider response will be reused and no additional enrichment credit is expected. Determine Interest will calculate the match to the active job."
-              : "Enrich this selected People Data Labs profile and create a TEMP profile? A successful enrichment may use 1 PDL Person Enrichment credit. Determine Interest will calculate the match to the active job.",
+              ? "Create a TEMP profile from the saved professional data? No additional provider call will be made."
+              : "Create a TEMP profile from this discovery result? No paid contact lookup will run. You can review JD fit and request contact details separately.",
           );
           if (!approved) return null;
         }
@@ -3781,7 +3844,7 @@
           candidateHasReusableEnrichment(candidate)
             ? `Creating a TEMP profile from saved professional enrichment for ${candidate.name || "selected candidate"}...`
           : candidate.source === "pdl"
-            ? `Enriching and creating a TEMP profile for ${candidate.name || "selected candidate"}...`
+            ? `Saving a TEMP profile from discovery data for ${candidate.name || "selected candidate"}...`
             : isCourtLead && !courtProfileConfirmed
               ? `Creating identity-unverified TEMP research profile for ${candidate.name || "selected lawyer"}...`
               : isCourtLead
@@ -3800,6 +3863,7 @@
               jd_id: document.getElementById("jdSelect").value || "",
               criteria: currentLawCriteria(),
               identity_unverified_acknowledged: isCourtLead && !courtProfileConfirmed,
+              enrich_contacts: false,
             }),
           });
         } catch (e) {
@@ -3896,7 +3960,7 @@
         }).length;
         if (pdlCreditCount) {
           const approved = confirm(
-            `Enrich ${pdlCreditCount} selected People Data Labs profile${pdlCreditCount === 1 ? "" : "s"} and create TEMP profiles? This may use up to ${pdlCreditCount} PDL Person Enrichment credit${pdlCreditCount === 1 ? "" : "s"}. Already enriched results and existing TEMP profiles are reused without another enrichment call. Determine Interest will calculate each match to the active job from saved evidence without provider credits.`,
+            `Create TEMP profiles for ${pdlCreditCount} selected People Data Labs result${pdlCreditCount === 1 ? "" : "s"} using the returned discovery data? No paid contact lookup will run. Determine Interest uses available LinkedIn, email or phone details; request additional contact details separately.`,
           );
           if (!approved) return;
         }
@@ -3926,7 +3990,7 @@
           renderResults(latestExternalResults, { preservedCandidateKeys });
           document.getElementById("mineStatus").textContent =
             count
-              ? `${pdlCreditCount ? "Enriched and created" : "Created"} ${count} TEMP profile${count === 1 ? "" : "s"}.${unverifiedCourtLeadCount ? ` ${unverifiedCourtLeadCount} CourtListener profile${unverifiedCourtLeadCount === 1 ? " remains" : "s remain"} identity-unverified until a matching professional profile is added.` : ""}${reused ? ` Reused ${reused} existing TEMP profile${reused === 1 ? "" : "s"} without another enrichment call.` : ""} Opening the shared interest workspace now.`
+              ? `Created ${count} TEMP profile${count === 1 ? "" : "s"} from saved evidence without paid contact lookups.${unverifiedCourtLeadCount ? ` ${unverifiedCourtLeadCount} CourtListener profile${unverifiedCourtLeadCount === 1 ? " remains" : "s remain"} identity-unverified until a matching professional profile is added.` : ""}${reused ? ` Reused ${reused} existing TEMP profile${reused === 1 ? "" : "s"}.` : ""} Opening the shared interest workspace now.`
               : reused
                 ? `Reused ${reused} existing TEMP profile${reused === 1 ? "" : "s"}; no new enrichment calls were made. Opening the shared interest workspace now.`
                 : "No TEMP profiles were created. Check the error message above.";
@@ -4009,6 +4073,7 @@
           });
         });
         document.getElementById("jdSelect").addEventListener("change", function () {
+          window.invalidateDiscoveryMatches?.();
           updateWorkflowGuidance();
           applySelectedExternalJob(this.value);
         });
@@ -4038,7 +4103,10 @@
             if (button) addCustomCriteriaValue(button.dataset.criteriaAdd, button.dataset.input);
           });
         });
-        document.getElementById("criteriaStrictLocations")?.addEventListener("change", refreshSearchCriteriaStatus);
+        document.getElementById("criteriaStrictLocations")?.addEventListener("change", () => {
+          window.invalidateDiscoveryMatches?.();
+          refreshSearchCriteriaStatus();
+        });
         document.getElementById("btnMine").addEventListener("click", mineCandidates);
         document.getElementById("btnEnrichAllLinkedProfiles").addEventListener("click", enrichAllLinkedProfiles);
         document.getElementById("btnImportSelected").addEventListener("click", importSelectedExternalCandidates);

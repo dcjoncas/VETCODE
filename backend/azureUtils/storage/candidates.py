@@ -1812,7 +1812,7 @@ def listTemporaryExternalProfiles(domain: str = "dev", limit: int = 50):
                 )
                 and _is_linkedin_profile_url(stored_profile_url)
             )
-            match = external_profile.get("match") or {}
+            match = external_profile.get("match") if isinstance(external_profile.get("match"), dict) else {}
             match_status = str(match.get("status") or "not_run").strip().lower()
             match_calculated = match_status == "calculated"
             court_evidence = external_profile.get("courtEvidence") or {}
@@ -1834,6 +1834,9 @@ def listTemporaryExternalProfiles(domain: str = "dev", limit: int = 50):
                 "enrichmentVersion": enrichment.get("profileVersion") or 1,
                 "enrichmentLikelihood": enrichment.get("likelihood"),
                 "linkedInEnriched": linked_in_enriched,
+                # Keep provenance, null/unavailable state, criteria and coverage
+                # together. A legacy number must not acquire new-method metadata.
+                "match": dict(match),
                 "matchStatus": match_status,
                 "matchCalculated": match_calculated,
                 "matchScore": match.get("score") if match_calculated else None,
