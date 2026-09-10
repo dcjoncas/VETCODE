@@ -4982,10 +4982,91 @@ def external_candidate_export_saved_search(search_id: str, request: Request, dom
     )
 
 
+def _selected_temp_profile_payload(stored: dict) -> dict:
+    """Expose the saved batch using the same contact/match fields as the TEMP list."""
+    metadata = stored.get("externalProfile") if isinstance(stored.get("externalProfile"), dict) else {}
+    contact = metadata.get("contact") if isinstance(metadata.get("contact"), dict) else {}
+    enrichment = metadata.get("enrichment") if isinstance(metadata.get("enrichment"), dict) else {}
+    match = metadata.get("match") if isinstance(metadata.get("match"), dict) else {}
+    interest = metadata.get("interestWorkflow") if isinstance(metadata.get("interestWorkflow"), dict) else {}
+    location = stored.get("location") or {}
+    if isinstance(location, dict):
+        location = ", ".join(str(location.get(key) or "").strip() for key in ("locality", "region", "country") if location.get(key))
+    profile_url = str(stored.get("profileUrl") or "").strip()
+    match_status = str(match.get("status") or "not_run").strip().lower()
+    calculated = match_status == "calculated"
+    provider = str(enrichment.get("provider") or "")
+    result = {
+        "personid": stored["personid"],
+        "name": stored.get("name") or "Temporary Profile",
+        "email": str(stored.get("email") or contact.get("primaryEmail") or "").strip(),
+        "phone": str(contact.get("primaryPhone") or "").strip(),
+        "title": stored.get("title") or "",
+        "source": metadata.get("source") or "External",
+        "sourceId": metadata.get("sourceId") or "",
+        "location": str(location),
+        "profileUrl": profile_url,
+        "hasProfessionalProfile": bool(profile_url),
+        "enrichmentStatus": enrichment.get("status") or "",
+        "enrichmentProvider": provider,
+        "enrichmentVersion": enrichment.get("profileVersion") or 1,
+        "enrichmentLikelihood": enrichment.get("likelihood"),
+        "linkedInEnriched": enrichment.get("status") == "completed"
+            and ("people data labs" in provider.lower() or "coresignal" in provider.lower())
+            and candidates._is_linkedin_profile_url(profile_url),
+        "match": dict(match),
+        "matchStatus": match_status,
+        "matchCalculated": calculated,
+        "matchScore": match.get("score") if calculated else None,
+        "interestStatus": interest.get("status") or "",
+        "interestConfirmedAt": interest.get("confirmedAt") or "",
+        "interestJobId": interest.get("jobId") or "",
+    }
+    for field in ("band", "formula", "reason", "decision", "calculatedAt", "jobId"):
+        result["match" + field[0].upper() + field[1:]] = (match.get(field) or "") if calculated else ""
+    for field in ("matched", "missing", "evidenceSources"):
+        result["match" + field[0].upper() + field[1:]] = (match.get(field) or []) if calculated else []
+    result["matchComponents"] = (match.get("components") or {}) if calculated else {}
+    result["matchRequiredCount"] = (match.get("requiredCount") or result["matchComponents"].get("required_count") or 0) if calculated else 0
+    court_evidence = metadata.get("courtEvidence") if isinstance(metadata.get("courtEvidence"), dict) else {}
+    result["courtEvidenceCount"] = court_evidence.get("evidenceCount") or match.get("courtEvidenceCount") or 0
+    return result
+
+
 @router.get("/external/temp")
-def external_candidate_temp_profiles(domain: str = "dev", limit: int = 50):
+def external_candidate_temp_profiles(domain: str = "dev", limit: int = 50, person_ids: str | None = None):
     domain = _domain_key(domain)
-    return candidates.listTemporaryExternalProfiles(domain, limit)
+    if person_ids is None:
+        return candidates.listTemporaryExternalProfiles(domain, limit)
+
+    # Explicit batches must not be limited to the newest 500 stored profiles.
+    # Validate the entire request before accessing storage, and never interpret
+    # an empty/invalid selection as a request for every candidate in the domain.
+    if not isinstance(person_ids, str) or len(person_ids) > 1024:
+        raise HTTPException(status_code=400, detail="Select up to ten valid TEMP profile ids.")
+    ids = []
+    for raw_id in person_ids.split(","):
+        raw_id = raw_id.strip()
+        if not re.fullmatch(r"[0-9]{1,19}", raw_id) or not 0 < int(raw_id) <= 9223372036854775807:
+            raise HTTPException(status_code=400, detail="Select up to ten valid TEMP profile ids.")
+        person_id = str(int(raw_id))
+        if person_id not in ids:
+            ids.append(person_id)
+        if len(ids) > 10:
+            raise HTTPException(status_code=400, detail="Select no more than ten TEMP profiles for an interest check.")
+
+    profiles = []
+    missing = []
+    for person_id in ids:
+        try:
+            stored = candidates.getTemporaryExternalProfileForEnrichment(person_id, domain)
+        except HTTPException as exc:
+            if exc.status_code == 404 or (exc.status_code == 400 and exc.detail == "Profile is already permanent."):
+                missing.append(person_id)
+                continue
+            raise
+        profiles.append(_selected_temp_profile_payload(stored))
+    return {"status": "success", "profiles": profiles, "requestedPersonIds": ids, "missingPersonIds": missing}
 
 
 @router.get("/external/temp/linkedin-results/export")

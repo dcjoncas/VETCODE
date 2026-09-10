@@ -795,6 +795,121 @@
       width: 100%;
     }
   }
+
+  /* Keep orientation visible; the full process is available on demand. */
+  #processFlow .process-expanded {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "current actions" "details details";
+    align-items: center;
+    gap: 8px 14px;
+    margin-top: 9px;
+    padding-top: 9px;
+  }
+
+  #processFlow .workflow-status-head {
+    grid-area: current;
+    min-width: 0;
+    padding: 7px 10px;
+    border-left: 3px solid var(--primary-2, #2f7d4b);
+    border-radius: 0 8px 8px 0;
+    background: var(--primary-soft, #f0f6f1);
+  }
+
+  #processFlow .workflow-status-title {
+    font-size: 14px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  #processFlow .workflow-status-foot {
+    grid-area: actions;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+  }
+
+  #processFlow .workflow-next-link,
+  #processFlow .workflow-next-note {
+    max-width: 360px;
+    box-sizing: border-box;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  #processFlow .workflow-next-note {
+    padding: 7px 10px;
+    border: 1px solid var(--line, #dfe7e2);
+    border-radius: 8px;
+    background: #f6f8f7;
+    color: var(--text, #102018);
+    font-size: 12px;
+    font-weight: 750;
+  }
+
+  #processFlow .workflow-next-link[hidden],
+  #processFlow .workflow-next-note[hidden] { display: none; }
+
+  #processFlow .workflow-details {
+    grid-area: details;
+    min-width: 0;
+  }
+
+  #processFlow .workflow-details > summary {
+    width: fit-content;
+    padding: 5px 2px;
+    color: var(--primary-2, #2f7d4b);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  #processFlow .workflow-details > summary:focus-visible {
+    outline: 2px solid var(--primary-2, #2f7d4b);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  #processFlow .workflow-details-open,
+  #processFlow .workflow-details[open] .workflow-details-closed { display: none; }
+  #processFlow .workflow-details[open] .workflow-details-open { display: inline; }
+
+  #processFlow .workflow-details-body {
+    margin-top: 6px;
+    padding: 10px 0 2px;
+    border-top: 1px solid var(--line, #dfe7e2);
+  }
+
+  #processFlow .workflow-details-meta,
+  #processFlow .workflow-secondary-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px 12px;
+    flex-wrap: wrap;
+  }
+
+  #processFlow .workflow-details-meta { justify-content: space-between; }
+  #processFlow .workflow-status-detail { margin: 8px 0; font-size: 12px; line-height: 1.4; }
+  #processFlow .workflow-details .flow-help { display: block; margin: 6px 0 10px; }
+  #processFlow .workflow-status-legend { margin-top: 6px; }
+  #processFlow .workflow-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 900px) {
+    #processFlow .process-expanded {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: "current" "actions" "details";
+    }
+    #processFlow .workflow-status-foot { flex-direction: row; align-items: center; }
+    #processFlow .workflow-next-link,
+    #processFlow .workflow-next-note { max-width: 100%; }
+  }
 </style>
 
 <div class="card process-flow-card">
@@ -830,6 +945,7 @@
       <select
         id="domainSelect"
         class="process-domain-select"
+        aria-label="Workspace domain"
         onchange="domainSwap()"
         data-hint="Switch between DevReady, BuildReady, LegalReady, and DentalReady. The page reloads with that domain so candidates, jobs, resumes, and certifications do not bleed across workspaces."
       >
@@ -838,36 +954,28 @@
         <option value="law">Law</option>
         <option value="dental">Dental</option>
       </select>
-      <button
-        id="hintToggle"
-        class="process-hint-toggle hint-toggle"
-        type="button"
-        onclick="toggleGlobalHints()"
-        data-hint="Enable or disable the helper overlays. Turning this off hides hover explanations and guidance notes without changing any candidate or job data."
-        title="Toggle guidance hints"
-      >
-        Hints On
-      </button>
-      <button
-        class="process-map-button"
-        type="button"
-        onclick="openProcessMap()"
-        data-hint="Open a larger workflow map that shows the current step, the selected candidate, the selected job, and where you are in the vetting process."
-        title="Open the process map"
-      >
-        Map
-      </button>
     </div>
   </div>
   <div id="processExpanded" class="process-expanded">
     <div class="workflow-status-head">
       <div>
-        <span class="workflow-status-eyebrow">Hiring workflow</span>
+        <span class="workflow-status-eyebrow">Current stage</span>
         <strong id="processStatusTitle" class="workflow-status-title">Current step</strong>
-        <span id="processStatusDetail" class="workflow-status-detail">Complete the current step to keep the candidate moving.</span>
       </div>
-      <span id="processProgressCopy" class="workflow-progress-copy">0 of 10 steps complete</span>
     </div>
+    <details id="processWorkflowDetails" class="workflow-details">
+      <summary><span class="workflow-details-closed">Show full workflow</span><span class="workflow-details-open">Hide full workflow</span></summary>
+      <div class="workflow-details-body">
+        <div class="workflow-details-meta">
+          <span id="processProgressCopy" class="workflow-progress-copy">0 of 10 steps complete</span>
+          <div class="workflow-secondary-actions">
+            <button id="hintToggle" class="process-hint-toggle hint-toggle" type="button" onclick="toggleGlobalHints()"
+              data-hint="Enable or disable helper overlays without changing candidate or job data." title="Toggle guidance hints">Hints On</button>
+            <button class="process-map-button" type="button" onclick="openProcessMap()"
+              data-hint="Open a larger map showing the current step, candidate, and job." title="Open the process map">Map</button>
+          </div>
+        </div>
+        <p id="processStatusDetail" class="workflow-status-detail">Complete the current step to keep the candidate moving.</p>
     <div
       id="processProgressTrack"
       class="workflow-progress-track"
@@ -909,18 +1017,21 @@
       <a class="step" data-flow-step="status" href="status-tracker.html" data-hint="Track where the candidate stands after outreach: messages sent, interview status, follow-ups, resends, and next action needed.">8 - Status</a>
     </div>
     </div>
-    <div class="workflow-status-foot">
-      <div class="workflow-history-nav" aria-label="Page history navigation">
-        <button class="workflow-history-button" type="button" onclick="processGoBack()" title="Browser Back with the prior page state and position restored">← Back</button>
-        <span id="processLocationLabel" class="workflow-location-label">You are here</span>
-        <button class="workflow-history-button" type="button" onclick="processGoForward()" title="Move forward again after going back">Forward →</button>
-      </div>
-      <a id="processNextStepLink" class="workflow-next-link" href="#">Next step</a>
-    </div>
     <div class="workflow-status-legend" aria-label="Workflow status legend">
       <span class="is-complete"><i aria-hidden="true"></i>Complete</span>
       <span class="is-current"><i aria-hidden="true"></i>Current</span>
       <span><i aria-hidden="true"></i>Remaining</span>
+    </div>
+      </div>
+    </details>
+    <div class="workflow-status-foot">
+      <div class="workflow-history-nav" aria-label="Page history navigation">
+        <button class="workflow-history-button" type="button" onclick="processGoBack()" title="Browser Back with the prior page state and position restored">← Back</button>
+        <span id="processLocationLabel" class="workflow-location-label workflow-visually-hidden">You are here</span>
+        <button class="workflow-history-button" type="button" onclick="processGoForward()" title="Move forward again after going back">Forward →</button>
+      </div>
+      <a id="processNextStepLink" class="workflow-next-link" href="#">Next step</a>
+      <span id="processNextStepNote" class="workflow-next-note" role="status" hidden>Next: complete the action on this page.</span>
     </div>
   </div>
 </div>
@@ -1237,8 +1348,10 @@
     const progressTrack = document.getElementById("processProgressTrack");
     const progressFill = document.getElementById("processProgressFill");
     const nextLink = document.getElementById("processNextStepLink");
+    const nextNote = document.getElementById("processNextStepNote");
     const locationLabel = document.getElementById("processLocationLabel");
     if (!statusTitle || !statusDetail || !progressCopy || !progressTrack || !progressFill || !nextLink) return;
+    if (nextNote) nextNote.hidden = true;
 
     const profileGuidance = currentFlowStep === "profile" ? window.DevReadyProfileGuidance : null;
     const statusFlowOrder = profileGuidance?.step === "interest" ? flowOrder : activeFlowOrder;
@@ -1265,6 +1378,10 @@
       if (profileGuidance.href) nextLink.href = profileGuidance.href;
       else nextLink.removeAttribute("href");
       nextLink.textContent = `${profileGuidance.label} →`;
+      if (nextNote && !profileGuidance.href) {
+        nextNote.hidden = false;
+        nextNote.textContent = `Next: ${String(profileGuidance.label || "Review candidate status on this page").replace(/^Next:\s*/i, "")}`;
+      }
       document.querySelectorAll("#processFlow [data-flow-step].next").forEach((link) => link.classList.remove("next"));
       document.querySelectorAll("#processFlow [data-flow-step].complete").forEach((link) => link.classList.remove("complete"));
       statusFlowOrder.slice(0, completedCount).forEach((step) => paintProcessStep(step, "complete"));
@@ -1274,6 +1391,15 @@
 
     if (!nextFlowStep) {
       nextLink.hidden = true;
+      nextLink.removeAttribute("href");
+      if (nextNote) {
+        nextNote.hidden = false;
+        nextNote.textContent = waitingForCandidateDecision
+          ? "Next: Record candidate interest on this page."
+          : currentFlowStep === "status"
+            ? "Next: Record the outcome or follow-up on this page."
+            : "Next: Open the full workflow to choose a starting step.";
+      }
       return;
     }
     const nextNode = document.querySelector(`#processFlow [data-flow-step="${nextFlowStep}"]`);

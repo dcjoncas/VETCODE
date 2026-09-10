@@ -44,14 +44,14 @@
       }
 
       .interest-summary {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(130px, 1fr));
-        gap: 10px;
-        margin-top: 14px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0 auto 0 0;
       }
 
       .interest-summary-card {
-        padding: 12px;
+        padding: 7px 12px;
         border: 1px solid var(--line);
         border-radius: 10px;
         background: #f7f8fa;
@@ -59,7 +59,7 @@
 
       .interest-summary-card span,
       .interest-summary-card strong {
-        display: block;
+        display: inline;
       }
 
       .interest-summary-card span {
@@ -69,15 +69,27 @@
       }
 
       .interest-summary-card strong {
-        margin-top: 4px;
+        margin-left: 7px;
         color: var(--primary-2);
-        font-size: 22px;
+        font-size: 17px;
       }
 
       .interest-toolbar {
         justify-content: flex-start;
-        margin-top: 14px;
+        margin-top: 10px;
       }
+      .interest-toolbar > a, .interest-toolbar > button { padding: 6px 9px; font-size: 12px; }
+      #interestStatus { padding: 6px 0; border: 0; background: transparent; font-size: 12px; }
+      .interest-job-context > summary { cursor: pointer; font-weight: 750; }
+      .interest-job-context > summary .muted { font-weight: 500; margin-right: 8px; }
+
+      [hidden] { display: none !important; }
+      .interest-empty { padding: 22px; margin-top: 14px; border: 1px dashed var(--line); border-radius: 12px; background: var(--surface, #f7f8fa); }
+      .interest-empty h3 { margin: 0 0 8px; }
+      .interest-empty p { margin: 0 0 12px; max-width: 70ch; }
+      .interest-secondary { margin-top: 16px; }
+      .interest-secondary > summary { cursor: pointer; color: var(--muted); padding: 10px 0; }
+      .interest-next-step { margin: 12px 0 0; padding: 9px 12px; border-left: 3px solid var(--primary-2); background: var(--surface, #f7f8fa); }
 
       .interest-job-context {
         display: grid;
@@ -333,36 +345,47 @@
         </div>
 
         <div id="processFlow"></div>
-        <div id="atlasClientContext" data-atlas-client-context></div>
 
         <section class="card" aria-labelledby="interestTitle">
           <div class="interest-page-head">
             <div>
-              <h2 id="interestTitle">Determine candidate interest</h2>
-              <p class="muted">Contact everyone selected during Find Candidates (Out), record each answer, and move only confirmed interested candidates into Profile Build.</p>
+              <h2 id="interestTitle">Determine Interest</h2>
+              <p class="muted">Selected candidates · JD match · contact details</p>
             </div>
-            <a class="btn secondary" href="mine-candidate-external.html">Back to Find Candidates (Out)</a>
+            <a class="btn secondary" href="mine-candidate-external.html">Change selection</a>
           </div>
 
-          <div id="interestJobContext" class="interest-job-context" aria-live="polite">
+          <details id="interestJobContext" class="interest-job-context" aria-live="polite">
             <strong>Loading the active job...</strong>
-          </div>
+          </details>
 
-          <div class="interest-summary" aria-label="Interest batch summary">
+          <div class="interest-toolbar">
+          <div id="interestSummary" class="interest-summary" aria-label="Interest batch summary" hidden>
             <div class="interest-summary-card"><span>Selected</span><strong id="interestSelectedCount">0</strong></div>
             <div class="interest-summary-card"><span>Awaiting reply</span><strong id="interestAwaitingCount">0</strong></div>
             <div class="interest-summary-card"><span>Interested</span><strong id="interestConfirmedCount">0</strong></div>
             <div class="interest-summary-card"><span>Not interested</span><strong id="interestDeclinedCount">0</strong></div>
           </div>
 
-          <div class="interest-toolbar">
-            <button class="btn secondary" id="btnRefreshInterest" type="button">Refresh</button>
-            <a class="btn secondary" id="btnInterestTempProfiles" href="temp-profiles.html">Open TEMP Profiles library</a>
+            <button class="btn secondary" id="btnRefreshInterest" type="button">Reload saved candidates</button>
+            <a class="btn secondary" id="btnInterestArchive" href="saved-searches.html">Search archive</a>
           </div>
 
           <div id="interestStatus" class="notice" style="margin-top: 12px" role="status" aria-live="polite">Loading selected candidates...</div>
+          <div id="interestEmpty" class="interest-empty" hidden>
+            <h3 id="interestEmptyTitle">Choose candidates for this report</h3>
+            <p id="interestEmptyMessage">Return to Find Candidates (Out), check the people you want to contact, then choose Determine interest for selected. Opening this page alone does not choose candidates.</p>
+            <a class="btn primary" id="btnChooseInterestCandidates" href="mine-candidate-external.html">Choose candidates from results</a>
+            <p class="muted" style="margin-top: 12px">Your previous searches are in the Search archive. Reopening one does not spend provider credits.</p>
+          </div>
+          <p id="interestNextStep" class="interest-next-step" hidden><strong>Next:</strong> Contact → record response → Profile Build for interested candidates. Nothing is sent automatically.</p>
           <div id="interestList" class="interest-list"></div>
         </section>
+        <details class="interest-secondary">
+          <summary>Other tools · saved profiles and client context</summary>
+          <a class="btn secondary" id="btnInterestTempProfiles" href="temp-profiles.html">Open TEMP Profiles library</a>
+          <div id="atlasClientContext" data-atlas-client-context></div>
+        </details>
       </main>
     </div>
 
@@ -375,12 +398,18 @@
       let interestProfiles = [];
       let interestJob = null;
       const interestMatchFailures = new Map();
+      let interestLoadVersion = 0;
+      let interestLoadNotice = "";
+      let interestContextMismatch = false;
+      let interestResponsePending = false;
 
       function currentDomain() {
         return sessionStorage.getItem("domain") || "dev";
       }
 
       function currentJobId() {
+        const jobDomain = sessionStorage.getItem("jobDomain");
+        if (jobDomain && jobDomain !== currentDomain()) return "";
         return sessionStorage.getItem("jobID")
           || sessionStorage.getItem("jobId")
           || sessionStorage.getItem("jdId")
@@ -425,18 +454,17 @@
         const panel = document.getElementById("interestJobContext");
         const jobId = currentJobId();
         if (!jobId) {
-          panel.innerHTML = `<div class="interest-job-title-row"><div><h3>No active job selected</h3><p class="muted">Choose a job before determining interest so every candidate can be compared with the same role.</p></div><a class="btn primary" href="job-descriptions.html?domain=${encodeURIComponent(currentDomain())}">Choose job</a></div>`;
+          panel.open = true;
+          panel.innerHTML = `<summary>No active job selected</summary><div class="interest-job-title-row"><p class="muted">Choose a job to compare these candidates with the same role.</p><a class="btn primary" href="job-descriptions.html?domain=${encodeURIComponent(currentDomain())}">Choose job</a></div>`;
           return;
         }
         const skills = normalizedJobSkills(interestJob).slice(0, 6);
         const summary = conciseText(interestJob?.description || interestJob?.jd_text || "", 260);
         panel.innerHTML = `
-          <div class="interest-job-title-row">
-            <div><div class="muted">Active job</div><h3>${escapeHtml(currentJobLabel())}</h3></div>
-            <span class="pill">JD ${escapeHtml(jobId)}</span>
-          </div>
+          <summary><span class="muted">Active job</span>${escapeHtml(currentJobLabel())}</summary>
           ${summary ? `<p>${escapeHtml(summary)}</p>` : ""}
-          ${skills.length ? `<div class="interest-job-skills" aria-label="Job priorities">${skills.map((skill) => `<span class="pill">${escapeHtml(skill)}</span>`).join("")}</div>` : ""}`;
+          ${skills.length ? `<div class="interest-job-skills" aria-label="Job priorities">${skills.map((skill) => `<span class="pill">${escapeHtml(skill)}</span>`).join("")}</div>` : ""}
+          <p class="muted">JD match uses saved professional evidence without provider credits. It is not a hiring probability.</p>`;
       }
 
       async function loadCurrentJob() {
@@ -475,6 +503,13 @@
         } catch {
           return [];
         }
+      }
+
+      function readInterestBatchContext() {
+        try {
+          const context = JSON.parse(sessionStorage.getItem(`determineInterestBatchContext:${currentDomain()}`) || "null");
+          return context && typeof context === "object" && !Array.isArray(context) ? context : null;
+        } catch { return null; }
       }
 
       function safeHttpUrl(value) {
@@ -596,6 +631,9 @@
       }
 
       function renderInterestProfiles() {
+        interestProfiles = interestProfiles.map((profile, index) => ({ profile, index, score: profileMatchView(profile).score }))
+          .sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || a.index - b.index)
+          .map((item) => item.profile);
         const selected = interestProfiles.length;
         const awaiting = interestProfiles.filter((profile) => profile.interestStatus === "contacting").length;
         const interested = interestProfiles.filter((profile) => profile.interestStatus === "interested").length;
@@ -606,15 +644,22 @@
         document.getElementById("interestDeclinedCount").textContent = declined;
 
         const list = document.getElementById("interestList");
+        document.getElementById("interestSummary").hidden = !selected;
+        document.getElementById("interestNextStep").hidden = !selected;
+        document.getElementById("interestEmpty").hidden = Boolean(selected);
         if (!selected) {
           list.innerHTML = "";
-          document.getElementById("interestStatus").textContent =
-            "No selected contact-ready TEMP profiles were found. Return to Find Candidates (Out), select the candidates you want, and choose Determine interest for selected.";
+          document.getElementById("interestEmptyTitle").textContent = interestContextMismatch
+            ? "Choose candidates for the current job" : "Choose candidates for this report";
+          document.getElementById("interestEmptyMessage").textContent = interestContextMismatch
+            ? "Your previous selection belongs to a different job. Return to the results and select the candidates for this job; the earlier profiles remain saved."
+            : interestLoadNotice || "Return to Find Candidates (Out), check the people you want to contact, then choose Determine interest for selected. Opening this page alone does not choose candidates.";
+          document.getElementById("interestStatus").textContent = "Next: choose candidates from your results or a saved search.";
           return;
         }
 
         document.getElementById("interestStatus").textContent =
-          `${selected} contact-ready candidate${selected === 1 ? " is" : "s are"} in this interest batch. ${currentJobId() ? `${interestProfiles.filter(profileMatchesCurrentJob).length}/${selected} profile comparisons are available; review the evidence and unknowns. Calculations use saved evidence without provider credits.` : "Choose an active job to review requirement support."} VETCODE opens the contact channel you choose but does not send messages automatically.`;
+          `${selected} selected · ${currentJobId() ? `${interestProfiles.filter(profileMatchesCurrentJob).length}/${selected} JD comparisons ready, highest match first.` : "Choose a job to see JD match percentages."} ${interestLoadNotice}`;
         list.innerHTML = interestProfiles.map((profile) => {
           const personId = String(profile.personid);
           const email = String(profile.email || "").trim();
@@ -652,8 +697,17 @@
       }
 
       async function updateInterest(personId, status) {
+        if (interestResponsePending) return;
         const profile = interestProfiles.find((item) => String(item.personid) === String(personId));
         if (!profile) return;
+        const domain = currentDomain();
+        const jobId = currentJobId();
+        const sameContext = () => domain === currentDomain() && jobId === currentJobId();
+        // A response takes priority over background scoring. Its stale reload
+        // must never replace the candidate after their new response is saved.
+        ++interestLoadVersion;
+        interestResponsePending = true;
+        document.getElementById("btnRefreshInterest").disabled = true;
         const now = new Date().toISOString();
         const buttonStatus = document.getElementById("interestStatus");
         buttonStatus.textContent = `Saving ${profile.name || "candidate"}'s response...`;
@@ -662,13 +716,14 @@
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              domain: currentDomain(),
+              domain,
               status,
-              job_id: currentJobId(),
+              job_id: jobId,
               started_at: status === "contacting" ? now : "",
               confirmed_at: status === "interested" ? now : "",
             }),
           });
+          if (!sameContext()) return;
           profile.interestStatus = status;
           if (status === "interested") {
             profile.interestConfirmedAt = now;
@@ -685,7 +740,10 @@
                 ? `${profile.name || "Candidate"} is marked Not Interested and remains outside the active process.`
                 : `${profile.name || "Candidate"} is marked Awaiting reply.`;
         } catch (error) {
-          buttonStatus.textContent = `The response was not saved: ${error.message || error}`;
+          if (sameContext()) buttonStatus.textContent = `The response was not saved: ${error.message || error}`;
+        } finally {
+          interestResponsePending = false;
+          document.getElementById("btnRefreshInterest").disabled = false;
         }
       }
 
@@ -697,6 +755,7 @@
       }
 
       async function calculateCandidateMatch(personId) {
+        if (interestResponsePending) return;
         const profile = interestProfiles.find((item) => String(item.personid) === String(personId));
         if (!profile || !currentJobId()) return;
         const status = document.getElementById("interestStatus");
@@ -714,12 +773,13 @@
         await loadInterestProfiles({ calculateMatches: false });
       }
 
-      async function calculateMissingMatches() {
+      async function calculateMissingMatches(isCurrent = () => true) {
         if (!currentJobId()) return false;
         const missing = interestProfiles.filter((profile) => !profileMatchesCurrentJob(profile));
         if (!missing.length) return false;
         let changed = false;
         for (let index = 0; index < missing.length; index++) {
+          if (!isCurrent()) return changed;
           const profile = missing[index];
           document.getElementById("interestStatus").textContent =
             `Calculating current-job match ${index + 1} of ${missing.length}: ${profile.name || "candidate"}...`;
@@ -729,9 +789,11 @@
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(interestMatchPayload(profile)),
             });
+            if (!isCurrent()) return changed;
             interestMatchFailures.delete(String(profile.personid));
             changed = true;
           } catch (error) {
+            if (!isCurrent()) return changed;
             interestMatchFailures.set(String(profile.personid), error.message || String(error));
           }
         }
@@ -739,20 +801,52 @@
       }
 
       async function loadInterestProfiles(options = {}) {
+        if (interestResponsePending) return;
+        const version = ++interestLoadVersion;
+        const domain = currentDomain();
+        const jobId = currentJobId();
+        const isCurrent = () => version === interestLoadVersion && domain === currentDomain() && jobId === currentJobId();
+        const button = document.getElementById("btnRefreshInterest");
+        button.disabled = true;
         document.getElementById("interestStatus").textContent = "Loading contact-ready TEMP profiles...";
+        interestLoadNotice = "";
+        const ids = [...new Set(readInterestBatchIds())];
+        const context = readInterestBatchContext();
+        const explicitProfile = new URLSearchParams(window.location.search).has("profileId");
+        interestContextMismatch = !explicitProfile && context !== null && String(context.jobId || "") !== String(jobId);
         try {
-          let response = await api(`/api/azureJobs/external/temp?domain=${encodeURIComponent(currentDomain())}&limit=500`);
-          let contactReady = (response.profiles || []).filter(hasContactMethod);
-          const batchIds = new Set(readInterestBatchIds());
-          interestProfiles = contactReady.filter((profile) => batchIds.has(String(profile.personid)));
-          if (options.calculateMatches !== false && await calculateMissingMatches()) {
-            response = await api(`/api/azureJobs/external/temp?domain=${encodeURIComponent(currentDomain())}&limit=500`);
-            contactReady = (response.profiles || []).filter(hasContactMethod);
-            interestProfiles = contactReady.filter((profile) => batchIds.has(String(profile.personid)));
+          if (!ids.length || interestContextMismatch) {
+            interestProfiles = [];
+            renderInterestProfiles();
+            return;
           }
+          const url = `/api/azureJobs/external/temp?domain=${encodeURIComponent(domain)}&person_ids=${encodeURIComponent(ids.join(","))}`;
+          const applyProfiles = (response) => {
+            const requested = new Set(ids);
+            interestProfiles = (response.profiles || []).filter((profile) => requested.has(String(profile.personid)));
+            const missingCount = ids.length - interestProfiles.length;
+            const noContacts = interestProfiles.filter((profile) => !hasContactMethod(profile)).length;
+            interestLoadNotice = [missingCount ? `${missingCount} selected profile(s) could not be loaded. They may have been moved or removed; check saved profiles.` : "", noContacts ? `${noContacts} profile(s) have no saved contact channel; review the profile before outreach.` : ""].filter(Boolean).join(" ");
+          };
+          const initialResponse = await api(url);
+          if (!isCurrent()) return;
+          applyProfiles(initialResponse);
+          // Show names and contact links immediately; do not leave the report
+          // apparently blank while saved evidence is being scored.
+          renderInterestProfiles();
+          if (options.calculateMatches !== false && await calculateMissingMatches(isCurrent)) {
+            if (!isCurrent()) return;
+            const response = await api(url);
+            if (!isCurrent()) return;
+            applyProfiles(response);
+          }
+          if (!isCurrent()) return;
           renderInterestProfiles();
         } catch (error) {
-          document.getElementById("interestStatus").textContent = error.message || String(error);
+          if (!isCurrent()) return;
+          document.getElementById("interestStatus").textContent = `Could not load the saved contact report. ${error.message || error} Use Reload saved candidates to retry; no new search is needed.`;
+        } finally {
+          if (version === interestLoadVersion) button.disabled = false;
         }
       }
 
@@ -761,8 +855,12 @@
         const domainQuery = `?domain=${encodeURIComponent(currentDomain())}`;
         document.querySelector(".interest-page-head a").href = `mine-candidate-external.html${domainQuery}`;
         document.getElementById("btnInterestTempProfiles").href = `temp-profiles.html${domainQuery}`;
+        document.getElementById("btnInterestArchive").href = `saved-searches.html${domainQuery}`;
+        document.getElementById("btnChooseInterestCandidates").href = `mine-candidate-external.html${domainQuery}`;
         document.getElementById("btnRefreshInterest").addEventListener("click", loadInterestProfiles);
-        loadCurrentJob().then(loadInterestProfiles);
+        // Contacts do not have to wait for the separate job-description request.
+        loadCurrentJob();
+        loadInterestProfiles();
       });
     </script>
   </body>

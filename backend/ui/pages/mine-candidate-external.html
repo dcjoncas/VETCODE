@@ -3002,7 +3002,7 @@
 
       function focusWorkflowPrerequisite(target) {
         if (target === "determine-interest") {
-          window.location.href = `determine-interest.html?domain=${encodeURIComponent(currentDomain())}`;
+          openDetermineInterestForSelection();
           return;
         }
         if (target === "job-picker") {
@@ -3041,11 +3041,7 @@
         const selected = selectedCandidateIndexes();
         const contactReadyCount = latestExternalResults.filter(candidateHasContactMethod).length;
         const eligibleLinkedProfiles = linkedProfileEnrichmentIndexes();
-        let interestBatchCount = 0;
-        try {
-          const storedBatch = JSON.parse(sessionStorage.getItem(`determineInterestBatch:${currentDomain()}`) || "[]");
-          interestBatchCount = Array.isArray(storedBatch) ? storedBatch.length : 0;
-        } catch {}
+        const interestBatchCount = preparedInterestBatchIds().length;
         const provider = externalProviderStatus[selectedSource];
         const providerBlocked = provider?.ready === false;
         const canFind = Boolean(jobId || directSearch)
@@ -4191,6 +4187,9 @@
       async function importExternalCandidate(index, options = {}) {
         let candidate = latestExternalResults[index];
         if (!candidate) return;
+        const resultKey = candidateResultKey(candidate);
+        const importDomain = options.importContext?.domain || currentDomain();
+        const importArchiveRevision = sourcingArchiveRevision;
         const isCourtLead = candidate.source === "courtlistener" && candidate.result_type === "court_attorney_lead";
         const courtProfileConfirmed = isCourtLead
           && candidate.profile_validation?.status === "confirmed_profile_match";
@@ -4228,11 +4227,11 @@
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              domain: currentDomain(),
+              domain: options.importContext?.domain || currentDomain(),
               source: candidate.source,
               candidate,
-              jd_id: document.getElementById("jdSelect").value || "",
-              criteria: currentLawCriteria(),
+              jd_id: options.importContext?.jobId ?? (document.getElementById("jdSelect").value || ""),
+              criteria: options.importContext?.criteria || currentLawCriteria(),
               identity_unverified_acknowledged: isCourtLead && !courtProfileConfirmed,
               enrich_contacts: false,
             }),
@@ -4249,11 +4248,18 @@
           return null;
         }
 
+        // Automatic match responses can reorder the results while import waits.
+        // Attach the saved profile to its identity, never the old array slot.
+        const currentIndex = latestExternalResults.findIndex((row) => candidateResultKey(row) === resultKey);
+        if (currentIndex < 0 || importDomain !== currentDomain() || importArchiveRevision !== sourcingArchiveRevision) {
+          return { ...response, viewChanged: true };
+        }
+        candidate = latestExternalResults[currentIndex];
         if (response.enriched_candidate) {
-          candidate = response.enriched_candidate;
+          candidate = { ...candidate, ...response.enriched_candidate };
         }
         candidate = markCandidateDevReadyProfile(candidate, response);
-        latestExternalResults[index] = candidate;
+        latestExternalResults[currentIndex] = candidate;
 
         const displayTitle = isCourtLead && !courtProfileConfirmed
           ? "Court-record attorney lead - identity unverified"
@@ -4261,15 +4267,19 @@
         if (options.addToProcess === true) {
           addInterestedCandidateToProcess(candidate, response.personid, response.name);
         }
-        const temporaryProfiles = JSON.parse(
-          sessionStorage.getItem("temporaryProfiles") || "{}",
-        );
-        temporaryProfiles[String(response.personid)] = {
-          source: candidate.source_label || candidate.source,
-          name: response.name,
-          importedAt: new Date().toISOString(),
-        };
-        sessionStorage.setItem("temporaryProfiles", JSON.stringify(temporaryProfiles));
+        try {
+          const temporaryProfiles = JSON.parse(sessionStorage.getItem("temporaryProfiles") || "{}");
+          temporaryProfiles[String(response.personid)] = {
+            source: candidate.source_label || candidate.source,
+            name: response.name,
+            importedAt: new Date().toISOString(),
+          };
+          sessionStorage.setItem("temporaryProfiles", JSON.stringify(temporaryProfiles));
+        } catch {
+          // The server profile already exists. Do not report a failed import or
+          // repeat a provider operation just because its local cache is full.
+          response.browserPersistenceFailed = true;
+        }
         renderLatestTempProfile({
           personid: response.personid,
           name: response.name,
@@ -4310,7 +4320,81 @@
         return response;
       }
 
+      function preparedInterestBatchIds() {
+        try {
+          const context = JSON.parse(sessionStorage.getItem(`determineInterestBatchContext:${currentDomain()}`) || "null");
+          if (context && String(context.jobId || "") !== selectedWorkflowJobId()) return [];
+          const ids = JSON.parse(sessionStorage.getItem(`determineInterestBatch:${currentDomain()}`) || "[]");
+          return Array.isArray(ids) ? ids.map(String).filter(Boolean) : [];
+        } catch { return []; }
+      }
+
+      function savePreparedInterestBatch(ids, context) {
+        const idsKey = `determineInterestBatch:${context.domain}`;
+        const contextKey = `determineInterestBatchContext:${context.domain}`;
+        const previousIds = sessionStorage.getItem(idsKey);
+        const previousContext = sessionStorage.getItem(contextKey);
+        try {
+          sessionStorage.setItem(contextKey, JSON.stringify({
+            jobId: context.jobId, jobTitle: context.jobTitle, jobCompany: context.jobCompany,
+          }));
+          sessionStorage.setItem(idsKey, JSON.stringify([...new Set(ids)]));
+        } catch (error) {
+          // Keep the prior batch and its job paired if the second write fails.
+          try {
+            if (previousContext === null) sessionStorage.removeItem(contextKey);
+            else sessionStorage.setItem(contextKey, previousContext);
+            if (previousIds === null) sessionStorage.removeItem(idsKey);
+            else sessionStorage.setItem(idsKey, previousIds);
+          } catch {
+            try { sessionStorage.removeItem(idsKey); } catch {}
+          }
+          throw error;
+        }
+      }
+
+      async function openDetermineInterestForSelection() {
+        if (externalImportRunning) return;
+        if (selectedCandidateIndexes().length) return importSelectedExternalCandidates();
+        if (preparedInterestBatchIds().length) {
+          persistSourcingViewState();
+          window.location.href = `determine-interest.html?domain=${encodeURIComponent(currentDomain())}`;
+          return;
+        }
+        document.getElementById("mineStatus").textContent =
+          "Select the candidates you want below, then choose Determine interest. To reuse an earlier search, open Search archive. No interest batch is prepared for this job yet.";
+        focusWorkflowPrerequisite("candidate-results");
+      }
+
+      function handleDetermineInterestNavigation(event) {
+        // Leave explicit new-tab gestures and browser history alone. Capture
+        // catches links inserted later by the shared menus and workflow guide.
+        if (event.defaultPrevented || (event.button != null && event.button !== 0)
+          || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+        const link = event.target?.closest?.("a[href]");
+        if (!link || link.hasAttribute("download") || (link.target && link.target !== "_self")) return;
+        let target;
+        try { target = new URL(link.href, window.location.href); } catch { return; }
+        if (target.origin !== window.location.origin
+          || target.pathname !== new URL("determine-interest.html", window.location.href).pathname
+          || target.searchParams.has("profileId")
+          || (target.searchParams.has("domain") && target.searchParams.get("domain") !== currentDomain())) return;
+        if (link.dataset.interestPrepared === "true" && preparedInterestBatchIds().length && !externalImportRunning) {
+          persistSourcingViewState();
+          return;
+        }
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return openDetermineInterestForSelection();
+      }
+
       async function importSelectedExternalCandidates() {
+        if (externalImportRunning) return;
+        if (externalSearchRunning || externalBulkEnrichmentRunning || sourcingArchiveLoading
+          || sourcingJobLoading || paginationLoading || sourcingContactOperations) {
+          document.getElementById("mineStatus").textContent = "Wait for the current search, job, or contact lookup to finish, then determine interest for your selection.";
+          return;
+        }
         const selected = selectedCandidateIndexes();
         if (!selected.length) return alert("Check at least one external candidate first.");
         if (selected.length > 10) return alert("Select no more than ten candidates for the interest check.");
@@ -4318,6 +4402,15 @@
           return alert("Every selected candidate must have an email, phone number, or LinkedIn profile before the interest check can begin.");
         }
         const preservedCandidateKeys = selectedCandidateKeys();
+        const selectedCandidates = selected.map((index) => latestExternalResults[index]);
+        const context = {
+          domain: currentDomain(), jobId: selectedWorkflowJobId(), criteria: currentLawCriteria(),
+          jobTitle: selectedWorkflowJobId() ? sessionStorage.getItem("jobTitle") || "" : "",
+          jobCompany: selectedWorkflowJobId() ? sessionStorage.getItem("jobCompany") || "" : "",
+        };
+        const archiveRevision = sourcingArchiveRevision;
+        const isCurrent = () => context.domain === currentDomain() && context.jobId === selectedWorkflowJobId()
+          && archiveRevision === sourcingArchiveRevision;
         const pdlCreditCount = selected.filter((index) => {
           const candidate = latestExternalResults[index];
           return candidate?.source === "pdl"
@@ -4347,18 +4440,48 @@
         let count = 0;
         let reused = 0;
         const preparedIds = [];
+        const failures = [];
         try {
-          for (const index of selected) {
+          for (const candidate of selectedCandidates) {
+            if (!isCurrent()) break;
+            const index = latestExternalResults.findIndex((row) => candidateResultKey(row) === candidateResultKey(candidate));
             const existing = latestExternalResults[index];
-            const created = existing?.devready_profile_complete && existing?.devready_profile_id
-              ? { personid: existing.devready_profile_id, duplicate: true, name: existing.name }
-              : await importExternalCandidate(index, { skipConfirmation: true, deferRender: true });
+            if (!existing) { failures.push("A selected candidate is no longer in the results."); continue; }
+            let created;
+            try {
+              created = existing.devready_profile_complete && existing.devready_profile_id
+                ? { personid: existing.devready_profile_id, duplicate: true, name: existing.name }
+                : await importExternalCandidate(index, { skipConfirmation: true, deferRender: true, importContext: context });
+            } catch (error) {
+              failures.push(`${existing.name || "Candidate"}: ${error.message || error}`);
+              continue;
+            }
             if (created?.personid) preparedIds.push(String(created.personid));
             if (created?.duplicate) reused++;
             else if (created) count++;
+            else failures.push(document.getElementById("mineStatus").textContent || "A TEMP profile could not be prepared.");
+          }
+          if (preparedIds.length) savePreparedInterestBatch(preparedIds, context);
+          if (!isCurrent()) {
+            document.getElementById("mineStatus").textContent = "The job or search changed while preparing interest. Saved TEMP profiles were kept, but this page did not move to a different job's interest batch. Select candidates for the current job to continue.";
+            return;
           }
           latestExternalResults = rankExternalResults(latestExternalResults);
           renderResults(latestExternalResults, { preservedCandidateKeys });
+          if (failures.length) {
+            const status = document.getElementById("mineStatus");
+            status.textContent = `${preparedIds.length} selected candidate${preparedIds.length === 1 ? " is" : "s are"} ready; ${failures.length} could not be prepared. ${failures[0]} Your selections remain here. Retry to prepare missing profiles; saved profiles will be reused. `;
+            if (preparedIds.length) {
+              const readyLink = document.createElement("a");
+              readyLink.className = "btn secondary";
+              readyLink.href = `determine-interest.html?domain=${encodeURIComponent(context.domain)}`;
+              readyLink.dataset.interestPrepared = "true";
+              readyLink.textContent = `Open ${preparedIds.length} ready candidate${preparedIds.length === 1 ? "" : "s"}`;
+              status.append(readyLink);
+            }
+            persistSourcingViewState();
+            return;
+          }
           document.getElementById("mineStatus").textContent =
             count
               ? `Created ${count} TEMP profile${count === 1 ? "" : "s"} from saved evidence without paid contact lookups.${unverifiedCourtLeadCount ? ` ${unverifiedCourtLeadCount} CourtListener profile${unverifiedCourtLeadCount === 1 ? " remains" : "s remain"} identity-unverified until a matching professional profile is added.` : ""}${reused ? ` Reused ${reused} existing TEMP profile${reused === 1 ? "" : "s"}.` : ""} Opening the shared interest workspace now.`
@@ -4366,13 +4489,12 @@
                 ? `Reused ${reused} existing TEMP profile${reused === 1 ? "" : "s"}; no new enrichment calls were made. Opening the shared interest workspace now.`
                 : "No TEMP profiles were created. Check the error message above.";
           if (preparedIds.length) {
-            sessionStorage.setItem(
-              `determineInterestBatch:${currentDomain()}`,
-              JSON.stringify([...new Set(preparedIds)]),
-            );
             persistSourcingViewState();
             window.location.href = `determine-interest.html?domain=${encodeURIComponent(currentDomain())}`;
           }
+        } catch (error) {
+          document.getElementById("mineStatus").textContent =
+            `${preparedIds.length ? `${preparedIds.length} TEMP profile(s) were saved on the server, but ` : ""}the interest workspace could not be saved in this browser: ${error.message || error}. Stay on this page and retry, or open the TEMP Profiles library. No paid contact lookup ran.`;
         } finally {
           externalImportRunning = false;
           updateSelectedEnrichmentCount();
@@ -4441,6 +4563,7 @@
       }
 
       document.addEventListener("DOMContentLoaded", () => {
+        document.addEventListener("click", handleDetermineInterestNavigation, true);
         const domain = currentDomain();
         configureDomainPage();
         providerCreditWidget = window.DevReadyProviderAccountUsage.mount(document.getElementById("providerCreditUsage"), {
