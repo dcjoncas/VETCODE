@@ -565,7 +565,9 @@
               ${interestIndicator}
             </div>
             <div class="temp-profile-actions">
-              <button class="btn primary" type="button" onclick="useTempProfile('${escapeHtml(personId)}')">${profile.interestStatus === "interested" ? "Use interested candidate in process" : "Confirm interest & use in process"}</button>
+              ${profile.interestStatus === "interested"
+                ? `<button class="btn primary" type="button" onclick="useTempProfile('${escapeHtml(personId)}')">Continue to Profile Build</button>`
+                : `<a class="btn primary" href="determine-interest.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(personId)}">Determine interest</a>`}
               <button class="btn secondary" type="button" onclick="reviewTempProfile('${escapeHtml(personId)}')">Review profile</button>
               <details class="compact-action-menu">
                 <summary>More actions</summary>
@@ -652,34 +654,15 @@
       async function useTempProfile(personId) {
         const profile = profileById(personId);
         if (!profile) return alert("That TEMP profile is no longer available. Refresh the list.");
+        if (profile.interestStatus !== "interested") {
+          window.location.href = `determine-interest.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(personId)}`;
+          return;
+        }
         const matchWarning = currentJobId() && !profileMatchesCurrentJob(profile)
           ? " This profile has not been matched to the current JD yet."
           : "";
-        const alreadyInterested = profile.interestStatus === "interested";
-        const prompt = alreadyInterested
-          ? `Use ${profile.name || "this TEMP profile"} in the current process? This makes the person active and adds them to the shortlist.${matchWarning}`
-          : `Confirm that ${profile.name || "this candidate"} has personally said they are interested in this role. This will tag the confirmation and add them to the active process.${matchWarning}`;
+        const prompt = `Continue ${profile.name || "this TEMP profile"} to Profile Build? This makes the person active and adds them to the shortlist.${matchWarning}`;
         if (!confirm(prompt)) return;
-        if (!alreadyInterested) {
-          try {
-            await api(`/api/azureJobs/external/temp/${encodeURIComponent(personId)}/interest`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                domain: currentDomain(),
-                status: "interested",
-                job_id: currentJobId(),
-                confirmed_at: new Date().toISOString(),
-              }),
-            });
-            profile.interestStatus = "interested";
-            profile.interestConfirmedAt = new Date().toISOString();
-          } catch (error) {
-            document.getElementById("tempProfileStatus").textContent =
-              `Candidate was not added because the interest confirmation could not be saved: ${error.message || error}`;
-            return;
-          }
-        }
         setActiveTempProfile(profile);
         sessionStorage.setItem(`candidateInterest:${currentDomain()}:${personId}`, "interested");
         sessionStorage.setItem("candidateStatus", "Interested - Profile Build next");
@@ -697,7 +680,7 @@
           candidateInterestRecordedAt: profile.interestConfirmedAt || new Date().toISOString(),
           workflowStatus: "Interested - Profile Build next",
         }, {
-          stage: "3* - Interest confirmed",
+          stage: "3A - Interest confirmed",
           source: profile.source || "External",
           candidateInterest: "interested",
           candidateInterestRecordedAt: profile.interestConfirmedAt || new Date().toISOString(),

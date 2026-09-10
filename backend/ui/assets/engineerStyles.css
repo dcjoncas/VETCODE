@@ -5,6 +5,8 @@
   --muted: #5b6b62;
   --muted-text: #969998;
   --line: #e3e8e6;
+  --border: var(--line);
+  --surface: #f7f9f8;
   --primary: #2f80ed; /* Engineer blue */
   --primary-2: #145db2; /* deep blue */
   --primary-3: #cfe4ff; /* light blue */

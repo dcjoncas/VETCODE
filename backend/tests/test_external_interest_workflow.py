@@ -11,23 +11,59 @@ PAGES = Path(__file__).resolve().parents[1] / "ui" / "pages"
 
 
 class ExternalInterestWorkflowTests(unittest.TestCase):
-    def test_find_out_page_keeps_candidates_outside_process_until_interest_is_confirmed(self):
+    def test_find_out_prepares_one_contact_ready_interest_batch(self):
         html = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")
 
-        self.assertIn("Determine interest", html)
-        self.assertIn("Interested — enter process", html)
-        self.assertIn("Not interested", html)
-        self.assertIn("options.addToProcess === true", html)
-        self.assertIn('stage: "3* - Interest confirmed"', html)
-        self.assertIn("Only confirmed interested candidates enter the active process", html)
+        self.assertIn("Determine interest for selected", html)
+        self.assertIn("Select no more than ten candidates for the interest check", html)
+        self.assertIn("Every selected candidate must have an email, phone number, or LinkedIn profile", html)
+        self.assertIn("determineInterestBatch:", html)
+        self.assertIn("determine-interest.html?domain=", html)
+        self.assertNotIn("Interested — enter process", html)
+
+    def test_determine_interest_page_shows_batch_contacts_and_gates_profile_build(self):
+        html = (PAGES / "determine-interest.html").read_text(encoding="utf-8")
+
+        self.assertIn("3A - Interest confirmed", html)
+        self.assertIn('contactChannel("Email"', html)
+        self.assertIn('contactChannel("Phone"', html)
+        self.assertIn('contactChannel("LinkedIn"', html)
+        self.assertIn("Mark awaiting reply", html)
+        self.assertIn("Mark Interested", html)
+        self.assertIn("Mark Not Interested", html)
+        self.assertIn("Continue to Profile Build", html)
+        self.assertIn('/interest`,', html)
+        self.assertIn('profile.interestStatus !== "interested"', html)
 
     def test_temp_profiles_page_records_interest_before_using_candidate(self):
         html = (PAGES / "temp-profiles.html").read_text(encoding="utf-8")
 
-        self.assertIn("Confirm interest & use in process", html)
-        self.assertIn("has personally said they are interested", html)
-        self.assertIn("/interest`,", html)
+        self.assertIn("Determine interest", html)
+        self.assertIn("determine-interest.html?domain=", html)
+        self.assertIn('profile.interestStatus !== "interested"', html)
         self.assertIn('workflowStatus: "Interested - Profile Build next"', html)
+
+    def test_shared_flow_places_interest_between_find_out_and_profile_build(self):
+        flow = (PAGES / "components" / "processFlow.html").read_text(encoding="utf-8")
+
+        self.assertLess(flow.index('data-flow-step="find-out"'), flow.index('data-flow-step="interest"'))
+        self.assertLess(flow.index('data-flow-step="interest"'), flow.index('data-flow-step="profile"'))
+        self.assertIn('"find-out": "interest"', flow)
+        self.assertIn('interest: "profile"', flow)
+
+    def test_profile_header_exposes_contact_channels_and_time_is_hired_only(self):
+        profile = (PAGES / "profile-preview.html").read_text(encoding="utf-8")
+        time_admin = (PAGES / "time-admin.html").read_text(encoding="utf-8")
+
+        self.assertIn('id="profileContactStrip"', profile)
+        self.assertIn("renderProfileHeaderContacts(profileData)", profile)
+        self.assertIn('item("Email"', profile)
+        self.assertIn('item("Phone"', profile)
+        self.assertIn('item("LinkedIn"', profile)
+        self.assertNotIn("Create this candidate's weekly time link", profile)
+        self.assertNotIn("createProfileTimeLink", profile)
+        self.assertIn("Onboarded people", time_admin)
+        self.assertIn("Send or resend their time-entry link from here", time_admin)
 
     def test_external_profile_metadata_keeps_confirmed_interest_evidence(self):
         metadata = azureJobEndpoints._external_profile_metadata(

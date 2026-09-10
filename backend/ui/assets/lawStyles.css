@@ -5,6 +5,8 @@
   --muted: #6b675b;
   --muted-text: #999896;
   --line: #e3e8e6;
+  --border: var(--line);
+  --surface: #faf8f4;
   --primary: #a06b39; /* Law brown */
   --primary-2: #754f2b; /* deep brown */
   --primary-3: #ead7bb; /* light brown */

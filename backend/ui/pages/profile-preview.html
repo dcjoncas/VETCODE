@@ -84,6 +84,52 @@
         padding: 8px 14px;
       }
 
+      .profile-contact-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 10px;
+      }
+
+      .profile-contact-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 32px;
+        max-width: 100%;
+        border: 1px solid rgba(var(--primary-rgb), 0.24);
+        border-radius: 9px;
+        padding: 6px 9px;
+        background: rgba(var(--primary-rgb), 0.055);
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 800;
+        text-decoration: none;
+        overflow-wrap: anywhere;
+      }
+
+      .profile-contact-item:hover,
+      .profile-contact-item:focus-visible {
+        border-color: var(--primary);
+        background: rgba(var(--primary-rgb), 0.1);
+        text-decoration: none;
+      }
+
+      .profile-contact-item.missing {
+        border-color: var(--line);
+        background: #f8faf9;
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .profile-contact-label {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
       .profile-overview {
         display: grid;
         grid-template-columns: auto minmax(320px, 1fr) minmax(280px, 0.72fr);
@@ -127,7 +173,7 @@
 
       .profile-admin-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
         gap: 14px;
         margin-top: 16px;
       }
@@ -276,51 +322,6 @@
       }
 
       .profile-role-link.show {
-        display: block;
-      }
-
-      .profile-time-panel {
-        flex: 1 1 360px;
-        min-width: 320px;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 12px;
-        background: #fbfcfb;
-      }
-
-      .profile-time-panel h3 {
-        margin: 0;
-        font-size: 15px;
-      }
-
-      .profile-time-panel p {
-        margin: 4px 0 10px;
-        color: var(--muted);
-        font-size: 13px;
-      }
-
-      .profile-time-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
-      }
-
-      .profile-time-grid label {
-        display: grid;
-        gap: 4px;
-        font-size: 12px;
-        font-weight: 850;
-      }
-
-      .profile-time-link {
-        display: none;
-        margin-top: 10px;
-        border-top: 1px solid var(--line);
-        padding-top: 10px;
-        overflow-wrap: anywhere;
-      }
-
-      .profile-time-link.show {
         display: block;
       }
 
@@ -582,7 +583,6 @@
           grid-template-columns: 1fr;
         }
 
-        .profile-time-grid,
         .profile-comp-grid {
           grid-template-columns: 1fr;
         }
@@ -662,6 +662,7 @@
                 </div>
                 <span id="profileIdChip" class="profile-id-chip" style="display: none"></span>
               </div>
+              <div id="profileContactStrip" class="profile-contact-strip" aria-label="Candidate contact information"></div>
               <div
                 id="profileSubHeader"
                 style="color: var(--muted); margin-top: 6px"
@@ -799,35 +800,6 @@
             </aside>
           </div>
           <div class="profile-admin-grid">
-            <aside class="profile-time-panel">
-              <h3>Time</h3>
-              <p>Create this candidate's weekly time link, then copy or email it.</p>
-              <div class="profile-time-grid">
-                <label>
-                  Person name
-                  <input id="profileTimeName" type="text" placeholder="Candidate name" />
-                </label>
-                <label>
-                  Email
-                  <input id="profileTimeEmail" type="email" placeholder="candidate@email.com" />
-                </label>
-                <label>
-                  Role / title
-                  <input id="profileTimeTitle" type="text" placeholder="Consultant" />
-                </label>
-                <button class="btn" type="button" onclick="createProfileTimeLink()">Create time link</button>
-              </div>
-              <div id="profileTimeLinkPanel" class="profile-time-link">
-                <strong id="profileTimeLinkTitle">Time link ready</strong>
-                <div><a id="profileTimeLink" href="#" target="_blank" rel="noopener"></a></div>
-                <div class="row-actions" style="margin-top: 8px">
-                  <button class="btn secondary" type="button" onclick="copyProfileTimeLink()">Copy link</button>
-                  <button class="btn secondary" type="button" onclick="emailProfileTimeLink()">Email link</button>
-                  <a id="openProfileTimeLink" class="btn secondary" href="#" target="_blank" rel="noopener">Open link</a>
-                </div>
-              </div>
-              <div id="profileTimeStatus" class="notice" style="margin-top: 10px">Load a candidate to prefill this panel.</div>
-            </aside>
             <aside class="profile-comp-panel">
               <h3>Internal Compensation</h3>
               <p>Private profile values used for matching, onboarding, and accounting setup.</p>
@@ -1240,7 +1212,6 @@
         .querySelectorAll("a.step")
         .forEach((a) => a.addEventListener("click", () => {}));
 
-      let profileTimeEntryLink = "";
       let roleFeedbackLink = "";
 
       function profileDomain() {
@@ -1258,21 +1229,6 @@
         } catch {
           return "DevReady";
         }
-      }
-
-      function prefillProfileTimePanel(profileData = {}) {
-        const profile = profileData.profile || {};
-        const first = profile.firstName || "";
-        const last = profile.lastName || "";
-        const name = [first, last].filter(Boolean).join(" ") || sessionStorage.getItem("candidateName") || "";
-        const email = profile.email || sessionStorage.getItem("candidateEmail") || "";
-        const title = profile.title || sessionStorage.getItem("jobTitle") || "";
-        document.getElementById("profileTimeName").value = name;
-        document.getElementById("profileTimeEmail").value = email;
-        document.getElementById("profileTimeTitle").value = title;
-        document.getElementById("profileTimeStatus").textContent = name || email
-          ? "Ready to create this candidate's time link."
-          : "Load a candidate to prefill this panel.";
       }
 
       function roleTypeLabel(value) {
@@ -1317,67 +1273,6 @@
             `,
           )
           .join("");
-      }
-
-      function setProfileTimeLink(link, name) {
-        profileTimeEntryLink = link || "";
-        document.getElementById("profileTimeLinkTitle").textContent = `Time link ready${name ? " for " + name : ""}`;
-        document.getElementById("profileTimeLink").href = profileTimeEntryLink;
-        document.getElementById("profileTimeLink").textContent = profileTimeEntryLink;
-        document.getElementById("openProfileTimeLink").href = profileTimeEntryLink;
-        document.getElementById("profileTimeLinkPanel").classList.toggle("show", Boolean(profileTimeEntryLink));
-      }
-
-      async function createProfileTimeLink() {
-        const name = document.getElementById("profileTimeName").value.trim();
-        const email = document.getElementById("profileTimeEmail").value.trim();
-        const title = document.getElementById("profileTimeTitle").value.trim();
-        const status = document.getElementById("profileTimeStatus");
-        if (!name && !email) {
-          status.textContent = "Add a candidate name or email before creating the time link.";
-          return;
-        }
-        status.textContent = "Creating time link...";
-        const payload = {
-          profile_id: sessionStorage.getItem("candidateId") || "",
-          candidate_name: name || email || "Staff member",
-          email,
-          title,
-          domain: profileDomain(),
-          source_record_json: JSON.stringify({ source: "profile-preview", profile_id: sessionStorage.getItem("candidateId") || "" }),
-        };
-        try {
-          const data = await apiPostForm("/api/onboarding/start", payload);
-          const absoluteTime = new URL(data.time_entry_link, window.location.origin).href;
-          const absoluteOnboarding = new URL(data.onboarding_link, window.location.origin).href;
-          setProfileTimeLink(absoluteTime, name || email);
-          sessionStorage.setItem("candidateName", name || sessionStorage.getItem("candidateName") || "");
-          sessionStorage.setItem("candidateEmail", email || sessionStorage.getItem("candidateEmail") || "");
-          sessionStorage.setItem("candidateTimeEntryLink", absoluteTime);
-          sessionStorage.setItem("candidateOnboardingLink", absoluteOnboarding);
-          status.textContent = "Time link created. Submitted hours will appear on the Time page.";
-        } catch (error) {
-          status.textContent = error.message || "Could not create time link.";
-        }
-      }
-
-      async function copyProfileTimeLink() {
-        if (!profileTimeEntryLink) return;
-        try {
-          await navigator.clipboard.writeText(profileTimeEntryLink);
-          document.getElementById("profileTimeStatus").textContent = "Time link copied.";
-        } catch {
-          document.getElementById("profileTimeStatus").textContent = "Copy failed. Select the link text and copy it manually.";
-        }
-      }
-
-      function emailProfileTimeLink() {
-        if (!profileTimeEntryLink) return;
-        const email = document.getElementById("profileTimeEmail").value.trim();
-        const name = document.getElementById("profileTimeName").value.trim() || "there";
-        const subject = "DevReady time link";
-        const body = `Hi ${name},\n\nPlease use this link to enter your weekly time:\n\n${profileTimeEntryLink}\n\nThank you,\nDevReady`;
-        window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
       }
 
       function openProfileNotes() {
@@ -1706,6 +1601,68 @@
         } catch (_error) {
           return "";
         }
+      }
+
+      function safeLinkedInProfileUrl(...values) {
+        for (const value of values) {
+          const href = safeProfileHttpUrl(value);
+          if (!href) continue;
+          try {
+            const host = new URL(href).hostname.toLowerCase();
+            if (host === "linkedin.com" || host.endsWith(".linkedin.com")) return href;
+          } catch (_error) {
+            // Ignore malformed provider values and continue to the next source.
+          }
+        }
+        return "";
+      }
+
+      function renderProfileHeaderContacts(profileData = {}) {
+        const target = document.getElementById("profileContactStrip");
+        if (!target) return;
+        const profile = profileData.profile || {};
+        const metadata = profileData.externalProfile && typeof profileData.externalProfile === "object"
+          ? profileData.externalProfile
+          : {};
+        const contact = metadata.contact && typeof metadata.contact === "object" ? metadata.contact : {};
+        const validation = metadata.profileValidation && typeof metadata.profileValidation === "object"
+          ? metadata.profileValidation
+          : {};
+        const professionalEmails = Array.isArray(contact.professionalEmails)
+          ? contact.professionalEmails.map((item) => typeof item === "string" ? item : item?.email)
+          : [];
+        const emails = [
+          contact.workEmail,
+          contact.recommendedPersonalEmail,
+          profile.email,
+          ...professionalEmails,
+          ...(Array.isArray(contact.personalEmails) ? contact.personalEmails : []),
+        ].map((value) => String(value || "").trim()).filter(Boolean);
+        const phones = [
+          contact.mobilePhone,
+          contact.primaryPhone,
+          ...(Array.isArray(contact.phoneNumbers) ? contact.phoneNumbers : []),
+        ].map((value) => String(value || "").trim()).filter(Boolean);
+        const email = emails[0] || "";
+        const phone = phones[0] || "";
+        const linkedin = safeLinkedInProfileUrl(
+          validation.profileUrl,
+          profile.linkedinUrl,
+          metadata.linkedinUrl,
+          metadata.profileUrl,
+        );
+        const item = (label, value, href, options = {}) => {
+          if (!value) {
+            return `<span class="profile-contact-item missing"><span class="profile-contact-label">${profileEscapeHtml(label)}</span> Not returned</span>`;
+          }
+          const external = options.external ? ' target="_blank" rel="noopener"' : "";
+          return `<a class="profile-contact-item" href="${profileEscapeHtml(href)}"${external}><span class="profile-contact-label">${profileEscapeHtml(label)}</span> ${profileEscapeHtml(value)}</a>`;
+        };
+        target.innerHTML = [
+          item("Email", email, `mailto:${encodeURIComponent(email)}`),
+          item("Phone", phone, `tel:${encodeURIComponent(phone)}`),
+          item("LinkedIn", linkedin ? "Open profile" : "", linkedin, { external: true }),
+        ].join("");
       }
 
       function tempSkillGroup(skill) {
@@ -2078,7 +2035,7 @@
               : [],
           };
           if (typeof updateCandidate === "function") updateCandidate();
-          prefillProfileTimePanel(profileData);
+          renderProfileHeaderContacts(profileData);
           renderProfileCompensation(profileData);
           if (profileData.domain) {
             sessionStorage.setItem("candidateDomain", profileData.domain);
@@ -2361,7 +2318,7 @@
             console.log("Could not fetch resume.");
           }
         } else {
-          prefillProfileTimePanel();
+          renderProfileHeaderContacts();
           renderProfileCompensation();
         }
       });

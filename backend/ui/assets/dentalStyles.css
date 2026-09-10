@@ -5,6 +5,8 @@
   --muted: #5d5660;
   --muted-text: #8d858e;
   --line: #151515;
+  --border: var(--line);
+  --surface: #fff7fb;
   --primary: #111111; /* DentalReady black */
   --primary-2: #ff5ca8; /* pink accent */
   --primary-3: #ffd8ea; /* soft pink */

@@ -568,9 +568,9 @@
 
   #processFlow .flow {
     display: grid;
-    grid-template-columns: repeat(6, minmax(122px, 1fr)) minmax(210px, 1.35fr) minmax(90px, 0.72fr);
+    grid-template-columns: repeat(7, minmax(122px, 1fr)) minmax(210px, 1.35fr) minmax(90px, 0.72fr);
     gap: 7px;
-    min-width: 1120px;
+    min-width: 1260px;
     overflow: visible;
   }
 
@@ -866,7 +866,7 @@
         <strong id="processStatusTitle" class="workflow-status-title">Current step</strong>
         <span id="processStatusDetail" class="workflow-status-detail">Complete the current step to keep the candidate moving.</span>
       </div>
-      <span id="processProgressCopy" class="workflow-progress-copy">0 of 9 steps complete</span>
+      <span id="processProgressCopy" class="workflow-progress-copy">0 of 10 steps complete</span>
     </div>
     <div
       id="processProgressTrack"
@@ -874,7 +874,7 @@
       role="progressbar"
       aria-label="Workflow completion"
       aria-valuemin="0"
-      aria-valuemax="9"
+      aria-valuemax="10"
       aria-valuenow="0"
     >
       <span id="processProgressFill" class="workflow-progress-fill"></span>
@@ -892,6 +892,8 @@
         <a class="split-step-link split-step-main" data-flow-step="find-in" href="match-role.html" data-hint="Run the internal match workflow. It uses the selected job description to score saved profiles and identify fit gaps before shortlisting.">3 - Find (In)</a>
         <a class="split-step-link split-step-branch" data-flow-step="find-out" href="mine-candidate-external.html" data-hint="Use outside sourcing only after internal matches are not enough. External results stay temporary until reviewed and accepted." title="Use if no candidate found internally">3* - Find (Out)</a>
       </div>
+      <span class="flow-arrow" aria-hidden="true"></span>
+      <a class="step" data-flow-step="interest" href="determine-interest.html" data-hint="Open every selected external candidate in one contact workspace. Record Awaiting, Interested, or Not Interested before Profile Build.">3A - Determine Interest</a>
       <span class="flow-arrow" aria-hidden="true"></span>
       <a class="step" data-flow-step="profile" href="profile-preview.html" data-hint="Review the selected profile, fill missing resume/personality/culture pieces, edit portfolio details, and confirm it is ready to share.">4 - Profile build</a>
       <span class="flow-arrow" aria-hidden="true"></span>
@@ -958,6 +960,12 @@
           <small>* if no candidate found internally. Build a TEMP external profile and return to the same flow.</small>
         </a>
       </div>
+      <div class="map-arrow"></div>
+      <a class="map-node" data-map-path="determine-interest.html" href="determine-interest.html">
+        <span>3A</span>
+        <strong>Determine Interest</strong>
+        <small>Contact selected external candidates together and advance only those who confirm.</small>
+      </a>
       <div class="map-arrow"></div>
       <a class="map-node" data-map-path="profile-preview.html" href="profile-preview.html">
         <span>4</span>
@@ -1037,6 +1045,7 @@
     "talent",
     "job-descriptions",
     "find-in",
+    "interest",
     "profile",
     "candidate-chat",
     "shortlist",
@@ -1044,11 +1053,23 @@
     "client-interview",
     "status",
   ];
+  const activeCandidateId = sessionStorage.getItem("candidateId") || "";
+  const activeCandidateType = sessionStorage.getItem("candidateProfileType") || "";
+  const activeCandidateInterest = activeCandidateId
+    ? sessionStorage.getItem(`candidateInterest:${sessionStorage.getItem("domain") || "dev"}:${activeCandidateId}`) || ""
+    : "";
+  const usesExternalInterestStep = currentProcessPath.endsWith("/determine-interest.html")
+    || /temporary|external/i.test(activeCandidateType)
+    || Boolean(activeCandidateInterest);
+  const activeFlowOrder = usesExternalInterestStep
+    ? flowOrder
+    : flowOrder.filter((step) => step !== "interest");
   const flowNextByStep = {
     talent: "job-descriptions",
     "job-descriptions": "find-in",
     "find-in": "profile",
-    "find-out": "profile",
+    "find-out": "interest",
+    interest: "profile",
     profile: "candidate-chat",
     "candidate-chat": "shortlist",
     shortlist: "candidate-review",
@@ -1062,6 +1083,7 @@
     if (currentProcessPath.endsWith("/mine-candidate-external.html")) return "find-out";
     if (currentProcessPath.endsWith("/saved-searches.html")) return "find-out";
     if (currentProcessPath.endsWith("/temp-profiles.html")) return "find-out";
+    if (currentProcessPath.endsWith("/determine-interest.html")) return "interest";
     if (currentProcessPath.endsWith("/profile-preview.html")) return "profile";
     if (currentProcessPath.endsWith("/profile-preview-edit.html")) return "profile";
     if (currentProcessPath.endsWith("/profile-public.html")) return "profile";
@@ -1095,8 +1117,14 @@
   });
 
   if (currentFlowStep) {
-    const currentIndex = flowOrder.indexOf(currentFlowStep);
-    flowOrder.slice(0, Math.max(currentIndex, 0)).forEach((step) => paintProcessStep(step, "complete"));
+    if (currentFlowStep === "interest") {
+      paintProcessStep("talent", "complete");
+      paintProcessStep("job-descriptions", "complete");
+      paintProcessStep("find-out", "complete");
+    } else {
+      const currentIndex = activeFlowOrder.indexOf(currentFlowStep);
+      activeFlowOrder.slice(0, Math.max(currentIndex, 0)).forEach((step) => paintProcessStep(step, "complete"));
+    }
     if (currentFlowStep === "find-out") {
       paintProcessStep("talent", "complete");
       paintProcessStep("job-descriptions", "complete");
@@ -1118,6 +1146,7 @@
     "job-descriptions": "2 - Job descriptions",
     "find-in": "3 - Find candidates (internal)",
     "find-out": "3 - Find candidates (external option)",
+    interest: "3A - Determine candidate interest",
     profile: "4 - Build and review profile",
     "candidate-chat": "5 - Candidate AI chat",
     shortlist: "6 - Shortlist",
@@ -1129,7 +1158,8 @@
     talent: "Select the domain and the candidate records you want to work with.",
     "job-descriptions": "Create or select the role that will drive search and matching.",
     "find-in": "Review internal matches first; use external sourcing only if needed.",
-    "find-out": "Review external results and create a DevReady TEMP profile for the right candidate.",
+    "find-out": "Select contact-ready external results and prepare them together for the interest check.",
+    interest: "Contact the selected candidates and move only confirmed interested people into Profile Build.",
     profile: "Confirm the profile details and complete any missing public-profile sections.",
     "candidate-chat": "Send the secure AI chat so the candidate can complete personality and culture details.",
     shortlist: "Confirm the candidate shortlist before the internal DevReady review.",
@@ -1148,6 +1178,12 @@
       return {
         label: "TEMP Profiles - external candidate review",
         detail: "Review, enrich, contact, or promote saved external candidates before continuing to Profile Build.",
+      };
+    }
+    if (currentProcessPath.endsWith("/determine-interest.html")) {
+      return {
+        label: "Determine Interest - selected external candidates",
+        detail: "See every selected candidate's contact channels together, record their response, and continue only interested candidates to Profile Build.",
       };
     }
     return null;
@@ -1204,9 +1240,9 @@
     const locationLabel = document.getElementById("processLocationLabel");
     if (!statusTitle || !statusDetail || !progressCopy || !progressTrack || !progressFill || !nextLink) return;
 
-    const currentIndex = currentFlowStep === "find-out" ? 2 : flowOrder.indexOf(currentFlowStep);
+    const currentIndex = currentFlowStep === "find-out" ? 2 : activeFlowOrder.indexOf(currentFlowStep);
     const completedCount = currentIndex < 0 ? 0 : currentIndex;
-    const totalSteps = flowOrder.length;
+    const totalSteps = activeFlowOrder.length;
     const completionPercent = Math.round((completedCount / totalSteps) * 100);
     const currentLabel = flowLabels[currentFlowStep] || "Choose a workflow step";
     const pageLabel = workflowPageContext?.label || currentLabel;

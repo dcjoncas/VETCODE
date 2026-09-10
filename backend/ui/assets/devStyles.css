@@ -5,6 +5,8 @@
   --muted: #5b6b62;
   --muted-text: #969998;
   --line: #e3e8e6;
+  --border: var(--line);
+  --surface: #f7f9f8;
   --primary: #7fbf3f; /* DevReady green */
   --primary-2: #2f7d4b; /* deep green */
   --primary-3: #bfe7a2; /* light green */

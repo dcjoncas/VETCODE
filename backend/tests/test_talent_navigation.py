@@ -122,7 +122,8 @@ class TalentNavigationTests(unittest.TestCase):
         html = (PAGES / "mine-candidate-external.html").read_text(encoding="utf-8")
 
         self.assertNotIn("Add JD in Talent", html)
-        self.assertIn("process-next-action", html)
+        self.assertNotIn('id="btnContinueRoleMatch"', html)
+        self.assertIn("Determine interest for selected", html)
         self.assertLess(html.index('id="btnViewTempProfiles"'), html.index('id="enrichmentSelectionStatus"'))
         self.assertLess(html.index('id="enrichmentSelectionStatus"'), html.index('id="results"'))
 
@@ -131,13 +132,12 @@ class TalentNavigationTests(unittest.TestCase):
 
         self.assertIn('id="workflowGuidance"', html)
         self.assertIn('id="workflowGuidanceAction"', html)
-        self.assertIn('id="btnContinueRoleMatch"', html)
+        self.assertIn('id="btnImportSelected"', html)
         self.assertIn("function updateWorkflowGuidance()", html)
         self.assertIn("function focusWorkflowPrerequisite(target)", html)
-        self.assertIn("function setWorkflowLinkEnabled(link, enabled)", html)
         self.assertIn("Find Candidates is locked", html)
-        self.assertIn("Enrichment is locked", html)
-        self.assertIn("Role & Match is locked", html)
+        self.assertIn("Ready to determine interest", html)
+        self.assertIn("Interest batch ready", html)
         self.assertIn("The next action will unlock automatically", html)
         self.assertIn('href="temp-profiles.html" id="btnViewTempProfiles"', html)
 

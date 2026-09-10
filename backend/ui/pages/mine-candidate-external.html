@@ -234,10 +234,6 @@
         pointer-events: none;
       }
 
-      .process-next-action[aria-disabled="true"] {
-        animation: none;
-      }
-
       .workflow-current-action:not(:disabled):not([aria-disabled="true"]) {
         outline: 2px solid rgba(var(--primary-rgb), 0.32);
         outline-offset: 3px;
@@ -254,14 +250,60 @@
 
       .search-criteria {
         margin: 14px 0;
-        padding: 14px 0;
-        border-top: 1px solid var(--border);
-        border-bottom: 1px solid var(--border);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface, #f7f8fa);
       }
 
       .search-criteria[hidden],
       .source-audit[hidden] {
         display: none;
+      }
+
+      .criteria-compact-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 58px;
+        padding: 11px 13px;
+        cursor: pointer;
+        list-style: none;
+      }
+
+      .criteria-compact-summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .criteria-compact-copy {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+
+      .criteria-compact-copy span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .criteria-compact-summary::after {
+        content: "Edit \25BE";
+        color: var(--primary-2);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .search-criteria[open] > .criteria-compact-summary {
+        border-bottom: 1px solid var(--border);
+      }
+
+      .search-criteria[open] > .criteria-compact-summary::after {
+        content: "Close \25B4";
+      }
+
+      .criteria-workspace-body {
+        padding: 13px;
+        background: var(--card, #fff);
       }
 
       .criteria-head,
@@ -984,14 +1026,18 @@
             </div>
           </div>
 
-          <section id="searchCriteriaPanel" class="search-criteria" aria-labelledby="searchCriteriaTitle" hidden>
+          <details id="searchCriteriaPanel" class="search-criteria" aria-labelledby="searchCriteriaTitle" hidden>
+            <summary class="criteria-compact-summary">
+              <span class="criteria-compact-copy">
+                <strong id="searchCriteriaTitle">Non-negotiable candidate search criteria</strong>
+                <span id="criteriaCompactSummary">Review the active requirements or expand to edit them.</span>
+              </span>
+              <span id="criteriaRequirementPill" class="pill">7 active</span>
+            </summary>
+            <div class="criteria-workspace-body">
             <div class="criteria-head">
-              <div>
-                <h3 id="searchCriteriaTitle">Non-negotiable candidate search criteria</h3>
-                <p class="muted">Start with the JD suggestions, then keep, change, or ignore each criterion. Ignored criteria are not sent to the search provider as requirements.</p>
-              </div>
+              <p class="muted">Start with the JD suggestions, then keep, change, or ignore each criterion. Ignored criteria are not sent to the search provider as requirements.</p>
               <div class="criteria-head-actions">
-                <span id="criteriaRequirementPill" class="pill">7 active</span>
                 <button id="criteriaIgnoreAll" class="btn secondary" type="button" aria-pressed="false">Ignore all criteria</button>
               </div>
             </div>
@@ -1131,7 +1177,8 @@
                 <span>Confirm current title, experience, license/certification, work arrangement, and location before outreach. Professional profile links only; automated LinkedIn scanning is not enabled.</span>
               </div>
             </div>
-          </section>
+            </div>
+          </details>
 
           <div class="field" style="margin-top: 12px">
             <label>Pick place to mine</label>
@@ -1181,13 +1228,12 @@
               Find Candidates (Out)
             </button>
             <button class="btn" type="button" id="btnImportSelected">
-              Create selected TEMP profiles (not active)
+              Determine interest for selected
             </button>
             <a class="btn secondary" href="temp-profiles.html" id="btnViewTempProfiles">
               Open TEMP Profiles
             </a>
             <a class="btn secondary" id="btnExportCurrentReport" aria-disabled="true">Export current report</a>
-            <a class="btn secondary process-next-action" id="btnContinueRoleMatch" data-process-next-action data-enabled-href="match-role.html" href="match-role.html">Continue to Role & Match</a>
           </div>
 
           <div id="workflowGuidance" class="workflow-guidance" role="status" aria-live="polite">
@@ -1227,8 +1273,8 @@
           </div>
 
           <div id="enrichmentSelectionStatus" class="selection-status-bar">
-            <span id="selectedEnrichmentCount" class="pill">0 / 5 selected</span>
-            <span class="muted">TEMP profile creation saves research only. A candidate enters the active process only after you mark them Interested.</span>
+            <span id="selectedEnrichmentCount" class="pill">0 / 10 selected</span>
+            <span class="muted">Select the contact-ready candidates you want. One button creates their TEMP profiles and opens the shared Determine Interest stage.</span>
           </div>
 
           <div id="jobSkillPanel" class="muted" style="margin-top: 12px"></div>
@@ -1670,6 +1716,14 @@
         const allIgnored = ignoredCount === groups.length;
         const pill = document.getElementById("criteriaRequirementPill");
         if (pill) pill.textContent = `${groups.length - ignoredCount} active · ${ignoredCount} ignored`;
+        const compactSummary = document.getElementById("criteriaCompactSummary");
+        if (compactSummary) {
+          compactSummary.textContent = allIgnored
+            ? "All criteria are ignored; this search will use the selected JD broadly."
+            : ignoredCount
+              ? `${groups.length - ignoredCount} requirements will restrict the search; ${ignoredCount} will be ignored.`
+              : `${groups.length} requirements will restrict the provider search.`;
+        }
         const ignoreAll = document.getElementById("criteriaIgnoreAll");
         if (ignoreAll) {
           ignoreAll.setAttribute("aria-pressed", allIgnored ? "true" : "false");
@@ -1955,6 +2009,7 @@
           directSearch: document.getElementById("externalSearchInput")?.value || "",
           topK: document.getElementById("topK")?.value || "10",
           criteria: currentSearchCriteria(),
+          criteriaPanelOpen: document.getElementById("searchCriteriaPanel")?.open === true,
           openCriteriaGroups: criteriaPickerOpenGroups(),
           selectedCandidateKeys: [...selectedCandidateKeys()],
           results: latestExternalResults,
@@ -2016,6 +2071,8 @@
         if (snapshot.criteria && typeof snapshot.criteria === "object") {
           setSearchCriteria(snapshot.criteria);
         }
+        const criteriaPanel = document.getElementById("searchCriteriaPanel");
+        if (criteriaPanel) criteriaPanel.open = snapshot.criteriaPanelOpen === true;
         latestExternalResults = snapshot.results;
         activeExternalSearch = snapshot.activeExternalSearch || null;
         nextExternalScrollToken = snapshot.nextExternalScrollToken || "";
@@ -2157,13 +2214,13 @@
 
       function updateSelectedEnrichmentCount(changedInput) {
         let selected = selectedCandidateIndexes();
-        if (selected.length > 5 && changedInput) {
+        if (selected.length > 10 && changedInput) {
           changedInput.checked = false;
-          alert("Select no more than five candidates for profile enrichment.");
+          alert("Select no more than ten candidates for the interest check.");
           selected = selectedCandidateIndexes();
         }
         const counter = document.getElementById("selectedEnrichmentCount");
-        if (counter) counter.textContent = `${selected.length} / 5 selected`;
+        if (counter) counter.textContent = `${selected.length} / 10 selected`;
         const button = document.getElementById("btnImportSelected");
         if (button) {
           const completed = latestExternalResults.filter((candidate) => candidate.devready_profile_complete).length;
@@ -2172,16 +2229,12 @@
               && !candidateHasReusableEnrichment(latestExternalResults[index]),
           );
           button.disabled = selected.length === 0;
-          button.textContent = selectedSource === "courtlistener"
-            ? "Create selected TEMP research profiles (not active)"
-            : selectedNeedEnrichment
-              ? "Enrich and create selected TEMP profiles (not active)"
-              : "Create selected TEMP profiles (not active)";
+          button.textContent = "Determine interest for selected";
           button.title = selected.length
-            ? `${selectedNeedEnrichment ? "Enrich and create" : "Create"} ${selected.length} selected DevReady TEMP profile${selected.length === 1 ? "" : "s"}; this does not add candidates to the active process`
+            ? `Prepare ${selected.length} selected candidate${selected.length === 1 ? "" : "s"} and open one contact workspace${selectedNeedEnrichment ? "; unenriched PDL records will be enriched first" : ""}`
             : completed
-              ? `${completed} result${completed === 1 ? " is" : "s are"} already complete. Select another result to enrich.`
-              : "Select one or more results to enrich and create DevReady TEMP profiles";
+              ? `${completed} result${completed === 1 ? " already has" : "s already have"} a TEMP profile. Select any contact-ready results to check interest.`
+              : "Select one or more contact-ready results to determine interest";
         }
         updateBulkLinkedProfileControls();
         updateWorkflowGuidance();
@@ -2319,14 +2372,7 @@
         if (!candidateHasContactMethod(candidate)) return "";
         const state = candidateInterestState(candidate);
         const status = String(state.status || "not_started");
-        if (status === "not_started") {
-          return `<div class="interest-lane">
-            <div class="interest-lane-head">
-              <div><strong>Recruiter interest check</strong><div class="muted">Contact this candidate first. They stay outside the active process until they confirm.</div></div>
-              <button class="btn primary" type="button" onclick="beginCandidateInterest(${index})">Determine interest</button>
-            </div>
-          </div>`;
-        }
+        if (status === "not_started") return "";
         const stateClass = status === "interested"
           ? "interest-state-interested"
           : status === "not_interested"
@@ -2334,12 +2380,7 @@
             : "";
         return `<div class="interest-lane ${stateClass}">
           <div class="interest-lane-head">
-            <div><strong>${escapeHtml(candidateInterestLabel(status))}</strong><div class="muted">${status === "contacting" ? "Use the contact buttons above, then record the candidate's answer." : status === "interested" ? "This candidate is now in the active recruiting queue." : "This result remains available in search history but was not added to the active queue."}</div></div>
-            <div class="interest-lane-actions">
-              ${status !== "interested" ? `<button class="btn primary" type="button" onclick="recordExternalCandidateInterest(${index}, 'interested')">Interested — enter process</button>` : ""}
-              ${status !== "not_interested" ? `<button class="btn secondary" type="button" onclick="recordExternalCandidateInterest(${index}, 'not_interested')">Not interested</button>` : ""}
-              ${status !== "contacting" ? `<button class="btn secondary" type="button" onclick="beginCandidateInterest(${index})">Reopen interest check</button>` : ""}
-            </div>
+            <div><strong>${escapeHtml(candidateInterestLabel(status))}</strong><div class="muted">Manage this response with the rest of the selected candidates in the Determine Interest stage.</div></div>
           </div>
         </div>`;
       }
@@ -2630,28 +2671,11 @@
         ).trim();
       }
 
-      function workflowShortlistCount() {
-        try {
-          return window.DevReadyShortlist?.list().length || 0;
-        } catch {
-          return 0;
-        }
-      }
-
-      function setWorkflowLinkEnabled(link, enabled) {
-        if (!link) return;
-        if (enabled) {
-          link.href = link.dataset.enabledHref || "match-role.html";
-          link.removeAttribute("aria-disabled");
-          link.removeAttribute("tabindex");
-        } else {
-          link.removeAttribute("href");
-          link.setAttribute("aria-disabled", "true");
-          link.tabIndex = -1;
-        }
-      }
-
       function focusWorkflowPrerequisite(target) {
+        if (target === "determine-interest") {
+          window.location.href = `determine-interest.html?domain=${encodeURIComponent(currentDomain())}`;
+          return;
+        }
         if (target === "job-picker") {
           externalJobPicker?.open();
           return;
@@ -2677,23 +2701,22 @@
         const findButton = document.getElementById("btnMine");
         const bulkEnrichButton = document.getElementById("btnEnrichAllLinkedProfiles");
         const enrichButton = document.getElementById("btnImportSelected");
-        const continueButton = document.getElementById("btnContinueRoleMatch");
         const guide = document.getElementById("workflowGuidance");
         const guideTitle = document.getElementById("workflowGuidanceTitle");
         const guideMessage = document.getElementById("workflowGuidanceMessage");
         const guideAction = document.getElementById("workflowGuidanceAction");
-        if (!findButton || !bulkEnrichButton || !enrichButton || !continueButton || !guide || !guideAction) return;
+        if (!findButton || !bulkEnrichButton || !enrichButton || !guide || !guideAction) return;
 
         const jobId = selectedWorkflowJobId();
         const directSearch = document.getElementById("externalSearchInput")?.value.trim() || "";
         const selected = selectedCandidateIndexes();
-        const completedCount = latestExternalResults.filter((candidate) => candidate.devready_profile_complete).length;
         const contactReadyCount = latestExternalResults.filter(candidateHasContactMethod).length;
-        const awaitingInterestCount = latestExternalResults.filter(
-          (candidate) => candidateInterestState(candidate).status === "contacting",
-        ).length;
         const eligibleLinkedProfiles = linkedProfileEnrichmentIndexes();
-        const hasCandidate = workflowShortlistCount() > 0;
+        let interestBatchCount = 0;
+        try {
+          const storedBatch = JSON.parse(sessionStorage.getItem(`determineInterestBatch:${currentDomain()}`) || "[]");
+          interestBatchCount = Array.isArray(storedBatch) ? storedBatch.length : 0;
+        } catch {}
         const provider = externalProviderStatus[selectedSource];
         const providerBlocked = provider?.ready === false;
         const canFind = Boolean(jobId || directSearch)
@@ -2703,13 +2726,11 @@
         const canEnrich = selected.length > 0
           && !externalImportRunning
           && !externalBulkEnrichmentRunning;
-        const canContinue = Boolean(jobId && hasCandidate);
 
         findButton.disabled = !canFind;
         enrichButton.disabled = !canEnrich;
-        setWorkflowLinkEnabled(continueButton, canContinue);
 
-        [findButton, bulkEnrichButton, enrichButton, continueButton, document.getElementById("enrichmentSelectionStatus")]
+        [findButton, bulkEnrichButton, enrichButton, document.getElementById("enrichmentSelectionStatus")]
           .filter(Boolean)
           .forEach((element) => element.classList.remove("workflow-current-action"));
 
@@ -2734,18 +2755,11 @@
           actionTarget = "btnEnrichAllLinkedProfiles";
           actionDisabled = true;
         } else if (externalImportRunning) {
-          title = "Creating DevReady TEMP profiles";
-          message = "Enrichment is in progress. Role & Match will unlock when at least one selected profile is ready.";
-          actionLabel = "Enrichment in progress";
+          title = "Preparing the Determine Interest stage";
+          message = "The selected contact-ready candidates are being saved as TEMP profiles. The shared contact workspace will open automatically.";
+          actionLabel = "Preparing selected candidates";
           actionTarget = "btnImportSelected";
           actionDisabled = true;
-        } else if (canContinue) {
-          title = "Ready for the next workflow step";
-          message = "A job and candidate are ready. Continue to Role & Match when you have finished reviewing this sourcing page.";
-          actionLabel = "Continue to Role & Match";
-          actionTarget = "btnContinueRoleMatch";
-          currentTarget = continueButton;
-          ready = true;
         } else if (!jobId && !directSearch && selectedSource === "courtlistener") {
           title = "CourtListener is ready - choose a search method";
           message = "Choose a legal job description to discover lawyers from matching dockets, or enter one exact lawyer name above for a court-record check.";
@@ -2773,43 +2787,36 @@
           actionLabel = "Adjust the search";
           actionTarget = directSearch ? "externalSearchInput" : "job-picker";
           currentTarget = findButton;
-        } else if (!hasCandidate && contactReadyCount) {
-          title = awaitingInterestCount ? "Waiting for candidate interest" : "Determine candidate interest";
-          message = awaitingInterestCount
-            ? `${awaitingInterestCount} candidate${awaitingInterestCount === 1 ? " is" : "s are"} marked Awaiting reply. Record Interested only after the candidate confirms; that is when they enter the active process.`
-            : `Choose from ${contactReadyCount} contact-ready candidate${contactReadyCount === 1 ? "" : "s"}. Use Email, Call, or LinkedIn, then mark only confirmed candidates Interested.`;
-          actionLabel = "Go to interest checks";
-          actionTarget = "candidate-results";
-          currentTarget = document.getElementById("results");
-        } else if (eligibleLinkedProfiles.length && !selected.length && completedCount === 0) {
+        } else if (selected.length) {
+          title = "Ready to determine interest";
+          message = `${selected.length} contact-ready candidate${selected.length === 1 ? " is" : "s are"} selected. One action will create or reuse their TEMP profiles and open all contact details together.`;
+          actionLabel = "Determine interest for selected";
+          actionTarget = "btnImportSelected";
+          currentTarget = enrichButton;
+          ready = true;
+        } else if (interestBatchCount) {
+          title = "Interest batch ready";
+          message = `${interestBatchCount} candidate${interestBatchCount === 1 ? " is" : "s are"} saved in the current Determine Interest workspace.`;
+          actionLabel = "Open Determine Interest";
+          actionTarget = "determine-interest";
+          ready = true;
+        } else if (eligibleLinkedProfiles.length) {
           title = "Returned linked profiles are ready to enrich";
-          message = `Enrich all ${eligibleLinkedProfiles.length} returned linked profile${eligibleLinkedProfiles.length === 1 ? "" : "s"} without creating TEMP records, or select an individual candidate below.`;
+          message = `Select the candidates you want for the interest check. Optional bulk enrichment is still available for all ${eligibleLinkedProfiles.length} linked profile${eligibleLinkedProfiles.length === 1 ? "" : "s"}.`;
           actionLabel = "Go to Enrich all linked profiles";
           actionTarget = "btnEnrichAllLinkedProfiles";
           currentTarget = bulkEnrichButton;
-        } else if (!selected.length && completedCount === 0) {
-          title = "Enrichment is locked";
-          message = "Check one to five candidate results first. The Enrich selected button will unlock automatically.";
+        } else if (contactReadyCount) {
+          title = "Choose candidates for the interest check";
+          message = `All ${contactReadyCount} returned candidate${contactReadyCount === 1 ? " has" : "s have"} at least one usable contact method. Select up to ten, then open them together.`;
           actionLabel = "Go to candidate results";
           actionTarget = "candidate-results";
           currentTarget = document.getElementById("enrichmentSelectionStatus");
-        } else if (selected.length) {
-          title = "Ready to create DevReady TEMP profiles";
-          const selectedAreEnriched = selected.every((index) => candidateHasReusableEnrichment(latestExternalResults[index]));
-          message = `${selected.length} candidate${selected.length === 1 ? " is" : "s are"} selected. ${selectedAreEnriched ? "Create only the TEMP profiles you want; saved enrichment will be reused." : "Any unenriched PDL result will be enriched during TEMP creation."}`;
-          actionLabel = selectedAreEnriched ? "Go to Create selected" : "Go to Enrich selected";
-          actionTarget = "btnImportSelected";
-          currentTarget = enrichButton;
-        } else if (!jobId) {
-          title = "Role & Match is locked";
-          message = "The DevReady profile is complete, but Role & Match also requires a saved job description.";
-          actionLabel = "Choose a job description";
-          actionTarget = "job-picker";
         } else {
-          title = "Role & Match is locked";
-          message = "Confirm a candidate is interested before continuing to Role & Match.";
-          actionLabel = "Go to candidate results";
-          actionTarget = "candidate-results";
+          title = "No contact-ready candidates were returned";
+          message = "Adjust the search so every result has an email, phone number, or LinkedIn profile.";
+          actionLabel = "Adjust the search";
+          actionTarget = directSearch ? "externalSearchInput" : "job-picker";
         }
 
         if (currentTarget) currentTarget.classList.add("workflow-current-action");
@@ -3418,9 +3425,7 @@
             const isResearchOnly = ["public_web_evidence", "court_record_evidence"].includes(candidate.result_type);
             const selectControl = isResearchOnly
               ? '<span class="pill">Research only</span>'
-              : hasDevReadyProfile
-                ? '<span class="pill">Profile complete</span>'
-                : `<input class="external-candidate-check" type="checkbox" data-index="${globalIndex}" onchange="updateSelectedEnrichmentCount(this)" style="margin-top:4px" ${preservedCandidateKeys.has(candidateResultKey(candidate)) ? "checked" : ""}>`;
+              : `<input class="external-candidate-check" type="checkbox" data-index="${globalIndex}" onchange="updateSelectedEnrichmentCount(this)" style="margin-top:4px" aria-label="Select ${escapeHtml(candidate.name || "candidate")} for the Determine Interest stage" ${preservedCandidateKeys.has(candidateResultKey(candidate)) ? "checked" : ""}>`;
             const importButton = isResearchOnly
               ? ""
               : hasDevReadyProfile
@@ -3571,7 +3576,11 @@
           if (criteriaErrors.length) {
             const message = `Complete the non-negotiable candidate search criteria: ${criteriaErrors.join(", ")}.`;
             document.getElementById("mineStatus").textContent = message;
-            document.getElementById("searchCriteriaPanel")?.scrollIntoView({ behavior: "smooth", block: "center" });
+            const criteriaPanel = document.getElementById("searchCriteriaPanel");
+            if (criteriaPanel) {
+              criteriaPanel.open = true;
+              criteriaPanel.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
             return alert(message);
           }
         }
@@ -3869,10 +3878,16 @@
       async function importSelectedExternalCandidates() {
         const selected = selectedCandidateIndexes();
         if (!selected.length) return alert("Check at least one external candidate first.");
-        if (selected.length > 5) return alert("Select no more than five candidates for enrichment.");
+        if (selected.length > 10) return alert("Select no more than ten candidates for the interest check.");
+        if (selected.some((index) => !candidateHasContactMethod(latestExternalResults[index]))) {
+          return alert("Every selected candidate must have an email, phone number, or LinkedIn profile before the interest check can begin.");
+        }
+        const preservedCandidateKeys = selectedCandidateKeys();
         const pdlCreditCount = selected.filter((index) => {
           const candidate = latestExternalResults[index];
-          return candidate?.source === "pdl" && !candidateHasReusableEnrichment(candidate);
+          return candidate?.source === "pdl"
+            && !candidate?.devready_profile_complete
+            && !candidateHasReusableEnrichment(candidate);
         }).length;
         const unverifiedCourtLeadCount = selected.filter((index) => {
           const candidate = latestExternalResults[index];
@@ -3896,20 +3911,33 @@
         updateWorkflowGuidance();
         let count = 0;
         let reused = 0;
+        const preparedIds = [];
         try {
           for (const index of selected) {
-            const created = await importExternalCandidate(index, { skipConfirmation: true, deferRender: true });
+            const existing = latestExternalResults[index];
+            const created = existing?.devready_profile_complete && existing?.devready_profile_id
+              ? { personid: existing.devready_profile_id, duplicate: true, name: existing.name }
+              : await importExternalCandidate(index, { skipConfirmation: true, deferRender: true });
+            if (created?.personid) preparedIds.push(String(created.personid));
             if (created?.duplicate) reused++;
             else if (created) count++;
           }
           latestExternalResults = rankExternalResults(latestExternalResults);
-          renderResults(latestExternalResults);
+          renderResults(latestExternalResults, { preservedCandidateKeys });
           document.getElementById("mineStatus").textContent =
             count
-              ? `${pdlCreditCount ? "Enriched and created" : "Created"} ${count} TEMP profile${count === 1 ? "" : "s"}.${unverifiedCourtLeadCount ? ` ${unverifiedCourtLeadCount} CourtListener profile${unverifiedCourtLeadCount === 1 ? " remains" : "s remain"} identity-unverified until a matching professional profile is added.` : ""} Use Calculate JD match for each enriched profile when ready.${reused ? ` Reused ${reused} existing TEMP profile${reused === 1 ? "" : "s"} without another enrichment call.` : ""}`
+              ? `${pdlCreditCount ? "Enriched and created" : "Created"} ${count} TEMP profile${count === 1 ? "" : "s"}.${unverifiedCourtLeadCount ? ` ${unverifiedCourtLeadCount} CourtListener profile${unverifiedCourtLeadCount === 1 ? " remains" : "s remain"} identity-unverified until a matching professional profile is added.` : ""}${reused ? ` Reused ${reused} existing TEMP profile${reused === 1 ? "" : "s"} without another enrichment call.` : ""} Opening the shared interest workspace now.`
               : reused
-                ? `Reused ${reused} existing TEMP profile${reused === 1 ? "" : "s"}; no new enrichment calls were made for them.`
+                ? `Reused ${reused} existing TEMP profile${reused === 1 ? "" : "s"}; no new enrichment calls were made. Opening the shared interest workspace now.`
                 : "No TEMP profiles were created. Check the error message above.";
+          if (preparedIds.length) {
+            sessionStorage.setItem(
+              `determineInterestBatch:${currentDomain()}`,
+              JSON.stringify([...new Set(preparedIds)]),
+            );
+            persistSourcingViewState();
+            window.location.href = `determine-interest.html?domain=${encodeURIComponent(currentDomain())}`;
+          }
         } finally {
           externalImportRunning = false;
           updateSelectedEnrichmentCount();
