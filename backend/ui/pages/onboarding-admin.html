@@ -105,6 +105,9 @@
         background: #fbfcfb;
       }
 
+      #timeEntryLinkBox[hidden] {
+        display: none;
+      }
       .link-box strong {
         color: var(--primary-2);
         font-size: 12px;
@@ -241,7 +244,7 @@
           <section class="card">
             <h2>What HR sends</h2>
             <p>
-              Create one candidate onboarding link after the hire decision and only after the candidate profile is complete. The email draft includes the onboarding form, the weekly time-entry link, start details, and the DevReady HR contact.
+              Create one candidate onboarding link after the hire decision and only after the candidate profile is complete. Send the onboarding form, start details, and HR contact first. Weekly time links appear after onboarding paperwork is submitted.
             </p>
             <div class="notice-grid">
               <div class="notice-step">
@@ -254,7 +257,7 @@
               </div>
               <div class="notice-step">
                 <strong>3. Track completion</strong>
-                Completed paperwork stays with the candidate and their time entries.
+                Once paperwork is submitted, share the weekly time link and manage hours in Time.
               </div>
             </div>
           </section>
@@ -315,12 +318,13 @@
             <section id="sendDetails" class="send-details">
               <h2 id="sendTitle">Candidate onboarding packet</h2>
               <p id="sendSubtitle">Use these details for the HR message.</p>
+              <p id="packetNextStep" class="notice">Next: send the onboarding form and wait for completed paperwork.</p>
               <div class="link-stack">
                 <div class="link-box">
                   <strong>Onboarding link</strong>
                   <a id="onboardingLink" href="#" target="_blank" rel="noopener"></a>
                 </div>
-                <div class="link-box">
+                <div id="timeEntryLinkBox" class="link-box" hidden>
                   <strong>Weekly time-entry link</strong>
                   <a id="timeEntryLink" href="#" target="_blank" rel="noopener"></a>
                 </div>
@@ -380,6 +384,7 @@
       function domainLabel(domain) {
         if (domain === "engineer") return "Engineer";
         if (domain === "law") return "Law";
+        if (domain === "dental") return "Dental";
         return "Technology";
       }
 
@@ -389,6 +394,11 @@
 
       function statusLabel(status) {
         return String(status || "hire_started").replaceAll("_", " ");
+      }
+
+      function hasCompletedOnboarding(record) {
+        return ["paperwork_submitted", "completed", "complete", "onboarded", "active"]
+          .includes(String(record?.status || "").trim().toLowerCase());
       }
 
       function loadStartDayOptions() {
@@ -492,6 +502,7 @@
         if (typeof domainUpdate === "function") domainUpdate(domain);
         document.getElementById("currentDomainPill").textContent = `${domainLabel(domain)} workspace`;
         document.getElementById("sendDetails").classList.remove("show");
+        latestPacket = null;
         loadCandidateChoices();
         loadPeople();
       }
@@ -503,20 +514,40 @@
         const hrName = record.recipient || "DevReady HR";
         const hrEmail = record.recipient_email || "hr@devready.io";
         const note = extraNote ? `\n\nAdditional details:\n${extraNote}` : "";
-        return `Hi ${name},\n\nWelcome to DevReady. Please complete your onboarding paperwork${role} using this link:\n\n${onboardingLink}\n\nAfter onboarding, use this weekly time-entry link to submit hours:\n\n${timeEntryLink}${start}${note}\n\nQuestions can go to ${hrName} at ${hrEmail}.\n\nThank you,\nDevReady`;
+        const completed = hasCompletedOnboarding(record);
+        const onboardingIntro = completed
+          ? `Your submitted onboarding paperwork${role} is available here:`
+          : `Welcome to DevReady. Please complete your onboarding paperwork${role} using this link:`;
+        const timeInstructions = completed && timeEntryLink
+          ? `\n\nUse this weekly time-entry link to submit hours:\n\n${timeEntryLink}`
+          : completed ? "\n\nHR will share your weekly time link separately."
+            : "\n\nHR will share your weekly time link after onboarding is complete.";
+        return `Hi ${name},\n\n${onboardingIntro}\n\n${onboardingLink}${timeInstructions}${start}${note}\n\nQuestions can go to ${hrName} at ${hrEmail}.\n\nThank you,\nDevReady`;
       }
 
       function renderPacket(data) {
         const record = data.record || {};
-        const onboardingLink = absoluteLink(data.onboarding_link || record.onboarding_link);
-        const timeEntryLink = absoluteLink(data.time_entry_link || record.time_entry_link);
+        const links = personLinks({
+          ...record,
+          onboarding_link: data.onboarding_link || record.onboarding_link,
+          time_entry_link: data.time_entry_link || record.time_entry_link,
+        });
+        const onboardingLink = links.onboarding;
+        const timeEntryLink = links.time;
         latestPacket = { record, onboardingLink, timeEntryLink };
         document.getElementById("sendTitle").textContent = `Onboarding packet${record.candidate_name ? " for " + record.candidate_name : ""}`;
         document.getElementById("sendSubtitle").textContent = `${domainLabel(record.domain || currentDomain())} domain - ${statusLabel(record.status)}`;
         document.getElementById("onboardingLink").href = onboardingLink;
         document.getElementById("onboardingLink").textContent = onboardingLink;
-        document.getElementById("timeEntryLink").href = timeEntryLink;
+        document.getElementById("timeEntryLinkBox").hidden = !timeEntryLink;
+        if (timeEntryLink) document.getElementById("timeEntryLink").href = timeEntryLink;
+        else document.getElementById("timeEntryLink").removeAttribute("href");
         document.getElementById("timeEntryLink").textContent = timeEntryLink;
+        document.getElementById("packetNextStep").textContent = timeEntryLink
+          ? "Next: share the weekly time link. Review submitted hours in Time."
+          : hasCompletedOnboarding(record)
+            ? "Onboarding is complete. Review this worker in Time to confirm their weekly time link."
+            : "Next: send the onboarding form and wait for completed paperwork. Weekly time links appear after completion.";
         document.getElementById("openOnboardingLink").href = onboardingLink;
         document.getElementById("emailBody").value = emailBodyFor(record, onboardingLink, timeEntryLink, document.getElementById("hrNote").value.trim());
         document.getElementById("sendDetails").classList.add("show");
@@ -591,9 +622,10 @@
       }
 
       function personLinks(person) {
+        const timePath = person.time_entry_link || (person.token ? `/ui/pages/time-entry.html?token=${encodeURIComponent(person.token)}` : "");
         return {
           onboarding: absoluteLink(person.onboarding_link || `/ui/pages/onboarding.html?token=${person.token || ""}`),
-          time: absoluteLink(person.time_entry_link || `/ui/pages/time-entry.html?token=${person.token || ""}`),
+          time: hasCompletedOnboarding(person) && timePath ? absoluteLink(timePath) : "",
         };
       }
 
@@ -604,6 +636,10 @@
 
       async function copyPersonTime(index) {
         const links = personLinks(people[index] || {});
+        if (!links.time) {
+          document.getElementById("peopleStatus").textContent = "A weekly time link is available only after onboarding is complete.";
+          return;
+        }
         await copyText(links.time, "peopleStatus", "Time-entry link copied.");
       }
 
@@ -637,14 +673,16 @@
               </div>
               <div class="person-links">
                 <div>Onboarding: <a href="${escapeLocal(links.onboarding)}" target="_blank" rel="noopener">${escapeLocal(links.onboarding)}</a></div>
-                <div>Time entry: <a href="${escapeLocal(links.time)}" target="_blank" rel="noopener">${escapeLocal(links.time)}</a></div>
+                ${links.time
+                  ? `<div>Time entry: <a href="${escapeLocal(links.time)}" target="_blank" rel="noopener">${escapeLocal(links.time)}</a></div>`
+                  : `<div class="muted">${hasCompletedOnboarding(person) ? "Onboarding is complete. Review the weekly time link in Time." : "Next: complete onboarding paperwork. Weekly time links appear afterward."}</div>`}
               </div>
               <div class="row-actions" style="margin-top: 10px">
                 <button class="btn secondary" type="button" onclick="copyPersonOnboarding(${index})">Copy onboarding</button>
                 <button class="btn secondary" type="button" onclick="emailPersonOnboarding(${index})">Email packet</button>
-                <button class="btn secondary" type="button" onclick="copyPersonTime(${index})">Copy time link</button>
+                ${links.time ? `<button class="btn secondary" type="button" onclick="copyPersonTime(${index})">Copy time link</button>` : ""}
                 <a class="btn secondary" href="${escapeLocal(links.onboarding)}" target="_blank" rel="noopener">Open form</a>
-                <a class="btn secondary" href="${escapeLocal(links.time)}" target="_blank" rel="noopener">Open time</a>
+                ${links.time ? `<a class="btn secondary" href="${escapeLocal(links.time)}" target="_blank" rel="noopener">Open time</a>` : ""}
               </div>
             </article>
           `;

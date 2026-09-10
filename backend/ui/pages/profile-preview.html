@@ -194,6 +194,30 @@
         margin-left: 0;
       }
 
+      .profile-step-hint {
+        margin: 0;
+        padding: 10px;
+        border-radius: 9px;
+        background: rgba(var(--primary-rgb), 0.08);
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .profile-comp-panel summary {
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .profile-comp-panel summary span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .profile-comp-panel[open] summary { margin-bottom: 10px; }
+
       .profile-next-step {
         display: inline-flex;
         align-items: center;
@@ -330,7 +354,7 @@
 
       .profile-comp-panel {
         flex: 1 1 420px;
-        min-width: 340px;
+        min-width: 0;
         border: 1px solid var(--line);
         border-radius: 12px;
         padding: 12px;
@@ -722,7 +746,8 @@
                     View Public Profile ↗
                   </button></a
                 >
-                <a class="profile-next-step" href="candidate-chat.html">Next: Candidate Chat →</a>
+                <p id="profileStepHint" class="profile-step-hint">Select a candidate to see the next step.</p>
+                <a id="profileNextStep" class="profile-next-step" href="find-candidate.html">Select a candidate →</a>
               </div>
               <details class="profile-more-actions">
                 <summary>More profile actions</summary>
@@ -807,11 +832,11 @@
             </aside>
           </div>
           <div class="profile-admin-grid">
-            <aside class="profile-comp-panel">
-              <h3>Internal Compensation</h3>
-              <p>Private profile values used for matching, onboarding, and accounting setup.</p>
+            <details class="profile-comp-panel">
+              <summary>Internal Compensation <span>— expand to review rates and salary</span></summary>
+              <p>Use these private details when discussing the role and offer.</p>
               <div id="profileCompGrid" class="profile-comp-grid"></div>
-            </aside>
+            </details>
           </div>
 
           <div id="profileNotesModal" class="profile-notes-modal" aria-hidden="true">
@@ -1227,6 +1252,58 @@
 
       function currentProfileId() {
         return sessionStorage.getItem("candidateId") || "";
+      }
+
+      function profileNextAction(profileData = {}, stageData = null, context = {}) {
+        const params = new URLSearchParams({ domain: context.domain || "dev" });
+        if (context.profileId) params.set("profileId", context.profileId);
+        const next = (page, label, detail, step = "") => ({ href: `${page}?${params}`, label, detail, step });
+        if (!profileData.profile) {
+          return next("find-candidate.html", "Select a candidate", "Select a candidate to review their profile and see the next step.", "talent");
+        }
+        if (stageData === null) {
+          return { href: "", label: "Checking next step", detail: "Checking this candidate's saved workflow status…", step: "" };
+        }
+        if (!stageData.signals || stageData.unavailable) {
+          return next("profile-preview.html", "Retry workflow status", "The saved workflow status could not be loaded. Retry before choosing the next step.");
+        }
+        const onboarding = stageData.signals.onboarding || {};
+        const status = String(onboarding.status || "").trim().toLowerCase();
+        if (["paperwork_submitted", "completed", "complete", "onboarded", "active"].includes(status)) {
+          return next("time-admin.html", "Next: Time and approvals", "Onboarding is complete. Open Time to share the weekly time link or review submitted hours.");
+        }
+        if (status) {
+          return next("onboarding-admin.html", "Next: Review onboarding", "Review this candidate's onboarding status and paperwork in Onboarding. Weekly time links appear in Time after completion.");
+        }
+        const temporary = /Temporary external profile/i.test(profileData.profile.description || "");
+        const interest = profileData.externalProfile?.interestWorkflow?.status || "";
+        if (temporary && interest !== "interested") {
+          return next("determine-interest.html", "Next: Determine Interest", "Use the contact details beside the name to confirm interest before continuing with candidate vetting.", "interest");
+        }
+        const completion = stageData.signals.completion || {};
+        if (completion.hasPersonality === false || completion.hasCulture === false) {
+          return next("candidate-chat.html", "Next: Candidate Chat", "Send the secure AI chat so the candidate can complete the missing personality or culture sections.", "candidate-chat");
+        }
+        if (completion.hasRegularProfile === false) {
+          return next("profile-preview-edit.html", "Next: Complete profile", "Open the profile editor to add the missing core profile details.", "profile");
+        }
+        if (completion.complete === true) {
+          return next("client-comm.html", "Next: Shortlist review", "The profile sections are complete. Review the candidate for the role in Shortlist before continuing to candidate review.", "shortlist");
+        }
+        return next("profile-preview.html", "Retry workflow status", "Profile completion could not be confirmed. Retry before choosing the next step.");
+      }
+
+      function renderProfileNextStep(profileData = {}, stageData = null) {
+        const guidance = profileNextAction(profileData, stageData, {
+          domain: profileData.domain || profileDomain(), profileId: currentProfileId(),
+        });
+        const link = document.getElementById("profileNextStep");
+        link.hidden = !guidance.href;
+        link.href = guidance.href;
+        link.textContent = `${guidance.label} →`;
+        document.getElementById("profileStepHint").textContent = guidance.detail;
+        window.DevReadyProfileGuidance = guidance;
+        window.dispatchEvent(new Event("profile-guidance-updated"));
       }
 
       function currentUserName() {
@@ -2038,6 +2115,7 @@
           if (!profileData) return;
           const loadedProfile = profileData.profile || {};
           renderProfileHeaderContacts(profileData);
+          renderProfileNextStep(profileData);
           const loadedName = [loadedProfile.firstName, loadedProfile.lastName]
             .filter((part) => part && String(part).trim())
             .join(" ");
@@ -2084,9 +2162,12 @@
           loadProfileBadges(candidateId);
           if (window.DevReadyProfileStages) {
             window.DevReadyProfileStages.load("profileStageStrip", candidateId, {
+              onLoaded: (stageData) => renderProfileNextStep(profileData, stageData),
+              onError: () => renderProfileNextStep(profileData, { unavailable: true }),
               domain: profileData.domain || sessionStorage.getItem("domain") || "dev",
             });
           }
+          if (!window.DevReadyProfileStages) renderProfileNextStep(profileData, { unavailable: true });
           loadProfileNotes();
 
           document.getElementById("editBtn").removeAttribute("disabled");
@@ -2353,6 +2434,7 @@
           }
         } else {
           renderProfileHeaderContacts();
+          renderProfileNextStep();
           renderProfileCompensation();
         }
       });

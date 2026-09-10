@@ -1,5 +1,6 @@
 (function () {
   const styleId = "devready-profile-stage-style";
+  const pendingLoads = new WeakMap();
 
   function ensureStyles() {
     if (document.getElementById(styleId)) return;
@@ -150,16 +151,25 @@
   async function load(target, profileId, options = {}) {
     const element = typeof target === "string" ? document.getElementById(target) : target;
     if (!element || !profileId) return;
+    const loadId = Symbol("profile-stage-load");
+    pendingLoads.set(element, loadId);
     ensureStyles();
     element.innerHTML = `<div class="profile-stage-empty">Loading profile stage...</div>`;
     try {
       const domain = options.domain || sessionStorage.getItem("domain") || sessionStorage.getItem("candidateDomain") || "dev";
       const url = `/api/profile/${encodeURIComponent(profileId)}/process-stage?domain=${encodeURIComponent(domain)}`;
-      const data = window.api ? await window.api(url) : await fetch(url).then((response) => response.json());
+      const data = window.api ? await window.api(url) : await fetch(url).then((response) => {
+        if (!response.ok) throw new Error(`Profile stage request failed (${response.status}).`);
+        return response.json();
+      });
+      if (pendingLoads.get(element) !== loadId) return;
       render(element, data.stages || [], options);
+      if (typeof options.onLoaded === "function") options.onLoaded(data);
     } catch (error) {
+      if (pendingLoads.get(element) !== loadId) return;
       console.warn("Unable to load profile process stage", error);
       element.innerHTML = `<div class="profile-stage-empty">Stage unavailable.</div>`;
+      if (typeof options.onError === "function") options.onError(error);
     }
   }
 

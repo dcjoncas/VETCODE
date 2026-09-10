@@ -43,7 +43,7 @@
         gap: 5px;
         font-weight: 850;
       }
-      .link-builder {
+      .time-process {
         display: grid;
         gap: 12px;
       }
@@ -104,30 +104,6 @@
         display: block;
         color: var(--primary-2);
         margin-bottom: 4px;
-      }
-      .link-builder-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 10px;
-        align-items: end;
-      }
-      .link-builder-grid label {
-        display: grid;
-        gap: 5px;
-        font-weight: 850;
-      }
-      .generated-link {
-        display: none;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 12px;
-        background: #fbfcfb;
-      }
-      .generated-link.show {
-        display: block;
-      }
-      .generated-link a {
-        overflow-wrap: anywhere;
       }
       .domain-switch {
         display: flex;
@@ -304,7 +280,6 @@
         .kpi-grid,
         .flow-rail,
         .handoff-grid,
-        .link-builder-grid,
         .processing-controls,
         .person-row,
         .timesheet-head {
@@ -336,11 +311,11 @@
           </div>
         </div>
 
-        <section class="card link-builder">
+        <section class="card time-process">
           <div class="time-toolbar">
             <div>
               <h2>Onboarding and time process</h2>
-              <p>Time entry starts only after a completed profile is moved into onboarding. Approved time becomes billable/payable; processed time is the payroll/accounting handoff.</p>
+              <p>After onboarding paperwork is submitted, send the worker their weekly time link below. Then review submitted hours, approve them, and process payroll/accounting.</p>
             </div>
             <div class="row-actions tight">
               <a class="btn secondary" href="onboarding-admin.html" id="openOnboardingAdmin">Open Onboarding</a>
@@ -391,47 +366,21 @@
               </div>
             </div>
           </div>
-          <div id="linkBuilderStatus" class="notice">Create time-entry links from the Onboarded people list below. New workers must start in Onboarding from a completed profile.</div>
-          <details>
-            <summary><strong>Legacy time-link builder</strong> <span class="muted">Use only if a completed profile is already selected in the workflow.</span></summary>
-            <div class="link-builder-grid" style="margin-top: 12px">
-              <label>
-                Person name
-                <input id="linkPersonName" type="text" placeholder="Loaded from selected profile" readonly />
-              </label>
-              <label>
-                Email
-                <input id="linkPersonEmail" type="email" placeholder="Loaded from selected profile" readonly />
-              </label>
-              <label>
-                Role / title
-                <input id="linkPersonTitle" type="text" placeholder="Loaded from selected profile" readonly />
-              </label>
-              <button class="btn" type="button" onclick="createTimeEntryLink()">Create link from selected profile</button>
-            </div>
-          </details>
-          <div id="generatedLinkPanel" class="generated-link">
-            <strong id="generatedLinkTitle">Time-entry link ready</strong>
-            <div style="margin-top: 6px">
-              <a id="generatedTimeLink" href="#" target="_blank" rel="noopener"></a>
-            </div>
-            <div class="row-actions" style="margin-top: 10px">
-              <button class="btn secondary" type="button" onclick="copyGeneratedTimeLink()">Copy link</button>
-              <button class="btn secondary" type="button" onclick="emailGeneratedTimeLink()">Email link</button>
-              <a id="openGeneratedTimeLink" class="btn secondary" href="#" target="_blank" rel="noopener">Open link</a>
-            </div>
-          </div>
         </section>
 
         <section class="card">
           <div class="time-toolbar">
             <div>
               <h2>Onboarded people</h2>
-              <p>These people came from completed profiles and onboarding packets. Send or resend their time-entry link from here.</p>
+              <p>Only people whose onboarding paperwork has been submitted appear here. Send or resend their time-entry link from here.</p>
             </div>
             <button class="btn secondary" type="button" onclick="loadOnboardedPeople()">Refresh people</button>
           </div>
           <div id="onboardedStatus" class="notice" style="margin-top: 14px">Loading onboarded people...</div>
+          <div id="pendingOnboardingNotice" class="notice" style="margin-top: 10px" hidden>
+            <span id="pendingOnboardingCount"></span>
+            <a id="pendingOnboardingLink" href="onboarding-admin.html">Next: complete Onboarding →</a>
+          </div>
           <div id="onboardedPeopleList" class="people-list"></div>
         </section>
 
@@ -523,8 +472,8 @@
     <script src="JS/apiScripts.js"></script>
     <script>
       let latestGroups = [];
-      let generatedTimeEntryLink = "";
       let onboardedPeople = [];
+      let onboardingRequestId = 0;
 
       function escapeLocal(value) {
         return String(value || "")
@@ -542,11 +491,17 @@
       function domainLabel(domain) {
         if (domain === "engineer") return "Engineer";
         if (domain === "law") return "Law";
+        if (domain === "dental") return "Dental";
         return "Technology";
       }
 
+      function hasCompletedOnboarding(person) {
+        return ["paperwork_submitted", "completed", "complete", "onboarded", "active"]
+          .includes(String(person?.status || "").trim().toLowerCase());
+      }
+
       function timeEntryLinkFor(person) {
-        if (!person?.time_entry_link) return "";
+        if (!hasCompletedOnboarding(person) || !person?.time_entry_link) return "";
         return new URL(person.time_entry_link, window.location.origin).href;
       }
 
@@ -562,19 +517,21 @@
         url.searchParams.set("domain", domain);
         window.history.replaceState({}, "", url.toString());
         if (typeof domainUpdate === "function") domainUpdate(domain);
-        prefillTimeLinkBuilder();
+        initializeTimeContext();
         loadOnboardedPeople();
         loadTime();
       }
 
-      function prefillTimeLinkBuilder() {
+      function initializeTimeContext() {
         const params = new URLSearchParams(window.location.search);
-        const domain = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const requested = params.get("domain") || sessionStorage.getItem("domain") || "dev";
+        const domain = requested === "technology" ? "dev" : (["dev", "engineer", "law", "dental"].includes(requested) ? requested : "dev");
         sessionStorage.setItem("domain", domain);
         document.getElementById("domainSelect").value = domain;
         document.getElementById("linkDomain").textContent = `${domainLabel(domain)} workspace`;
         const onboardingAdmin = document.getElementById("openOnboardingAdmin");
         if (onboardingAdmin) onboardingAdmin.href = `onboarding-admin.html?domain=${encodeURIComponent(domain)}`;
+        document.getElementById("pendingOnboardingLink").href = `onboarding-admin.html?domain=${encodeURIComponent(domain)}`;
         const invoices = document.getElementById("openInvoices");
         if (invoices) invoices.href = `invoices.html?domain=${encodeURIComponent(domain)}`;
         const accounting = document.getElementById("openAccounting");
@@ -583,64 +540,6 @@
         if (weekParam && document.getElementById("weekFilter")) {
           document.getElementById("weekFilter").value = weekParam;
         }
-        document.getElementById("linkPersonName").value = sessionStorage.getItem("candidateName") || "";
-        document.getElementById("linkPersonEmail").value = sessionStorage.getItem("candidateEmail") || "";
-        document.getElementById("linkPersonTitle").value = sessionStorage.getItem("jobTitle") || "";
-      }
-
-      async function createTimeEntryLink() {
-        const name = document.getElementById("linkPersonName").value.trim();
-        const email = document.getElementById("linkPersonEmail").value.trim();
-        const title = document.getElementById("linkPersonTitle").value.trim();
-        const status = document.getElementById("linkBuilderStatus");
-        const profileId = sessionStorage.getItem("candidateId") || "";
-        if (!profileId) {
-          status.textContent = "Select a completed profile or use an existing onboarded person. Time links cannot be created from typed-in data.";
-          return;
-        }
-        status.textContent = "Creating time-entry link...";
-        const payload = {
-          profile_id: profileId,
-          candidate_name: name || email || "Staff member",
-          email,
-          title,
-          domain: currentDomain(),
-          source_record_json: JSON.stringify({ source: "time-admin", created_for: name || email }),
-        };
-        try {
-          const data = await apiPostForm("/api/onboarding/start", payload);
-          generatedTimeEntryLink = new URL(data.time_entry_link, window.location.origin).href;
-          document.getElementById("generatedLinkTitle").textContent = `Time-entry link ready${name ? " for " + name : ""}`;
-          document.getElementById("generatedTimeLink").href = generatedTimeEntryLink;
-          document.getElementById("generatedTimeLink").textContent = generatedTimeEntryLink;
-          document.getElementById("openGeneratedTimeLink").href = generatedTimeEntryLink;
-          document.getElementById("generatedLinkPanel").classList.add("show");
-          status.textContent = "Link created. Copy it or email it from the buttons above.";
-          sessionStorage.setItem("candidateName", name || sessionStorage.getItem("candidateName") || "");
-          sessionStorage.setItem("candidateEmail", email || sessionStorage.getItem("candidateEmail") || "");
-          await loadOnboardedPeople();
-        } catch (error) {
-          status.textContent = error.message || "Could not create time-entry link.";
-        }
-      }
-
-      async function copyGeneratedTimeLink() {
-        if (!generatedTimeEntryLink) return;
-        try {
-          await navigator.clipboard.writeText(generatedTimeEntryLink);
-          document.getElementById("linkBuilderStatus").textContent = "Time-entry link copied.";
-        } catch {
-          document.getElementById("linkBuilderStatus").textContent = "Copy failed. Select the link text and copy it manually.";
-        }
-      }
-
-      function emailGeneratedTimeLink() {
-        if (!generatedTimeEntryLink) return;
-        const email = document.getElementById("linkPersonEmail").value.trim();
-        const name = document.getElementById("linkPersonName").value.trim() || "there";
-        const subject = "DevReady time-entry link";
-        const body = `Hi ${name},\n\nPlease use this link to enter your weekly time:\n\n${generatedTimeEntryLink}\n\nThank you,\nDevReady`;
-        window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
       }
 
       async function copyPersonTimeLink(index) {
@@ -682,14 +581,14 @@
               <div>
                 <h3>${escapeLocal(name)}</h3>
                 <div class="muted">${escapeLocal([person.email, person.title, statusLabel(person.status)].filter(Boolean).join(" - "))}</div>
-                <div class="muted">Time-entry link: <a href="${escapeLocal(timeLink)}" target="_blank" rel="noopener">${escapeLocal(timeLink)}</a></div>
+                ${timeLink ? `<div class="muted">Time-entry link: <a href="${escapeLocal(timeLink)}" target="_blank" rel="noopener">${escapeLocal(timeLink)}</a></div>` : `<div class="muted">Time link unavailable. Open Onboarding to review this worker's packet.</div>`}
               </div>
               <div class="row-actions tight">
                 ${person.profile_id ? `<a class="btn secondary" href="${profileLink(person.profile_id, person.domain)}" onclick="sessionStorage.setItem('domain','${escapeLocal(person.domain)}');sessionStorage.setItem('candidateId','${escapeLocal(person.profile_id)}');sessionStorage.setItem('candidateName','${escapeLocal(name)}');sessionStorage.setItem('candidateEmail','${escapeLocal(person.email || "")}')">Open profile</a>` : ""}
-                <button class="btn secondary" type="button" onclick="copyPersonTimeLink(${index})">Copy time link</button>
+                ${timeLink ? `<button class="btn secondary" type="button" onclick="copyPersonTimeLink(${index})">Copy time link</button>
                 <button class="btn secondary" type="button" onclick="emailPersonTimeLink(${index})">Email time link</button>
-                <a class="btn secondary" href="${escapeLocal(timeLink)}" target="_blank" rel="noopener">Open time link</a>
-                <a class="btn secondary" href="${escapeLocal(onboardingLink)}" target="_blank" rel="noopener">Onboarding</a>
+                <a class="btn secondary" href="${escapeLocal(timeLink)}" target="_blank" rel="noopener">Open time link</a>` : ""}
+                <a class="btn secondary" href="${escapeLocal(onboardingLink || `onboarding-admin.html?domain=${encodeURIComponent(currentDomain())}`)}" target="_blank" rel="noopener">Onboarding</a>
               </div>
             </article>
           `;
@@ -697,13 +596,24 @@
       }
 
       async function loadOnboardedPeople() {
+        const requestId = ++onboardingRequestId;
+        const domain = currentDomain();
+        onboardedPeople = [];
+        document.getElementById("onboardedPeopleList").innerHTML = "";
+        document.getElementById("pendingOnboardingNotice").hidden = true;
         document.getElementById("onboardedStatus").textContent = "Loading onboarded people...";
         try {
-          const params = new URLSearchParams({ domain: currentDomain() });
+          const params = new URLSearchParams({ domain });
           const data = await api(`/api/onboarding/admin?${params.toString()}`);
-          onboardedPeople = data.people || [];
+          if (requestId !== onboardingRequestId || domain !== currentDomain()) return;
+          const people = Array.isArray(data.people) ? data.people : [];
+          onboardedPeople = people.filter(hasCompletedOnboarding);
+          const pendingCount = people.length - onboardedPeople.length;
+          document.getElementById("pendingOnboardingNotice").hidden = pendingCount === 0;
+          document.getElementById("pendingOnboardingCount").textContent = `${pendingCount} ${pendingCount === 1 ? "person is" : "people are"} awaiting completed onboarding. `;
           renderOnboardedPeople();
         } catch (error) {
+          if (requestId !== onboardingRequestId || domain !== currentDomain()) return;
           document.getElementById("onboardedStatus").textContent = error.message || "Could not load onboarded people.";
         }
       }
@@ -910,7 +820,7 @@
       }
 
       document.addEventListener("DOMContentLoaded", () => {
-        prefillTimeLinkBuilder();
+        initializeTimeContext();
         document.getElementById("statusFilter").addEventListener("change", loadTime);
         document.getElementById("weekFilter").addEventListener("change", loadTime);
         loadOnboardedPeople();

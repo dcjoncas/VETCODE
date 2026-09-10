@@ -1240,9 +1240,12 @@
     const locationLabel = document.getElementById("processLocationLabel");
     if (!statusTitle || !statusDetail || !progressCopy || !progressTrack || !progressFill || !nextLink) return;
 
-    const currentIndex = currentFlowStep === "find-out" ? 2 : activeFlowOrder.indexOf(currentFlowStep);
-    const completedCount = currentIndex < 0 ? 0 : currentIndex;
-    const totalSteps = activeFlowOrder.length;
+    const profileGuidance = currentFlowStep === "profile" ? window.DevReadyProfileGuidance : null;
+    const statusFlowOrder = profileGuidance?.step === "interest" ? flowOrder : activeFlowOrder;
+    const currentIndex = currentFlowStep === "find-out" ? 2 : statusFlowOrder.indexOf(currentFlowStep);
+    const guidanceIndex = profileGuidance?.step ? statusFlowOrder.indexOf(profileGuidance.step) : -1;
+    const completedCount = currentIndex < 0 ? 0 : (guidanceIndex >= 0 ? Math.min(currentIndex, guidanceIndex) : currentIndex);
+    const totalSteps = statusFlowOrder.length;
     const completionPercent = Math.round((completedCount / totalSteps) * 100);
     const currentLabel = flowLabels[currentFlowStep] || "Choose a workflow step";
     const pageLabel = workflowPageContext?.label || currentLabel;
@@ -1255,6 +1258,19 @@
     progressCopy.textContent = `${completedCount} of ${totalSteps} steps complete`;
     progressTrack.setAttribute("aria-valuenow", String(completedCount));
     progressFill.style.width = `${completionPercent}%`;
+
+    if (profileGuidance) {
+      statusDetail.textContent = profileGuidance.detail;
+      nextLink.hidden = !profileGuidance.href;
+      if (profileGuidance.href) nextLink.href = profileGuidance.href;
+      else nextLink.removeAttribute("href");
+      nextLink.textContent = `${profileGuidance.label} →`;
+      document.querySelectorAll("#processFlow [data-flow-step].next").forEach((link) => link.classList.remove("next"));
+      document.querySelectorAll("#processFlow [data-flow-step].complete").forEach((link) => link.classList.remove("complete"));
+      statusFlowOrder.slice(0, completedCount).forEach((step) => paintProcessStep(step, "complete"));
+      if (profileGuidance.step) paintProcessStep(profileGuidance.step, "next");
+      return;
+    }
 
     if (!nextFlowStep) {
       nextLink.hidden = true;
@@ -1269,6 +1285,7 @@
   }
 
   renderWorkflowStatus();
+  window.addEventListener("profile-guidance-updated", renderWorkflowStatus);
   // This shared component is injected after the page's native `pageshow`
   // event, so restore again as soon as the component has mounted.
   restoreWorkflowPosition();
