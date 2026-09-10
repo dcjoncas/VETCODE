@@ -6,6 +6,7 @@ from typing import Any
 
 import requests
 from dotenv import load_dotenv
+from peopleDataLabs.accountUsage import invalidate_account_usage
 
 
 load_dotenv()
@@ -215,6 +216,8 @@ def _post_search(payload: dict[str, Any]) -> dict[str, Any]:
         except requests.RequestException as exc:
             usage_calls.append(_search_usage_call(None))
             raise PeopleDataLabsError("People Data Labs could not be reached.", provider_usage=summarize_search_usage(usage_calls)) from exc
+        finally:
+            invalidate_account_usage("search")
         usage_calls.append(_search_usage_call(response))
         if response.status_code != 402 or attempt_size == 1:
             break
@@ -302,20 +305,24 @@ def enrichPerson(
             timeout=PDL_TIMEOUT,
         )
     except requests.Timeout as exc:
-        raise PeopleDataLabsError("People Data Labs enrichment timed out.") from exc
+        raise PeopleDataLabsError("People Data Labs enrichment timed out.", provider_usage=summarize_search_usage([_search_usage_call(None)])) from exc
     except requests.RequestException as exc:
-        raise PeopleDataLabsError("People Data Labs enrichment could not be reached.") from exc
+        raise PeopleDataLabsError("People Data Labs enrichment could not be reached.", provider_usage=summarize_search_usage([_search_usage_call(None)])) from exc
+    finally:
+        invalidate_account_usage("enrich")
 
+    provider_usage = summarize_search_usage([_search_usage_call(response)])
     if response.status_code == 404:
-        return {"status": 404, "likelihood": 0, "data": None, "matched": {}}
+        return {"status": 404, "likelihood": 0, "data": None, "matched": {}, "provider_usage": provider_usage}
     if response.status_code != 200:
-        raise PeopleDataLabsError(_error_message(response), response.status_code)
+        raise PeopleDataLabsError(_error_message(response), response.status_code, provider_usage)
     try:
         result = response.json()
     except ValueError as exc:
-        raise PeopleDataLabsError("People Data Labs enrichment returned an invalid response.") from exc
+        raise PeopleDataLabsError("People Data Labs enrichment returned an invalid response.", provider_usage=provider_usage) from exc
     if not isinstance(result, dict) or not isinstance(result.get("data"), dict):
-        raise PeopleDataLabsError("People Data Labs enrichment returned an unexpected response.")
+        raise PeopleDataLabsError("People Data Labs enrichment returned an unexpected response.", provider_usage=provider_usage)
+    result["provider_usage"] = provider_usage
     return result
 
 

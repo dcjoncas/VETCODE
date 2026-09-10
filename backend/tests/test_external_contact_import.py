@@ -73,7 +73,8 @@ class ExternalContactImportTests(unittest.TestCase):
                 self.enrich.assert_not_called()
         result = self.import_candidate(enrich_contacts=True)
         self.enrich.assert_called_once_with(profile=self.candidate["profile_url"], pdl_id="pdl-sample")
-        self.assertEqual(result["providerCreditsUsed"], 1)
+        self.assertIsNone(result["providerCreditsUsed"])
+        self.assertEqual(result["estimatedCreditsUsed"], 1)
         self.assertEqual(result["enrichment"]["status"], "completed")
 
     def test_import_opt_in_retains_contacts_omitted_by_provider(self):

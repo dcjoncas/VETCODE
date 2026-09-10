@@ -5,6 +5,7 @@
     <title>DevReady - TEMP Profiles</title>
     <link class="domainLogo" rel="icon" href="../assets/devLogo.svg" sizes="any" type="image/svg+xml" />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <link rel="stylesheet" href="../assets/providerAccountUsage.css?v=20260910-credits" />
     <script>
       (function () {
         const params = new URLSearchParams(window.location.search);
@@ -370,6 +371,7 @@
 
           <p class="muted">JD fit uses saved professional evidence without provider credits. Optional contact enrichment applies only to checked profiles and may use credits.</p>
           <div id="providerStatus" class="muted" style="margin-top: 10px"></div>
+          <section id="providerCreditUsage" aria-label="People Data Labs account credits"></section>
           <div id="tempProfileStatus" class="notice" style="margin-top: 10px" aria-live="polite">
             Loading TEMP profiles...
           </div>
@@ -415,12 +417,24 @@
     </div>
 
     <script src="JS/apiScripts.js"></script>
+    <script src="JS/providerAccountUsage.js?v=20260910-credits"></script>
     <script src="JS/professionalMatch.js?v=20260910"></script>
     <script src="JS/updateProcessFlow.js?v=20260819-active-candidate"></script>
     <script src="JS/shortlist.js?v=20260819-active-candidate"></script>
     <script src="JS/atlasClientContext.js"></script>
     <script>
       let latestTempProfiles = [];
+      let providerCreditWidget = null;
+      function providerCreditToken() {
+        try { return JSON.parse(sessionStorage.getItem("devreadyAdminUnlock") || "null")?.token || ""; }
+        catch (_) { return ""; }
+      }
+      function refreshProviderCredits(afterRequest = false) {
+        try {
+          if (afterRequest) providerCreditWidget?.invalidate();
+          providerCreditWidget?.refresh()?.catch(() => {});
+        } catch (_) {}
+      }
       let externalProviderStatus = {};
 
       function currentDomain() {
@@ -737,6 +751,7 @@
             failures.push(`${profile?.name || personId}: ${error.message || error}`);
           }
         }
+        refreshProviderCredits(true);
         await loadTempProfiles();
         const summary = [];
         if (enriched) summary.push(`Enriched ${enriched}.`);
@@ -902,6 +917,13 @@
 
       document.addEventListener("DOMContentLoaded", () => {
         const label = currentDomain() === "law" ? "LawReady" : currentDomain() === "dental" ? "DentalReady" : currentDomain() === "engineer" ? "EngineerReady" : "DevReady";
+        providerCreditWidget = window.DevReadyProviderAccountUsage.mount(document.getElementById("providerCreditUsage"), {
+          request: api, token: providerCreditToken, domain: currentDomain,
+        });
+        refreshProviderCredits();
+        window.addEventListener("focus", () => refreshProviderCredits());
+        window.addEventListener("pagehide", () => providerCreditWidget?.invalidate());
+        window.addEventListener("pageshow", (event) => { if (event.persisted) refreshProviderCredits(true); });
         document.getElementById("pageTitle").textContent = `${label} TEMP Profiles`;
         renderWorkflowContext();
         document.getElementById("btnRefreshTempProfiles").addEventListener("click", loadTempProfiles);

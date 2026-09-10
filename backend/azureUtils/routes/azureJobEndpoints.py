@@ -42,6 +42,44 @@ router = APIRouter(
     tags=["azure", "jobs"]
 )
 
+
+def _pdl_enrichment_accounting(provider_usage=None, *, succeeded=False) -> dict:
+    """Keep actual provider-reported charges distinct from a successful-call estimate."""
+    usage = dict(provider_usage) if isinstance(provider_usage, dict) else peopleDataLabs.summarize_search_usage([{}])
+    credits = usage.get("creditsUsed")
+    if not isinstance(credits, int) or isinstance(credits, bool) or credits < 0:
+        credits = None
+    return {
+        "providerUsage": usage,
+        "creditsUsed": credits,
+        "estimatedCreditsUsed": 1 if succeeded and credits is None else None,
+        "creditsStatus": usage.get("status") or "unavailable",
+    }
+
+
+def _pdl_reused_accounting(enrichment: dict) -> dict:
+    original_usage = dict(enrichment.get("providerUsage") or {})
+    if not original_usage:
+        # Legacy success counts were estimates, not response-header evidence.
+        original_usage = peopleDataLabs.summarize_search_usage(
+            [] if enrichment.get("status") == "not_requested" else [{}], source="local_cache",
+        )
+    if original_usage.get("balanceStatus") == "reported":
+        original_usage["balanceStatus"] = "historical"
+    return {
+        "creditsUsed": 0, "estimatedCreditsUsed": None, "creditsStatus": "not_called",
+        "providerUsage": peopleDataLabs.summarize_search_usage([], source="local_cache"),
+        "originalProviderUsage": original_usage,
+    }
+
+
+class PdlEnrichmentHTTPException(HTTPException):
+    """The app handler returns accounting beside the unchanged string detail."""
+    def __init__(self, status_code, detail, provider_usage=None, *, succeeded=False, headers=None):
+        super().__init__(status_code=status_code, detail=detail, headers=headers)
+        self.accounting = _pdl_enrichment_accounting(provider_usage, succeeded=succeeded)
+
+
 def _domain_key(domain: str = "dev") -> str:
     value = re.sub(r"[\s_-]+", " ", (domain or "dev").strip().lower())
     if value in {"technology", "tech", "devready", "dev"}:
@@ -2854,6 +2892,7 @@ def external_court_lead_validate_profile(payload: dict = Body(...)):
             "candidate": candidate,
             "profileValidation": previous_validation,
             "reused": True,
+            **_pdl_reused_accounting(previous_validation),
             "usedForCandidateScoring": scoring_ready,
             "courtEvidenceUsedForScoring": scoring_ready and bool(
                 _safe_list(
@@ -2890,9 +2929,10 @@ def external_court_lead_validate_profile(payload: dict = Body(...)):
     except peopleDataLabs.PeopleDataLabsError as exc:
         provider_status = int(exc.status_code or 502)
         status_code = provider_status if provider_status in {400, 401, 402, 403, 429, 503} else 502
-        raise HTTPException(
+        raise PdlEnrichmentHTTPException(
             status_code=status_code,
             detail=f"Professional profile validation failed: {str(exc)}",
+            provider_usage=exc.provider_usage,
         ) from exc
 
     checked_at = datetime.now(timezone.utc).isoformat()
@@ -2907,7 +2947,8 @@ def external_court_lead_validate_profile(payload: dict = Body(...)):
             "profileUrl": "",
             "fieldsAdded": [],
             "requestsUsed": 1,
-            "successfulEnrichmentCredits": 0,
+            **_pdl_enrichment_accounting(response.get("provider_usage")),
+            "successfulEnrichmentCredits": _pdl_enrichment_accounting(response.get("provider_usage"))["creditsUsed"],
             "notice": (
                 f"No LinkedIn-linked PDL profile met the exact-name and {region} lookup threshold. "
                 "The court lead remains unchanged."
@@ -2918,6 +2959,7 @@ def external_court_lead_validate_profile(payload: dict = Body(...)):
             "candidate": {**candidate, "profile_validation": validation},
             "profileValidation": validation,
             "reused": False,
+            **_pdl_enrichment_accounting(response.get("provider_usage")),
             "usedForCandidateScoring": False,
             "linkedinScraped": False,
         }
@@ -3014,7 +3056,8 @@ def external_court_lead_validate_profile(payload: dict = Body(...)):
         "fieldsAdded": fields_added,
         "matchedFields": sorted(str(key) for key in matched.keys())[:12],
         "requestsUsed": 1,
-        "successfulEnrichmentCredits": 1,
+        **_pdl_enrichment_accounting(response.get("provider_usage"), succeeded=True),
+        "successfulEnrichmentCredits": _pdl_enrichment_accounting(response.get("provider_usage"), succeeded=True)["creditsUsed"],
         "notice": (
             "A likely LinkedIn-linked professional profile was found and selected provider fields were added. "
             f"Use Calculate JD match to save the percentage and evidence breakdown. Current employment, {region} license standing, court-record identity, and interest still require verification."
@@ -3027,6 +3070,7 @@ def external_court_lead_validate_profile(payload: dict = Body(...)):
     return {
         "candidate": enriched_candidate,
         "profileValidation": validation,
+        **_pdl_enrichment_accounting(response.get("provider_usage"), succeeded=True),
         "reused": False,
         "usedForCandidateScoring": False,
         "courtEvidenceUsedForScoring": False,
@@ -4131,11 +4175,12 @@ def _enrich_external_pdl_result(candidate: dict) -> tuple[dict, dict]:
     except peopleDataLabs.PeopleDataLabsError as exc:
         provider_status = int(exc.status_code or 502)
         status_code = provider_status if provider_status in {400, 401, 402, 403, 429, 503} else 502
-        raise HTTPException(status_code=status_code, detail=f"Selected profile enrichment failed: {str(exc)}") from exc
+        raise PdlEnrichmentHTTPException(status_code=status_code, detail=f"Selected profile enrichment failed: {str(exc)}", provider_usage=exc.provider_usage) from exc
     if response.get("status") != 200 or not isinstance(response.get("data"), dict):
-        raise HTTPException(
+        raise PdlEnrichmentHTTPException(
             status_code=404,
             detail="People Data Labs could not enrich the selected person. No TEMP profile was created.",
+            provider_usage=response.get("provider_usage"),
         )
 
     discovery_match = {
@@ -4196,7 +4241,7 @@ def _enrich_external_pdl_result(candidate: dict) -> tuple[dict, dict]:
         "provider": "People Data Labs Person Enrichment",
         "enrichedAt": datetime.now(timezone.utc).isoformat(),
         "likelihood": int(response.get("likelihood") or 0),
-        "creditsUsed": 1,
+        **_pdl_enrichment_accounting(response.get("provider_usage"), succeeded=True),
         "profileVersion": 2,
         "contactFieldsRequested": True,
         "matchedInput": "pdl_id" if source_id else "profile_url",
@@ -4333,7 +4378,9 @@ def external_candidate_enrich_result(payload: dict = Body(...)):
         "candidate": enriched_candidate,
         "enrichment": enrichment,
         "reused": reused,
-        "creditsUsed": 0 if reused else int(enrichment.get("creditsUsed") or 0),
+        **((_pdl_reused_accounting(enrichment) if reused else {
+            key: enrichment.get(key) for key in ("providerUsage", "creditsUsed", "estimatedCreditsUsed", "creditsStatus")
+        }) if source == "pdl" else {"creditsUsed": 0 if reused else int(enrichment.get("creditsUsed") or 0)}),
         "temporaryProfileCreated": False,
         "linkedinScraped": False,
     }
@@ -4416,10 +4463,10 @@ def external_candidate_import(payload: dict = Body(...)):
     }
     enrichment_reused = False
     if is_court_lead:
-        try:
-            successful_enrichment_credits = int(profile_validation.get("successfulEnrichmentCredits") or 0)
-        except (TypeError, ValueError):
-            successful_enrichment_credits = 0
+        validation_accounting = _pdl_enrichment_accounting(
+            profile_validation.get("providerUsage"),
+            succeeded=profile_validation.get("status") in {"confirmed_profile_match", "needs_review"},
+        ) if "people data labs" in str(profile_validation.get("provider") or "").lower() else {}
         enrichment.update(
             {
                 "status": _external_text(profile_validation.get("status") or "not_run", 80),
@@ -4429,7 +4476,7 @@ def external_candidate_import(payload: dict = Body(...)):
                     else profile_validation.get("provider") or "CourtListener / RECAP",
                     120,
                 ),
-                "creditsUsed": successful_enrichment_credits,
+                **validation_accounting,
                 "enrichedAt": _external_text(profile_validation.get("checkedAt"), 80),
                 "profileVersion": 2 if court_profile_confirmed else 1,
                 "dataOrigin": (
@@ -4449,7 +4496,7 @@ def external_candidate_import(payload: dict = Body(...)):
         try:
             response = peopleDataLabs.enrichPerson(profile=profile_url, pdl_id=source_id)
         except peopleDataLabs.PeopleDataLabsError as exc:
-            raise HTTPException(status_code=502, detail=f"Selected profile enrichment failed: {str(exc)}") from exc
+            raise PdlEnrichmentHTTPException(status_code=502, detail=f"Selected profile enrichment failed: {str(exc)}", provider_usage=exc.provider_usage) from exc
         enrichment.update(
             {
                 "provider": "People Data Labs Person Enrichment",
@@ -4506,7 +4553,7 @@ def external_candidate_import(payload: dict = Body(...)):
                 {
                     "status": "completed",
                     "likelihood": int(response.get("likelihood") or 0),
-                    "creditsUsed": 1,
+                    **_pdl_enrichment_accounting(response.get("provider_usage"), succeeded=True),
                     "profileVersion": 2,
                     "contactFieldsRequested": True,
                     "matchedInput": "pdl_id" if source_id else "profile_url",
@@ -4514,9 +4561,10 @@ def external_candidate_import(payload: dict = Body(...)):
                 }
             )
         else:
-            raise HTTPException(
+            raise PdlEnrichmentHTTPException(
                 status_code=404,
                 detail="People Data Labs could not enrich the selected person. No TEMP profile was created.",
+                provider_usage=response.get("provider_usage"),
             )
 
     imported_skills = _safe_list(candidate.get("skills")) if is_court_lead else _external_candidate_skills(candidate)
@@ -4581,6 +4629,10 @@ def external_candidate_import(payload: dict = Body(...)):
         if is_court_lead and profile_validation.get("status") != "confirmed_profile_match"
         else candidate.get("title") or ""
     )
+    fresh_pdl_enrichment = (
+        source == "pdl" and not enrichment_reused
+        and payload.get("enrich_contacts") is True and enrichment.get("status") == "completed"
+    )
 
     try:
         created = candidates.uploadProfile(
@@ -4606,16 +4658,31 @@ def external_candidate_import(payload: dict = Body(...)):
         created["courtEvidence"] = metadata.get("courtEvidence") or {}
         created["enriched_candidate"] = candidate
         created["enrichmentReused"] = enrichment_reused
-        created["providerCreditsUsed"] = (
-            0 if enrichment_reused else int(enrichment.get("creditsUsed") or 0)
-        )
+        if source == "pdl" or (is_court_lead and validation_accounting):
+            no_new_call = enrichment_reused or is_court_lead or payload.get("enrich_contacts") is not True
+            accounting = _pdl_reused_accounting(enrichment) if no_new_call else {
+                key: enrichment.get(key) for key in ("providerUsage", "creditsUsed", "estimatedCreditsUsed", "creditsStatus")
+            }
+            created.update(accounting)
+            created["providerCreditsUsed"] = accounting["creditsUsed"]
+        else:
+            created["providerCreditsUsed"] = 0 if enrichment_reused else int(enrichment.get("creditsUsed") or 0)
         return created
-    except HTTPException:
+    except HTTPException as exc:
+        if fresh_pdl_enrichment:
+            raise PdlEnrichmentHTTPException(
+                status_code=exc.status_code, detail=exc.detail, headers=exc.headers,
+                provider_usage=enrichment.get("providerUsage"), succeeded=True,
+            ) from exc
         raise
     except Exception as e:
         return JSONResponse(
             status_code=500,
-            content={"detail": f"Unable to create profile from external candidate: {str(e)}"},
+            content={
+                "detail": f"Unable to create profile from external candidate: {str(e)}",
+                **(_pdl_enrichment_accounting(enrichment.get("providerUsage"), succeeded=True)
+                   if fresh_pdl_enrichment else {}),
+            },
         )
 
 def _saved_result_key(candidate: dict) -> str:
@@ -4973,6 +5040,7 @@ def external_candidate_enrich_temp_profile(person_id: str, payload: dict = Body(
             "enrichment": current_enrichment,
             "reused": True,
             "creditsUsed": 0,
+            **(_pdl_reused_accounting(current_enrichment) if "people data labs" in current_provider else {}),
             "match": current_metadata.get("match") or {},
             "matchPending": (current_metadata.get("match") or {}).get("status") != "calculated",
             "linkedinScraped": False,
@@ -5105,12 +5173,13 @@ def external_candidate_enrich_temp_profile(person_id: str, payload: dict = Body(
     except peopleDataLabs.PeopleDataLabsError as exc:
         provider_status = int(exc.status_code or 502)
         status_code = provider_status if provider_status in {400, 401, 402, 403, 429, 503} else 502
-        raise HTTPException(status_code=status_code, detail=f"TEMP profile enrichment failed: {str(exc)}") from exc
+        raise PdlEnrichmentHTTPException(status_code=status_code, detail=f"TEMP profile enrichment failed: {str(exc)}", provider_usage=exc.provider_usage) from exc
 
     if response.get("status") != 200 or not isinstance(response.get("data"), dict):
-        raise HTTPException(
+        raise PdlEnrichmentHTTPException(
             status_code=404,
             detail="People Data Labs could not find a LinkedIn-linked professional profile for this TEMP record.",
+            provider_usage=response.get("provider_usage"),
         )
 
     enrichment_row = dict(response["data"])
@@ -5123,12 +5192,13 @@ def external_candidate_enrich_temp_profile(person_id: str, payload: dict = Body(
         likelihood = 0
     matched_profile_url = _external_text(mapped.get("profile_url"), 500)
     if not (_person_names_align(name, returned_name) and likelihood >= 8 and matched_profile_url):
-        raise HTTPException(
+        raise PdlEnrichmentHTTPException(
             status_code=409,
             detail=(
                 "PDL returned a possible record, but it did not meet the exact-name, LinkedIn-link, "
                 "and identity-likelihood threshold. The TEMP profile was not changed."
             ),
+            provider_usage=response.get("provider_usage"), succeeded=True,
         )
 
     mapped = _merge_external_contact_fields(stored_contacts, mapped)
@@ -5138,7 +5208,7 @@ def external_candidate_enrich_temp_profile(person_id: str, payload: dict = Body(
         "provider": "People Data Labs Person Enrichment",
         "enrichedAt": enriched_at,
         "likelihood": likelihood,
-        "creditsUsed": 1,
+        **_pdl_enrichment_accounting(response.get("provider_usage"), succeeded=True),
         "profileVersion": 2,
         "contactFieldsRequested": True,
         "matchedInput": "profile_url" if profile_url else "name_location",
@@ -5160,16 +5230,29 @@ def external_candidate_enrich_temp_profile(person_id: str, payload: dict = Body(
         "match": _pending_external_match("Professional enrichment changed the profile. Calculate the JD match when ready.", current_metadata.get("match")),
     }
     mapped["portfolio"] = _external_portfolio(mapped)
-    result = candidates.applyTemporaryExternalProfileEnrichment(
-        person_id,
-        domain,
-        mapped,
-        updated_metadata,
-    )
+    try:
+        result = candidates.applyTemporaryExternalProfileEnrichment(
+            person_id,
+            domain,
+            mapped,
+            updated_metadata,
+        )
+    except HTTPException as exc:
+        raise PdlEnrichmentHTTPException(
+            status_code=exc.status_code, detail=exc.detail, headers=exc.headers,
+            provider_usage=response.get("provider_usage"), succeeded=True,
+        ) from exc
+    except Exception as exc:
+        # Preserve the existing generic HTTP 500 message (not database internals)
+        # while retaining the provider charge that already occurred.
+        raise PdlEnrichmentHTTPException(
+            status_code=500, detail="Internal Server Error",
+            provider_usage=response.get("provider_usage"), succeeded=True,
+        ) from exc
     result.update(
         {
             "reused": False,
-            "creditsUsed": 1,
+            **_pdl_enrichment_accounting(response.get("provider_usage"), succeeded=True),
             "match": updated_metadata.get("match") or {},
             "matchPending": True,
             "linkedinScraped": False,

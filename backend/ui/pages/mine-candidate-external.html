@@ -12,6 +12,7 @@
       type="image/svg+xml"
     />
     <link id="domainCss" rel="stylesheet" href="../assets/devStyles.css" />
+    <link rel="stylesheet" href="../assets/providerAccountUsage.css?v=20260910-credits" />
     <script>
       (function () {
         const params = new URLSearchParams(window.location.search);
@@ -1222,11 +1223,12 @@
             <div class="source-audit-item"><span>Records retrieved</span><strong id="auditReturned">0</strong></div>
             <div class="source-audit-item"><span>Records reviewed</span><strong id="auditReviewed">0</strong></div>
             <div class="source-audit-item"><span>Search credits used</span><strong id="auditCost">Not run</strong></div>
-            <div class="source-audit-item"><span>Account credits remaining</span><strong id="auditBalance">Unavailable</strong></div>
+            <div class="source-audit-item"><span>Search balance at retrieval</span><strong id="auditBalance">Unavailable</strong></div>
             <div class="source-audit-item"><span>Provider contacted</span><strong id="auditExecuted">No</strong></div>
             <div class="source-audit-item"><span>Request completed</span><strong id="auditCompleted">No</strong></div>
           </div>
           <div id="sourceAuditNote" class="verification-note" hidden></div>
+          <section id="providerCreditUsage" aria-label="People Data Labs account credits"></section>
 
           <details id="bulkLinkedProfileActions" class="bulk-enrichment-panel" hidden>
             <summary>Optional bulk enrichment — uses provider credits</summary>
@@ -1276,6 +1278,7 @@
 
     <script src="JS/apiScripts.js"></script>
     <script src="JS/providerUsage.js?v=20260910"></script>
+    <script src="JS/providerAccountUsage.js?v=20260910-credits"></script>
     <script src="JS/professionalMatch.js?v=20260910"></script>
     <script src="JS/jobDescriptionPicker.js?v=20260824-jd-compact-grid"></script>
     <script src="JS/updateProcessFlow.js?v=20260819-active-candidate"></script>
@@ -1283,6 +1286,18 @@
     <script src="JS/atlasClientContext.js"></script>
     <script>
       let selectedSource = "pdl";
+      let providerCreditWidget = null;
+      function providerCreditToken() {
+        try { return JSON.parse(sessionStorage.getItem("devreadyAdminUnlock") || "null")?.token || ""; }
+        catch (_) { return ""; }
+      }
+      function refreshProviderCredits(afterRequest = false) {
+        // Account checks must never delay or replace candidate results.
+        try {
+          if (afterRequest) providerCreditWidget?.invalidate();
+          providerCreditWidget?.refresh()?.catch(() => {});
+        } catch (_) {}
+      }
       let latestExternalResults = [];
       let activeExternalSearch = null;
       let nextExternalScrollToken = "";
@@ -1569,6 +1584,7 @@
           document.getElementById("mineStatus").textContent = `Saved search could not be opened: ${error.message || error}`;
         } finally {
           updateWorkflowGuidance();
+          refreshProviderCredits();
         }
       }
 
@@ -3090,6 +3106,7 @@
         } finally {
           paginationLoading = false;
           renderResultPager();
+          refreshProviderCredits(true);
         }
       }
 
@@ -3272,7 +3289,13 @@
           .filter(Boolean);
         const likelihood = Number(validation.likelihood || 0);
         const requestsUsed = Number(validation.requestsUsed || 0);
-        const enrichmentCredits = Number(validation.successfulEnrichmentCredits || 0);
+        const enrichmentCredits = validation.providerUsage?.creditsUsed;
+        const estimatedCredits = validation.estimatedCreditsUsed;
+        const enrichmentUsage = Number.isSafeInteger(enrichmentCredits) && enrichmentCredits >= 0
+          ? `${enrichmentCredits} provider-reported credit${enrichmentCredits === 1 ? "" : "s"}`
+          : Number.isSafeInteger(estimatedCredits) && estimatedCredits >= 0
+            ? `${estimatedCredits} estimated credit${estimatedCredits === 1 ? "" : "s"} — charge not reported`
+            : "Credit charge not reported";
         const currentRole = [candidate.title, candidate.company ? `at ${candidate.company}` : ""]
           .filter(Boolean)
           .join(" ");
@@ -3286,7 +3309,7 @@
         return `
           <strong>${escapeHtml(headings[validation.status] || "Second profile validation")}</strong>
           <div class="meta">${escapeHtml(validation.provider || "People Data Labs")}${likelihood ? ` | Identity likelihood ${likelihood}/10` : ""}${validation.exactNameMatch ? " | Name aligned" : ""}</div>
-          ${requestsUsed ? `<div class="meta">Provider usage: ${requestsUsed} request${requestsUsed === 1 ? "" : "s"}${enrichmentCredits ? ` | ${enrichmentCredits} successful enrichment credit${enrichmentCredits === 1 ? "" : "s"}` : " | no successful enrichment returned"}</div>` : ""}
+          ${requestsUsed ? `<div class="meta">Provider usage: ${requestsUsed} request${requestsUsed === 1 ? "" : "s"} | ${escapeHtml(enrichmentUsage)}</div>` : ""}
           ${validation.status === "confirmed_profile_match" && currentRole ? `<div class="meta">Profile role: ${escapeHtml(currentRole)}</div>` : ""}
           ${validation.status === "confirmed_profile_match" && candidate.location ? `<div class="meta">Profile location: ${escapeHtml(candidate.location)}</div>` : ""}
           ${validation.status === "confirmed_profile_match" && experienceDetails ? `<div class="meta">${escapeHtml(experienceDetails)}</div>` : ""}
@@ -3344,6 +3367,8 @@
         } catch (error) {
           panel.innerHTML = `<div class="verification-note">Professional profile validation failed: ${escapeHtml(error.message || error)}</div>`;
           button.disabled = externalProviderStatus.pdl?.ready === false;
+        } finally {
+          refreshProviderCredits(true);
         }
       }
 
@@ -3657,6 +3682,7 @@
           externalSearchRunning = false;
           updateBulkLinkedProfileControls();
           updateWorkflowGuidance();
+          refreshProviderCredits(true);
         }
       }
 
@@ -3690,6 +3716,8 @@
             source: candidate.source,
             candidate,
           }),
+        }).finally(() => {
+          if (!externalBulkEnrichmentRunning) refreshProviderCredits(true);
         });
         if ((!response?.candidate && !response?.personid) || response.enrichment?.status !== "completed") {
           throw new Error("The provider did not return a completed professional enrichment.");
@@ -3748,6 +3776,7 @@
           externalBulkEnrichmentRunning = false;
           updateBulkLinkedProfileControls();
           updateWorkflowGuidance();
+          refreshProviderCredits(true);
         }
       }
 
@@ -3986,6 +4015,11 @@
       document.addEventListener("DOMContentLoaded", () => {
         const domain = currentDomain();
         configureDomainPage();
+        providerCreditWidget = window.DevReadyProviderAccountUsage.mount(document.getElementById("providerCreditUsage"), {
+          request: api, token: providerCreditToken, domain: currentDomain,
+        });
+        refreshProviderCredits();
+        window.addEventListener("focus", () => refreshProviderCredits());
         loadProviderStatus().catch((error) => {
           document.getElementById("providerReadiness").textContent =
             `Provider status unavailable: ${error.message || error}`;
@@ -4073,8 +4107,10 @@
         });
         window.addEventListener("devready-active-candidate-changed", updateWorkflowGuidance);
         window.addEventListener("pagehide", persistSourcingViewState);
+        window.addEventListener("pagehide", () => providerCreditWidget?.invalidate());
         window.addEventListener("pageshow", (event) => {
           if (event.persisted) restoreSourcingScroll(readSourcingViewState());
+          if (event.persisted) refreshProviderCredits(true);
         });
         const savedView = readSourcingViewState();
         const restoredView = restoreSourcingViewState(savedView);

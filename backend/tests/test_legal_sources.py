@@ -1021,7 +1021,8 @@ class LegalSourceRouteTests(unittest.TestCase):
         self.assertIn("Civil Litigation", metadata["searchPreviewMatch"]["matched"])
         self.assertEqual(metadata["education"][0]["school"], "Example Law School")
         self.assertEqual(result["personid"], 501)
-        self.assertEqual(result["enrichment"]["creditsUsed"], 1)
+        self.assertIsNone(result["enrichment"]["creditsUsed"])
+        self.assertEqual(result["enrichment"]["estimatedCreditsUsed"], 1)
 
     @patch("azureUtils.routes.azureJobEndpoints.candidates.uploadProfile")
     @patch("azureUtils.routes.azureJobEndpoints.peopleDataLabs.enrichPerson")
@@ -1071,7 +1072,8 @@ class LegalSourceRouteTests(unittest.TestCase):
         upload.assert_not_called()
         self.assertFalse(result["temporaryProfileCreated"])
         self.assertFalse(result["linkedinScraped"])
-        self.assertEqual(result["creditsUsed"], 1)
+        self.assertIsNone(result["creditsUsed"])
+        self.assertEqual(result["estimatedCreditsUsed"], 1)
         self.assertTrue(result["candidate"]["professional_enrichment_complete"])
         self.assertEqual(result["candidate"]["external_enrichment"]["profileVersion"], 2)
         self.assertEqual(result["candidate"]["title"], "Software Developer")
@@ -1309,7 +1311,8 @@ class LegalSourceRouteTests(unittest.TestCase):
         self.assertEqual(saved_metadata["contact"]["mobilePhone"], "+1 609 555 0100")
         self.assertIn("+1 609 555 0101", saved_metadata["contact"]["phoneNumbers"])
         self.assertFalse(result["reused"])
-        self.assertEqual(result["creditsUsed"], 1)
+        self.assertIsNone(result["creditsUsed"])
+        self.assertEqual(result["estimatedCreditsUsed"], 1)
         self.assertFalse(result["linkedinScraped"])
 
     @patch.dict(
