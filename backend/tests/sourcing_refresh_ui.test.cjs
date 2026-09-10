@@ -643,6 +643,7 @@ for (const outcome of ['success', 'failure']) {
 
 test('manual JD selection completes without an out-of-scope startup guard', async () => {
   const fx = fixture();
+  fx.node('jdSelect').value = 'manually-selected-job';
   await fx.context.applySelectedExternalJob('manually-selected-job');
   assert.equal(fx.node('jdSelect').value, 'manually-selected-job');
   assert.equal(fx.rendered.criteriaLoadedFor, 'manually-selected-job');

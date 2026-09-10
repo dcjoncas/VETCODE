@@ -46,7 +46,7 @@ test('Find Out refreshes after search, next page, cached results and contact loo
   assert.match(page, /if \(activeExternalSearch === pageSearch\) paginationLoading = false;\s*if \(isCurrent\(\)\) renderResultPager\(\);\s*refreshProviderCredits\(true\)/);
   assert.match(page, /externalSearchRunning = false;\s*updateBulkLinkedProfileControls\(\);\s*updateWorkflowGuidance\(\);\s*refreshProviderCredits\(true\)/);
   assert.match(page, /\.finally\(\(\) => \{\s*sourcingContactOperations--;\s*if \(!externalBulkEnrichmentRunning\) refreshProviderCredits\(true\)/);
-  assert.match(page, /externalBulkEnrichmentRunning = false;\s*updateBulkLinkedProfileControls\(\);\s*updateWorkflowGuidance\(\);\s*refreshProviderCredits\(true\)/);
+  assert.match(page, /externalBulkEnrichmentRunning = false;\s*if \(isCurrent\(\)\) \{[\s\S]*?updateBulkLinkedProfileControls\(\);[\s\S]*?refreshProviderCredits\(true\)/);
   assert.match(page, /Search balance at retrieval/);
   assert.match(page, /DevReadyProviderUsage\.describe\(audit\)/);
   assert.doesNotMatch(page, /audit\.providerUsage\s*=\s*.*providerCredit/);

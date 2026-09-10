@@ -256,6 +256,13 @@
         background: var(--surface, #f7f8fa);
       }
 
+      .automatic-match-score {
+        font-size: 16px;
+        font-weight: 800;
+        white-space: nowrap;
+        padding: 7px 10px;
+      }
+
       .search-criteria[hidden],
       .source-audit[hidden] {
         display: none;
@@ -1232,18 +1239,17 @@
           <div id="sourceAuditNote" class="verification-note" hidden></div>
           <section id="providerCreditUsage" aria-label="People Data Labs account credits"></section>
 
-          <details id="bulkLinkedProfileActions" class="bulk-enrichment-panel" hidden>
-            <summary>Optional bulk enrichment — uses provider credits</summary>
+          <section id="bulkLinkedProfileActions" class="bulk-enrichment-panel" aria-labelledby="bulkLinkedProfileHeading" hidden>
             <div class="selection-status-bar">
             <div>
-              <strong>Returned linked profiles</strong>
-              <div id="bulkLinkedProfileStatus" class="muted">Review JD fit first. You can request contact details for individual candidates instead.</div>
+              <strong id="bulkLinkedProfileHeading">Enrich returned profiles</strong>
+              <div id="bulkLinkedProfileStatus" class="muted" role="status">Optional contact lookup using provider credits. Review JD fit first, or enrich individual candidates.</div>
             </div>
             <button class="btn primary" type="button" id="btnEnrichAllLinkedProfiles">
-              Enrich all LinkedIn-linked profiles
+              Enrich all
             </button>
           </div>
-          </details>
+          </section>
 
           <div id="enrichmentSelectionStatus" class="selection-status-bar">
             <span id="selectedEnrichmentCount" class="pill">0 / 10 selected</span>
@@ -1252,6 +1258,7 @@
 
           <div id="jobSkillPanel" class="muted" style="margin-top: 12px"></div>
           <nav id="resultPagerTop" class="result-pager" data-result-pager aria-label="Candidate result pages" hidden></nav>
+          <div id="automaticMatchSummary" class="muted" role="status" style="margin: 8px 0" hidden></div>
           <div id="results"></div>
           <nav id="resultPagerBottom" class="result-pager" data-result-pager aria-label="Candidate result pages" hidden></nav>
 
@@ -1282,6 +1289,7 @@
     <script src="JS/providerUsage.js?v=20260910"></script>
     <script src="JS/providerAccountUsage.js?v=20260910-credits"></script>
     <script src="JS/professionalMatch.js?v=20260910"></script>
+    <script src="JS/automaticCandidateMatch.js?v=20260910-auto"></script>
     <script src="JS/jobDescriptionPicker.js?v=20260824-jd-compact-grid"></script>
     <script src="JS/updateProcessFlow.js?v=20260819-active-candidate"></script>
     <script src="JS/shortlist.js?v=20260819-active-candidate"></script>
@@ -1317,6 +1325,10 @@
       let sourcingArchiveRevision = 0;
       let sourcingArchiveLoading = false;
       let sourcingContactOperations = 0;
+      let sourcingJobLoading = false;
+      let sourcingJobLoadError = false;
+      let sourcingJobRevision = 0;
+      let automaticCandidateMatches = null;
       let searchCriteriaRegion = "";
       let ignoredCriteriaGroups = new Set();
 
@@ -1580,6 +1592,7 @@
             `/api/azureJobs/external/search-history/${encodeURIComponent(searchId)}?domain=${encodeURIComponent(archiveDomain)}`,
           );
           if (revision !== sourcingArchiveRevision || archiveDomain !== currentDomain()) return;
+          sourcingJobLoadError = false;
           const saved = response.savedSearch || {};
           if (!savedExternalSearches.some((item) => String(item.rootId || item.id) === String(saved.rootId || saved.id))) {
             savedExternalSearches.unshift(saved);
@@ -1619,6 +1632,7 @@
             sourcingArchiveLoading = false;
             updateWorkflowGuidance();
             refreshProviderCredits();
+            scheduleAutomaticCandidateMatches();
           }
         }
       }
@@ -2347,15 +2361,25 @@
       }
 
       function linkedProfileEnrichmentIndexes() {
+        const seen = new Set();
+        const identityFor = (candidate) => JSON.stringify([
+          String(candidate?.source || "").toLowerCase(), candidate?.source_id ? "id" : "url",
+          String(candidate?.source_id || candidate?.profile_url || ""),
+        ]);
+        const alreadyEnriched = new Set(latestExternalResults.filter(candidateHasReusableEnrichment).map(identityFor));
         return latestExternalResults
           .map((candidate, index) => ({ candidate, index }))
           .filter(({ candidate }) => {
             const source = String(candidate?.source || "").toLowerCase();
             const hasProviderIdentity = Boolean(candidate?.source_id || candidate?.profile_url);
-            return ["pdl", "coresignal"].includes(source)
-              && hasProviderIdentity
-              && !candidate?.devready_profile_complete
-              && !candidateHasReusableEnrichment(candidate);
+            if (!["pdl", "coresignal"].includes(source) || !hasProviderIdentity
+              || candidate?.devready_profile_complete || candidateHasReusableEnrichment(candidate)) return false;
+            // Provider IDs are case-sensitive. Count/request each returned
+            // identity once, even if a provider page contains duplicate rows.
+            const identity = identityFor(candidate);
+            if (seen.has(identity) || alreadyEnriched.has(identity)) return false;
+            seen.add(identity);
+            return true;
           })
           .map(({ index }) => index);
       }
@@ -2392,15 +2416,21 @@
           || externalBulkEnrichmentRunning
           || externalImportRunning
           || externalSearchRunning
+          || sourcingArchiveLoading
+          || paginationLoading
+          || sourcingContactOperations > 0
           || providerUnavailable;
         button.textContent = externalBulkEnrichmentRunning
-          ? "Enriching returned profiles..."
-          : `Enrich all ${eligible.length} linked profile${eligible.length === 1 ? "" : "s"}`;
+          ? `Enriching… (${eligible.length} remaining)`
+          : `Enrich all ${eligible.length}`;
+        const matchNextStep = selectedWorkflowJobId()
+          ? "JD match refreshes afterward without provider credits."
+          : "Choose a JD to compare qualifications without provider credits.";
         status.textContent = providerUnavailable
           ? "The enrichment provider is not configured. Add its API key before enriching these saved results."
           : eligible.length
-          ? `${eligible.length} returned profile${eligible.length === 1 ? " is" : "s are"} eligible. This may use ${linkedProfileCreditSummary(eligible)}; no TEMP profiles are created by this step.`
-          : `${enrichedReady} linked profile${enrichedReady === 1 ? " is" : "s are"} enriched and ready. Use the blue Create TEMP profile action only on the candidates you want.`;
+          ? `${eligible.length} profile${eligible.length === 1 ? " needs" : "s need"} a contact lookup; ${linkedProfileCreditSummary(eligible)}. Completed lookups are reused. ${matchNextStep} No TEMP profiles are created.`
+          : `${enrichedReady} profile${enrichedReady === 1 ? " is" : "s are"} enriched. ${selectedWorkflowJobId() ? "Review the JD match," : "Choose a JD to compare qualifications,"} then select candidates for Determine Interest.`;
       }
 
       function refreshSearchCriteriaStatus() {
@@ -2826,12 +2856,95 @@
         if (dialog?.open) dialog.close();
       }
 
+      function candidateCanAutoMatch(candidate) {
+        return !["public_web_evidence", "court_record_evidence"].includes(candidate?.result_type)
+          && (candidate?.result_type !== "court_attorney_lead" || candidate.profile_validation?.status === "confirmed_profile_match");
+      }
+
+      function automaticMatchContext() {
+        const jdId = selectedWorkflowJobId();
+        if (!jdId || sourcingJobLoading || sourcingJobLoadError || sourcingArchiveLoading || externalSearchRunning
+          || externalBulkEnrichmentRunning || externalImportRunning || sourcingContactOperations || paginationLoading) return null;
+        const criteria = JSON.parse(JSON.stringify(currentLawCriteria()));
+        const domain = currentDomain();
+        return { jdId, domain, criteria, key: JSON.stringify([domain, jdId, sourcingJobRevision,
+          sourcingArchiveRevision, String(activeSavedSearch?.rootId || activeSavedSearch?.id || ""),
+          window.DevReadyProfessionalMatch.criteriaKey(criteria)]) };
+      }
+
+      function automaticMatchEvidenceKey(candidate) {
+        return JSON.stringify([candidate.source, candidate.source_id, candidate.devready_profile_id,
+          candidate.result_type, candidate.title, candidate.summary, candidate.skills,
+          candidate.years_experience, candidate.years_experience_known, candidate.location,
+          candidate.profile_data, candidate.profile_validation, candidate.external_enrichment?.enrichedAt]);
+      }
+
+      function scheduleAutomaticCandidateMatches() {
+        if (!window.DevReadyAutomaticCandidateMatch) return;
+        if (!automaticCandidateMatches) {
+          automaticCandidateMatches = window.DevReadyAutomaticCandidateMatch.create({
+            context: automaticMatchContext,
+            candidates: () => latestExternalResults,
+            evidenceKey: automaticMatchEvidenceKey,
+            eligible: candidateCanAutoMatch,
+            current: (candidate, scope) => window.DevReadyProfessionalMatch.view(candidate, scope.jdId, scope.criteria).current,
+            score: (candidate, scope) => api("/api/azureJobs/external/calculate-match", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ domain: scope.domain, jd_id: scope.jdId, criteria: scope.criteria, candidate }),
+            }),
+            apply: (candidate, response, scope) => {
+              if (!window.DevReadyProfessionalMatch.view({ match: response.match }, scope.jdId, scope.criteria).current) {
+                throw new Error("Match response does not belong to the active job and criteria.");
+              }
+              const index = latestExternalResults.indexOf(candidate);
+              if (index < 0) return;
+              // Automatic ranking is a discovery preview. It does not overwrite
+              // a persisted TEMP-profile match or advance a candidate's stage.
+              latestExternalResults[index] = { ...candidate, match: response.match,
+                score: response.match.score ?? null, match_pending: false };
+            },
+            changed: () => {
+              const preservedCandidateKeys = selectedCandidateKeys();
+              renderResults(latestExternalResults, { preservedCandidateKeys });
+              persistSourcingViewState();
+            },
+          });
+        }
+        automaticCandidateMatches.refresh();
+      }
+
+      function renderAutomaticMatchSummary() {
+        const node = document.getElementById("automaticMatchSummary");
+        if (!node) return;
+        node.hidden = !latestExternalResults.length;
+        if (node.hidden) return;
+        const jdId = selectedWorkflowJobId();
+        if (!jdId) {
+          node.textContent = "Choose a job description to calculate each candidate's match and rank the results.";
+          return;
+        }
+        if (sourcingJobLoadError) {
+          node.textContent = "Job requirements could not be loaded. Choose the job again to retry.";
+          return;
+        }
+        const eligible = latestExternalResults.filter(candidateCanAutoMatch);
+        const views = eligible.map((candidate) => window.DevReadyProfessionalMatch.view(candidate, jdId, currentLawCriteria()));
+        const scored = views.filter((view) => Number.isFinite(view.score)).length;
+        const unknown = views.filter((view) => view.current && !Number.isFinite(view.score)).length;
+        const failed = eligible.filter((candidate) => automaticCandidateMatches?.state(candidate).status === "failed").length;
+        const pending = eligible.length - scored - unknown - failed;
+        node.textContent = `JD match · highest percentage first · ${scored} scored${pending ? ` · ${pending} calculating` : ""}${unknown ? ` · ${unknown} not assessable` : ""}${failed ? ` · ${failed} need a retry` : ""}. Based on professional evidence; review unknowns before outreach.`;
+      }
+
       async function calculateCandidateMatch(index) {
         const candidate = latestExternalResults[index];
         const jdId = selectedWorkflowJobId();
         if (!candidate) return;
         if (!jdId) return alert("Choose a job description before calculating the match.");
         const candidateKey = candidateResultKey(candidate);
+        const scope = automaticMatchContext();
+        if (!scope) return;
+        const evidenceKey = automaticMatchEvidenceKey(candidate);
         const status = document.getElementById("mineStatus");
         status.textContent = `Calculating ${candidate.name || "candidate"}'s match to ${selectedJobLabel()} from saved evidence...`;
         try {
@@ -2843,11 +2956,15 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ domain: currentDomain(), jd_id: jdId, criteria: currentLawCriteria(), candidate }),
           });
-          latestExternalResults[index] = response.personid ? markCandidateDevReadyProfile(candidate, response)
+          const currentIndex = latestExternalResults.indexOf(candidate);
+          if (currentIndex < 0 || automaticMatchContext()?.key !== scope.key || automaticMatchEvidenceKey(candidate) !== evidenceKey) return;
+          const preservedCandidateKeys = selectedCandidateKeys();
+          latestExternalResults[currentIndex] = response.personid ? markCandidateDevReadyProfile(candidate, response)
             : { ...candidate, match: response.match, score: response.match?.score ?? null };
           latestExternalResults = rankExternalResults(latestExternalResults);
           const rankedIndex = latestExternalResults.findIndex((item) => candidateResultKey(item) === candidateKey);
-          renderResults(latestExternalResults);
+          renderResults(latestExternalResults, { preservedCandidateKeys });
+          persistSourcingViewState();
           status.textContent = `${candidate.name || "Candidate"}'s JD fit was reviewed from returned professional evidence. No provider credits were used.`;
           if (rankedIndex >= 0) showCandidateMatchStats(rankedIndex);
         } catch (error) {
@@ -3325,6 +3442,7 @@
           if (activeExternalSearch === pageSearch) paginationLoading = false;
           if (isCurrent()) renderResultPager();
           refreshProviderCredits(true);
+          scheduleAutomaticCandidateMatches();
         }
       }
 
@@ -3364,7 +3482,7 @@
         const guides = {
           pdl: "Professional discovery using PDL record credits. Confirm current title, experience, named license/certification, location, and work arrangement before outreach.",
           coresignal: "Professional-profile comparison using one Coresignal search credit per preview page. No LinkedIn scraping is performed by VETCODE.",
-          courtlistener: "JD-driven lawyer discovery across matching RECAP dockets. Add a matching licensed professional profile to build a combined TEMP profile, then calculate its JD match separately. Unmatched court leads remain identity-unverified research records.",
+          courtlistener: "JD-driven lawyer discovery across matching RECAP dockets. After a matching professional profile is confirmed, its JD fit updates automatically. Unmatched court leads remain identity-unverified research records.",
           github: "Public code-footprint discovery for technical candidates.",
         };
         if (isLawDomain()) {
@@ -3589,7 +3707,7 @@
           renderResults(latestExternalResults);
           const validation = updatedCandidate.profile_validation || {};
           document.getElementById("mineStatus").textContent = validation.status === "confirmed_profile_match"
-            ? `Added professional data to the CourtListener research lead for ${candidate.name}. Create the TEMP profile, then deliberately calculate and save its JD match. Verify court-record identity and ${currentLawCriteria().region || "target-jurisdiction"} license standing before outreach.`
+            ? `Added professional data to the CourtListener research lead for ${candidate.name}. Its JD match updates automatically. Verify court-record identity and ${currentLawCriteria().region || "target-jurisdiction"} license standing before outreach.`
             : validation.status === "no_match"
               ? `No exact LinkedIn-linked PDL profile met the validation threshold for ${candidate.name}. You can still save the court evidence as an identity-unverified TEMP research profile.`
               : `A possible professional profile was returned for ${candidate.name}, but it needs manual identity review. No provider fields were merged.`;
@@ -3609,6 +3727,7 @@
 
       function renderResults(results, options = {}) {
         renderArchivePersistenceStatus();
+        renderAutomaticMatchSummary();
         const target = document.getElementById("results");
         if (!results.length) {
           if (!options.append) target.innerHTML = "";
@@ -3709,16 +3828,19 @@
             const savedMatch = matchView.match;
             const matchIsCurrent = matchView.current;
             const canCalculateMatch = !isResearchOnly && !isCourtResearch && Boolean(selectedWorkflowJobId());
+            const automaticState = automaticCandidateMatches?.state(candidate).status || "idle";
             const matchAction = isResearchOnly || isCourtResearch ? "" : matchIsCurrent
               ? `<button class="btn secondary" type="button" onclick="showCandidateMatchStats(${globalIndex})">View fit evidence</button>`
-              : `<button class="btn primary" type="button" onclick="calculateCandidateMatch(${globalIndex})" ${canCalculateMatch ? "" : "disabled"}>Calculate JD match</button>`;
+              : automaticState === "failed" ? `<button class="btn secondary" type="button" onclick="calculateCandidateMatch(${globalIndex})" ${canCalculateMatch ? "" : "disabled"}>Retry JD match</button>` : "";
             const isDirectResult = candidate.search_mode === "direct";
             const scoreLabel =
               isCourtAttorneyLead && !courtProfileConfirmed
                 ? "Court-data lawyer lead - verify identity"
                 : isCourtRecord
                 ? "Court record - identity unverified"
-                : escapeHtml(matchView.label);
+                : !matchIsCurrent && canCalculateMatch
+                  ? sourcingJobLoadError ? "Choose the job again to assess fit" : automaticState === "failed" ? "JD match unavailable — retry" : "Calculating JD match…"
+                  : escapeHtml(matchView.label);
             const matchExplanation = !isCourtResearch
               ? `<div class="meta match-explanation">${escapeHtml(matchView.detail)}${matchIsCurrent && typeof savedMatch.coveragePercent === "number" ? ` Evidence coverage: ${Math.round(savedMatch.coveragePercent)}%.` : ""}</div>` : "";
             const enrichmentFailure = candidate.bulk_enrichment_error
@@ -3766,7 +3888,7 @@
                 </label>
                 <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
                   ${barStatus}
-                  <div class="pill ${matchIsCurrent ? "enriched-match-pill" : ""}">${scoreLabel}</div>
+                  <div class="pill ${matchIsCurrent ? "enriched-match-pill" : ""} ${Number.isFinite(matchView.score) ? "automatic-match-score" : ""}">${scoreLabel}</div>
                 </div>
               </div>
               ${contactActions}
@@ -3777,7 +3899,6 @@
               <div class="row-actions">
                 ${importButton}
                 ${candidate.source === "pdl" && !linkedProfileEnriched && !candidateHasDirectContacts(candidate) ? `<button class="btn secondary" type="button" onclick="requestCandidateContacts(${globalIndex})" ${pdlReady ? "" : "disabled"}>Get contact details…</button>` : ""}
-                  ${matchIsCurrent ? `<button class="btn secondary" type="button" onclick="calculateCandidateMatch(${globalIndex})">Recalculate JD match</button>` : ""}
                   ${barLink}
                   ${profileLink}
                   ${profileValidationButton}
@@ -3794,9 +3915,16 @@
           target.innerHTML = html;
         }
         updateSelectedEnrichmentCount();
+        scheduleAutomaticCandidateMatches();
       }
 
       async function mineCandidates() {
+        if (sourcingJobLoading || sourcingJobLoadError) {
+          document.getElementById("mineStatus").textContent = sourcingJobLoading
+            ? "Wait for the selected job requirements to finish loading."
+            : "Choose the job again to load its requirements before searching.";
+          return;
+        }
         if (sourcingArchiveLoading || sourcingContactOperations || paginationLoading || externalSearchRunning) {
           document.getElementById("mineStatus").textContent = "Finish the current archive or contact lookup before starting a new search.";
           return;
@@ -3923,6 +4051,7 @@
           updateBulkLinkedProfileControls();
           updateWorkflowGuidance();
           refreshProviderCredits(true);
+          scheduleAutomaticCandidateMatches();
         }
       }
 
@@ -3988,43 +4117,71 @@
       }
 
       async function enrichAllLinkedProfiles() {
+        if (externalBulkEnrichmentRunning || sourcingArchiveLoading || externalSearchRunning
+          || paginationLoading || sourcingContactOperations || externalImportRunning) return;
         const eligible = linkedProfileEnrichmentIndexes();
-        if (!eligible.length || externalBulkEnrichmentRunning) return;
+        if (!eligible.length) return;
+        if (eligible.some((index) => externalProviderStatus[latestExternalResults[index]?.source]?.ready === false)) {
+          updateBulkLinkedProfileControls();
+          return;
+        }
         const approved = confirm(
-          `Enrich all ${eligible.length} returned LinkedIn-linked professional profile${eligible.length === 1 ? "" : "s"}? This may use ${linkedProfileCreditSummary(eligible)}. This step does not create any TEMP profiles; afterward, use the blue Create TEMP profile buttons only for the candidates you choose. VETCODE does not scrape LinkedIn.`,
+          `Enrich all ${eligible.length} returned professional profile${eligible.length === 1 ? "" : "s"}? This may use ${linkedProfileCreditSummary(eligible)}. Completed lookups are reused. JD match will refresh afterward without provider credits. No TEMP profiles are created. VETCODE does not scrape LinkedIn.`,
         );
         if (!approved) return;
 
+        // Never retain numeric indexes across awaits: automatic JD matching can
+        // rerank the results while an earlier contact request is in flight.
+        const candidates = eligible.map((index) => latestExternalResults[index]);
+        const preservedCandidateKeys = selectedCandidateKeys();
+        const archiveId = String(activeSavedSearch?.rootId || activeSavedSearch?.id || "");
+        const archiveRevision = sourcingArchiveRevision;
+        const domain = currentDomain();
+        const isCurrent = () => domain === currentDomain() && archiveRevision === sourcingArchiveRevision
+          && archiveId === String(activeSavedSearch?.rootId || activeSavedSearch?.id || "");
         externalBulkEnrichmentRunning = true;
         updateBulkLinkedProfileControls();
         updateWorkflowGuidance();
         let completed = 0;
         let reused = 0;
+        let skipped = 0;
         const failures = [];
         try {
-          for (let position = 0; position < eligible.length; position++) {
-            const index = eligible[position];
-            const candidate = latestExternalResults[index];
+          for (let position = 0; position < candidates.length; position++) {
+            if (!isCurrent()) return;
+            const candidate = candidates[position];
+            const index = currentCandidateResultIndex(candidate);
+            if (index < 0) { skipped++; continue; }
             document.getElementById("mineStatus").textContent =
-              `Enriching linked profile ${position + 1} of ${eligible.length}: ${candidate?.name || "candidate"}...`;
+              `Enriching profile ${position + 1} of ${candidates.length}: ${candidate?.name || "candidate"}...`;
             try {
               const response = await enrichExternalResultCandidate(index);
+              if (!isCurrent() || response?.viewChanged) return;
               if (response?.reused) reused++;
               else completed++;
             } catch (error) {
-              latestExternalResults[index] = {
-                ...candidate,
-                bulk_enrichment_error: error.message || String(error),
+              if (!isCurrent()) return;
+              const currentIndex = currentCandidateResultIndex(candidate);
+              if (currentIndex < 0) { skipped++; continue; }
+              latestExternalResults[currentIndex] = {
+                ...latestExternalResults[currentIndex], bulk_enrichment_error: error.message || String(error),
               };
-              failures.push(candidate?.name || `Result ${index + 1}`);
+              failures.push(candidate?.name || `Profile ${position + 1}`);
             }
+            updateBulkLinkedProfileControls();
           }
-          const preservedCandidateKeys = selectedCandidateKeys();
           renderResults(latestExternalResults, { preservedCandidateKeys });
+          const matchNextStep = selectedWorkflowJobId()
+            ? "JD match is refreshing without provider credits."
+            : "Choose a JD to compare qualifications without provider credits.";
           document.getElementById("mineStatus").textContent =
-            `${completed + reused} linked profile${completed + reused === 1 ? " is" : "s are"} enriched and ready for review. No TEMP profiles were created.${failures.length ? ` ${failures.length} profile${failures.length === 1 ? "" : "s"} could not be enriched; review the message on each card.` : ""} Use the blue Create TEMP profile action only for candidates you want to keep.`;
+            `${completed + reused} profile${completed + reused === 1 ? " is" : "s are"} enriched and ready for review. ${matchNextStep} No TEMP profiles were created.${failures.length ? ` ${failures.length} profile${failures.length === 1 ? "" : "s"} could not be enriched; review the message on each card.` : ""}${skipped ? ` ${skipped} removed profile${skipped === 1 ? " was" : "s were"} skipped.` : ""} Select candidates for Determine Interest when ready.`;
         } finally {
           externalBulkEnrichmentRunning = false;
+          if (isCurrent()) {
+            persistSourcingViewState();
+            if (typeof scheduleAutomaticCandidateMatches === "function") scheduleAutomaticCandidateMatches();
+          }
           updateBulkLinkedProfileControls();
           updateWorkflowGuidance();
           refreshProviderCredits(true);
@@ -4135,8 +4292,8 @@
           : response.identityUnverified
             ? `TEMP research profile created for ${response.name}. Identity and qualifications remain unverified; open the profile to review ${Number(response.courtEvidence?.evidenceCount || 0)} supporting court records and continue verification.${options.addToProcess === true ? " Candidate interest is confirmed and the record is in the active process." : " It remains outside the active process until interest is confirmed."}`
           : response.enrichment?.status === "completed"
-            ? `${isCourtLead ? "Combined professional and court-evidence TEMP profile" : "TEMP profile"} enriched and saved. Match percentage was not calculated.${options.addToProcess === true ? " Interest is confirmed and Profile Build / Role & Match is next." : " It remains outside the active process until interest is confirmed."}`
-            : `TEMP profile created.${options.addToProcess === true ? " Interest is confirmed and the candidate is now in the active process." : " It remains outside the active process until interest is confirmed."} Open the TEMP Profiles page to enrich it, calculate a JD match, make it permanent, or delete it.`;
+            ? `${isCourtLead ? "Combined professional and court-evidence TEMP profile" : "TEMP profile"} enriched and saved. JD match updates automatically in these results.${options.addToProcess === true ? " Interest is confirmed and Profile Build / Role & Match is next." : " It remains outside the active process until interest is confirmed."}`
+            : `TEMP profile created.${options.addToProcess === true ? " Interest is confirmed and the candidate is now in the active process." : " It remains outside the active process until interest is confirmed."} Review its automatic JD match here, or open TEMP Profiles to manage the saved profile.`;
         if (options.deferRender !== true) {
           const preservedCandidateKeys = selectedCandidateKeys();
           const importedCandidateKey = candidateResultKey(candidate);
@@ -4244,22 +4401,42 @@
       }
 
       async function applySelectedExternalJob(jdId) {
-        if (!jdId) return;
+        const revision = ++sourcingJobRevision;
+        const archiveRevision = sourcingArchiveRevision;
+        const jobDomain = currentDomain();
+        const isCurrent = () => revision === sourcingJobRevision && archiveRevision === sourcingArchiveRevision
+          && jobDomain === currentDomain() && selectedWorkflowJobId() === String(jdId);
+        sourcingJobLoading = Boolean(jdId);
+        sourcingJobLoadError = false;
+        if (!jdId) {
+          renderResults(latestExternalResults, { preservedCandidateKeys: selectedCandidateKeys() });
+          return;
+        }
         const status = document.getElementById("mineStatus");
         status.textContent = "Loading the selected job description...";
         try {
           const jd = await api(
             `/api/azureJobs/getJob/${encodeURIComponent(jdId)}?domain=${encodeURIComponent(currentDomain())}`,
           );
+          if (!isCurrent()) return;
           rememberJob(jdId, jd);
           externalJobPicker?.setSelection(jdId, jd, { dispatch: false });
-          await loadSearchCriteria(jdId);
+          await loadSearchCriteria(jdId, isCurrent);
+          if (!isCurrent()) return;
+          latestExternalResults = latestExternalResults.map((candidate) => ({ ...candidate, match: {}, match_pending: true }));
           const label = `${jd.company ? jd.company + " - " : ""}${jd.title || jdId}`;
           status.textContent = `JD loaded: ${label}. Choose a configured source, then Find Candidates (Out).`;
         } catch (error) {
+          if (!isCurrent()) return;
+          sourcingJobLoadError = true;
           status.textContent = `Could not load the selected job description: ${error.message || error}`;
         } finally {
-          updateWorkflowGuidance();
+          if (revision === sourcingJobRevision) {
+            sourcingJobLoading = false;
+            renderResults(latestExternalResults, { preservedCandidateKeys: selectedCandidateKeys() });
+            updateWorkflowGuidance();
+            scheduleAutomaticCandidateMatches();
+          }
         }
       }
 

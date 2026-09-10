@@ -47,7 +47,7 @@ class TempProfilesWorkflowTests(unittest.TestCase):
         self.assertIn("function enrichAllLinkedProfiles", html)
         self.assertIn("function enrichExternalResultCandidate", html)
         self.assertIn('/api/azureJobs/external/enrich-result', html)
-        self.assertIn("This step does not create any TEMP profiles", html)
+        self.assertIn("No TEMP profiles are created", html)
         self.assertIn("enriched-temp-action", html)
         self.assertIn('onclick="requestCandidateContacts(${globalIndex})"', html)
         self.assertIn('enrich_contacts: false', html)

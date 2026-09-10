@@ -4,6 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { test } = require('node:test');
 const professional = require('../ui/pages/JS/professionalMatch.js');
+const automatic = require('../ui/pages/JS/automaticCandidateMatch.js');
 const usage = require('../ui/pages/JS/providerUsage.js');
 const interested = require('../ui/pages/JS/interestedCandidates.js');
 const page = fs.readFileSync(path.join(__dirname, '../ui/pages/mine-candidate-external.html'), 'utf8');
@@ -19,29 +20,46 @@ const person = { name: 'Alex Morgan', source: 'pdl', source_id: 'sample-123', ti
   company: 'Example Company', location: 'Denver, Colorado', skills: ['Python'], profile_url: 'https://www.linkedin.com/in/alex-example',
   email: 'alex@example.test', phone: '+1 202 555 0100', score: 50, match };
 
-function fixture({ candidate = person, confirm = true, job = 'jd1', domain = 'dev', batch = [], api = async () => ({ match }) } = {}) {
+function fixture({ candidate = person, candidates = [candidate], auto = false, confirm = true, job = 'jd1', domain = 'dev', batch = [], api = async () => ({ match }) } = {}) {
   const nodes = new Map(), calls = [], confirmations = [], alerts = [];
+  let checkboxes = [];
   const node = (id) => {
     const classes = new Set();
     if (!nodes.has(id)) nodes.set(id, { innerHTML: '', textContent: '', hidden: false, open: false, value: '', dataset: {}, selectedOptions: [{ textContent: 'Python Engineer' }],
       addEventListener() {}, showModal() { this.open = true; }, close() { this.open = false; },
       classList: { toggle() {}, add: (name) => classes.add(name), remove: (name) => classes.delete(name), contains: (name) => classes.has(name) },
       setAttribute() {}, querySelectorAll: () => [], scrollIntoView() {} });
-    return nodes.get(id);
+    const result = nodes.get(id);
+    if (id === 'results' && !result.fixtureHtml) {
+      result.fixtureHtml = true;
+      let html = '';
+      Object.defineProperty(result, 'innerHTML', {
+        get: () => html,
+        set(value) {
+          html = value;
+          checkboxes = [...String(value).matchAll(/<input\b[^>]*class="external-candidate-check"[^>]*>/g)].map(([tag]) => ({
+            dataset: { index: tag.match(/data-index="(\d+)"/)[1] },
+            checked: /\schecked(?:\s|>)/.test(tag),
+          }));
+        },
+      });
+    }
+    return result;
   };
   node('jdSelect').value = job;
   const context = vm.createContext({
-    URL, URLSearchParams, console,
+    URL, URLSearchParams, console, setTimeout, clearTimeout,
     escapeHtml: (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character])),
-    document: { addEventListener() {}, querySelectorAll: () => [], getElementById: node },
-    window: { DevReadyProfessionalMatch: professional, DevReadyProviderUsage: usage },
+    document: { addEventListener() {}, querySelectorAll: (selector) => selector === '.external-candidate-check:checked' ? checkboxes.filter((item) => item.checked) : [], getElementById: node },
+    window: { DevReadyProfessionalMatch: professional, DevReadyProviderUsage: usage,
+      ...(auto ? { DevReadyAutomaticCandidateMatch: { create: (options) => automatic.create({ ...options, delay: 0 }) } } : {}) },
     sessionStorage: { getItem: (key) => key === 'domain' ? domain : key === `determineInterestBatch:${domain}` ? JSON.stringify(batch) : null, setItem() {} },
     confirm: (message) => { confirmations.push(message); return confirm; }, alert: (message) => alerts.push(message),
     api: async (url, options) => { calls.push({ url, body: JSON.parse(options?.body || '{}') }); return api(url, options); },
-    fixturePerson: JSON.parse(JSON.stringify(candidate)), fixtureCriteria: criteria,
+    fixturePeople: JSON.parse(JSON.stringify(candidates)), fixtureCriteria: criteria,
   });
   vm.runInContext(source, context);
-  vm.runInContext('latestExternalResults = [fixturePerson]; externalProviderStatus = { pdl: { ready: true } };', context);
+  vm.runInContext('latestExternalResults = fixturePeople; externalProviderStatus = { pdl: { ready: true } };', context);
   const updateBulkControls = context.updateBulkLinkedProfileControls;
   context.currentLawCriteria = () => criteria;
   context.candidateInterestControls = () => '';
@@ -53,6 +71,16 @@ function fixture({ candidate = person, confirm = true, job = 'jd1', domain = 'de
   context.updateLawVerificationSource = () => {};
   return { context, node, calls, confirmations, alerts,
     updateBulkControls,
+    run: (code) => vm.runInContext(code, context),
+    candidates: () => JSON.parse(vm.runInContext('JSON.stringify(latestExternalResults)', context)),
+    selectedIds: () => JSON.parse(vm.runInContext('JSON.stringify(selectedCandidateIndexes().map((index) => latestExternalResults[index].source_id))', context)),
+    select(id) {
+      const index = JSON.parse(vm.runInContext('JSON.stringify(latestExternalResults)', context)).findIndex((item) => item.source_id === id);
+      const checkbox = checkboxes.find((item) => Number(item.dataset.index) === index);
+      assert.ok(checkbox, `Missing rendered checkbox for ${id}`);
+      checkbox.checked = true;
+    },
+    flush: () => { context.scheduleAutomaticCandidateMatches(); return vm.runInContext('automaticCandidateMatches.flush()', context); },
     candidate: () => JSON.parse(vm.runInContext('JSON.stringify(latestExternalResults[0])', context)),
     render: () => { vm.runInContext('renderResults(latestExternalResults)', context); return node('results').innerHTML; } };
 }
@@ -94,7 +122,7 @@ test('no JD refuses scoring locally and a changed criterion hides an old percent
   const changed = fixture();
   changed.context.currentLawCriteria = () => ({ requiredSkills: ['Java'] });
   assert.doesNotMatch(changed.render(), /50% requirement support/);
-  assert.match(changed.render(), /Calculate current JD fit/);
+  assert.match(changed.render(), /Calculating JD match/);
 });
 
 test('cancelled contact lookup has no call; accepted lookup names its credit impact', async () => {
@@ -142,10 +170,10 @@ test('Review All Interested Candidates keeps only workspace scope, independent o
   }
 });
 
-test('bulk enrichment stays optional and collapsed while next guidance leads to reviewing results', () => {
-  const bulk = extractMarkup(page, /<details\b[^>]*id="bulkLinkedProfileActions"[^>]*>/);
-  assert.doesNotMatch(bulk.match(/^<details[^>]*>/)[0], /\sopen(?:[\s=>])/);
-  assert.match(bulk, /<summary>Optional bulk enrichment — uses provider credits<\/summary>/);
+test('bulk enrichment stays optional and visible while next guidance leads to reviewing results', () => {
+  const bulk = extractMarkup(page, /<section\b[^>]*id="bulkLinkedProfileActions"[^>]*>/);
+  assert.doesNotMatch(bulk, /<details|<summary/);
+  assert.match(bulk, /Optional contact lookup using provider credits/);
   assert.match(bulk, /id="btnEnrichAllLinkedProfiles"/);
   assert.doesNotMatch(bulk, /id="(?:enrichmentSelectionStatus|results|shortlistSection)"/);
   for (const domain of ['dev', 'law', 'engineer', 'dental']) {
@@ -161,6 +189,213 @@ test('bulk enrichment stays optional and collapsed while next guidance leads to 
     assert.equal(harness.node('results').classList.contains('workflow-current-action'), true);
     assert.equal(harness.calls.length, 0);
   }
+});
+
+const unscoredPerson = (id, extra = {}) => ({ ...person, source_id: id, name: `Candidate ${id}`,
+  match: null, saved_match: null, score: null, ...extra });
+const previewMatch = (payload, score) => ({ ...match, jobId: payload.jd_id,
+  criteriaSnapshot: payload.criteria, score, status: score === null ? 'unavailable' : 'calculated' });
+
+for (const domain of ['dev', 'law', 'engineer', 'dental']) {
+  test(`automatic ${domain} JD previews sort real percentages, preserve selections and do not create TEMP profiles`, async () => {
+    const harness = fixture({ auto: true, domain, candidates: [
+      unscoredPerson('eighty'), unscoredPerson('zero'), unscoredPerson('unknown'),
+      { ...person, source_id: 'existing', match: { ...match, score: 95 } },
+    ], api: async (url, options) => {
+      assert.equal(url, '/api/azureJobs/external/calculate-match');
+      const payload = JSON.parse(options.body);
+      assert.equal(payload.domain, domain);
+      return { match: previewMatch(payload, { eighty: 80, zero: 0, unknown: null }[payload.candidate.source_id]) };
+    } });
+    assert.match(harness.render(), /Calculating JD match/);
+    harness.select('zero');
+    await harness.flush();
+    assert.deepEqual(harness.candidates().map((item) => item.source_id), ['existing', 'eighty', 'zero', 'unknown']);
+    assert.deepEqual(harness.selectedIds(), ['zero']);
+    const html = harness.node('results').innerHTML;
+    assert.match(html, /80% requirement support/);
+    assert.match(html, /0% requirement support/);
+    assert.match(html, /Fit not yet assessable/);
+    assert.doesNotMatch(html, /Calculating JD match/);
+    assert.equal(harness.calls.length, 3, 'a valid current score is reused');
+    harness.render();
+    await harness.flush();
+    assert.equal(harness.calls.length, 3, 'unavailable and completed results are settled, not retried on render');
+    assert.equal(harness.confirmations.length, 0);
+    assert.equal(harness.alerts.length, 0);
+    assert.ok(harness.candidates().every((item) => !item.devready_profile_id));
+  });
+}
+
+test('automatic saved TEMP preview never uses a mutating saved-match or enrichment endpoint', async () => {
+  const previous = { ...match, jobId: 'other-job', score: 91 };
+  const harness = fixture({ auto: true, candidate: unscoredPerson('saved', {
+    devready_profile_id: '42', devready_profile_complete: true, saved_match: previous,
+    interest_workflow: { status: 'contacting' },
+  }), api: async (url, options) => {
+    assert.equal(url, '/api/azureJobs/external/calculate-match');
+    return { match: previewMatch(JSON.parse(options.body), 75) };
+  } });
+  harness.render();
+  await harness.flush();
+  assert.equal(harness.candidate().match.score, 75);
+  assert.deepEqual(harness.candidate().saved_match, previous);
+  assert.equal(harness.candidate().devready_profile_id, '42');
+  assert.deepEqual(harness.candidate().interest_workflow, { status: 'contacting' });
+  assert.equal(harness.calls.length, 1);
+});
+
+test('missing JD and unverified court-only evidence never launch automatic provider or scoring requests', async () => {
+  for (const options of [
+    { job: '', candidate: unscoredPerson('no-job') },
+    { domain: 'law', candidate: unscoredPerson('court', { source: 'courtlistener', result_type: 'court_attorney_lead' }) },
+    { domain: 'law', candidate: unscoredPerson('record', { source: 'courtlistener', result_type: 'court_record_evidence' }) },
+  ]) {
+    const harness = fixture({ auto: true, ...options, api: async () => { throw new Error('No automatic calls permitted'); } });
+    harness.render();
+    await harness.flush();
+    assert.equal(harness.calls.length, 0);
+    assert.equal(harness.confirmations.length, 0);
+  }
+});
+
+test('failed automatic score stays honestly unavailable without rerender retry storms', async () => {
+  const harness = fixture({ auto: true, candidate: unscoredPerson('failure'), api: async () => { throw new Error('Synthetic score failure'); } });
+  harness.render();
+  await harness.flush();
+  assert.match(harness.node('results').innerHTML, /JD match unavailable — retry/);
+  assert.match(harness.node('results').innerHTML, /Retry JD match/);
+  assert.equal(harness.candidate().score, null);
+  for (let index = 0; index < 3; index++) { harness.render(); await harness.flush(); }
+  assert.equal(harness.calls.length, 1);
+  assert.equal(harness.alerts.length, 0);
+});
+
+test('criteria edits automatically replace an old displayed comparison using only local evidence', async () => {
+  const harness = fixture({ auto: true, api: async (url, options) => {
+    assert.equal(url, '/api/azureJobs/external/calculate-match');
+    return { match: previewMatch(JSON.parse(options.body), 25) };
+  } });
+  harness.render();
+  await harness.flush();
+  assert.equal(harness.calls.length, 0);
+  harness.context.currentLawCriteria = () => ({ requiredSkills: ['Java'], titles: ['Engineer'], ignoredCriteria: ['cities'] });
+  harness.context.window.invalidateDiscoveryMatches();
+  assert.doesNotMatch(harness.node('results').innerHTML, /50% requirement support/);
+  await harness.flush();
+  assert.match(harness.node('results').innerHTML, /25% requirement support/);
+  assert.deepEqual(harness.calls[0].body.criteria.requiredSkills, ['Java']);
+  assert.equal(harness.calls.length, 1);
+});
+
+test('explicit contact enrichment triggers one local rescore but no automatic repeat paid lookup', async () => {
+  const harness = fixture({ auto: true, candidate: { ...person, email: '' }, api: async (url, options) => {
+    if (url === '/api/azureJobs/external/enrich-result') return {
+      candidate: { ...person, skills: ['Python', 'AWS'], email: 'new@example.test' },
+      enrichment: { status: 'completed', provider: 'Synthetic provider', enrichedAt: '2026-09-10T12:00:00Z' },
+    };
+    assert.equal(url, '/api/azureJobs/external/calculate-match');
+    return { match: previewMatch(JSON.parse(options.body), 85) };
+  } });
+  harness.render();
+  await harness.flush();
+  assert.equal(harness.calls.length, 0);
+  await harness.context.requestCandidateContacts(0);
+  await harness.flush();
+  assert.deepEqual(harness.calls.map((call) => call.url), ['/api/azureJobs/external/enrich-result', '/api/azureJobs/external/calculate-match']);
+  assert.equal(harness.confirmations.length, 1);
+  assert.match(harness.node('results').innerHTML, /85% requirement support/);
+  assert.match(harness.node('results').innerHTML, /new@example.test/);
+  assert.equal(harness.candidate().devready_profile_id, undefined);
+});
+
+test('pending automatic response cannot restore a previous JD and reruns safely for the selected job', async () => {
+  let release, began;
+  const started = new Promise((resolve) => { began = resolve; });
+  const pending = new Promise((resolve) => { release = resolve; });
+  const harness = fixture({ auto: true, candidate: unscoredPerson('delayed'), api: async (url, options) => {
+    assert.equal(url, '/api/azureJobs/external/calculate-match');
+    const payload = JSON.parse(options.body);
+    if (payload.jd_id === 'jd1') { began(payload); return pending; }
+    return { match: previewMatch(payload, 30) };
+  } });
+  harness.render();
+  const finished = harness.flush();
+  const oldPayload = await started;
+  harness.node('jdSelect').value = 'jd2';
+  harness.context.window.invalidateDiscoveryMatches();
+  release({ match: previewMatch(oldPayload, 99) });
+  await finished;
+  assert.equal(harness.candidate().match.jobId, 'jd2');
+  assert.equal(harness.candidate().score, 30);
+  assert.doesNotMatch(harness.node('results').innerHTML, /99% requirement support/);
+  assert.equal(harness.calls.length, 2);
+});
+
+for (const failingStep of ['job', 'criteria']) {
+  test(`a failed ${failingStep} load blocks auto scoring with the previous JD criteria and blocks a new paid search`, async () => {
+    const harness = fixture({ auto: true, api: async (url) => {
+      if (url.includes('/getJob/')) {
+        if (failingStep === 'job') throw new Error('Synthetic job failure');
+        return { jd_id: 'jd2', title: 'New Java Engineer' };
+      }
+      if (url.includes('/external/criteria/')) throw new Error('Synthetic criteria failure');
+      throw new Error('No scoring or provider request may follow failed hydration');
+    } });
+    harness.context.rememberJob = () => {};
+    harness.render();
+    await harness.flush();
+    harness.node('jdSelect').value = 'jd2';
+    await harness.context.applySelectedExternalJob('jd2');
+    await harness.flush();
+    assert.equal(harness.run('sourcingJobLoadError'), true);
+    assert.equal(harness.context.automaticMatchContext(), null);
+    assert.match(harness.node('results').innerHTML, /Choose the job again to assess fit/);
+    await harness.context.mineCandidates();
+    assert.equal(harness.calls.length, failingStep === 'job' ? 1 : 2);
+    assert.ok(harness.calls.every((call) => /\/getJob\/|\/external\/criteria\//.test(call.url)));
+    assert.doesNotMatch(harness.node('results').innerHTML, /50% requirement support/);
+  });
+}
+
+test('slow JD and criteria hydration finishes before automatic comparison uses the new requirements', async () => {
+  let releaseJob, releaseCriteria, criteriaStarted;
+  const job = new Promise((resolve) => { releaseJob = resolve; });
+  const nextCriteria = new Promise((resolve) => { releaseCriteria = resolve; });
+  const criteriaRequest = new Promise((resolve) => { criteriaStarted = resolve; });
+  let currentCriteria = criteria;
+  const harness = fixture({ auto: true, api: async (url, options) => {
+    if (url.includes('/getJob/')) return job;
+    if (url.includes('/external/criteria/')) { criteriaStarted(); return nextCriteria; }
+    assert.equal(url, '/api/azureJobs/external/calculate-match');
+    const payload = JSON.parse(options.body);
+    assert.equal(payload.jd_id, 'jd2');
+    assert.deepEqual(payload.criteria.requiredSkills, ['Java']);
+    return { match: previewMatch(payload, 15) };
+  } });
+  harness.context.rememberJob = () => {};
+  harness.context.currentLawCriteria = () => currentCriteria;
+  harness.context.setSearchCriteria = (value) => { currentCriteria = value; };
+  harness.render();
+  await harness.flush();
+  harness.node('jdSelect').value = 'jd2';
+  const selection = harness.context.applySelectedExternalJob('jd2');
+  harness.context.window.invalidateDiscoveryMatches();
+  await harness.flush();
+  assert.equal(harness.calls.length, 1);
+  assert.equal(harness.context.automaticMatchContext(), null);
+  releaseJob({ jd_id: 'jd2', title: 'Java Engineer' });
+  await criteriaRequest;
+  await harness.flush();
+  assert.equal(harness.calls.length, 2);
+  assert.equal(harness.context.automaticMatchContext(), null);
+  releaseCriteria({ criteria: { requiredSkills: ['Java'], titles: ['Engineer'] } });
+  await selection;
+  await harness.flush();
+  assert.equal(harness.run('sourcingJobLoadError'), false);
+  assert.equal(harness.calls.length, 3);
+  assert.equal(harness.candidate().match.jobId, 'jd2');
+  assert.match(harness.node('results').innerHTML, /15% requirement support/);
 });
 
 // Preserve nested details/divs in fixtures instead of truncating at the first close tag.
