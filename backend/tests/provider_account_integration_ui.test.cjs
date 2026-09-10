@@ -43,9 +43,9 @@ for (const pageName of ['mine-candidate-external.html', 'temp-profiles.html']) {
 
 test('Find Out refreshes after search, next page, cached results and contact lookup without changing search audit totals', () => {
   const page = fs.readFileSync(path.join(pages, 'mine-candidate-external.html'), 'utf8');
-  assert.match(page, /paginationLoading = false;\s*renderResultPager\(\);\s*refreshProviderCredits\(true\)/);
+  assert.match(page, /if \(activeExternalSearch === pageSearch\) paginationLoading = false;\s*if \(isCurrent\(\)\) renderResultPager\(\);\s*refreshProviderCredits\(true\)/);
   assert.match(page, /externalSearchRunning = false;\s*updateBulkLinkedProfileControls\(\);\s*updateWorkflowGuidance\(\);\s*refreshProviderCredits\(true\)/);
-  assert.match(page, /\.finally\(\(\) => \{\s*if \(!externalBulkEnrichmentRunning\) refreshProviderCredits\(true\)/);
+  assert.match(page, /\.finally\(\(\) => \{\s*sourcingContactOperations--;\s*if \(!externalBulkEnrichmentRunning\) refreshProviderCredits\(true\)/);
   assert.match(page, /externalBulkEnrichmentRunning = false;\s*updateBulkLinkedProfileControls\(\);\s*updateWorkflowGuidance\(\);\s*refreshProviderCredits\(true\)/);
   assert.match(page, /Search balance at retrieval/);
   assert.match(page, /DevReadyProviderUsage\.describe\(audit\)/);

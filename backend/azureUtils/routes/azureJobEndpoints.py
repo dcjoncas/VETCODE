@@ -80,6 +80,56 @@ class PdlEnrichmentHTTPException(HTTPException):
         self.accounting = _pdl_enrichment_accounting(provider_usage, succeeded=succeeded)
 
 
+def _archived_enrichment_context(payload: dict, candidate: dict, domain: str):
+    """Use a server-owned result for archive-linked calls, not client fields."""
+    search_id = payload.get("search_id")
+    if search_id in (None, ""):
+        return candidate, None
+    if isinstance(search_id, bool) or not str(search_id).isascii() or not str(search_id).isdigit() or int(search_id) < 1:
+        raise HTTPException(status_code=400, detail="A valid saved search id is required.")
+    identity = externalSearchHistory.candidate_archive_identity(candidate)
+    if identity is None:
+        raise HTTPException(status_code=400, detail="A provider identity is required to preserve this candidate in the archive.")
+    try:
+        group = externalSearchHistory.get_search_group(search_id, domain)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Saved-search storage is unavailable. The provider was not contacted.") from exc
+    if not group:
+        raise HTTPException(status_code=404, detail="Saved search not found in this workspace. The provider was not contacted.")
+    archived = next((
+        row for page in group.get("pages", [])
+        for row in (page.get("response") or {}).get("results", [])
+        if externalSearchHistory.candidate_archive_identity(row) == identity
+    ), None)
+    if archived is None:
+        raise HTTPException(status_code=404, detail="Candidate not found in this saved search. The provider was not contacted.")
+    # Old browser-only enrichment cannot be safely promoted into trusted history.
+    # Also do not charge again merely because that browser result was not saved.
+    has_validation = lambda value: isinstance(value.get("profile_validation"), dict) and value["profile_validation"].get("status") in {"confirmed_profile_match", "needs_review", "no_match"}
+    if ((_reusable_external_result_enrichment(candidate) and not _reusable_external_result_enrichment(archived))
+            or (has_validation(candidate) and not has_validation(archived))):
+        raise HTTPException(status_code=409, detail="This browser has enrichment that is not in the saved archive. Keep or create its TEMP profile before clearing the view; no provider request was made.")
+    server_candidate = json.loads(json.dumps(archived, default=str))
+    return server_candidate, {"searchId": group["metadata"]["rootId"], "domain": domain, "candidate": server_candidate}
+
+
+def _preserve_archived_enrichment(response: dict, context):
+    if context is None:
+        return response
+    state = {"status": "saved", "searchId": context["searchId"]}
+    if not response.get("reused"):
+        try:
+            externalSearchHistory.preserve_candidate_enrichment(
+                context["searchId"], context["domain"], context["candidate"], response["candidate"],
+            )
+        except Exception:
+            # Keep the completed provider result and its accounting available to
+            # the browser; retrying the paid lookup is not an archive-save fix.
+            state.update(status="failed", notice="The provider lookup finished, but its updated candidate could not be saved to the search archive. Keep this view or create a TEMP profile before refreshing. Do not repeat the paid lookup to save it.")
+    response["archivePersistence"] = state
+    return response
+
+
 def _domain_key(domain: str = "dev") -> str:
     value = re.sub(r"[\s_-]+", " ", (domain or "dev").strip().lower())
     if value in {"technology", "tech", "devready", "dev"}:
@@ -2876,6 +2926,9 @@ def external_court_lead_validate_profile(payload: dict = Body(...)):
     candidate = payload.get("candidate") if isinstance(payload.get("candidate"), dict) else {}
     if candidate.get("source") != "courtlistener" or candidate.get("result_type") != "court_attorney_lead":
         raise HTTPException(status_code=400, detail="Select a CourtListener lawyer lead first.")
+    candidate, archive_context = _archived_enrichment_context(payload, candidate, domain)
+    if candidate.get("result_type") != "court_attorney_lead":
+        raise HTTPException(status_code=400, detail="The archived result is not a CourtListener lawyer lead. The provider was not contacted.")
 
     previous_validation = (
         candidate.get("profile_validation")
@@ -2888,7 +2941,7 @@ def external_court_lead_validate_profile(payload: dict = Body(...)):
         "no_match",
     }:
         scoring_ready = previous_validation.get("status") == "confirmed_profile_match"
-        return {
+        return _preserve_archived_enrichment({
             "candidate": candidate,
             "profileValidation": previous_validation,
             "reused": True,
@@ -2902,7 +2955,7 @@ def external_court_lead_validate_profile(payload: dict = Body(...)):
                 )
             ),
             "linkedinScraped": False,
-        }
+        }, archive_context)
 
     name = _external_text(candidate.get("name"), 160)
     if len(_person_name_tokens(name)) < 2:
@@ -2955,14 +3008,14 @@ def external_court_lead_validate_profile(payload: dict = Body(...)):
             ),
             "linkedinMode": "Provider dataset lookup only; LinkedIn was not scraped.",
         }
-        return {
+        return _preserve_archived_enrichment({
             "candidate": {**candidate, "profile_validation": validation},
             "profileValidation": validation,
             "reused": False,
             **_pdl_enrichment_accounting(response.get("provider_usage")),
             "usedForCandidateScoring": False,
             "linkedinScraped": False,
-        }
+        }, archive_context)
 
     raw_profile = dict(response["data"])
     mapped = _people_data_row(raw_profile, job_skills, search_skills, criteria)
@@ -3067,7 +3120,7 @@ def external_court_lead_validate_profile(payload: dict = Body(...)):
         "linkedinMode": "Provider dataset lookup only; LinkedIn was not scraped.",
     }
     enriched_candidate["profile_validation"] = validation
-    return {
+    return _preserve_archived_enrichment({
         "candidate": enriched_candidate,
         "profileValidation": validation,
         **_pdl_enrichment_accounting(response.get("provider_usage"), succeeded=True),
@@ -3075,7 +3128,7 @@ def external_court_lead_validate_profile(payload: dict = Body(...)):
         "usedForCandidateScoring": False,
         "courtEvidenceUsedForScoring": False,
         "linkedinScraped": False,
-    }
+    }, archive_context)
 
 
 def _saved_search_cache_hit(cached: dict) -> dict:
@@ -4372,8 +4425,9 @@ def external_candidate_enrich_result(payload: dict = Body(...)):
     _assert_external_source_allowed(source, domain)
     if candidate.get("devready_profile_complete") is True:
         raise HTTPException(status_code=409, detail="This result already has a DevReady TEMP profile.")
+    candidate, archive_context = _archived_enrichment_context(payload, candidate, domain)
     enriched_candidate, enrichment, reused = _enrich_external_result_candidate(candidate)
-    return {
+    return _preserve_archived_enrichment({
         "status": "success",
         "candidate": enriched_candidate,
         "enrichment": enrichment,
@@ -4383,7 +4437,7 @@ def external_candidate_enrich_result(payload: dict = Body(...)):
         }) if source == "pdl" else {"creditsUsed": 0 if reused else int(enrichment.get("creditsUsed") or 0)}),
         "temporaryProfileCreated": False,
         "linkedinScraped": False,
-    }
+    }, archive_context)
 
 
 @router.post("/external/import")

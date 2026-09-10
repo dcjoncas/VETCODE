@@ -2,11 +2,100 @@ import hashlib
 import json
 import re
 from datetime import date, datetime, timezone
+from copy import deepcopy
+from urllib.parse import urlparse
 
 import azureUtils.storage.client as client
 
 
 _TABLES_READY = False
+
+# Only server-produced candidate enrichment may be merged into an existing
+# result. Search inputs, source audit, billing totals and other rows stay intact.
+_ENRICHMENT_FIELDS = frozenset({
+    "source_label", "name", "email", "phone", "title", "company", "location",
+    "profile_url", "professional_profile_url", "avatar_url", "summary", "skills",
+    "years_experience", "years_experience_known", "job_last_verified", "contact",
+    "profile_data", "verification", "external_enrichment", "profile_validation",
+    "professional_enrichment_complete", "enrichment_provider", "match_pending",
+    "score", "match", "saved_match", "match_band", "score_details", "top_matches",
+})
+
+
+def candidate_archive_identity(candidate: dict):
+    """Match by provider identity, never by a potentially ambiguous name."""
+    if not isinstance(candidate, dict):
+        return None
+    source = str(candidate.get("source") or "").strip().lower()
+    if source not in {"pdl", "coresignal", "courtlistener"}:
+        return None
+    source_id = str(candidate.get("source_id") or "").strip()
+    if source_id:
+        return source, "id", source_id
+    value = str(candidate.get("profile_url") or "").strip()
+    try:
+        parsed = urlparse(value if "://" in value else "https://" + value)
+        if (parsed.scheme not in {"http", "https"} or parsed.username or parsed.password
+                or parsed.hostname not in {"linkedin.com", "www.linkedin.com"}
+                or not parsed.path.lower().startswith("/in/") or not parsed.path[4:].strip("/")):
+            return None
+        return source, "linkedin", parsed.path.rstrip("/").lower()
+    except ValueError:
+        return None
+
+
+def preserve_candidate_enrichment(search_id, domain: str, original: dict, enriched: dict) -> int:
+    """Update matching existing result rows atomically; never create a search."""
+    identity = candidate_archive_identity(original)
+    if identity is None:
+        raise ValueError("An archived provider identity is required.")
+    patch = {key: deepcopy(value) for key, value in enriched.items() if key in _ENRICHMENT_FIELDS}
+    # An enrichment changes its evidence. Do not retain an old fit percentage.
+    if patch.get("match_pending") is True:
+        patch.update(score=None, match=None, saved_match=None)
+    ensure_tables()
+    conn = client.getConnection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "SELECT COALESCE(parent_id, id) FROM external_search_history WHERE id = %s AND domain = %s",
+            (int(search_id), domain),
+        )
+        root = cur.fetchone()
+        if not root:
+            raise ValueError("The saved search is no longer available in this workspace.")
+        root_id = int(root[0])
+        cur.execute(
+            "SELECT id, response_payload FROM external_search_history "
+            "WHERE domain = %s AND (id = %s OR parent_id = %s) ORDER BY id FOR UPDATE",
+            (domain, root_id, root_id),
+        )
+        changed = 0
+        for row_id, stored in cur.fetchall():
+            response = deepcopy(stored) if isinstance(stored, dict) else json.loads(stored or "{}")
+            results = response.get("results")
+            if not isinstance(results, list):
+                continue
+            row_changed = False
+            for index, candidate in enumerate(results):
+                if candidate_archive_identity(candidate) == identity:
+                    results[index] = {**candidate, **deepcopy(patch)}
+                    row_changed = True
+                    changed += 1
+            if row_changed:
+                cur.execute(
+                    "UPDATE external_search_history SET response_payload = %s::jsonb WHERE id = %s AND domain = %s",
+                    (json.dumps(response, default=str), row_id, domain),
+                )
+        if not changed:
+            raise ValueError("The candidate is no longer in this saved search.")
+        conn.commit()
+        return changed
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def _safe_part(value, limit: int = 90) -> str:

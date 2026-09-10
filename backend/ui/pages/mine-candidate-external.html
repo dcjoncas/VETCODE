@@ -990,17 +990,17 @@
 
           <section class="saved-search-panel" aria-labelledby="savedSearchTitle">
             <div class="saved-search-control">
-              <h3 id="savedSearchTitle">Saved sourcing searches</h3>
-              <p class="muted">Reopen saved results without contacting the provider or using another search credit.</p>
-              <select id="savedSearchSelect" aria-label="Saved sourcing searches">
+              <h3 id="savedSearchTitle">Search archive</h3>
+              <p class="muted">Refresh starts a new search. Reopen previous results here without another provider search.</p>
+              <select id="savedSearchSelect" aria-label="Archived sourcing searches">
                 <option value="">No saved searches loaded</option>
               </select>
               <small id="activeSavedSearchName">Every completed query is saved as JD_Client_Date_QRY.</small>
             </div>
             <div class="saved-search-actions">
-              <a class="btn secondary" href="saved-searches.html">View full library</a>
+              <a class="btn secondary" id="openSearchArchive" href="saved-searches.html">Open search archive</a>
               <button class="btn secondary" id="btnOpenSavedSearch" type="button" disabled>Open saved results</button>
-              <a class="btn secondary" id="btnExportSearchReport" aria-disabled="true">Export ranked report</a>
+              <a class="btn secondary" id="btnExportSearchReport" aria-disabled="true">Export open results</a>
             </div>
           </section>
 
@@ -1216,6 +1216,8 @@
             Select a JD and source to begin.
           </div>
           <div id="latestTempProfilePanel" class="notice" style="margin-top: 10px; display: none"></div>
+          <div id="archivePersistenceStatus" class="verification-note" role="status" hidden></div>
+          <div id="browserPersistenceStatus" class="verification-note" role="status" hidden></div>
 
           <div id="sourceAudit" class="source-audit" aria-label="Source audit" hidden>
             <div class="source-audit-item"><span>Provider</span><strong id="auditProvider">Not run</strong></div>
@@ -1311,6 +1313,10 @@
       let externalImportRunning = false;
       let savedExternalSearches = [];
       let activeSavedSearch = null;
+      let sourcingPersistenceFailed = false;
+      let sourcingArchiveRevision = 0;
+      let sourcingArchiveLoading = false;
+      let sourcingContactOperations = 0;
       let searchCriteriaRegion = "";
       let ignoredCriteriaGroups = new Set();
 
@@ -1460,6 +1466,13 @@
         } else {
           sessionStorage.removeItem(activeSearchKey);
         }
+        // The URL tracks loaded results, never a dropdown choice. Replace keeps
+        // browser history intact while allowing Back to identify this search.
+        const params = new URLSearchParams(window.location.search);
+        if (searchId) params.set("savedSearchId", searchId);
+        else params.delete("savedSearchId");
+        const query = params.toString();
+        window.history.replaceState(window.history.state, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash || ""}`);
         if (typeof window.updateProcessTrailState === "function") window.updateProcessTrailState();
         const exportUrl = searchId
           ? `/api/azureJobs/external/search-history/${encodeURIComponent(searchId)}/export?domain=${encodeURIComponent(currentDomain())}`
@@ -1543,22 +1556,35 @@
         openButton.disabled = !select.value;
       }
 
-      async function loadSavedSearchHistory() {
+      async function loadSavedSearchHistory(isCurrent = () => true) {
         const response = await api(
           `/api/azureJobs/external/search-history?domain=${encodeURIComponent(currentDomain())}&limit=100`,
         );
+        if (!isCurrent()) return;
         savedExternalSearches = Array.isArray(response.searches) ? response.searches : [];
         renderSavedSearches();
       }
 
-      async function openSavedSearch() {
-        const searchId = document.getElementById("savedSearchSelect")?.value || "";
+      async function openSavedSearch(searchId = document.getElementById("savedSearchSelect")?.value || "") {
         if (!searchId) return;
+        if (sourcingContactOperations || paginationLoading || externalSearchRunning || externalBulkEnrichmentRunning || externalImportRunning) {
+          document.getElementById("mineStatus").textContent = "Finish the current candidate action before opening a different archived search.";
+          return;
+        }
+        const revision = ++sourcingArchiveRevision;
+        const archiveDomain = currentDomain();
+        sourcingArchiveLoading = true;
         document.getElementById("mineStatus").textContent = "Opening saved results without contacting the provider...";
         try {
           const response = await api(
-            `/api/azureJobs/external/search-history/${encodeURIComponent(searchId)}?domain=${encodeURIComponent(currentDomain())}`,
+            `/api/azureJobs/external/search-history/${encodeURIComponent(searchId)}?domain=${encodeURIComponent(archiveDomain)}`,
           );
+          if (revision !== sourcingArchiveRevision || archiveDomain !== currentDomain()) return;
+          const saved = response.savedSearch || {};
+          if (!savedExternalSearches.some((item) => String(item.rootId || item.id) === String(saved.rootId || saved.id))) {
+            savedExternalSearches.unshift(saved);
+          }
+          response.results = mergeArchivedBrowserResults(response.results || [], readArchivedSourcingView(searchId));
           latestExternalResults = rankExternalResults(response.results || []);
           externalSearchCompleted = true;
           resetExternalPagination();
@@ -1570,6 +1596,9 @@
           if (response.jd?.jd_id) {
             rememberJob(String(response.jd.jd_id), response.jd);
             externalJobPicker?.setSelection(String(response.jd.jd_id), response.jd, { dispatch: false });
+          } else {
+            externalJobPicker?.clear({ dispatch: false });
+            document.getElementById("jdSelect").value = "";
           }
           renderSourceAudit(cumulativeSourceAudit);
           renderResults(latestExternalResults);
@@ -1579,12 +1608,18 @@
             : `Saved direct search: ${response.savedQuery?.directQuery || (response.searchSkills || []).join(", ")}`;
           document.getElementById("mineStatus").textContent =
             `Loaded ${latestExternalResults.length} saved result${latestExternalResults.length === 1 ? "" : "s"} from ${response.savedSearch?.queryName || "the saved query"}. The provider was not contacted and 0 search credits were used.`;
+          renderSavedSearches();
           persistSourcingViewState();
         } catch (error) {
-          document.getElementById("mineStatus").textContent = `Saved search could not be opened: ${error.message || error}`;
+          if (revision === sourcingArchiveRevision && archiveDomain === currentDomain()) {
+            document.getElementById("mineStatus").textContent = `Saved search could not be opened: ${error.message || error}`;
+          }
         } finally {
-          updateWorkflowGuidance();
-          refreshProviderCredits();
+          if (revision === sourcingArchiveRevision) {
+            sourcingArchiveLoading = false;
+            updateWorkflowGuidance();
+            refreshProviderCredits();
+          }
         }
       }
 
@@ -1844,6 +1879,7 @@
 
       function configureDomainPage() {
         document.getElementById("reviewAllInterestedCandidates").href = `interested-candidates.html?domain=${encodeURIComponent(currentDomain())}`;
+        document.getElementById("openSearchArchive").href = `saved-searches.html?domain=${encodeURIComponent(currentDomain())}`;
         setSearchCriteria({
           titles: [],
           mustHaveSkills: [],
@@ -1932,12 +1968,12 @@
         refreshSearchCriteriaStatus();
       }
 
-      async function loadSearchCriteria(jdId) {
+      async function loadSearchCriteria(jdId, isCurrent = () => true) {
         if (!jdId) return;
         const response = await api(
           `/api/azureJobs/external/criteria/${encodeURIComponent(jdId)}?domain=${encodeURIComponent(currentDomain())}`,
         );
-        setSearchCriteria(response.criteria || {});
+        if (isCurrent()) setSearchCriteria(response.criteria || {});
       }
 
       function appendSearchCriteria(formData) {
@@ -1998,6 +2034,155 @@
         return `externalSourcingView:${currentDomain()}`;
       }
 
+      function sourcingNavigationType() {
+        try {
+          const type = window.performance?.getEntriesByType?.("navigation")?.[0]?.type;
+          if (type) return type;
+          const legacy = window.performance?.navigation?.type;
+          return legacy === 1 ? "reload" : legacy === 2 ? "back_forward" : "navigate";
+        } catch { return "navigate"; }
+      }
+
+      function sourcingArchiveKey(searchId) {
+        return `externalSourcingArchive:${currentDomain()}:${encodeURIComponent(searchId)}`;
+      }
+
+      function readArchivedSourcingView(searchId) {
+        try {
+          const snapshot = JSON.parse(sessionStorage.getItem(sourcingArchiveKey(searchId)) || "null");
+          return snapshot?.version === 1 && snapshot.domain === currentDomain()
+            && String(snapshot.activeSavedSearch?.rootId || snapshot.activeSavedSearch?.id || "") === String(searchId)
+            && Array.isArray(snapshot.results) ? snapshot : null;
+        } catch { return null; }
+      }
+
+      function mergeArchivedBrowserResults(results, snapshot) {
+        // Preserve legacy browser-only contact lookups, but never insert a person
+        // absent from the server archive or replace newer server enrichment.
+        if (!snapshot) return results;
+        const identity = (row) => {
+          const source = String(row?.source || "").trim().toLowerCase();
+          if (!["pdl", "coresignal", "courtlistener"].includes(source)) return "";
+          const id = String(row?.source_id || "").trim();
+          if (id) return JSON.stringify([source, "id", id]);
+          try {
+            const raw = String(row?.profile_url || "").trim();
+            const url = new URL(raw.includes("://") ? raw : `https://${raw}`);
+            if (!["http:", "https:"].includes(url.protocol) || url.username || url.password
+              || !["linkedin.com", "www.linkedin.com"].includes(url.hostname)
+              || !/^\/in\/[^/]+\/?$/i.test(url.pathname)) return "";
+            return JSON.stringify([source, "linkedin", url.pathname.replace(/\/$/, "").toLowerCase()]);
+          } catch { return ""; }
+        };
+        const fields = ["email", "phone", "contact", "profile_url", "professional_profile_url",
+          "external_enrichment", "professional_enrichment_complete", "enrichment_provider", "profile_validation",
+          "profile_data", "summary", "title", "company", "location", "skills", "years_experience",
+          "years_experience_known", "avatar_url", "verification", "job_last_verified"];
+        const local = new Map(snapshot.results.map((row) => [identity(row), row]).filter(([key]) => key));
+        const enrichedAt = (row) => Math.max(
+          Date.parse(row?.external_enrichment?.enrichedAt || "") || 0,
+          Date.parse(row?.profile_validation?.checkedAt || "") || 0,
+        );
+        return results.map((row) => {
+          const previous = local.get(identity(row));
+          if (!previous || enrichedAt(previous) <= enrichedAt(row)) return row;
+          const patch = Object.fromEntries(fields.filter((key) => Object.hasOwn(previous, key)).map((key) => [key, previous[key]]));
+          return { ...row, ...patch, match: null, saved_match: null, score: null, match_pending: true, archive_persistence_failed: true };
+        });
+      }
+
+      function renderArchivePersistenceStatus() {
+        const notice = document.getElementById("archivePersistenceStatus");
+        if (!notice) return;
+        notice.hidden = !latestExternalResults.some((candidate) => candidate.archive_persistence_failed);
+        notice.textContent = notice.hidden ? "" : "Some returned contact details could not be saved to the server archive. They are kept in this browser view; save those TEMP profiles before closing the browser. Do not repeat the paid lookup.";
+      }
+
+      function prepareSourcingStartup() {
+        const reload = sourcingNavigationType() === "reload";
+        const snapshot = readSourcingViewState();
+        const params = new URLSearchParams(window.location.search);
+        const explicitId = params.get("savedSearchId") || "";
+        if (reload) {
+          try {
+            if (snapshot?.results?.length) {
+              const archiveId = snapshot.activeSavedSearch?.rootId || snapshot.activeSavedSearch?.id;
+              if (!archiveId) throw new Error("This result has no saved archive yet.");
+              // Copy before clearing: a full browser store must never lose paid
+              // enrichment returned before durable archive updates were added.
+              sessionStorage.setItem(sourcingArchiveKey(archiveId), JSON.stringify(snapshot));
+            }
+            sessionStorage.removeItem(sourcingViewStorageKey());
+            sessionStorage.removeItem(`activeSourcingSearch:${currentDomain()}`);
+            sessionStorage.removeItem(`workflowRestoreRequested:${currentDomain()}`);
+          } catch {
+            return { reload, savedView: snapshot, requestedSearchId: "", preservationFailed: true };
+          }
+          if (explicitId) {
+            params.delete("savedSearchId");
+            const query = params.toString();
+            window.history.replaceState(window.history.state, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+          }
+          return { reload, savedView: null, requestedSearchId: "", preservationFailed: false };
+        }
+        const snapshotId = String(snapshot?.activeSavedSearch?.rootId || snapshot?.activeSavedSearch?.id || "");
+        return {
+          reload, preservationFailed: false,
+          savedView: explicitId && explicitId !== snapshotId ? null : snapshot,
+          requestedSearchId: explicitId || sessionStorage.getItem(`activeSourcingSearch:${currentDomain()}`) || "",
+        };
+      }
+
+      async function initializeSourcingView() {
+        const startupRevision = sourcingArchiveRevision;
+        const startupDomain = currentDomain();
+        const isCurrent = () => startupRevision === sourcingArchiveRevision && startupDomain === currentDomain();
+        const startup = prepareSourcingStartup();
+        const savedView = startup.savedView;
+        if (startup.reload && !startup.preservationFailed) {
+          document.getElementById("externalSearchInput").value = "";
+          document.getElementById("topK").value = "10";
+          externalJobPicker?.clear({ dispatch: false });
+          document.getElementById("jdSelect").value = "";
+          document.getElementById("searchCriteriaPanel").open = false;
+          document.getElementById("mineStatus").textContent = "Ready for a new search. Previous results are available in Search archive above.";
+          window.history.scrollRestoration = "manual";
+          window.scrollTo(0, 0);
+          window.addEventListener("pageshow", () => {
+            window.scrollTo(0, 0);
+            window.history.scrollRestoration = "auto";
+          }, { once: true });
+        }
+        if (!startup.reload || startup.preservationFailed) {
+          await hydrateSavedJobSelection({
+            isCurrent,
+            preserveView: Boolean(savedView?.results?.length),
+            ...(savedView && Object.hasOwn(savedView, "jobId") ? { jobId: savedView.jobId } : {}),
+          });
+        }
+        if (!isCurrent()) return;
+        const restoredView = restoreSourcingViewState(savedView);
+        if (!restoredView) updateSelectedEnrichmentCount();
+        if (startup.preservationFailed) {
+          document.getElementById("mineStatus").textContent = "Refresh could not preserve the local contact details, so your results were kept. Export or save the profiles before starting over.";
+        }
+        try {
+          await loadSavedSearchHistory(isCurrent);
+        } catch (error) {
+          if (!isCurrent()) return;
+          document.getElementById("savedSearchSelect").innerHTML = '<option value="">Archive list unavailable</option>';
+          document.getElementById("activeSavedSearchName").textContent = `Search archive list unavailable: ${error.message || error}`;
+        }
+        if (!isCurrent()) return;
+        // An explicit archive link works even when older than the newest100
+        // dropdown entries, or the list endpoint is temporarily unavailable.
+        if (!restoredView && startup.requestedSearchId) {
+          await openSavedSearch(startup.requestedSearchId);
+          restoreSourcingScroll(savedView);
+        }
+        updateWorkflowGuidance();
+      }
+
       function criteriaPickerOpenGroups() {
         return [...document.querySelectorAll("#searchCriteriaPanel [data-criteria-card]")]
           .filter((card) => card.querySelector("details.criteria-picker")?.open)
@@ -2005,16 +2190,39 @@
           .filter(Boolean);
       }
 
+      function warnBeforeLeavingSourcing(event) {
+        if (!sourcingPersistenceFailed) return;
+        event.preventDefault();
+        event.returnValue = "";
+      }
+
+      function setSourcingPersistenceWarning(failed) {
+        sourcingPersistenceFailed = failed;
+        const notice = document.getElementById("browserPersistenceStatus");
+        if (notice) {
+          notice.hidden = !failed;
+          notice.textContent = failed ? "The browser could not preserve the latest view. The last saved view and server archive were kept. Save unsaved contact details as TEMP profiles before leaving this page." : "";
+        }
+        // Do not impair normal Back/Forward caching; guard unload only while an
+        // actual storage failure leaves current browser changes unprotected.
+        if (failed) window.addEventListener?.("beforeunload", warnBeforeLeavingSourcing);
+        else window.removeEventListener?.("beforeunload", warnBeforeLeavingSourcing);
+      }
+
       function persistSourcingViewState() {
         const searchId = String(activeSavedSearch?.rootId || activeSavedSearch?.id || "");
         if (!latestExternalResults.length && !searchId) {
-          sessionStorage.removeItem(sourcingViewStorageKey());
+          try {
+            sessionStorage.removeItem(sourcingViewStorageKey());
+            setSourcingPersistenceWarning(false);
+          } catch { setSourcingPersistenceWarning(true); }
           return;
         }
         const snapshot = {
           version: 1,
           domain: currentDomain(),
           savedAt: new Date().toISOString(),
+          jobId: selectedWorkflowJobId(),
           selectedSource,
           directSearch: document.getElementById("externalSearchInput")?.value || "",
           topK: document.getElementById("topK")?.value || "10",
@@ -2034,16 +2242,11 @@
         };
         try {
           sessionStorage.setItem(sourcingViewStorageKey(), JSON.stringify(snapshot));
+          setSourcingPersistenceWarning(false);
         } catch {
-          try {
-            sessionStorage.removeItem(sourcingViewStorageKey());
-            sessionStorage.setItem(sourcingViewStorageKey(), JSON.stringify({
-              ...snapshot,
-              results: [],
-              activeExternalSearch: null,
-              storageLimited: true,
-            }));
-          } catch {}
+          // setItem is atomic. Keep the last complete snapshot instead of
+          // deleting it to fit an empty/truncated replacement.
+          setSourcingPersistenceWarning(true);
         }
       }
 
@@ -2457,6 +2660,13 @@
             workflowStatus: "Interested - Profile Build next",
           },
         );
+      }
+
+      function currentCandidateResultIndex(candidate) {
+        return latestExternalResults.findIndex((row) => row === candidate || (
+          candidate?.source_id && row.source === candidate.source
+          && String(row.source_id) === String(candidate.source_id)
+        ));
       }
 
       async function persistCandidateInterestToProfile(candidate, profileId, status) {
@@ -3060,7 +3270,13 @@
       }
 
       async function loadMoreExternalCandidates() {
-        if (paginationLoading || !activeExternalSearch || !nextExternalScrollToken) return;
+        if (paginationLoading || sourcingArchiveLoading || sourcingContactOperations || externalSearchRunning || externalBulkEnrichmentRunning || externalImportRunning || !activeExternalSearch || !nextExternalScrollToken) return;
+        const pageSearch = activeExternalSearch;
+        const pageRevision = sourcingArchiveRevision;
+        const pageDomain = currentDomain();
+        const pageArchiveId = String(activeSavedSearch?.rootId || activeSavedSearch?.id || "");
+        const isCurrent = () => activeExternalSearch === pageSearch && pageRevision === sourcingArchiveRevision
+          && pageDomain === currentDomain() && pageArchiveId === String(activeSavedSearch?.rootId || activeSavedSearch?.id || "");
         paginationLoading = true;
         renderResultPager();
         const pageSize = Number(activeExternalSearch.pageSize || 0);
@@ -3071,10 +3287,11 @@
           `Loading up to ${pageSize} more ${providerName} results (${costLabel})...`;
 
         try {
-          const response = await api(activeExternalSearch.endpoint, {
+          const response = await api(pageSearch.endpoint, {
             method: "POST",
             body: buildNextPageForm(),
           });
+          if (!isCurrent()) return;
           const pageResults = response.results || [];
           const preservedCandidateKeys = selectedCandidateKeys();
           const firstAddedKey = candidateResultKey(pageResults[0]);
@@ -3101,11 +3318,12 @@
             });
           }
         } catch (error) {
+          if (!isCurrent()) return;
           document.getElementById("mineStatus").textContent =
             `Next page was not loaded: ${error.message || error}`;
         } finally {
-          paginationLoading = false;
-          renderResultPager();
+          if (activeExternalSearch === pageSearch) paginationLoading = false;
+          if (isCurrent()) renderResultPager();
           refreshProviderCredits(true);
         }
       }
@@ -3186,7 +3404,9 @@
       }
 
       async function hydrateSavedJobSelection(options = {}) {
+        const isCurrent = options.isCurrent || (() => true);
         const savedJdId =
+          Object.hasOwn(options, "jobId") ? String(options.jobId || "") :
           sessionStorage.getItem("selectedJdId") ||
           sessionStorage.getItem("jdId") ||
           sessionStorage.getItem("jobId") ||
@@ -3197,6 +3417,7 @@
           const jd = await api(
             `/api/azureJobs/getJob/${encodeURIComponent(savedJdId)}?domain=${encodeURIComponent(currentDomain())}`,
           );
+          if (!isCurrent()) return;
           const label = `${jd.company ? jd.company + " - " : ""}${jd.title || savedJdId}`;
           if (externalJobPicker) {
             externalJobPicker.setSelection(savedJdId, jd, { dispatch: false });
@@ -3207,14 +3428,16 @@
           }
           rememberJob(savedJdId, jd);
           if (options.preserveView !== true) {
-            await loadSearchCriteria(savedJdId);
+            await loadSearchCriteria(savedJdId, isCurrent);
+            if (!isCurrent()) return;
             document.getElementById("mineStatus").textContent =
               `JD loaded: ${label}. Choose a configured source, then Find Candidates (Out).`;
           }
         } catch (error) {
+          if (!isCurrent()) return;
           console.log("Could not auto-load selected JD: " + (error.message || error));
         } finally {
-          updateWorkflowGuidance();
+          if (isCurrent()) updateWorkflowGuidance();
         }
       }
 
@@ -3321,6 +3544,10 @@
       }
 
       async function validateCourtLeadProfile(index) {
+        if (sourcingArchiveLoading || externalSearchRunning) {
+          document.getElementById("mineStatus").textContent = "Wait for the current search to finish loading before validating a profile.";
+          return;
+        }
         const candidate = latestExternalResults[index];
         const panel = document.getElementById(`profile-validation-${index}`);
         const button = document.querySelector(`[data-profile-validation-index="${index}"]`);
@@ -3331,6 +3558,8 @@
         );
         if (!approved) return;
 
+        sourcingContactOperations++;
+        const archiveId = String(activeSavedSearch?.rootId || activeSavedSearch?.id || "");
         button.disabled = true;
         panel.hidden = false;
         panel.innerHTML = `<div class="muted">Checking the exact name against a ${escapeHtml(currentLawCriteria().region || "target-jurisdiction")}, LinkedIn-linked professional record...</div>`;
@@ -3344,11 +3573,15 @@
               jd_id: jdId,
               criteria: currentLawCriteria(),
               candidate,
+              search_id: String(activeSavedSearch?.rootId || activeSavedSearch?.id || ""),
             }),
           });
           const updatedCandidate = response.candidate || candidate;
+          updatedCandidate.archive_persistence_failed = response.archivePersistence?.status === "failed";
           const updatedCandidateKey = candidateResultKey(updatedCandidate);
-          latestExternalResults[index] = updatedCandidate;
+          const currentIndex = currentCandidateResultIndex(candidate);
+          if (currentIndex < 0 || archiveId !== String(activeSavedSearch?.rootId || activeSavedSearch?.id || "")) return;
+          latestExternalResults[currentIndex] = updatedCandidate;
           latestExternalResults = rankExternalResults(latestExternalResults);
           const rankedIndex = latestExternalResults.findIndex(
             (result) => candidateResultKey(result) === updatedCandidateKey,
@@ -3368,11 +3601,14 @@
           panel.innerHTML = `<div class="verification-note">Professional profile validation failed: ${escapeHtml(error.message || error)}</div>`;
           button.disabled = externalProviderStatus.pdl?.ready === false;
         } finally {
+          sourcingContactOperations--;
+          persistSourcingViewState();
           refreshProviderCredits(true);
         }
       }
 
       function renderResults(results, options = {}) {
+        renderArchivePersistenceStatus();
         const target = document.getElementById("results");
         if (!results.length) {
           if (!options.append) target.innerHTML = "";
@@ -3561,6 +3797,10 @@
       }
 
       async function mineCandidates() {
+        if (sourcingArchiveLoading || sourcingContactOperations || paginationLoading || externalSearchRunning) {
+          document.getElementById("mineStatus").textContent = "Finish the current archive or contact lookup before starting a new search.";
+          return;
+        }
         const jdId = document.getElementById("jdSelect").value;
         const directSearch = document.getElementById("externalSearchInput").value.trim();
         if (!jdId && !directSearch) {
@@ -3693,7 +3933,8 @@
         const status = document.getElementById("mineStatus");
         status.textContent = `Requesting contact details for ${candidate.name || "candidate"}…`;
         try {
-          await enrichExternalResultCandidate(index);
+          const response = await enrichExternalResultCandidate(index);
+          if (response?.viewChanged) return;
           renderResults(latestExternalResults, { preservedCandidateKeys: selectedCandidateKeys() });
           status.textContent = "Contact lookup finished. Review the returned details before outreach; missing fields were not supplied by the provider.";
           persistSourcingViewState();
@@ -3703,11 +3944,14 @@
       }
 
       async function enrichExternalResultCandidate(index) {
+        if (sourcingArchiveLoading || externalSearchRunning) throw new Error("Wait for the current search to finish loading before requesting contacts.");
         const candidate = latestExternalResults[index];
         if (!candidate || candidateHasReusableEnrichment(candidate)) return { reused: true };
         const endpoint = candidate.devready_profile_id
           ? `/api/azureJobs/external/temp/${encodeURIComponent(candidate.devready_profile_id)}/enrich-professional`
           : "/api/azureJobs/external/enrich-result";
+        sourcingContactOperations++;
+        const archiveId = String(activeSavedSearch?.rootId || activeSavedSearch?.id || "");
         const response = await api(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -3715,20 +3959,27 @@
             domain: currentDomain(),
             source: candidate.source,
             candidate,
+            ...(!candidate.devready_profile_id && ["pdl", "coresignal"].includes(candidate.source) ? {
+              search_id: String(activeSavedSearch?.rootId || activeSavedSearch?.id || ""),
+            } : {}),
           }),
         }).finally(() => {
+          sourcingContactOperations--;
           if (!externalBulkEnrichmentRunning) refreshProviderCredits(true);
         });
         if ((!response?.candidate && !response?.personid) || response.enrichment?.status !== "completed") {
           throw new Error("The provider did not return a completed professional enrichment.");
         }
-        latestExternalResults[index] = {
+        const currentIndex = currentCandidateResultIndex(candidate);
+        if (currentIndex < 0 || archiveId !== String(activeSavedSearch?.rootId || activeSavedSearch?.id || "")) return { ...response, viewChanged: true };
+        latestExternalResults[currentIndex] = {
           ...candidate,
           ...(response.candidate || {}),
           ...(response.personid ? { email: response.email, phone: response.phone, contact: response.contact, profile_url: response.profileUrl || candidate.profile_url } : {}),
           bulk_enrichment_error: "",
           professional_enrichment_complete: true,
           external_enrichment: response.enrichment,
+          archive_persistence_failed: response.archivePersistence?.status === "failed",
           enrichment_provider: response.enrichment.provider || response.candidate?.enrichment_provider || "",
           match: null, saved_match: null, score: null,
           match_pending: true,
@@ -4087,12 +4338,8 @@
         document.getElementById("btnImportSelected").addEventListener("click", importSelectedExternalCandidates);
         document.getElementById("savedSearchSelect").addEventListener("change", function () {
           document.getElementById("btnOpenSavedSearch").disabled = !this.value;
-          const selected = savedExternalSearches.find(
-            (search) => String(search.rootId || search.id) === String(this.value),
-          );
-          if (selected) setActiveSavedSearch(selected);
         });
-        document.getElementById("btnOpenSavedSearch").addEventListener("click", openSavedSearch);
+        document.getElementById("btnOpenSavedSearch").addEventListener("click", () => openSavedSearch());
         document.getElementById("btnExportSearchReport").addEventListener("click", downloadActiveSavedSearchReport);
         document.getElementById("btnExportCurrentReport").addEventListener("click", downloadActiveSavedSearchReport);
         document.getElementById("externalSearchInput").addEventListener("keydown", (event) => {
@@ -4112,37 +4359,7 @@
           if (event.persisted) restoreSourcingScroll(readSourcingViewState());
           if (event.persisted) refreshProviderCredits(true);
         });
-        const savedView = readSourcingViewState();
-        const restoredView = restoreSourcingViewState(savedView);
-        if (!restoredView) updateSelectedEnrichmentCount();
-        hydrateSavedJobSelection({ preserveView: restoredView })
-          .then(() => loadSavedSearchHistory())
-          .then(async () => {
-            if (restoredView) {
-              renderSavedSearches();
-              return;
-            }
-            const requestedSearchId = new URLSearchParams(window.location.search).get("savedSearchId")
-              || sessionStorage.getItem(`activeSourcingSearch:${currentDomain()}`)
-              || "";
-            if (!requestedSearchId) return;
-            const selected = savedExternalSearches.find(
-              (search) => String(search.rootId || search.id) === String(requestedSearchId),
-            );
-            if (!selected) {
-              document.getElementById("mineStatus").textContent = "That saved search is not available in the current domain.";
-              return;
-            }
-            document.getElementById("savedSearchSelect").value = String(selected.rootId || selected.id);
-            setActiveSavedSearch(selected);
-            await openSavedSearch();
-            restoreSourcingScroll(savedView);
-          })
-          .catch((error) => {
-            document.getElementById("savedSearchSelect").innerHTML = '<option value="">Saved searches unavailable</option>';
-            document.getElementById("activeSavedSearchName").textContent =
-              `Saved-search storage unavailable: ${error.message || error}`;
-          });
+        initializeSourcingView();
       });
     </script>
   </body>

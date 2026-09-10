@@ -25,7 +25,7 @@ class ExternalSearchHistoryTests(unittest.TestCase):
         self.assertIn("/api/azureJobs/external/search-history", html)
         self.assertIn('fd.append("client_name", attachedAtlasClientName())', html)
         self.assertIn('activeExternalSearch.fields.push(["history_root_id"', html)
-        self.assertIn('href="saved-searches.html">View full library</a>', html)
+        self.assertIn('id="openSearchArchive" href="saved-searches.html">Open search archive</a>', html)
         self.assertIn('get("savedSearchId")', html)
         self.assertIn("downloadActiveSavedSearchReport", html)
         self.assertIn("X-VETCODE-Record-Count", html)
