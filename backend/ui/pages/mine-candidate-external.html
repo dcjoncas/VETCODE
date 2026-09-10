@@ -3764,8 +3764,8 @@
           const alreadyEnriched = candidateHasReusableEnrichment(candidate);
           const approved = confirm(
             alreadyEnriched
-              ? "Create a TEMP profile from this already enriched professional result? The saved provider response will be reused and no additional enrichment credit is expected. The JD match will not be calculated automatically."
-              : "Enrich this selected People Data Labs profile and create a TEMP profile? A successful enrichment may use 1 PDL Person Enrichment credit. The JD match will not be calculated automatically.",
+              ? "Create a TEMP profile from this already enriched professional result? The saved provider response will be reused and no additional enrichment credit is expected. Determine Interest will calculate the match to the active job."
+              : "Enrich this selected People Data Labs profile and create a TEMP profile? A successful enrichment may use 1 PDL Person Enrichment credit. Determine Interest will calculate the match to the active job.",
           );
           if (!approved) return null;
         }
@@ -3896,7 +3896,7 @@
         }).length;
         if (pdlCreditCount) {
           const approved = confirm(
-            `Enrich ${pdlCreditCount} selected People Data Labs profile${pdlCreditCount === 1 ? "" : "s"} and create TEMP profiles? This may use up to ${pdlCreditCount} PDL Person Enrichment credit${pdlCreditCount === 1 ? "" : "s"}. Already enriched results and existing TEMP profiles are reused without another enrichment call. JD matches will not be calculated automatically.`,
+            `Enrich ${pdlCreditCount} selected People Data Labs profile${pdlCreditCount === 1 ? "" : "s"} and create TEMP profiles? This may use up to ${pdlCreditCount} PDL Person Enrichment credit${pdlCreditCount === 1 ? "" : "s"}. Already enriched results and existing TEMP profiles are reused without another enrichment call. Determine Interest will calculate each match to the active job from saved evidence without provider credits.`,
           );
           if (!approved) return;
         }

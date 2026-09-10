@@ -34,6 +34,16 @@ class ExternalInterestWorkflowTests(unittest.TestCase):
         self.assertIn("Continue to Profile Build", html)
         self.assertIn('/interest`,', html)
         self.assertIn('profile.interestStatus !== "interested"', html)
+        self.assertIn("Active job", html)
+        self.assertIn("Qualification brief:", html)
+        self.assertIn("interest-match-score", html)
+        self.assertIn("profile.matchScore", html)
+        self.assertIn("profile.matchMatched", html)
+        self.assertIn("profile.matchMissing", html)
+        self.assertIn("/api/azureJobs/getJob/", html)
+        self.assertIn("calculateMissingMatches", html)
+        self.assertIn("/calculate-match`,", html)
+        self.assertIn("without provider credits", html)
 
     def test_temp_profiles_page_records_interest_before_using_candidate(self):
         html = (PAGES / "temp-profiles.html").read_text(encoding="utf-8")

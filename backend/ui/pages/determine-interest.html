@@ -79,6 +79,49 @@
         margin-top: 14px;
       }
 
+      .interest-job-context {
+        display: grid;
+        gap: 8px;
+        margin-top: 14px;
+        padding: 13px 14px;
+        border: 1px solid rgba(var(--primary-rgb), 0.28);
+        border-radius: 11px;
+        background: rgba(var(--primary-rgb), 0.07);
+      }
+
+      .interest-job-context h3,
+      .interest-job-context p {
+        margin: 0;
+      }
+
+      .interest-job-title-row,
+      .interest-evaluation {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .interest-job-title-row {
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+
+      .interest-job-skills,
+      .qualification-highlights {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .qualification-highlights span {
+        padding: 4px 8px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--card, #fff);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
       .interest-list {
         display: grid;
         gap: 12px;
@@ -102,6 +145,62 @@
       .interest-card.is-not-interested {
         opacity: 0.72;
         background: var(--surface, #f7f8fa);
+      }
+
+      .interest-evaluation {
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface, #f7f8fa);
+      }
+
+      .interest-match-score {
+        display: grid;
+        flex: 0 0 96px;
+        min-height: 82px;
+        place-content: center;
+        border-radius: 10px;
+        background: var(--primary-2);
+        color: #fff;
+        text-align: center;
+      }
+
+      .interest-match-score strong,
+      .interest-match-score span {
+        display: block;
+      }
+
+      .interest-match-score strong {
+        font-size: 25px;
+        line-height: 1;
+      }
+
+      .interest-match-score span {
+        margin-top: 5px;
+        font-size: 11px;
+        font-weight: 750;
+      }
+
+      .interest-match-score.is-pending {
+        background: #68707c;
+      }
+
+      .interest-qualification-brief {
+        display: grid;
+        flex: 1;
+        gap: 7px;
+        min-width: 0;
+      }
+
+      .interest-qualification-brief p,
+      .interest-qualification-brief details {
+        margin: 0;
+      }
+
+      .interest-qualification-brief details summary {
+        cursor: pointer;
+        color: var(--primary-2);
+        font-weight: 750;
       }
 
       .contact-channel-grid {
@@ -152,6 +251,15 @@
         .contact-channel-grid {
           grid-template-columns: 1fr;
         }
+
+        .interest-evaluation {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .interest-match-score {
+          min-height: 68px;
+        }
       }
     </style>
     <script>
@@ -186,6 +294,10 @@
             <a class="btn secondary" href="mine-candidate-external.html">Back to Find Candidates (Out)</a>
           </div>
 
+          <div id="interestJobContext" class="interest-job-context" aria-live="polite">
+            <strong>Loading the active job...</strong>
+          </div>
+
           <div class="interest-summary" aria-label="Interest batch summary">
             <div class="interest-summary-card"><span>Selected</span><strong id="interestSelectedCount">0</strong></div>
             <div class="interest-summary-card"><span>Awaiting reply</span><strong id="interestAwaitingCount">0</strong></div>
@@ -210,6 +322,8 @@
     <script src="JS/atlasClientContext.js"></script>
     <script>
       let interestProfiles = [];
+      let interestJob = null;
+      const interestMatchFailures = new Map();
 
       function currentDomain() {
         return sessionStorage.getItem("domain") || "dev";
@@ -231,6 +345,70 @@
             : currentDomain() === "engineer"
               ? "EngineerReady"
               : "DevReady";
+      }
+
+      function currentJobLabel() {
+        return [interestJob?.company || sessionStorage.getItem("jobCompany"), interestJob?.title || sessionStorage.getItem("jobTitle")]
+          .filter(Boolean)
+          .join(" - ") || currentJobId() || "No active job";
+      }
+
+      function normalizedJobSkills(job = {}) {
+        const raw = job.jd_skills ?? job.skills ?? sessionStorage.getItem("jobSkills") ?? [];
+        const values = Array.isArray(raw) ? raw : String(raw || "").split(/[,\n]/);
+        return values.map((value) => {
+          if (typeof value === "string") return value.trim();
+          if (value && typeof value === "object") {
+            return String(value.skill || value.name || value.label || value.value || "").trim();
+          }
+          return "";
+        }).filter(Boolean);
+      }
+
+      function conciseText(value, limit = 260) {
+        const clean = String(value || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+        return clean.length > limit ? `${clean.slice(0, limit - 1).trim()}…` : clean;
+      }
+
+      function renderJobContext() {
+        const panel = document.getElementById("interestJobContext");
+        const jobId = currentJobId();
+        if (!jobId) {
+          panel.innerHTML = `<div class="interest-job-title-row"><div><h3>No active job selected</h3><p class="muted">Choose a job before determining interest so every candidate can be compared with the same role.</p></div><a class="btn primary" href="job-descriptions.html?domain=${encodeURIComponent(currentDomain())}">Choose job</a></div>`;
+          return;
+        }
+        const skills = normalizedJobSkills(interestJob).slice(0, 6);
+        const summary = conciseText(interestJob?.description || interestJob?.jd_text || "", 260);
+        panel.innerHTML = `
+          <div class="interest-job-title-row">
+            <div><div class="muted">Active job</div><h3>${escapeHtml(currentJobLabel())}</h3></div>
+            <span class="pill">JD ${escapeHtml(jobId)}</span>
+          </div>
+          ${summary ? `<p>${escapeHtml(summary)}</p>` : ""}
+          ${skills.length ? `<div class="interest-job-skills" aria-label="Job priorities">${skills.map((skill) => `<span class="pill">${escapeHtml(skill)}</span>`).join("")}</div>` : ""}`;
+      }
+
+      async function loadCurrentJob() {
+        const jobId = currentJobId();
+        interestJob = null;
+        if (!jobId) {
+          renderJobContext();
+          return;
+        }
+        try {
+          interestJob = await api(`/api/azureJobs/getJob/${encodeURIComponent(jobId)}?domain=${encodeURIComponent(currentDomain())}`);
+          if (interestJob?.title) sessionStorage.setItem("jobTitle", interestJob.title);
+          if (interestJob?.company) sessionStorage.setItem("jobCompany", interestJob.company);
+          const skills = normalizedJobSkills(interestJob);
+          if (skills.length) sessionStorage.setItem("jobSkills", skills.join(", "));
+        } catch (_error) {
+          interestJob = {
+            title: sessionStorage.getItem("jobTitle") || "Selected role",
+            company: sessionStorage.getItem("jobCompany") || "",
+            skills: sessionStorage.getItem("jobSkills") || "",
+          };
+        }
+        renderJobContext();
       }
 
       function interestBatchKey() {
@@ -268,6 +446,48 @@
         return email.includes("@") || phoneDigits.length >= 7 || Boolean(linkedInUrl(profile));
       }
 
+      function profileMatchesCurrentJob(profile = {}) {
+        const jobId = currentJobId();
+        return Boolean(profile.matchCalculated === true
+          && jobId
+          && profile.matchJobId
+          && String(profile.matchJobId) === String(jobId));
+      }
+
+      function qualificationBrief(profile = {}) {
+        if (profileMatchesCurrentJob(profile) && profile.matchReason) return profile.matchReason;
+        const matched = Array.isArray(profile.matchMatched) ? profile.matchMatched.filter(Boolean) : [];
+        if (matched.length) return `Relevant evidence includes ${matched.slice(0, 3).join(", ")}.`;
+        return [profile.title, profile.location].filter(Boolean).join(" in ") || "Professional qualifications are available in the TEMP profile.";
+      }
+
+      function matchEvaluation(profile = {}) {
+        const currentMatch = profileMatchesCurrentJob(profile);
+        const numericScore = currentMatch ? Number(profile.matchScore) : Number.NaN;
+        const matched = currentMatch && Array.isArray(profile.matchMatched) ? profile.matchMatched.filter(Boolean).slice(0, 5) : [];
+        const missing = currentMatch && Array.isArray(profile.matchMissing) ? profile.matchMissing.filter(Boolean).slice(0, 6) : [];
+        const failure = interestMatchFailures.get(String(profile.personid));
+        const score = Number.isFinite(numericScore) ? `${Math.round(numericScore)}%` : currentJobId() ? "Pending" : "No JD";
+        const label = currentMatch ? (profile.matchBand || "Job match") : "Match unavailable";
+        const explanation = currentMatch
+          ? qualificationBrief(profile)
+          : failure || (currentJobId()
+            ? "This profile needs completed professional enrichment before its job match can be calculated."
+            : "Choose an active job to calculate a meaningful match percentage.");
+        return `<div class="interest-evaluation">
+          <div class="interest-match-score ${currentMatch ? "" : "is-pending"}" aria-label="${escapeHtml(score)} match to active job">
+            <strong>${escapeHtml(score)}</strong><span>${escapeHtml(label)}</span>
+          </div>
+          <div class="interest-qualification-brief">
+            <div><span class="muted">Compared with</span><br /><strong>${escapeHtml(currentJobLabel())}</strong></div>
+            <p><strong>Qualification brief:</strong> ${escapeHtml(explanation)}</p>
+            ${matched.length ? `<div class="qualification-highlights" aria-label="Qualification highlights">${matched.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>` : ""}
+            ${missing.length ? `<details><summary>Review ${missing.length} gap${missing.length === 1 ? "" : "s"}</summary><div class="muted" style="margin-top:6px">${escapeHtml(missing.join(" · "))}</div></details>` : ""}
+            ${!currentMatch && currentJobId() ? `<div><button class="btn secondary" type="button" onclick="calculateCandidateMatch('${escapeHtml(String(profile.personid))}')">Retry match</button></div>` : ""}
+          </div>
+        </div>`;
+      }
+
       function interestLabel(status) {
         return {
           contacting: "Awaiting reply",
@@ -294,8 +514,8 @@
           status: "Temporary Profile",
           profileType: "Temporary Profile",
           source: profile.source || "External",
-          score: profile.matchCalculated ? profile.matchScore : "",
-          top_matches: profile.matchCalculated ? (profile.matchMatched || []) : [],
+          score: profileMatchesCurrentJob(profile) ? profile.matchScore : "",
+          top_matches: profileMatchesCurrentJob(profile) ? (profile.matchMatched || []) : [],
           candidateInterest: "interested",
           candidateInterestRecordedAt: profile.interestConfirmedAt || new Date().toISOString(),
           workflowStatus: "Interested - Profile Build next",
@@ -335,7 +555,7 @@
         }
 
         document.getElementById("interestStatus").textContent =
-          `${selected} contact-ready candidate${selected === 1 ? " is" : "s are"} in this interest batch. VETCODE opens the contact channel you choose but does not send messages automatically.`;
+          `${selected} contact-ready candidate${selected === 1 ? " is" : "s are"} in this interest batch. ${currentJobId() ? `${interestProfiles.filter(profileMatchesCurrentJob).length}/${selected} current-job match${selected === 1 ? " is" : "es are"} visible; calculations use saved evidence without provider credits.` : "Choose an active job to show match percentages."} VETCODE opens the contact channel you choose but does not send messages automatically.`;
         list.innerHTML = interestProfiles.map((profile) => {
           const personId = String(profile.personid);
           const email = String(profile.email || "").trim();
@@ -355,6 +575,7 @@
               </div>
               <span class="pill">${escapeHtml(interestLabel(status))}</span>
             </div>
+            ${matchEvaluation(profile)}
             <div class="contact-channel-grid">
               ${contactChannel("Email", email, emailAction)}
               ${contactChannel("Phone", phone, phoneAction)}
@@ -416,13 +637,60 @@
         window.location.href = `profile-preview.html?domain=${encodeURIComponent(currentDomain())}&profileId=${encodeURIComponent(personId)}`;
       }
 
-      async function loadInterestProfiles() {
+      async function calculateCandidateMatch(personId) {
+        const profile = interestProfiles.find((item) => String(item.personid) === String(personId));
+        if (!profile || !currentJobId()) return;
+        const status = document.getElementById("interestStatus");
+        status.textContent = `Calculating ${profile.name || "candidate"}'s match to ${currentJobLabel()} from saved professional evidence...`;
+        try {
+          await api(`/api/azureJobs/external/temp/${encodeURIComponent(personId)}/calculate-match`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ domain: currentDomain(), jd_id: currentJobId() }),
+          });
+          interestMatchFailures.delete(String(personId));
+        } catch (error) {
+          interestMatchFailures.set(String(personId), error.message || String(error));
+        }
+        await loadInterestProfiles({ calculateMatches: false });
+      }
+
+      async function calculateMissingMatches() {
+        if (!currentJobId()) return false;
+        const missing = interestProfiles.filter((profile) => !profileMatchesCurrentJob(profile));
+        if (!missing.length) return false;
+        let changed = false;
+        for (let index = 0; index < missing.length; index++) {
+          const profile = missing[index];
+          document.getElementById("interestStatus").textContent =
+            `Calculating current-job match ${index + 1} of ${missing.length}: ${profile.name || "candidate"}...`;
+          try {
+            await api(`/api/azureJobs/external/temp/${encodeURIComponent(profile.personid)}/calculate-match`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ domain: currentDomain(), jd_id: currentJobId() }),
+            });
+            interestMatchFailures.delete(String(profile.personid));
+            changed = true;
+          } catch (error) {
+            interestMatchFailures.set(String(profile.personid), error.message || String(error));
+          }
+        }
+        return changed;
+      }
+
+      async function loadInterestProfiles(options = {}) {
         document.getElementById("interestStatus").textContent = "Loading contact-ready TEMP profiles...";
         try {
-          const response = await api(`/api/azureJobs/external/temp?domain=${encodeURIComponent(currentDomain())}&limit=500`);
-          const contactReady = (response.profiles || []).filter(hasContactMethod);
+          let response = await api(`/api/azureJobs/external/temp?domain=${encodeURIComponent(currentDomain())}&limit=500`);
+          let contactReady = (response.profiles || []).filter(hasContactMethod);
           const batchIds = new Set(readInterestBatchIds());
           interestProfiles = contactReady.filter((profile) => batchIds.has(String(profile.personid)));
+          if (options.calculateMatches !== false && await calculateMissingMatches()) {
+            response = await api(`/api/azureJobs/external/temp?domain=${encodeURIComponent(currentDomain())}&limit=500`);
+            contactReady = (response.profiles || []).filter(hasContactMethod);
+            interestProfiles = contactReady.filter((profile) => batchIds.has(String(profile.personid)));
+          }
           renderInterestProfiles();
         } catch (error) {
           document.getElementById("interestStatus").textContent = error.message || String(error);
@@ -435,7 +703,7 @@
         document.querySelector(".interest-page-head a").href = `mine-candidate-external.html${domainQuery}`;
         document.getElementById("btnInterestTempProfiles").href = `temp-profiles.html${domainQuery}`;
         document.getElementById("btnRefreshInterest").addEventListener("click", loadInterestProfiles);
-        loadInterestProfiles();
+        loadCurrentJob().then(loadInterestProfiles);
       });
     </script>
   </body>
