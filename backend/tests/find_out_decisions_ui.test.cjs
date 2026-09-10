@@ -198,13 +198,15 @@ if (process.env.FIND_OUT_PREVIEW_DIR) {
   ];
   const reportCard = extractMarkup(reportPage, /<section class="card">/);
   const unlockPanel = extractMarkup(reportCard, /<div id="unlockPanel">/);
-  const criteriaSamples = { Titles: 'Senior Engineer', Skills: 'Python', Cities: 'Denver', Experience: '6–9 years', Licenses: 'PMP', Arrangement: 'Remote', Workforce: 'Onshore (United States)' };
-  const criteriaPanel = extractMarkup(page, /<details\b[^>]*id="searchCriteriaPanel"[^>]*>/)
-    .replace('aria-labelledby="searchCriteriaTitle" hidden', 'aria-labelledby="searchCriteriaTitle"')
-    .replace('Review the active requirements or expand to edit them.', '7 active criteria · Expand to review or edit')
-    .replace(/(<span id="criteria(?:Titles|Skills|Cities|Experience|Licenses|Arrangement|Workforce)Summary"[^>]*>)0 selected/g, '$11 selected')
-    .replace(/(<div id="criteria(Titles|Skills|Cities|Experience|Licenses|Arrangement|Workforce)Options" class="criteria-option-grid">)<\/div>/g,
-      (_, opening, key) => `${opening}<label class="criteria-option"><input type="checkbox" checked disabled><span>${criteriaSamples[key]}</span></label></div>`);
+  const criteriaPanel = extractMarkup(page, /<details\b[^>]*id="searchCriteriaPanel"[^>]*>/);
+  // Reuse the real function declarations and real criteria event wiring, omitting app
+  // startup, provider loading and job selection. CSP below disallows all connections.
+  const startupIndex = source.indexOf('document.addEventListener("DOMContentLoaded"');
+  const criteriaEventsStart = source.indexOf('document.querySelectorAll("[data-criteria-add]")', startupIndex);
+  const criteriaEventsEnd = source.indexOf('document.getElementById("btnMine").addEventListener', criteriaEventsStart);
+  assert.ok(startupIndex > 0 && criteriaEventsStart > startupIndex && criteriaEventsEnd > criteriaEventsStart);
+  const criteriaFunctions = source.slice(0, startupIndex);
+  const criteriaEvents = source.slice(criteriaEventsStart, criteriaEventsEnd);
   const previewNote = '<p class="notice">Synthetic layout check only — example data, no provider requests, no messages sent.</p>';
   for (const domain of ['dev', 'law', 'engineer', 'dental']) {
     const theme = fs.readFileSync(path.join(__dirname, `../ui/assets/${domain}Styles.css`), 'utf8');
@@ -220,6 +222,22 @@ if (process.env.FIND_OUT_PREVIEW_DIR) {
       .replace('<strong id="reportCount">No report loaded</strong>', '<strong id="reportCount">3 interested candidates loaded · Complete report</strong>')
       .replace('<div id="candidateRows"></div>', `<div id="candidateRows">${interested.renderRows(sampleProfiles, domain)}</div>`);
     fs.writeFileSync(path.join(directory, `report-${domain}.html`), wrap(report, reportStyles));
-    fs.writeFileSync(path.join(directory, `criteria-${domain}.html`), wrap(`<section class="card"><h2>Find Candidates (Out) — criteria layout</h2><p class="muted">Native sections expand for visual review. Editing controls are inactive in this synthetic fixture.</p>${criteriaPanel}</section>`));
+    const criteriaScript = `${criteriaFunctions}
+      function currentDomain() { return ${JSON.stringify(domain)}; }
+      function api() { throw new Error("Provider calls are disabled in this fixture."); }
+      window.invalidateDiscoveryMatches = () => {};
+      const fixtureChoices = DOMAIN_CRITERIA_CHOICES[currentDomain()];
+      setSearchCriteria({ titles: fixtureChoices.titles.slice(0, 2), mustHaveSkills: fixtureChoices.skills.slice(0, 4),
+        locations: ["Denver"], experienceRanges: ["6-9"], licensesOrCertifications: fixtureChoices.licenses.slice(0, 1),
+        workArrangements: ["remote"], workforceLocations: ["onshore"], strictLocations: true });
+      ${criteriaEvents}`;
+    new vm.Script(criteriaScript, { filename: `criteria-${domain}.html` });
+    const criteriaHtml = wrap(`<section class="card"><h2>Find Candidates (Out) — criteria layout</h2><p class="muted">Interactive example: switches, choices and exclusive row editors use the real page logic. This fixture cannot contact providers or save data.</p>${criteriaPanel}</section>`, styles, `<script>${criteriaScript}</script>`)
+      .replace('<head>', '<head><meta http-equiv="Content-Security-Policy" content="connect-src \'none\'; form-action \'none\'">');
+    fs.writeFileSync(path.join(directory, `criteria-${domain}.html`), criteriaHtml);
+    if (domain === 'dev') {
+      fs.writeFileSync(path.join(directory, 'criteria-dev-mobile.html'), criteriaHtml.replace('<details id="searchCriteriaPanel"', '<details open id="searchCriteriaPanel"'));
+    }
   }
+  fs.writeFileSync(path.join(directory, 'criteria-mobile.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Criteria mobile viewport preview</title><style>body{margin:16px;font:14px system-ui,sans-serif;background:#eef1f3;color:#17212b}iframe{display:block;width:390px;height:850px;border:0;background:white;box-shadow:0 2px 14px #0002}</style></head><body><p>Synthetic mobile preview — 390 × 850 pixel viewport</p><iframe src="criteria-dev-mobile.html" width="390" height="850" title="Interactive criteria at mobile width"></iframe></body></html>`);
 }

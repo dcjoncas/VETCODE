@@ -249,7 +249,7 @@
       }
 
       .search-criteria {
-        margin: 14px 0;
+        margin: 10px 0;
         border: 1px solid var(--border);
         border-radius: 10px;
         background: var(--surface, #f7f8fa);
@@ -265,8 +265,8 @@
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        min-height: 58px;
-        padding: 11px 13px;
+        min-height: 48px;
+        padding: 8px 12px;
         cursor: pointer;
         list-style: none;
       }
@@ -286,11 +286,18 @@
         font-size: 12px;
       }
 
+      .criteria-compact-summary > .pill {
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+
       .criteria-compact-summary::after {
         content: "Edit \25BE";
         color: var(--primary-2);
         font-size: 12px;
         font-weight: 800;
+        flex: 0 0 auto;
+        white-space: nowrap;
       }
 
       .search-criteria[open] > .criteria-compact-summary {
@@ -302,7 +309,7 @@
       }
 
       .criteria-workspace-body {
-        padding: 10px;
+        padding: 6px 10px 8px;
         background: var(--card, #fff);
       }
 
@@ -315,174 +322,133 @@
         flex-wrap: wrap;
       }
 
-      .criteria-head h3 {
-        margin: 0 0 4px;
-        font-size: 18px;
-      }
-
       .criteria-head p {
         margin: 0;
-      }
-
-      .criteria-head-actions {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 8px;
-        flex-wrap: wrap;
+        font-size: 12px;
       }
 
       .criteria-grid {
         display: grid;
-        grid-template-columns: 1fr;
-        gap: 8px;
-        margin-top: 10px;
-      }
-
-      .criteria-section {
-        padding: 9px;
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        background: color-mix(in srgb, var(--card) 90%, var(--primary) 10%);
-      }
-
-      .criteria-section-head {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 10px;
-        margin-bottom: 7px;
-      }
-
-      .criteria-section-head h4,
-      .criteria-section-head p {
-        margin: 0;
-      }
-
-      .criteria-section-head p {
-        color: var(--muted);
-        font-size: 12px;
-        text-align: right;
-      }
-
-      .criteria-section-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(220px, 1fr));
-        gap: 8px;
+        gap: 0;
+        margin-top: 6px;
+        border-top: 1px solid var(--border);
       }
 
       .criteria-card {
         display: grid;
-        align-content: start;
-        gap: 6px;
-        min-width: 0;
-        padding: 7px;
-        border: 1px solid var(--border);
-        border-radius: 9px;
-        background: var(--card);
-      }
-
-      .criteria-card.is-ignored {
-        border-style: dashed;
-        background: var(--surface, #f7f8fa);
-      }
-
-      .criteria-card.is-ignored details,
-      .criteria-card.is-ignored .criteria-toggle,
-      .criteria-card.is-ignored .criteria-help {
-        display: none;
-      }
-
-      .criteria-card-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+        grid-template-columns: 52px minmax(0, 1fr);
+        align-items: start;
         gap: 8px;
-      }
-
-      .criteria-card-title {
-        font-size: 13px;
-        font-weight: 800;
-      }
-
-      .criteria-card.is-ignored .criteria-card-title::after {
-        content: " · ignored";
-        color: var(--muted);
-        font-size: 11px;
-        font-weight: 400;
-      }
-
-      .criteria-grid .field {
-        margin: 0;
-      }
-
-      .criteria-ignore {
-        min-height: 30px;
-        padding: 4px 8px;
-        flex: 0 0 auto;
-        border-style: dashed;
-        font-size: 12px;
-      }
-
-      .criteria-ignore[aria-pressed="true"] {
-        border-style: solid;
-        border-color: var(--primary-2);
-        background: rgba(var(--primary-rgb), 0.1);
-        color: var(--primary-2);
-      }
-
-      .criteria-picker {
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        background: var(--card);
-      }
-
-      .criteria-picker summary {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        min-height: 34px;
-        padding: 6px 8px;
-        cursor: pointer;
-        font-size: 13px;
-        font-weight: 700;
-        list-style-position: inside;
-      }
-
-      .criteria-picker[open] summary {
+        min-width: 0;
+        padding: 0 6px;
         border-bottom: 1px solid var(--border);
       }
 
-      .criteria-picker-summary {
-        color: var(--primary-2);
-        font-size: 12px;
-        font-weight: 700;
-        text-align: right;
-        overflow-wrap: anywhere;
+      .criteria-card:has(.criteria-picker[open]) {
+        background: color-mix(in srgb, var(--card, #fff) 95%, var(--primary) 5%);
       }
 
-      .criteria-picker summary .criteria-picker-summary {
-        text-align: left;
-      }
-
-      .criteria-picker-edit {
-        flex: 0 0 auto;
-        font-size: 11px;
+      .criteria-card.is-ignored .criteria-card-title,
+      .criteria-card.is-ignored .criteria-picker-summary {
         color: var(--muted);
       }
 
+      .criteria-card.is-ignored summary { cursor: default; }
+      .criteria-card.is-ignored .criteria-picker-edit { visibility: hidden; }
+      .criteria-grid .field { margin: 0; }
+
+      .criteria-switch {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        width: 52px;
+        min-height: 32px;
+        margin-top: 3px;
+        padding: 3px 5px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--surface, #f7f8fa);
+        color: var(--muted);
+        font: inherit;
+        font-size: 11px;
+        font-weight: 700;
+        box-shadow: none;
+        cursor: pointer;
+      }
+
+      .criteria-switch::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      .criteria-switch[aria-checked="true"] {
+        color: var(--primary-2, var(--primary));
+        background: rgba(var(--primary-rgb), 0.08);
+        border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+      }
+
+      .criteria-switch:focus-visible, .criteria-picker summary:focus-visible,
+      .criteria-all-toggle:focus-visible {
+        outline: 2px solid var(--primary-2, var(--primary));
+        outline-offset: 2px;
+      }
+
+      .criteria-all-toggle {
+        border: 0;
+        padding: 4px 0 4px 10px;
+        background: transparent;
+        color: var(--primary-2, var(--primary));
+        font: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: none;
+      }
+
+      .criteria-picker { min-width: 0; }
+
+      .criteria-picker summary {
+        display: grid;
+        grid-template-columns: 138px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        min-height: 38px;
+        padding: 6px 2px;
+        cursor: pointer;
+        list-style: none;
+      }
+
+      .criteria-picker summary::-webkit-details-marker { display: none; }
+      .criteria-card-title { font-size: 13px; font-weight: 700; }
+      .criteria-picker-summary {
+        color: var(--text);
+        font-size: 13px;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .criteria-picker-edit { font-size: 11px; color: var(--muted); }
+      .criteria-picker[open] .criteria-picker-edit { font-size: 0; }
+      .criteria-picker[open] .criteria-picker-edit::after { content: "Close"; font-size: 11px; }
+
       .criteria-picker-body {
         display: grid;
-        gap: 9px;
-        padding: 10px;
+        gap: 8px;
+        padding: 6px 0 12px;
       }
+
+      .criteria-picker:not([open]) > .criteria-picker-body { display: none; }
 
       .criteria-option-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
         gap: 6px;
-        max-height: 210px;
+        max-height: 170px;
         overflow: auto;
       }
 
@@ -543,11 +509,11 @@
       }
 
       .verification-strip {
-        margin-top: 12px;
-        padding-top: 12px;
+        margin-top: 6px;
+        padding-top: 6px;
         border-top: 1px solid var(--border);
         color: var(--muted);
-        font-size: 13px;
+        font-size: 12px;
       }
 
       .verification-source {
@@ -778,10 +744,19 @@
 
       @media (max-width: 760px) {
         .criteria-grid,
-        .criteria-section-grid,
         .source-audit {
           grid-template-columns: 1fr;
         }
+
+        .criteria-picker summary {
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 2px 8px;
+        }
+
+        .criteria-picker-summary { grid-column: 1; font-size: 12px; }
+        .criteria-picker-edit { grid-column: 2; grid-row: 1 / 3; }
+        .criteria-switch { margin-top: 9px; }
+        .criteria-compact-summary { gap: 8px; }
 
         .criteria-custom-row {
           grid-template-columns: 1fr;
@@ -1062,32 +1037,22 @@
           <details id="searchCriteriaPanel" class="search-criteria" aria-labelledby="searchCriteriaTitle" hidden>
             <summary class="criteria-compact-summary">
               <span class="criteria-compact-copy">
-                <strong id="searchCriteriaTitle">Non-negotiable candidate search criteria</strong>
-                <span id="criteriaCompactSummary">Review the active requirements or expand to edit them.</span>
+                <strong id="searchCriteriaTitle">Search criteria</strong>
+                <span id="criteriaCompactSummary">Review the job requirements.</span>
               </span>
-              <span id="criteriaRequirementPill" class="pill">7 active</span>
+              <span id="criteriaRequirementPill" class="pill">7 on</span>
             </summary>
             <div class="criteria-workspace-body">
-            <div class="criteria-head">
-              <p class="muted">Edit the JD suggestions or ignore requirements you do not need.</p>
-              <div class="criteria-head-actions">
-                <button id="criteriaIgnoreAll" class="btn secondary" type="button" aria-pressed="false">Ignore all criteria</button>
+              <div class="criteria-head">
+                <p class="muted">Turn off what you don't need. Click a row to edit.</p>
+                <button id="criteriaIgnoreAll" class="criteria-all-toggle" type="button" aria-pressed="false">Turn off all</button>
               </div>
-            </div>
-            <div class="criteria-grid">
-              <section class="criteria-section" aria-labelledby="criteriaRoleHeading">
-                <div class="criteria-section-head">
-                  <h4 id="criteriaRoleHeading">Role and expertise</h4>
-                </div>
-                <div class="criteria-section-grid">
-                  <div class="field criteria-card" data-criteria-card="titles">
-                    <div class="criteria-card-head">
-                      <span id="criteriaTitlesLabel" class="criteria-card-title">Current titles</span>
-                      <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="titles" aria-pressed="false" aria-label="Ignore current titles">Ignore</button>
-                    </div>
-                    <details class="criteria-picker">
-                      <summary aria-labelledby="criteriaTitlesLabel criteriaTitlesSummary"><span id="criteriaTitlesSummary" class="criteria-picker-summary">0 selected</span><span class="criteria-picker-edit" aria-hidden="true">Edit ▾</span></summary>
-                      <div class="criteria-picker-body">
+              <div class="criteria-grid">
+              <div class="field criteria-card" data-criteria-card="titles">
+                <button class="criteria-switch" type="button" role="switch" data-criteria-ignore="titles" aria-checked="true" aria-label="Use title criterion">On</button>
+                <details class="criteria-picker" name="search-criteria-editor">
+                  <summary aria-labelledby="criteriaTitlesLabel criteriaTitlesSummary"><span id="criteriaTitlesLabel" class="criteria-card-title">Title</span><span id="criteriaTitlesSummary" class="criteria-picker-summary">Choose…</span><span class="criteria-picker-edit" aria-hidden="true">Edit</span></summary>
+                  <div class="criteria-picker-body">
                         <input id="criteriaTitlesFilter" class="criteria-filter" type="search" placeholder="Filter title choices" data-criteria-filter="titles" />
                         <div id="criteriaTitlesOptions" class="criteria-option-grid"></div>
                         <div class="criteria-custom-row">
@@ -1095,16 +1060,13 @@
                           <button class="btn secondary" type="button" data-criteria-add="titles" data-input="criteriaTitlesCustom">Add title</button>
                         </div>
                       </div>
-                    </details>
-                  </div>
-                  <div class="field criteria-card" data-criteria-card="skills">
-                    <div class="criteria-card-head">
-                      <span id="criteriaSkillsLabel" class="criteria-card-title">Must-have skills</span>
-                      <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="skills" aria-pressed="false" aria-label="Ignore must-have skills">Ignore</button>
-                    </div>
-                    <details class="criteria-picker">
-                      <summary aria-labelledby="criteriaSkillsLabel criteriaSkillsSummary"><span id="criteriaSkillsSummary" class="criteria-picker-summary">0 selected</span><span class="criteria-picker-edit" aria-hidden="true">Edit ▾</span></summary>
-                      <div class="criteria-picker-body">
+                </details>
+              </div>
+              <div class="field criteria-card" data-criteria-card="skills">
+                <button class="criteria-switch" type="button" role="switch" data-criteria-ignore="skills" aria-checked="true" aria-label="Use skills criterion">On</button>
+                <details class="criteria-picker" name="search-criteria-editor">
+                  <summary aria-labelledby="criteriaSkillsLabel criteriaSkillsSummary"><span id="criteriaSkillsLabel" class="criteria-card-title">Skills</span><span id="criteriaSkillsSummary" class="criteria-picker-summary">Choose…</span><span class="criteria-picker-edit" aria-hidden="true">Edit</span></summary>
+                  <div class="criteria-picker-body">
                         <input class="criteria-filter" type="search" placeholder="Filter skill choices" data-criteria-filter="skills" />
                         <div id="criteriaSkillsOptions" class="criteria-option-grid"></div>
                         <div class="criteria-custom-row">
@@ -1112,91 +1074,56 @@
                           <button class="btn secondary" type="button" data-criteria-add="skills" data-input="criteriaSkillsCustom">Add skill</button>
                         </div>
                       </div>
-                    </details>
-                  </div>
-                  <div class="field criteria-card" data-criteria-card="experience">
-                    <div class="criteria-card-head">
-                      <span id="criteriaExperienceLabel" class="criteria-card-title">Experience</span>
-                      <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="experience" aria-pressed="false" aria-label="Ignore experience">Ignore</button>
-                    </div>
-                    <details class="criteria-picker">
-                      <summary aria-labelledby="criteriaExperienceLabel criteriaExperienceSummary"><span id="criteriaExperienceSummary" class="criteria-picker-summary">0 selected</span><span class="criteria-picker-edit" aria-hidden="true">Edit ▾</span></summary>
-                      <div class="criteria-picker-body">
+                </details>
+              </div>
+              <div class="field criteria-card" data-criteria-card="experience">
+                <button class="criteria-switch" type="button" role="switch" data-criteria-ignore="experience" aria-checked="true" aria-label="Use experience criterion">On</button>
+                <details class="criteria-picker" name="search-criteria-editor">
+                  <summary aria-labelledby="criteriaExperienceLabel criteriaExperienceSummary"><span id="criteriaExperienceLabel" class="criteria-card-title">Experience</span><span id="criteriaExperienceSummary" class="criteria-picker-summary">Choose…</span><span class="criteria-picker-edit" aria-hidden="true">Edit</span></summary>
+                  <div class="criteria-picker-body">
                         <div id="criteriaExperienceOptions" class="criteria-option-grid"></div>
                       </div>
-                    </details>
-                  </div>
-                </div>
-              </section>
-
-              <section class="criteria-section" aria-labelledby="criteriaLocationHeading">
-                <div class="criteria-section-head">
-                  <h4 id="criteriaLocationHeading">Location and availability</h4>
-                </div>
-                <div class="criteria-section-grid">
-                  <div class="field criteria-card" data-criteria-card="cities">
-                    <div class="criteria-card-head">
-                      <span id="criteriaCitiesLabel" class="criteria-card-title">Target cities</span>
-                      <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="cities" aria-pressed="false" aria-label="Ignore target cities">Ignore</button>
-                    </div>
-                    <details class="criteria-picker">
-                      <summary aria-labelledby="criteriaCitiesLabel criteriaCitiesSummary"><span id="criteriaCitiesSummary" class="criteria-picker-summary">0 selected</span><span class="criteria-picker-edit" aria-hidden="true">Edit ▾</span></summary>
-                      <div class="criteria-picker-body">
+                </details>
+              </div>
+              <div class="field criteria-card" data-criteria-card="cities">
+                <button class="criteria-switch" type="button" role="switch" data-criteria-ignore="cities" aria-checked="true" aria-label="Use location criterion">On</button>
+                <details class="criteria-picker" name="search-criteria-editor">
+                  <summary aria-labelledby="criteriaCitiesLabel criteriaCitiesSummary"><span id="criteriaCitiesLabel" class="criteria-card-title">Location</span><span id="criteriaCitiesSummary" class="criteria-picker-summary">Choose…</span><span class="criteria-picker-edit" aria-hidden="true">Edit</span></summary>
+                  <div class="criteria-picker-body">
                         <input class="criteria-filter" type="search" placeholder="Filter major cities" data-criteria-filter="cities" />
                         <div id="criteriaCitiesOptions" class="criteria-option-grid"></div>
                         <div class="criteria-custom-row">
                           <input id="criteriaCitiesCustom" placeholder="Type another city" />
                           <button class="btn secondary" type="button" data-criteria-add="cities" data-input="criteriaCitiesCustom">Add city</button>
                         </div>
+                        <label class="criteria-toggle" for="criteriaStrictLocations">
+                          <input id="criteriaStrictLocations" type="checkbox" checked />
+                          <span id="criteriaStrictLocationsHelp">Require selected cities; uncheck for preference only.</span>
+                        </label>
                       </div>
-                    </details>
-                    <label class="criteria-toggle" for="criteriaStrictLocations">
-                      <input id="criteriaStrictLocations" type="checkbox" checked />
-                      <span id="criteriaStrictLocationsHelp">Require selected cities; uncheck for preference only.</span>
-                    </label>
-                  </div>
-                  <div class="field criteria-card" data-criteria-card="arrangements">
-                    <div class="criteria-card-head">
-                      <span id="criteriaArrangementLabel" class="criteria-card-title">Work arrangement</span>
-                      <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="arrangements" aria-pressed="false" aria-label="Ignore work arrangement">Ignore</button>
-                    </div>
-                    <details class="criteria-picker">
-                      <summary aria-labelledby="criteriaArrangementLabel criteriaArrangementSummary"><span id="criteriaArrangementSummary" class="criteria-picker-summary">0 selected</span><span class="criteria-picker-edit" aria-hidden="true">Edit ▾</span></summary>
-                      <div class="criteria-picker-body">
-                        <div id="criteriaArrangementOptions" class="criteria-option-grid"></div>
-                      </div>
-                    </details>
-                    <small class="criteria-help">Confirm availability with the candidate.</small>
-                  </div>
-                  <div class="field criteria-card" data-criteria-card="workforce">
-                    <div class="criteria-card-head">
-                      <span id="criteriaWorkforceLabel" class="criteria-card-title">Workforce location</span>
-                      <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="workforce" aria-pressed="false" aria-label="Ignore workforce location">Ignore</button>
-                    </div>
-                    <details class="criteria-picker">
-                      <summary aria-labelledby="criteriaWorkforceLabel criteriaWorkforceSummary"><span id="criteriaWorkforceSummary" class="criteria-picker-summary">0 selected</span><span class="criteria-picker-edit" aria-hidden="true">Edit ▾</span></summary>
-                      <div class="criteria-picker-body">
-                        <div id="criteriaWorkforceOptions" class="criteria-option-grid"></div>
-                      </div>
-                    </details>
-                    <small class="criteria-help">Based on the current profile country.</small>
-                  </div>
-                </div>
-              </section>
-
-              <section class="criteria-section" aria-labelledby="criteriaCredentialsHeading">
-                <div class="criteria-section-head">
-                  <h4 id="criteriaCredentialsHeading">Credentials</h4>
-                </div>
-                <div class="criteria-section-grid">
-                  <div class="field criteria-card" data-criteria-card="licenses">
-                    <div class="criteria-card-head">
-                      <span id="criteriaLicensesLabel" class="criteria-card-title">Licenses or certifications</span>
-                      <button class="btn secondary criteria-ignore" type="button" data-criteria-ignore="licenses" aria-pressed="false" aria-label="Ignore licenses or certifications">Ignore</button>
-                    </div>
-                    <details class="criteria-picker">
-                      <summary aria-labelledby="criteriaLicensesLabel criteriaLicensesSummary"><span id="criteriaLicensesSummary" class="criteria-picker-summary">0 selected</span><span class="criteria-picker-edit" aria-hidden="true">Edit ▾</span></summary>
-                      <div class="criteria-picker-body">
+                </details>
+              </div>
+              <div class="field criteria-card" data-criteria-card="arrangements">
+                <button class="criteria-switch" type="button" role="switch" data-criteria-ignore="arrangements" aria-checked="true" aria-label="Use work style criterion">On</button>
+                <details class="criteria-picker" name="search-criteria-editor">
+                  <summary aria-labelledby="criteriaArrangementLabel criteriaArrangementSummary"><span id="criteriaArrangementLabel" class="criteria-card-title">Work style</span><span id="criteriaArrangementSummary" class="criteria-picker-summary">Choose…</span><span class="criteria-picker-edit" aria-hidden="true">Edit</span></summary>
+                  <div class="criteria-picker-body">
+                        <div id="criteriaArrangementOptions" class="criteria-option-grid"></div><small class="criteria-help">Confirm availability with the candidate.</small></div>
+                </details>
+              </div>
+              <div class="field criteria-card" data-criteria-card="workforce">
+                <button class="criteria-switch" type="button" role="switch" data-criteria-ignore="workforce" aria-checked="true" aria-label="Use workforce criterion">On</button>
+                <details class="criteria-picker" name="search-criteria-editor">
+                  <summary aria-labelledby="criteriaWorkforceLabel criteriaWorkforceSummary"><span id="criteriaWorkforceLabel" class="criteria-card-title">Workforce</span><span id="criteriaWorkforceSummary" class="criteria-picker-summary">Choose…</span><span class="criteria-picker-edit" aria-hidden="true">Edit</span></summary>
+                  <div class="criteria-picker-body">
+                        <div id="criteriaWorkforceOptions" class="criteria-option-grid"></div><small class="criteria-help">Based on the current profile country.</small></div>
+                </details>
+              </div>
+              <div class="field criteria-card" data-criteria-card="licenses">
+                <button class="criteria-switch" type="button" role="switch" data-criteria-ignore="licenses" aria-checked="true" aria-label="Use credentials criterion">On</button>
+                <details class="criteria-picker" name="search-criteria-editor">
+                  <summary aria-labelledby="criteriaLicensesLabel criteriaLicensesSummary"><span id="criteriaLicensesLabel" class="criteria-card-title">Credentials</span><span id="criteriaLicensesSummary" class="criteria-picker-summary">Choose…</span><span class="criteria-picker-edit" aria-hidden="true">Edit</span></summary>
+                  <div class="criteria-picker-body">
                         <input class="criteria-filter" type="search" placeholder="Filter license and certification choices" data-criteria-filter="licenses" />
                         <div id="criteriaLicensesOptions" class="criteria-option-grid"></div>
                         <div class="criteria-custom-row">
@@ -1204,30 +1131,24 @@
                           <button class="btn secondary" type="button" data-criteria-add="licenses" data-input="criteriaLicensesCustom">Add credential</button>
                         </div>
                       </div>
-                    </details>
-                  </div>
-                </div>
-              </section>
-            </div>
-            <div id="searchCriteriaStatus" class="verification-note" role="status" aria-live="polite"></div>
-            <div class="verification-strip">
+                </details>
+              </div>
+              </div>
+              <div id="searchCriteriaStatus" class="verification-note" role="status" aria-live="polite"></div>
+              <div class="verification-strip">
               <div id="lawLicenseVerification" class="verification-source" hidden>
                 <a id="lawLicenseLookup" class="btn secondary" href="https://apps.calbar.ca.gov/attorney/LicenseeSearch/QuickSearch" target="_blank" rel="noopener">Verify California license</a>
                 <span id="lawLicenseLookupHelp">Official license and standing verification for the target jurisdiction. Provider-reported admissions appear on each result when available.</span>
               </div>
-              <div class="verification-source">
-                <strong>Required verification</strong>
-                <span>Confirm current title, experience, license/certification, work arrangement, and location before outreach. Professional profile links only; automated LinkedIn scanning is not enabled.</span>
+                <span>Verify qualifications, credentials and availability before outreach. No automated LinkedIn scanning.</span>
               </div>
-            </div>
             </div>
           </details>
 
           <div class="field" style="margin-top: 12px">
-            <label>Pick place to mine</label>
+            <label>Search source</label>
             <div class="source-guide" id="sourceGuide">
-              Select a configured professional source, then search outside sources. After results return,
-              contact the candidates you choose to determine interest. Only confirmed interested candidates enter the active process. Enrichment and TEMP profile creation remain available when needed.
+              Choose a source, review the results, then select candidates for Determine Interest.
             </div>
             <div class="source-toggle">
               <button class="btn active" type="button" data-source="pdl" aria-pressed="true">
@@ -1727,14 +1648,21 @@
       function updateCriteriaSummary(group) {
         const summary = document.getElementById(CRITERIA_PICKER_META[group]?.summary);
         if (!summary) return;
-        if (criterionIgnored(group)) {
-          summary.textContent = "Ignored";
-          return;
-        }
         const selected = checkedCriteriaValues(group);
+        const labels = selected.map(criteriaValueLabel);
         summary.textContent = selected.length
-          ? `${selected.length} selected${selected.length <= 2 ? `: ${selected.map(criteriaValueLabel).join(", ")}` : ""}`
-          : "0 selected";
+          ? `${labels.slice(0, 3).join(", ")}${labels.length > 3 ? ` +${labels.length - 3} more` : ""}`
+          : criterionIgnored(group) ? "No restriction" : "Choose…";
+        summary.setAttribute("title", labels.join(", "));
+      }
+
+      function handleCriteriaEditorToggle(picker) {
+        if (!picker.open) return;
+        const group = picker.closest("[data-criteria-card]")?.dataset.criteriaCard;
+        if (criterionIgnored(group)) { picker.open = false; return; }
+        document.querySelectorAll("#searchCriteriaPanel .criteria-picker").forEach((other) => {
+          if (other !== picker) other.open = false;
+        });
       }
 
       function syncCriteriaIgnoreControls() {
@@ -1744,13 +1672,16 @@
           const card = document.querySelector(`[data-criteria-card="${group}"]`);
           const button = document.querySelector(`[data-criteria-ignore="${group}"]`);
           card?.classList.toggle("is-ignored", ignored);
-          card?.querySelectorAll("details input, details button").forEach((control) => {
+          card?.querySelectorAll(":scope > details input, :scope > details button").forEach((control) => {
             control.disabled = ignored;
           });
           const details = card?.querySelector("details");
           if (details) {
-            details.hidden = ignored;
+            details.hidden = false;
             if (ignored) details.open = false;
+            const summary = details.querySelector("summary");
+            summary?.setAttribute("aria-disabled", ignored ? "true" : "false");
+            if (summary) summary.tabIndex = ignored ? -1 : 0;
           }
           card?.querySelectorAll(".criteria-toggle, .criteria-help").forEach((help) => { help.hidden = ignored; });
           if (group === "cities") {
@@ -1758,10 +1689,11 @@
             if (strictLocations) strictLocations.disabled = ignored;
           }
           if (button) {
-            button.setAttribute("aria-pressed", ignored ? "true" : "false");
-            button.textContent = ignored ? "Use" : "Ignore";
+            button.setAttribute("aria-checked", ignored ? "false" : "true");
+            button.textContent = ignored ? "Off" : "On";
             const label = card?.querySelector(".criteria-card-title")?.textContent || group;
-            button.setAttribute("aria-label", `${ignored ? "Use" : "Ignore"} ${label.toLowerCase()}`);
+            button.setAttribute("aria-label", `Use ${label.toLowerCase()} criterion`);
+            button.setAttribute("title", `${ignored ? "Turn on" : "Turn off"} ${label.toLowerCase()}`);
           }
           updateCriteriaSummary(group);
         });
@@ -1769,17 +1701,17 @@
         const ignoredCount = ignoredCriteriaGroups.size;
         const allIgnored = ignoredCount === groups.length;
         const pill = document.getElementById("criteriaRequirementPill");
-        if (pill) pill.textContent = `${groups.length - ignoredCount} active · ${ignoredCount} ignored`;
+        if (pill) pill.textContent = `${groups.length - ignoredCount} on${ignoredCount ? ` · ${ignoredCount} off` : ""}`;
         const compactSummary = document.getElementById("criteriaCompactSummary");
         if (compactSummary) {
           compactSummary.textContent = allIgnored
-            ? "Using the JD without these extra requirements."
-            : "Review selections or ignore requirements you do not need.";
+            ? "No extra restrictions — using the selected job."
+            : "Edit only the requirements you need.";
         }
         const ignoreAll = document.getElementById("criteriaIgnoreAll");
         if (ignoreAll) {
           ignoreAll.setAttribute("aria-pressed", allIgnored ? "true" : "false");
-          ignoreAll.textContent = allIgnored ? "Use all criteria" : "Ignore all criteria";
+          ignoreAll.textContent = allIgnored ? "Turn on all" : "Turn off all";
         }
       }
 
@@ -1917,7 +1849,7 @@
           document.getElementById("githubSourceButton").hidden = true;
           document.getElementById("courtListenerSourceButton").hidden = true;
           document.getElementById("sourceGuide").textContent =
-            "Use PDL or Coresignal for professional discovery, contact the candidates you choose, and mark only confirmed interested candidates into the active process. Review dental boards and staffing portals when a manual channel is needed.";
+            "Choose a source, review the results, then select candidates for Determine Interest. Dental boards remain available for manual verification.";
           document.getElementById("directSearchHelp").textContent =
             "Try role plus location, such as EFDA Denver, RDH Phoenix, dental treatment coordinator, or a known professional profile URL.";
           document.getElementById("resultsLimitHelp").textContent =
@@ -1939,7 +1871,7 @@
         document.getElementById("githubSourceButton").hidden = true;
         document.getElementById("courtListenerSourceButton").hidden = false;
           document.getElementById("sourceGuide").textContent =
-          "Choose a configured discovery source, contact the candidates you select, and add only confirmed interested candidates to the active process. Enrichment and TEMP profiles remain available; license and standing verification is still required before permanent use or outreach.";
+          "Choose a source, review the results, then select candidates for Determine Interest. Verify legal license and standing before outreach.";
         document.getElementById("resultsLimitHelp").textContent =
           "Provider usage is shown before each additional page is requested.";
         updateLawVerificationSource();
@@ -2150,10 +2082,10 @@
         if (jobSkillPanel) jobSkillPanel.textContent = snapshot.jobSkillText || "";
         const status = document.getElementById("mineStatus");
         if (status && snapshot.statusText) status.textContent = snapshot.statusText;
-        const openGroups = new Set(snapshot.openCriteriaGroups || []);
+        const openGroup = (Array.isArray(snapshot.openCriteriaGroups) ? snapshot.openCriteriaGroups : []).find((group) => CRITERIA_PICKER_META[group] && !criterionIgnored(group));
         document.querySelectorAll("#searchCriteriaPanel [data-criteria-card]").forEach((card) => {
           const details = card.querySelector("details.criteria-picker");
-          if (details) details.open = openGroups.has(String(card.dataset.criteriaCard || ""));
+          if (details) details.open = String(card.dataset.criteriaCard || "") === openGroup;
         });
         updateSelectedEnrichmentCount();
         restoreSourcingScroll(snapshot);
@@ -2256,14 +2188,16 @@
         const errors = searchCriteriaErrors();
         const status = document.getElementById("searchCriteriaStatus");
         if (status) {
-          const ignoredCount = ignoredCriteriaGroups.size;
+          status.hidden = !errors.length;
           status.textContent = errors.length
-            ? `Still required: ${errors.join(", ")}. Ignore a criterion if it should not restrict this search.`
-            : ignoredCount === Object.keys(CRITERIA_PICKER_META).length
-              ? "All non-negotiable criteria are ignored. Provider search can run broadly from the selected JD."
-              : ignoredCount
-                ? `Criteria ready. ${ignoredCount} ignored; the remaining criteria will restrict the provider search.`
-                : "All selected criteria will be treated as non-negotiable. Provider search can run.";
+            ? `Choose ${errors.join(", ")}, or turn off those rows.` : "";
+        }
+        const overview = document.getElementById("criteriaCompactSummary");
+        if (overview) {
+          const values = [...selectedCriteriaValues("titles"), ...selectedCriteriaValues("skills")];
+          overview.textContent = errors.length ? `${errors.length} ${errors.length === 1 ? "criterion needs" : "criteria need"} a choice`
+            : values.length ? values.slice(0, 3).map(criteriaValueLabel).join(" · ") + (values.length > 3 ? ` +${values.length - 3} more` : "")
+            : ignoredCriteriaGroups.size === Object.keys(CRITERIA_PICKER_META).length ? "No extra restrictions — using the selected job." : "Ready to search with your selected criteria.";
         }
         return errors;
       }
@@ -3615,7 +3549,7 @@
         if (!directSearch) {
           const criteriaErrors = refreshSearchCriteriaStatus();
           if (criteriaErrors.length) {
-            const message = `Complete the non-negotiable candidate search criteria: ${criteriaErrors.join(", ")}.`;
+            const message = `Choose ${criteriaErrors.join(", ")}, or turn off those criteria.`;
             document.getElementById("mineStatus").textContent = message;
             const criteriaPanel = document.getElementById("searchCriteriaPanel");
             if (criteriaPanel) {
@@ -4089,6 +4023,13 @@
           button.addEventListener("click", () => {
             const group = button.dataset.criteriaIgnore;
             setCriteriaGroupIgnored(group, !criterionIgnored(group));
+          });
+        });
+        document.querySelectorAll("#searchCriteriaPanel .criteria-picker").forEach((picker) => {
+          picker.addEventListener("toggle", () => handleCriteriaEditorToggle(picker));
+          picker.querySelector("summary")?.addEventListener("click", (event) => {
+            const group = picker.closest("[data-criteria-card]")?.dataset.criteriaCard;
+            if (criterionIgnored(group)) event.preventDefault();
           });
         });
         document.getElementById("criteriaIgnoreAll")?.addEventListener("click", () => {
