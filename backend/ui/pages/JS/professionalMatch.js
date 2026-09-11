@@ -31,7 +31,7 @@
   function availability(signal = {}) {
     signal = signal || {};
     const found = signal.status === "signal";
-    return `<span class="pill" style="${found ? 'background:#116b42;color:white;font-weight:800;border:2px solid #0b4b2d' : ''}" title="${escape([signal.evidence, signal.note].filter(Boolean).join(' — ') || 'Check LinkedIn. Private Open to Work signals require Recruiter.')}" >${found ? 'Open to Work — profile text' : 'Open to Work: unknown'}</span>`;
+    return `<span class="pill" style="${found ? 'background:#116b42;color:white;font-weight:800;border:2px solid #0b4b2d' : 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1'}" title="${escape([signal.evidence, signal.note].filter(Boolean).join(' — ') || 'Check LinkedIn. Private Open to Work signals require Recruiter.')}" >${found ? 'Open to Work — profile text' : 'Open to Work: unknown'}</span>`;
   }
   function summary(match = {}) {
     const rows = Array.isArray(match.criteria) ? match.criteria : [];
