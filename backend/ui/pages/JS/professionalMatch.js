@@ -19,6 +19,7 @@
     const match = candidate.match || candidate.saved_match || {};
     const current = Boolean(jobId) && String(match.jobId || "") === String(jobId)
       && match.evidenceType === "structured_professional_profile"
+      && (!match.version || match.version === "professional-evidence-v2")
       && (!criteria || criteriaKey(match.criteriaSnapshot) === criteriaKey(criteria));
     return {
       match, current,
@@ -26,6 +27,11 @@
       label: current && validScore(match.score) ? `${Math.round(match.score)}% JD match` : current ? "JD match unavailable" : jobId ? "Calculate current JD fit" : "Choose a JD to assess fit",
       detail: current ? (match.reason || "Review the supporting evidence and unknowns.") : "Calculate from the returned professional evidence. No contact lookup or provider credits are needed.",
     };
+  }
+  function availability(signal = {}) {
+    signal = signal || {};
+    const found = signal.status === "signal";
+    return `<span class="pill" style="${found ? 'background:#116b42;color:white;font-weight:800;border:2px solid #0b4b2d' : ''}" title="${escape([signal.evidence, signal.note].filter(Boolean).join(' — ') || 'Check LinkedIn. Private Open to Work signals require Recruiter.')}" >${found ? 'Open to Work — profile text' : 'Open to Work: unknown'}</span>`;
   }
   function summary(match = {}) {
     const rows = Array.isArray(match.criteria) ? match.criteria : [];
@@ -41,9 +47,9 @@
     const statusLabels = { matched: 'Supported', gap: 'Conflicting evidence', unknown: 'Unknown', ignored: 'Ignored' };
     return `<div class="match-score-summary"><div class="match-score-number">${validScore(match.score) ? `${Math.round(match.score)}%` : "—"}</div><div><strong>Support for reviewed job requirements</strong><p>${escape(match.reason)}</p><div>${validScore(match.coveragePercent) ? `${Math.round(match.coveragePercent)}% evidence coverage` : "Evidence coverage unavailable"} · not a hiring probability</div></div></div>
       ${summary(match)}
-      <div class="match-stat-grid">${rows.length ? rows.map((row) => `<section class="match-stat-card"><h4>${escape(row.label)}</h4><strong>${escape(statusLabels[row.status] || 'Unknown')}</strong>${row.required ? ' · required' : ''}${row.scored === false ? ' · outside score' : ''}<p>${escape(row.reason)}</p>${(row.evidence || []).length ? row.evidence.map((item) => `<blockquote>${escape(item.text)}<footer>${escape(item.field)}</footer></blockquote>`).join('') : '<p>No supporting profile evidence returned for this requirement.</p>'}</section>`).join('') : '<p>No structured job requirements are available. Review the selected job and its saved skills before assessing candidates.</p>'}</div>
+      <div class="match-stat-grid">${rows.length ? rows.map((row) => `<section class="match-stat-card"><h4>${escape(row.label)}</h4><strong>${escape(statusLabels[row.status] || 'Unknown')}</strong>${row.required ? ' required' : ' bonus'}${row.scored === false ? ' · outside score' : ''}<p>${escape(row.reason)}</p>${row.jdEvidence ? `<p><strong>From the JD:</strong> ${escape(row.jdEvidence)}</p>` : ""}${(row.evidence || []).length ? row.evidence.map((item) => `<blockquote>${escape(item.text)}<footer>${escape(item.field)}</footer></blockquote>`).join('') : '<p>No supporting profile evidence returned for this requirement.</p>'}</section>`).join('') : '<p>No structured job requirements are available. Review the selected job and its saved skills before assessing candidates.</p>'}</div>
       <section class="match-stat-card"><h4>How to read this</h4><p>${escape(match.formula)}</p><p>Compared with structured professional profile data, not a candidate-uploaded resume. Missing evidence is unknown; verify qualifications, credential validity and availability with the candidate.</p><ul>${(match.limitations || []).map((item) => `<li>${escape(item)}</li>`).join('')}</ul><p>No provider credits used for this calculation.</p></section>`;
   }
-  root.DevReadyProfessionalMatch = { criteriaKey, view, details, summary };
+  root.DevReadyProfessionalMatch = { criteriaKey, view, details, summary, availability };
   if (typeof module !== "undefined" && module.exports) module.exports = root.DevReadyProfessionalMatch;
 })(typeof window === "undefined" ? globalThis : window);

@@ -1288,7 +1288,7 @@
     <script src="JS/apiScripts.js"></script>
     <script src="JS/providerUsage.js?v=20260910"></script>
     <script src="JS/providerAccountUsage.js?v=20260910-credits"></script>
-    <script src="JS/professionalMatch.js?v=20260911"></script>
+    <script src="JS/professionalMatch.js?v=20260911-relevance"></script>
     <script src="JS/automaticCandidateMatch.js?v=20260910-auto"></script>
     <script src="JS/jobDescriptionPicker.js?v=20260824-jd-compact-grid"></script>
     <script src="JS/updateProcessFlow.js?v=20260819-active-candidate"></script>
@@ -1987,7 +1987,18 @@
         const response = await api(
           `/api/azureJobs/external/criteria/${encodeURIComponent(jdId)}?domain=${encodeURIComponent(currentDomain())}`,
         );
-        if (isCurrent()) setSearchCriteria(response.criteria || {});
+        if (isCurrent()) {
+          setSearchCriteria(response.criteria || {});
+          const plan = response.relevancePlan;
+          let planNode = document.getElementById("jdRelevancePlan");
+          if (!planNode) {
+            planNode = document.createElement("div");
+            planNode.id = "jdRelevancePlan";
+            planNode.className = "verification-note";
+            document.getElementById("jdSelect").parentElement.appendChild(planNode);
+          }
+          planNode.textContent = plan ? `JD search anchor: ${plan.titles.join(" / ")}. Core: ${plan.coreSkills.join(", ") || "Review JD skills"}. Bonus: ${plan.bonusSkills.join(", ") || "None"}. Search filters cannot remove the JD relevance anchor. Open to Work is highlighted when explicit profile text is available; private LinkedIn signals require Recruiter.` : "";
+        }
       }
 
       function appendSearchCriteria(formData) {
@@ -2907,7 +2918,7 @@
               // Automatic ranking is a discovery preview. It does not overwrite
               // a persisted TEMP-profile match or advance a candidate's stage.
               latestExternalResults[index] = { ...candidate, match: response.match,
-                score: response.match.score ?? null, match_pending: false };
+                score: response.match.score ?? null, open_to_work: response.openToWork || candidate.open_to_work, match_pending: false };
             },
             changed: () => {
               const preservedCandidateKeys = selectedCandidateKeys();
@@ -3875,7 +3886,7 @@
                 <label style="display:flex;gap:10px;align-items:flex-start">
                   ${selectControl}
                   <span>
-                  <span class="candidate-name-line"><strong>${globalIndex + 1}. ${escapeHtml(candidate.name)}</strong><span class="pill automatic-match-score">${scoreLabel}</span>${matchAction}</span>
+                  <span class="candidate-name-line"><strong>${globalIndex + 1}. ${escapeHtml(candidate.name)}</strong><span class="pill automatic-match-score">${scoreLabel}</span>${window.DevReadyProfessionalMatch.availability(candidate.open_to_work)}${matchAction}${linkedinUrl ? `<a class="btn secondary" href="${escapeHtml(linkedinUrl)}" target="_blank" rel="noopener">Check Open to Work on LinkedIn</a>` : ""}</span>
                   ${profileStatusBadge}
                   <div class="meta">${escapeHtml(candidate.title || "")}${candidate.company ? " at " + escapeHtml(candidate.company) : ""}</div>
                   <div class="meta">${escapeHtml(candidate.location || "")}</div>

@@ -15,9 +15,10 @@ import math
 import re
 from datetime import date
 from typing import Any
+from jd_search_plan import build_plan
 
 
-VERSION = "professional-evidence-v1"
+VERSION = "professional-evidence-v2"
 GROUP_WEIGHTS = {"skills": 50, "titles": 20, "experience": 15, "licenses": 15}
 GROUPS = (*GROUP_WEIGHTS, "cities", "arrangements", "workforce")
 RANGES = {"1-2": (1, 2), "3-5": (3, 5), "6-9": (6, 9), "10-14": (10, 14), "15+": (15, None)}
@@ -31,6 +32,8 @@ ALIASES = (
     ("c++", "c plus plus"), (".net", "dotnet", "dot net"),
     ("ci/cd", "continuous integration and continuous delivery"),
     ("software engineer", "software developer"),
+    ("full stack", "full-stack", "fullstack"),
+    ("spring boot", "springboot"),
 )
 PROTECTED = re.compile(
     r"\b(?:gender|sex|female|male|women|men|racial|race(?! conditions?)|ethnicity|"
@@ -193,6 +196,7 @@ def _evidence(candidate: dict) -> dict:
 
 
 def _requirements(jd: dict, criteria: dict, job_skills: Any) -> list[dict]:
+    plan = build_plan(jd, job_skills) if not criteria and (jd.get("description") or jd.get("jd_text")) else None
     ignored = set(_strings(criteria.get("ignoredCriteria")))
     if criteria.get("ignoreAll") is True:
         ignored.update(GROUPS)
@@ -208,11 +212,13 @@ def _requirements(jd: dict, criteria: dict, job_skills: Any) -> list[dict]:
             **extra,
         })
 
-    titles = _professional_terms(criteria.get("titles")) or _professional_terms(jd.get("title"))
+    titles = _professional_terms(criteria.get("titles")) or _professional_terms(plan["titles"] if plan else jd.get("title"))
     if titles:
         add("titles", "Role: " + " or ".join(titles), titles)
     selected_skills = _professional_terms(criteria.get("mustHaveSkills") or criteria.get("requiredSkills"))
     jd_skills = _professional_terms(job_skills if job_skills is not None else jd.get("skills"))
+    if plan:
+        jd_skills = _professional_terms([item["label"] for item in plan["skills"]])
     # Recruiter-selected must-haves carry the same group weight as other JD skills,
     # but are individually flagged for review. There is no first-12 truncation.
     normalized_skills: set[str] = set()
@@ -221,11 +227,14 @@ def _requirements(jd: dict, criteria: dict, job_skills: Any) -> list[dict]:
         if key in normalized_skills:
             continue
         normalized_skills.add(key)
-        add("skills", skill, [skill], required=(not selected_skills or skill in selected_skills))
+        item = next((item for item in plan["skills"] if item["label"] == skill), {}) if plan else {}
+        add("skills", skill, item.get("alternatives") or [skill],
+            required=item.get("required", not selected_skills or skill in selected_skills),
+            jdEvidence=item.get("jdEvidence", ""))
 
     minimum = _number(criteria.get("minYears"))
     if minimum is None:
-        minimum = _number(jd.get("minYears") or jd.get("min_years_experience"))
+        minimum = _number(jd.get("minYears") or jd.get("min_years_experience") or (plan or {}).get("minYears"))
     ranges = [label for label in _strings(criteria.get("experienceRanges")) if label in RANGES]
     if ranges:
         add("experience", "Reported total experience: " + " or ".join(ranges) + " years", ranges, ranges=ranges)
@@ -342,11 +351,11 @@ def build_professional_match(jd: dict | None, candidate: dict | None, criteria: 
     requirements = _requirements(jd, criteria, job_skills)
     outcomes = [_outcome(requirement, evidence) for requirement in requirements]
     active = [item for item in outcomes if item["scored"] and item["status"] != "ignored"]
-    group_counts = {group: sum(item["group"] == group for item in active) for group in GROUP_WEIGHTS}
+    group_counts = {group: sum((1 if item["required"] else 0.25) for item in active if item["group"] == group) for group in GROUP_WEIGHTS}
     total_weight = sum(weight for group, weight in GROUP_WEIGHTS.items() if group_counts[group])
     matched_weight = assessed_weight = 0.0
     for item in outcomes:
-        item["weight"] = round(GROUP_WEIGHTS.get(item["group"], 0) / max(1, group_counts.get(item["group"], 0)), 4) if item in active else 0
+        item["weight"] = round(GROUP_WEIGHTS.get(item["group"], 0) * (1 if item["required"] else 0.25) / max(0.25, group_counts.get(item["group"], 0)), 4) if item in active else 0
         if item in active:
             if item["status"] == "matched":
                 matched_weight += item["weight"]
@@ -376,7 +385,7 @@ def build_professional_match(jd: dict | None, candidate: dict | None, criteria: 
         "version": VERSION, "status": status, "score": score,
         "label": "Reviewed JD criteria support", "band": "Evidence review" if score is not None else "Not assessed",
         "decision": "Recruiter review required", "reason": reason,
-        "formula": "Weighted explicitly supported professional requirements / all active professional requirements. Unknown evidence is not a confirmed failure.",
+        "formula": "Weighted supported requirements / all active requirements. Skills 50, role 20, experience 15, credentials 15; only present groups count. Bonus skills carry one quarter of a core skill's weight. Missing evidence is unknown.",
         "coveragePercent": coverage, "coverageLabel": "Reviewed criteria assessed", "confidence": "Not statistically calibrated",
         "scoreScope": "Selected structured professional requirements only", "fullJobAssessment": False,
         "asOfDate": date.today().isoformat(),

@@ -202,7 +202,7 @@ class ProfessionalEvidenceMatchTests(unittest.TestCase):
         self.assertEqual(credential["status"], "matched")
 
     def test_title_only_does_not_claim_complete_jd_match(self):
-        result = self.match(jd={"title": "Engineer", "description": "Must have ten years of Python experience and current AWS certification."},
+        result = self.match(jd={"title": "Engineer", "description": "Own team delivery and mentor peers."},
                             candidate={"title": "Engineer"}, criteria={})
         self.assertIsNone(result["score"])
         self.assertIsNone(result["coveragePercent"])

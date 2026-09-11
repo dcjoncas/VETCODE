@@ -416,6 +416,7 @@ def build_candidate_search_payload(
     licenses_or_certifications: list[str] | None = None,
     workforce_location: str = "onshore",
     size: int = 10,
+    job_plan: dict | None = None,
 ) -> dict[str, Any]:
     title_terms = _clean_terms(titles, 8)
     skill_terms = _clean_terms(must_have_skills, 12)
@@ -436,6 +437,21 @@ def build_candidate_search_payload(
     years = max(0, min(int(min_years or 0), 60))
 
     must_clauses: list[dict[str, Any]] = []
+    if job_plan is not None:
+        # PDL disables custom scoring/boosting. Enforce relevance in the query,
+        # then rank returned evidence locally. Nested ORs use only supported DSL.
+        anchors = job_plan.get("titles") or []
+        core = [item for item in job_plan.get("skills", []) if item.get("required")]
+        if not anchors or (not core and not credential_terms):
+            raise PeopleDataLabsError("This JD needs a role title and meaningful skills before a paid search. Review its requirements.")
+        must_clauses.append({"bool": {"should": [
+            {"match_phrase": {field: title}}
+            for title in anchors for field in ("job_title.text", "experience.title.name")
+        ]}})
+        for item in core[:3]:
+            must_clauses.append({"bool": {"should": [
+                _skill_evidence_clause(alias) for alias in item["alternatives"]
+            ]}})
     if title_terms:
         must_clauses.append(
             {
@@ -571,6 +587,7 @@ def searchCandidates(
     workforce_location: str = "onshore",
     size: int = 10,
     scroll_token: str = "",
+    job_plan: dict | None = None,
 ):
     payload = build_candidate_search_payload(
         titles=titles,
@@ -584,6 +601,7 @@ def searchCandidates(
         licenses_or_certifications=licenses_or_certifications,
         workforce_location=workforce_location,
         size=size,
+        job_plan=job_plan,
     )
     return _post_search(_add_scroll_token(payload, scroll_token))
 

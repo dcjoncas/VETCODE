@@ -3,6 +3,17 @@ const { test } = require('node:test');
 const ui = require('../ui/pages/JS/professionalMatch.js');
 const match = { jobId: '123', evidenceType: 'structured_professional_profile', score: 50, coveragePercent: 50, criteriaSnapshot: { requiredSkills: ['Python'] }, criteria: [] };
 
+test('old algorithm comparisons are refreshed and availability never guesses a negative', () => {
+  assert.equal(ui.view({ match: { ...match, version: 'professional-evidence-v1' } }, '123').current, false);
+  assert.equal(ui.view({ match: { ...match, version: 'professional-evidence-v2' } }, '123').current, true);
+  assert.match(ui.availability(null), /Open to Work: unknown/);
+  const html = ui.availability({ status: 'signal', evidence: '<script>x</script>' });
+  assert.match(html, /profile text/);
+  assert.match(html, /&lt;script&gt;/);
+  assert.doesNotMatch(html, /<script>/);
+  assert.match(ui.details({ criteria: [{ label: 'Airflow', required: false, status: 'unknown', jdEvidence: 'Bonus: Airflow' }] }), /bonus/);
+});
+
 test('broad discovery filters cannot suppress the saved JD comparison', () => {
   const fs = require('node:fs');
   const vm = require('node:vm');

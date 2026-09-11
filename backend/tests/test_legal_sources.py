@@ -333,6 +333,7 @@ class LegalSourceRouteTests(unittest.TestCase):
         )
 
         search.assert_called_once_with(
+            job_plan=azureJobEndpoints.build_plan(*get_job.return_value),
             titles=["Senior Software Engineer"],
             must_have_skills=["Python", "AWS"],
             locations=["Denver"],

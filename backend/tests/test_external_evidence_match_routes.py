@@ -95,7 +95,7 @@ class ExternalEvidenceMatchRouteTests(unittest.TestCase):
         }]}
         get_job.return_value = self.jd
         first = routes.external_candidate_open_saved_search("saved-1", "dev")
-        self.assertEqual(first["results"][0]["score"], 50)
+        self.assertEqual(first["results"][0]["score"], 64)
         get_job.return_value = dict(self.jd, skills=["Python"])
         second = routes.external_candidate_open_saved_search("saved-1", "dev")
         self.assertEqual(second["results"][0]["score"], 100)

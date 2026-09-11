@@ -17,6 +17,7 @@ import peopleDataLabs.peopleSearch as peopleDataLabs
 from legalSources import coreSignal, courtListener
 from resumeProcessing.processing import ingest
 from external_evidence_match import build_professional_match
+from jd_search_plan import build_plan, open_to_work
 
 def top_matches_from_parts(parts: dict, limit: int = 8):
     """
@@ -787,14 +788,14 @@ def _candidate_search_criteria(
             resolved_titles = law_base["titles"]
         else:
             jd_title = _candidate_title_from_jd(jd.get("title") or "")
-            resolved_titles = [jd_title] if jd_title else list(DOMAIN_TITLE_DEFAULTS[clean_domain])
+            resolved_titles = build_plan(jd, job_skills)["titles"] if clean_domain == "dev" else ([jd_title] if jd_title else list(DOMAIN_TITLE_DEFAULTS[clean_domain]))
 
     resolved_skills = [] if "skills" in ignored else _split_external_terms(required_skills, 12)
     if not resolved_skills and "skills" not in ignored:
         resolved_skills = (
             law_base.get("requiredSkills", [])
             if law_base
-            else _searchable_job_skills(job_skills or [], 12)
+            else (build_plan(jd, job_skills)["coreSkills"][:3] if clean_domain == "dev" else _searchable_job_skills(job_skills or [], 12))
         )
 
     resolved_locations = [] if "cities" in ignored else _split_external_terms(locations, 12)
@@ -2049,7 +2050,7 @@ def _people_data_row(
             "verificationRequired": True,
         },
         "profile_data": {
-            "experience": row.get("experience", [])[:5] if isinstance(row.get("experience"), list) else [],
+            "experience": row.get("experience", [])[:20] if isinstance(row.get("experience"), list) else [],
             "education": row.get("education", [])[:3] if isinstance(row.get("education"), list) else [],
             "certifications": row.get("certifications", [])[:5] if isinstance(row.get("certifications"), list) else [],
             "github_url": row.get("github_url") or "",
@@ -2830,6 +2831,7 @@ def external_candidate_criteria(jd_id: str, domain: str = "dev"):
             "title": jd.get("title", ""),
         },
         "criteria": criteria,
+        "relevancePlan": build_plan(jd, job_skills),
         "criteriaStatus": {
             "complete": not criteria_errors,
             "missing": criteria_errors,
@@ -3256,7 +3258,8 @@ def external_candidate_search(
     ignored_criteria = ignored_criteria if isinstance(ignored_criteria, str) else ""
     top_k = _external_result_limit(top_k)
     jd, job_skills = _get_job_skills(jd_id, domain)
-    search_skills = _searchable_job_skills(job_skills, 12)
+    job_plan = build_plan(jd, job_skills)
+    search_skills = job_plan["coreSkills"]
     selected_source = (source or "pdl").strip().lower()
     _assert_external_source_allowed(selected_source, domain)
     results = []
@@ -3283,7 +3286,8 @@ def external_candidate_search(
     resolved_client_name = str(jd.get("company") or client_name or "").strip()
     jd_name = str(jd.get("title") or "").strip()
     history_query = {
-        "version": 5,
+        "version": 6,
+        "relevancePlan": job_plan,
         "domain": domain,
         "source": selected_source,
         "queryMode": "job_description",
@@ -3316,6 +3320,7 @@ def external_candidate_search(
         if selected_source == "pdl":
             ignored = set(criteria.get("ignoredCriteria") or [])
             pdl_response = peopleDataLabs.searchCandidates(
+                job_plan=job_plan,
                 titles=criteria["titles"],
                 must_have_skills=criteria["requiredSkills"],
                 locations=criteria["locations"],
@@ -3335,6 +3340,8 @@ def external_candidate_search(
                 for row in pdl_response.get("data", [])
             ]
             source_audit = _pdl_source_audit(pdl_response, criteria, "candidate_criteria", domain)
+            source_audit["relevancePlan"] = job_plan
+            source_audit["rankingScope"] = "Best supported JD matches within retrieved results; not a global ranking of all PDL profiles."
             pagination = _pdl_pagination(pdl_response, top_k)
         elif selected_source == "coresignal":
             ignored = set(criteria.get("ignoredCriteria") or [])
@@ -4029,7 +4036,8 @@ def _calculate_external_evidence_match(jd_id: str, domain: str, candidate: dict,
 
 def _apply_external_evidence_match(candidate: dict, jd: dict, criteria: dict, job_skills: list[str]) -> dict:
     candidate = dict(candidate)
-    match = build_professional_match(jd, candidate, criteria, job_skills)
+    candidate["open_to_work"] = open_to_work(candidate)
+    match = build_professional_match(jd, candidate, {}, job_skills)
     candidate["match"] = match
     candidate["score"] = match["score"]
     candidate["match_band"] = match["band"]
@@ -4934,6 +4942,12 @@ def external_candidate_open_saved_search(search_id: str, domain: str = "dev"):
     response = _combined_saved_search_response(group)
     if response.get("source") in {"pdl", "coresignal"}:
         saved_query = response.get("savedQuery") or {}
+        if response.get("source") == "pdl" and saved_query.get("queryMode") == "job_description" and saved_query.get("version") != 6:
+            # A scroll token belongs to its original provider query. Never feed
+            # an old unrestricted-search token into the new relevance query.
+            response["pagination"] = {**(response.get("pagination") or {}), "hasNext": False,
+                                      "nextScrollToken": "", "restartRequired": True,
+                                      "statusMessage": "Start a new JD search to use improved relevance; these archived results remain available."}
         jd_id = _external_text(saved_query.get("jdId") or (response.get("jd") or {}).get("jd_id"), 80)
         if jd_id:
             try:
@@ -5107,7 +5121,7 @@ def external_candidate_calculate_discovery_match(payload: dict = Body(default={}
     if not isinstance(candidate, dict):
         raise HTTPException(status_code=400, detail="Select a returned candidate to compare with the job.")
     match = _calculate_external_evidence_match(_external_text(payload.get("jd_id"), 80), domain, candidate, payload.get("criteria"))
-    return {"status": "success", "match": match, "providerCreditsUsed": 0, "providerContacted": False, "linkedinScraped": False}
+    return {"status": "success", "match": match, "openToWork": open_to_work(candidate), "providerCreditsUsed": 0, "providerContacted": False, "linkedinScraped": False}
 
 
 @router.post("/external/temp/{person_id}/calculate-match")
