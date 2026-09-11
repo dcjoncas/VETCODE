@@ -1288,7 +1288,7 @@
     <script src="JS/apiScripts.js"></script>
     <script src="JS/providerUsage.js?v=20260910"></script>
     <script src="JS/providerAccountUsage.js?v=20260910-credits"></script>
-    <script src="JS/professionalMatch.js?v=20260910"></script>
+    <script src="JS/professionalMatch.js?v=20260911"></script>
     <script src="JS/automaticCandidateMatch.js?v=20260910-auto"></script>
     <script src="JS/jobDescriptionPicker.js?v=20260824-jd-compact-grid"></script>
     <script src="JS/updateProcessFlow.js?v=20260819-active-candidate"></script>
@@ -2042,6 +2042,12 @@
 
       function currentLawCriteria() {
         return currentSearchCriteria();
+      }
+
+      function currentMatchCriteria() {
+        // Discovery filters widen the search; JD scoring still compares the
+        // stored job requirements. Never carry search "Ignore" into the score.
+        return {};
       }
 
       function sourcingViewStorageKey() {
@@ -2841,7 +2847,7 @@
 
       function showCandidateMatchStats(index) {
         const candidate = latestExternalResults[index];
-        const view = window.DevReadyProfessionalMatch.view(candidate, selectedWorkflowJobId(), currentLawCriteria());
+        const view = window.DevReadyProfessionalMatch.view(candidate, selectedWorkflowJobId(), currentMatchCriteria());
         const match = view.match;
         if (!candidate || !view.current) return alert("Calculate this candidate's current JD fit before reviewing the evidence.");
         const calculatedAt = match.calculatedAt ? new Date(match.calculatedAt).toLocaleString() : "Saved time unavailable";
@@ -2865,7 +2871,7 @@
         const jdId = selectedWorkflowJobId();
         if (!jdId || sourcingJobLoading || sourcingJobLoadError || sourcingArchiveLoading || externalSearchRunning
           || externalBulkEnrichmentRunning || externalImportRunning || sourcingContactOperations || paginationLoading) return null;
-        const criteria = JSON.parse(JSON.stringify(currentLawCriteria()));
+        const criteria = JSON.parse(JSON.stringify(currentMatchCriteria()));
         const domain = currentDomain();
         return { jdId, domain, criteria, key: JSON.stringify([domain, jdId, sourcingJobRevision,
           sourcingArchiveRevision, String(activeSavedSearch?.rootId || activeSavedSearch?.id || ""),
@@ -2928,12 +2934,12 @@
           return;
         }
         const eligible = latestExternalResults.filter(candidateCanAutoMatch);
-        const views = eligible.map((candidate) => window.DevReadyProfessionalMatch.view(candidate, jdId, currentLawCriteria()));
+        const views = eligible.map((candidate) => window.DevReadyProfessionalMatch.view(candidate, jdId, currentMatchCriteria()));
         const scored = views.filter((view) => Number.isFinite(view.score)).length;
         const unknown = views.filter((view) => view.current && !Number.isFinite(view.score)).length;
         const failed = eligible.filter((candidate) => automaticCandidateMatches?.state(candidate).status === "failed").length;
         const pending = eligible.length - scored - unknown - failed;
-        node.textContent = `JD match · highest percentage first · ${scored} scored${pending ? ` · ${pending} calculating` : ""}${unknown ? ` · ${unknown} not assessable` : ""}${failed ? ` · ${failed} need a retry` : ""}. Based on professional evidence; review unknowns before outreach.`;
+        node.textContent = `JD match · highest percentage first · ${scored} scored${pending ? ` · ${pending} calculating` : ""}${unknown ? ` · ${unknown} not assessable` : ""}${failed ? ` · ${failed} need a retry` : ""}. Compared with the saved JD requirements, independently of search filters. Missing evidence needs confirmation.`;
       }
 
       async function calculateCandidateMatch(index) {
@@ -2954,7 +2960,7 @@
           const response = await api(matchEndpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ domain: currentDomain(), jd_id: jdId, criteria: currentLawCriteria(), candidate }),
+            body: JSON.stringify({ domain: currentDomain(), jd_id: jdId, criteria: currentMatchCriteria(), candidate }),
           });
           const currentIndex = latestExternalResults.indexOf(candidate);
           if (currentIndex < 0 || automaticMatchContext()?.key !== scope.key || automaticMatchEvidenceKey(candidate) !== evidenceKey) return;
@@ -2981,8 +2987,8 @@
         return results
           .map((candidate, originalIndex) => ({ candidate, originalIndex }))
           .sort((left, right) => {
-            const leftScore = window.DevReadyProfessionalMatch.view(left.candidate, selectedWorkflowJobId(), currentLawCriteria()).score;
-            const rightScore = window.DevReadyProfessionalMatch.view(right.candidate, selectedWorkflowJobId(), currentLawCriteria()).score;
+            const leftScore = window.DevReadyProfessionalMatch.view(left.candidate, selectedWorkflowJobId(), currentMatchCriteria()).score;
+            const rightScore = window.DevReadyProfessionalMatch.view(right.candidate, selectedWorkflowJobId(), currentMatchCriteria()).score;
             const safeLeftScore = Number.isFinite(leftScore) ? leftScore : -1;
             const safeRightScore = Number.isFinite(rightScore) ? rightScore : -1;
             if (safeLeftScore !== safeRightScore) return safeRightScore - safeLeftScore;
@@ -3820,13 +3826,13 @@
                     )
                     .join(" | ")}</div>`
                 : "";
-            const matchView = window.DevReadyProfessionalMatch.view(candidate, selectedWorkflowJobId(), currentLawCriteria());
+            const matchView = window.DevReadyProfessionalMatch.view(candidate, selectedWorkflowJobId(), currentMatchCriteria());
             const savedMatch = matchView.match;
             const matchIsCurrent = matchView.current;
             const canCalculateMatch = !isResearchOnly && !isCourtResearch && Boolean(selectedWorkflowJobId());
             const automaticState = automaticCandidateMatches?.state(candidate).status || "idle";
             const matchAction = isResearchOnly || isCourtResearch ? "" : matchIsCurrent
-              ? `<button class="btn secondary" type="button" onclick="showCandidateMatchStats(${globalIndex})">View fit evidence</button>`
+              ? `<button class="btn secondary" type="button" onclick="showCandidateMatchStats(${globalIndex})">Why this match?</button>`
               : automaticState === "failed" ? `<button class="btn secondary" type="button" onclick="calculateCandidateMatch(${globalIndex})" ${canCalculateMatch ? "" : "disabled"}>Retry JD match</button>` : "";
             const isDirectResult = candidate.search_mode === "direct";
             const scoreLabel =
@@ -3869,7 +3875,7 @@
                 <label style="display:flex;gap:10px;align-items:flex-start">
                   ${selectControl}
                   <span>
-                  <span class="candidate-name-line"><strong>${globalIndex + 1}. ${escapeHtml(candidate.name)}</strong>${matchAction}</span>
+                  <span class="candidate-name-line"><strong>${globalIndex + 1}. ${escapeHtml(candidate.name)}</strong><span class="pill automatic-match-score">${scoreLabel}</span>${matchAction}</span>
                   ${profileStatusBadge}
                   <div class="meta">${escapeHtml(candidate.title || "")}${candidate.company ? " at " + escapeHtml(candidate.company) : ""}</div>
                   <div class="meta">${escapeHtml(candidate.location || "")}</div>
@@ -3878,13 +3884,13 @@
                   ${repoEvidence}
                   ${legalCredentialEvidence}
                   ${matchExplanation}
+                  ${matchIsCurrent ? window.DevReadyProfessionalMatch.summary(savedMatch) : ""}
                   ${missingSkills}
                   ${researchSummary}
                   </span>
                 </label>
                 <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
                   ${barStatus}
-                  <div class="pill ${matchIsCurrent ? "enriched-match-pill" : ""} ${Number.isFinite(matchView.score) ? "automatic-match-score" : ""}">${scoreLabel}</div>
                 </div>
               </div>
               ${contactActions}

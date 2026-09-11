@@ -3,6 +3,31 @@ const { test } = require('node:test');
 const ui = require('../ui/pages/JS/professionalMatch.js');
 const match = { jobId: '123', evidenceType: 'structured_professional_profile', score: 50, coveragePercent: 50, criteriaSnapshot: { requiredSkills: ['Python'] }, criteria: [] };
 
+test('broad discovery filters cannot suppress the saved JD comparison', () => {
+  const fs = require('node:fs');
+  const vm = require('node:vm');
+  const page = fs.readFileSync(require('node:path').join(__dirname, '../ui/pages/mine-candidate-external.html'), 'utf8');
+  const definition = page.match(/function currentMatchCriteria\(\) \{[\s\S]*?\n      \}/)[0];
+  const context = vm.createContext({ currentSearchCriteria: () => ({ ignoredCriteria: ['skills', 'titles', 'experience', 'licenses'] }) });
+  const criteria = vm.runInContext(`${definition}; currentMatchCriteria()`, context);
+  assert.equal(JSON.stringify(criteria), '{}');
+  assert.equal(ui.view({ match: { ...match, criteriaSnapshot: { ignoredCriteria: ['skills', 'titles'] }, score: null } }, '123', criteria).current, false);
+  assert.equal(ui.view({ match: { ...match, criteriaSnapshot: {} } }, '123', criteria).score, 50);
+});
+
+test('summary distinguishes missing evidence from conflicts and escapes requirement labels', () => {
+  const html = ui.summary({ criteria: [
+    { label: '<Python>', status: 'matched' }, { label: 'Java', status: 'unknown' },
+    { label: 'License', status: 'gap' }, { label: 'Location', status: 'unknown', scored: false },
+  ] });
+  assert.match(html, /Supported \(1\)/);
+  assert.match(html, /Not evidenced \(1\)/);
+  assert.match(html, /Conflicting evidence \(1\)/);
+  assert.match(html, /&lt;Python&gt;/);
+  assert.doesNotMatch(html, /Location|<Python>/);
+  assert.match(ui.details({}), /No structured job requirements are available/);
+});
+
 test('legacy keyword score and absent JD never appear as a current fit percentage', () => {
   assert.equal(ui.view({ score: 99, saved_match: { jobId: '123', score: 99 } }, '123').score, null);
   assert.equal(ui.view({ match }, '').score, null);
